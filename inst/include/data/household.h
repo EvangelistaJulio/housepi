@@ -29,7 +29,6 @@ namespace housepi
 		friend struct Index;	  /// Reads the opaque storage index.
 		friend struct data::Wide; /// Owns and mutates its households.
 		friend class ModelBase;	  /// Changes member status.
-		friend struct Augmented;  /// Changes member status.
 
 		/// Range of member indexes sharing a status.
 		struct MemberRange_

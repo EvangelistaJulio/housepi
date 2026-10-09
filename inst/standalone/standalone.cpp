@@ -238,7 +238,7 @@ namespace housepi
     {
         try
         {
-            model.augm.build(model.infec_profile, read::csv_table(file.latent));
+            model.augm.build(model.infec_profile, model.status_process, read::csv_table(file.latent));
         }
         catch (const std::exception &e)
         {
@@ -388,7 +388,7 @@ namespace housepi
         // model-specific initialization
         engine.model->init_model_for_simulation();
         engine.augm.init_house_for_simulation(); // build household-level observations
-        engine.augm.init_members_for_simulation(); // bind member definitions once per run
+        engine.augm.init_members_for_simulation(engine.status_process); // bind member definitions once per run
 
         // header after initialization: a produced observation registers its data column there
         // the row loop reports every column the holder carries

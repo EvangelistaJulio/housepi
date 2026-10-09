@@ -28,8 +28,7 @@ namespace housepi::augm
     {
         Latent,
         Member,
-        House,
-        Status
+        House
     };
 
     /// Map a row level to its error-message family.

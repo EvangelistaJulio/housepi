@@ -6,14 +6,13 @@
 ##
 
 # Kinds of definition the augmented store holds.
-definition_kinds_ <- c("latent", "member", "house", "status")
+definition_kinds_ <- c("latent", "member", "house")
 
 # Display family of a definition kind.
 kind2family <- function(kind) {
   switch(kind,
     "member" = "observation",
     "house" = "household observation",
-    "status" = "status process",
     "latent"
   )
 }
@@ -193,7 +192,7 @@ assert_unique_arg_names <- function(nms, family, name = NULL) {
 }
 
 # Assert a name carries no declaration of another kind:
-# latent variables, observations and status process share one definition store,
+# latent variables and observations share one definition store,
 # and each name stands for a single quantity of the model.
 assert_no_kind_clash <- function(defs, name, kind) {
   if (is.null(defs)) return(invisible())
@@ -237,7 +236,7 @@ assert_valid_covariate <- function(x, family) {
 
 # Assert that given definition name is valid.
 # A leading dot is reserved to the definitions the engine generates itself.
-assert_valid_definition_name <- function(x, family, allow_reserved = FALSE) {
+assert_valid_definition_name <- function(x, family) {
   if (length(x) != 1 || is.na(x) || !is.character(x)) {
     stop_h("Name of {family} must be a non-empty string.",
            format_type_error(x))
@@ -246,7 +245,7 @@ assert_valid_definition_name <- function(x, family, allow_reserved = FALSE) {
     if (x %in% .reserved_math_consts) stop_h(
       "Name {.val {x}} for {family} is reserved for constants."
     )
-    if (startsWith(x, ".") && !allow_reserved) stop_h(
+    if (startsWith(x, ".")) stop_h(
       "Name {.val {x}} of {family} cannot start with a dot.",
       "A leading dot is reserved to the definitions housepi generates itself."
     )

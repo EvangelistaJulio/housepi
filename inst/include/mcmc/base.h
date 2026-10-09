@@ -18,6 +18,7 @@
 #include "parameter.h"
 #include "risks.h"
 #include "infec_profile.h"
+#include "status_process.h"
 #include "augmented.h"
 #include "translator.h"
 
@@ -42,6 +43,7 @@ namespace housepi
 		Parameter param;
 		Risks risks;
 		InfecProfile infec_profile;
+		StatusProcess status_process;
 		Augmented augm;
 		Translator translator;
 

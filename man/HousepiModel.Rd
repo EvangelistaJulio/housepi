@@ -52,8 +52,8 @@ Observation definitions.
 Column 'level' tells member ("member") from household ("house") entries.}
 
     \item{\code{status_process}}{\code{data.frame}
-Status process: one row per infected status, with its code, label and
-probability.}
+Status process: one row per rule, with its status, weight, the members
+it applies to, its rule group and covariates.}
 
     \item{\code{infectivity_profiles}}{\code{data.frame}
 Infectivity profile definitions.}

@@ -106,7 +106,7 @@ test_that("Associate param names decorates table and marks reference", {
 })
 
 test_that("An empty logic table passes through grouping and ordering", {
-  tbl <- compute_rule_groups(
+  tbl <- risk_rule_groups_(
     data.frame(age = character(), param_name = character(), n = integer())
   )
   tbl |> expect_nrow(0L)
@@ -399,18 +399,6 @@ test_that("Group risks deal with custom logic table correctly", {
   params$args[[1]] |> expect_equal(c(meanlog = 0, sdlog = 2))
 })
 
-test_that("A stratum naming an unobserved level is refused", {
-  # the data carries no uncle: the rule resolves no member
-  strata <- tibble::tribble(~age,    ~param_name,
-                            "child", ".reference",
-                            "adult", "sus_adult",
-                            "uncle", "sus_uncle")
-  mk_risk$model |>
-    add_group_risk("susceptibility", strata = strata,
-                   prior = "lognormal", meanlog = 0, sdlog = 2) |>
-    expect_error("1 rule no member resolves to.*uncle.*sus_uncle")
-})
-
 test_that("Group risk parameter overrides work", {
   strata <- tibble::tribble(~age,    ~param_name,
                             "child", ".reference",
@@ -590,7 +578,7 @@ test_that("Rules tied at equal specificity are refused", {
                        param_name = c("com_student", "com_pupil", ".reference"))
   mk_flu$model |>
     add_group_risk("community", strata = strata) |>
-    expect_error("[Aa]mbiguous group risk .community.*tied rules")
+    expect_error("[Gg]roup risk .community. has tied rules")
 })
 
 ###################################
@@ -720,6 +708,37 @@ test_that("A status stratum leaving a level uncovered is refused", {
     new_housepi_model("final-size") |>
     add_group_risk("infectivity", strata = strata) |>
     expect_error("leaves 12 members unmatched")
+})
+
+test_that("A status stratum covers the codes a status process draws", {
+  # the data records code 1 only, the status process also draws code 2
+  hhdata <- data.frame(hh_id = rep(1:4, each = 3), status = rep(c(1, 0, 0), 4))
+  hh_model <- hhdata |>
+    new_housepi_model("final-size") |>
+    add_status_process(0.5, 0.5)
+
+  # any member may be drawn at code 2: all 12 unmatched
+  hh_model |>
+    add_group_risk("infectivity",
+                   strata = data.frame(status = 1, param_name = "inf_one")) |>
+    expect_error("leaves 12 members unmatched")
+  hh_model |>
+    add_group_risk("infectivity", by = "status") |>
+    get_group_risks() |>
+    getElement("status") |>
+    as.character() |>
+    expect_identical(c("1", "2"))
+
+  # with no status recorded, the status process alone declares the codes
+  hhdata[["status"]] <- NULL
+  hhdata |>
+    new_housepi_model("final-size") |>
+    add_status_process(0.5, 0.5) |>
+    add_group_risk("infectivity", by = "status") |>
+    get_group_risks() |>
+    getElement("status") |>
+    as.character() |>
+    expect_identical(c("1", "2"))
 })
 
 test_that("A status stratum covers combinations the data never realised", {
@@ -1130,7 +1149,7 @@ test_that("Strata counts come from the engine cross-tabulation", {
   # susceptibility reads the member missing its datum: no stratum resolves it
   hh_model |>
     add_group_risk(susceptibility = list(by = "datum", reference = ".auto")) |>
-    expect_error("leaves 1 member unmatched")
+    expect_error("leaves 1 member unmatched.*datum.*values are missing")
 
   # infectivity reads the escaped member missing its datum_2 too: a
   # simulation may infect it

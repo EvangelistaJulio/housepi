@@ -8,7 +8,7 @@
 #' @description Augmented definitions of a single kind.
 #' Column 'kind' is dropped.
 #' @param defs `data.frame()` Definitions to filter.
-#' @param kind `character(1)` One of "latent", "member", "house", "status".
+#' @param kind `character(1)` One of "latent", "member", "house".
 #' @details Used to read a resolved copy of the declarations.
 #' @return `data.frame()` or `NULL` when no definition of that kind exists.
 #' @keywords internal
@@ -42,8 +42,7 @@ HousepiAugmented <- R6::R6Class(
     # One between:
     # "latent": latent variables;
     # "member": member-level observation;
-    # "house": household-level observations;
-    # "status": status process (resolves status in simulation).
+    # "house": household-level observations.
     kind_ = "latent"
   ),
 
@@ -72,19 +71,10 @@ HousepiAugmented <- R6::R6Class(
       self$defs[["name"]][mask]
     },
 
-    #' @field status_names `character()`.
-    #' Reserved node name of the status process, if defined.
-    status_names = function(value) {
-      if (is.null(self$defs)) return(character())
-      self$defs[["name"]][self$defs[["kind"]] == "status"]
-    },
-
-    #' @field status_dictionary `character()`.
-    #' Ordered infected-status labels (code `k` is the `k`-th entry). Taken from
-    #' the status process when present, else factorized from literal character
-    #' `status =` labels declared across the latent definitions.
-    status_dictionary = function(value) {
-      if (length(self$status_levels)) return(self$status_levels)
+    #' @field status_labels `character()`.
+    #' Literal character `status =` labels declared across the latent
+    #' definitions, in order of first appearance.
+    status_labels = function(value) {
       if (is.null(self$defs)) return(character())
       labels <- unlist(self$defs[["status"]], use.names = FALSE)
       labels <- labels[!is.na(labels)]
@@ -103,29 +93,12 @@ HousepiAugmented <- R6::R6Class(
     store_warn_over = character(),
     #' @field defs `data.frame`. Formatted latent definitions.
     defs = NULL,
-    #' @field status_levels `character()`. Ordered status-process labels.
-    status_levels = character(),
 
     #' @description
     #' New object of class
     #' [HousepiAugmented][housepi::HousepiAugmented].
     initialize = function() {
       self$defs <- NULL
-      invisible(self)
-    },
-
-    #' @description Record the ordered status-process labels (the dictionary).
-    #' @param levels `character()`. Status labels in declaration order,
-    #' one per status, empty when unlabelled.
-    set_status_levels = function(levels) {
-      # the statuses are coded 1...K, labelled or not
-      # K is capped by the engine status storage
-      if (length(levels) > max_status_level) stop_h(
-        paste("Status process implies {length(levels)} statuses, exceeding",
-              "the maximum of {max_status_level}.")
-      )
-      levels <- levels[!is.na(levels) & nzchar(levels)]
-      self$status_levels <- as.character(levels)
       invisible(self)
     },
 
@@ -153,23 +126,18 @@ HousepiAugmented <- R6::R6Class(
     #' the model can carry needs one of its own: every dictionary entry when a
     #' status process draws them, the observed ones when data supplies them.
     #' @param defs `data.frame()`. Definitions with status codes resolved.
-    #' @param status_set `integer()`. Infected statuses observed in data.
+    #' @param required `integer()`. Infected statuses the model can carry.
     #' @return `logical(1)`
-    covers_statuses = function(defs, status_set) {
+    covers_statuses = function(defs, required) {
       if (is.null(defs)) return(TRUE)
 
-      # household observations and the status process need no status block
-      block <- defs[!defs[["kind"]] %in% c("house", "status"), , drop = FALSE]
+      # household observations need no status block
+      block <- defs[defs[["kind"]] != "house", , drop = FALSE]
       if (!nrow(block)) return(TRUE)
       declared <- unlist(block[["status"]], use.names = FALSE)
       if (anyNA(declared)) return(TRUE)
 
-      # a drawn status is any dictionary code, whatever the data carries
-      required <- if (length(self$status_names)) {
-        seq_along(self$status_dictionary)
-      } else {
-        status_set[!is.na(status_set)]
-      }
+      required <- required[!is.na(required)]
       length(required) && all(required %in% as.integer(declared))
     },
 
@@ -206,8 +174,7 @@ HousepiAugmented <- R6::R6Class(
 
       # extract args and proposal from the dots
       def_args <- helper_definition_args(
-        proposal, list(...), kind2family(.kind),
-        if (identical(.kind, "status")) NULL else name
+        proposal, list(...), kind2family(.kind), name
       )
       args <- def_args$args
       proposal <- def_args$proposal
@@ -249,11 +216,7 @@ HousepiAugmented <- R6::R6Class(
         if (!is.na(model)) {
           const <- TRUE
           # observation reads its datum from a like-named column
-          # status process requires no data column
-          if (is.null(value)) {
-            value <- if (identical(.kind, "status")) "0|N"
-            else paste0(name, "|D")
-          }
+          if (is.null(value)) value <- paste0(name, "|D")
         }
       }
 
@@ -262,10 +225,7 @@ HousepiAugmented <- R6::R6Class(
       on.exit(private$kind_ <- old_kind, add = TRUE)
       private$kind_ <- .kind
 
-      # add_status_process names its node, no user name may claim the prefix
-      assert_valid_definition_name(
-        name, self$family, allow_reserved = identical(.kind, "status")
-      )
+      assert_valid_definition_name(name, self$family)
       # control valid status
       assert_valid_status(status)
       # control meaningful definition

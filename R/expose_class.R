@@ -409,8 +409,9 @@ subset_definitions_ <- function(defs, name, col = "name") {
 #' @param name `character()`. Names of the definitions to return.
 #' `get_group_risks()` matches the name of the group risk.
 #' All of them when `NA` (default).
-#' @return `data.frame`. `get_status_process()` returns one row per infected
-#' status: its code `status`, its `label` and its probability `weight`.
+#' @return `data.frame`. `get_status_process()` returns one row per rule of
+#' the status process: its `status` and `weight`, the `n` members it applies
+#' to, its `rule_group` and its covariates.
 #' `get_reporting_process()` returns `list(wide = , long = )`, see
 #' [add_reporting_process()].
 #' @examples
@@ -839,20 +840,33 @@ add_observation <- function(hh_model, name = NULL,
 
 #' @title Add a status process
 #' @description
-#' Declare how a member's infected status is generated during simulation, as a
-#' categorical distribution over infected statuses. The probabilities are given
-#' in declaration order (the \eqn{k}-th probability is that of the \eqn{k}-th
-#' infected status); when named, the names become the status labels.
-#' During evaluation the status is fixed observed data, so it contributes a
-#' constant and the probabilities must be data or numeric constants.
+#' Declare how an infected member's status is drawn during simulation, as a
+#' categorical distribution over infected statuses.
+#' The probabilities apply to every member when given in `...`, or depend on
+#' member covariates when given as a `strata` table.
+#' Inference holds the observed status fixed and does not estimate the
+#' probabilities.
 #' @param hh_model `r rd_model_in_`
 #' @param ... Probabilities of the infected statuses, in order. When named, the
-#' names label the corresponding statuses: name all of them or none.
-#' @param import Named `list` of probabilities of the infected statuses, read
-#' like `...`, or `"template"` for the ones shipped with the model.
+#' names label the statuses: name all of them or none. Unnamed probabilities
+#' draw the integer statuses 1, 2, and so on.
+#' @param strata `data.frame` One row per rule: the infected status in column
+#' `status`, its non-negative `weight`, and a column per covariate.
+#' An `NA` cell matches any value, and a member reads the most specific rule it
+#' matches.
+#' Rows keyed on different covariates form separate rule groups, whose weights
+#' multiply. Every rule group must key on `status`.
+#' At every status, each member must match a rule of every rule group, and
+#' every rule must apply to some member, else the table is refused.
+#' The weights of a member are normalized over the statuses, so they need not
+#' sum to 1.
+#' `status` holds labels, or integer statuses from 1.
+#' Cannot be combined with `...`.
+#' @param import Named `list` of arguments, read as `...` or as a `strata`
+#' entry, or `"template"` for the status process shipped with the model.
 #' The template is R code evaluated from the model folder, so use it only with
 #' model folders you trust.
-#' Cannot be combined with `...`.
+#' Cannot be combined with `...` or `strata`.
 #' @return `r rd_model_out_`
 #' @examples
 #' # simulate infected members as symptomatic (70%) or asymptomatic (30%)
@@ -869,40 +883,45 @@ add_observation <- function(hh_model, name = NULL,
 #' hh_model <- flu_1918_frederick |>
 #'   new_housepi_model("final-size") |>
 #'   add_status_process(import = probs)
+#'
+#' # adults are symptomatic more often than children
+#' strata <- data.frame(
+#'   age = c("adult", "adult", "child", "child"),
+#'   status = c("symptomatic", "asymptomatic", "symptomatic", "asymptomatic"),
+#'   weight = c(0.8, 0.2, 0.4, 0.6)
+#' )
+#' hh_model <- sarscov2_2021_icofs |>
+#'   new_housepi_model("final-size") |>
+#'   add_status_process(strata = strata)
+#' get_status_process(hh_model)
 #' @export
-add_status_process <- function(hh_model, ..., import = NULL) {
+add_status_process <- function(hh_model, ..., strata = NULL, import = NULL) {
   stopifnothousepi(hh_model)
   new_obj <- hh_model$copy()
   pvt <- new_obj$.__enclos_env__$private
   weights <- rlang::enquos(...)
   env <- rlang::caller_env()
-  if (length(import) && length(weights)) stop_h(
+  if (length(import) && (length(weights) || !is.null(strata))) stop_h(
     "Mixing imported and inline status probabilities.",
-    "Provide the probabilities either in {.arg ...} or in {.arg import}."
+    "Provide them in {.arg ...}, in {.arg strata} or in {.arg import}."
   )
   if (is_template_import_(import)) {
     import <- template_defs_(pvt$gen_, "status process")
     if (is.null(import)) return(new_obj)
   }
-  if (length(import)) weights <- rlang::as_quosures(import, env = env)
-  if (!length(weights)) stop_h(
-    "No status probability provided.",
-    "Provide at least one infected-status probability."
+  # an imported list holds the arguments
+  if (length(import)) {
+    strata <- import[["strata"]]
+    import <- import[rlang::names2(import) != "strata"]
+    weights <- rlang::as_quosures(import, env = env)
+  }
+  if (!is.null(strata) && length(weights)) stop_h(
+    "Mixing a status table with inline status probabilities.",
+    "Provide them in {.arg ...} or in {.arg strata}."
   )
-  labels <- rlang::names2(weights)
-  if (any(nzchar(labels)) && !all(nzchar(labels))) stop_h(
-    "Status labels were given to some probabilities only.",
-    "Name every status probability, or none."
-  )
-  # a single reserved node carries the status process (there is one status)
-  pvt$augm_$add_quo(
-    name = ".status", value = NULL, status = NA_integer_,
-    const = NA, discr = FALSE,
-    model = "categorical", weights,
-    .assert = TRUE, .kind = "status"
-  )
-  # record the ordered status labels (the dictionary lives here, not in C++)
-  pvt$augm_$set_status_levels(labels)
+  if (is.null(strata)) strata <- status_strata_from_weights_(weights)
+  # R keeps the rule table, push_status_process_() sends it coded to the engine
+  pvt$status_$set(strata)
   pvt$rebuild_()
   new_obj
 }

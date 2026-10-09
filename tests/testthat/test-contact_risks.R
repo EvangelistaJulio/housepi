@@ -483,16 +483,6 @@ test_that("Custom mode fills the symmetric counterpart of a pair", {
     expect_error("leaves 4 ordered pairs unmatched")
 })
 
-test_that("An unobserved contact level is refused", {
-  strata <- tibble::tribble(~from_member, ~to_member, ~param_name,
-                            "mother",     "uncle",    "rho",
-                            NA,           NA,         ".reference")
-  mk_house$model |>
-    add_contact_risk(strata = strata, symmetric = FALSE,
-                     params = list(rho = 2)) |>
-    expect_error("no ordered pair resolves.*uncle.*rho")
-})
-
 test_that("A catch-all contact rule counts every pair it reaches", {
   # 4 members: 12 ordered pairs, one of them father -> mother
   strata <- tibble::tribble(
@@ -575,23 +565,9 @@ test_that("An automatic definition takes no params list", {
     expect_warning("[Bb]aseline.*constant reference")
 })
 
-#############################################
-###  CONTACT RISKS : RULE GROUPING LOGIC  ###
-#############################################
-
-test_that("A rule fitting two rule groups is refused as ambiguous", {
-  # rho_3 keys on from_age alone: it fits {from_age, from_sex} and
-  # {from_age, to_age} equally
-  strata <- tibble::tribble(
-    ~from_age, ~from_sex, ~to_age, ~to_sex, ~param_name,
-    "child",   "M",       NA,      NA,      "rho",
-    "child",   NA,        "child", NA,      "rho_2",
-    "child",   NA,        NA,      NA,      "rho_3"
-  )
-  mk_risk$model |>
-    add_contact_risk(strata = strata, symmetric = FALSE) |>
-    expect_error("[Aa]mbiguous rule 3 .*rho_3.*fitting 2")
-})
+########################################
+###  CONTACT RISKS : PAIRED COLUMNS  ###
+########################################
 
 test_that("A contact column without its partner is refused", {
   strata <- tibble::tribble(~from_age, ~param_name,
@@ -608,45 +584,6 @@ test_that("A contact column without its partner is refused", {
     get_contact_risks() |>
     getElement("param_name") |>
     expect_setequal(c("rho", ".reference"))
-})
-
-test_that("Custom mode absorbs all-NA default into single group", {
-  # 4 rules in one group, last one (all-NA) is the catch-all
-  strata <- tibble::tribble(
-    ~from_member, ~to_member, ~param_name,
-    "student",    "student",  "ctr_child_child",
-    "mother",     "student",  "ctr_mother_child",
-    "father",     "mother",   ".reference",
-    NA,           NA,         "ctr_cross_gen"
-  )
-  data.frame(hh_id = 1, status = 0,
-             member = c("student", "mother", "father", "student")) |>
-    new_housepi_model("final-size") |>
-    add_contact_risk(strata = strata, symmetric = FALSE) |>
-    get_contact_risks() |>
-    getElement("rule_group") |>
-    unique() |>
-    expect_length(1L)
-})
-
-test_that("Rule groups follow the maximal patterns of the strata", {
-  # disjoint age vs sex patterns -> 2 distinct rule_groups
-  # a half-keyed rule stays in the group of the pattern containing it
-  strata <- tibble::tribble(
-    ~from_age, ~from_sex, ~to_age, ~to_sex, ~param_name,
-    "child",   NA,        "child", NA,      "age_child_to_age_child",
-    "child",   NA,        "adult", NA,      "age_child_to_age_adult",
-    "adult",   NA,        NA,      NA,      "age_adult_to_any",
-    NA,        "M",       NA,      "M",     ".reference",
-    NA,        "M",       NA,      "F",     "sex_M_to_sex_F",
-    NA,        "F",       NA,      "M",     "sex_F_to_sex_M"
-  )
-  mk_risk$model |>
-    add_contact_risk(strata = strata, symmetric = FALSE) |>
-    get_contact_risks() |>
-    getElement("rule_group") |>
-    unique() |>
-    expect_length(2L)
 })
 
 ####################################
@@ -679,7 +616,7 @@ test_that("Most-specific rule wins over reference (single covariate)", {
 test_that("Rules tied at equal specificity are rejected as ambiguous", {
   # student -> mother is reached by two half-keyed rules, one specificity each,
   # and the fully-keyed pair makes {from, to} the only maximal pattern: the
-  # rules share a group, so the engine has to compare the tied two
+  # rules share a group, so neither wins the pair
   strata <- tibble::tribble(
     ~from_member, ~to_member, ~param_name,
     "student",    NA,         "rho",
@@ -690,8 +627,7 @@ test_that("Rules tied at equal specificity are rejected as ambiguous", {
   mk_house$model |>
     add_contact_risk(strata = strata, symmetric = FALSE,
                      params = list(rho = 2, rho_2 = 3, rho_3 = 4)) |>
-    inspect_house_state("h1") |>
-    expect_error("[Aa]mbiguous contact risk.*tied rules")
+    expect_error("[Cc]ontact risk has tied rules.*student.*mother")
 })
 
 test_that("A catch-all rule survives a missing cell in its covariate column", {

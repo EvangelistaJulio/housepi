@@ -4,30 +4,44 @@
 \alias{add_status_process}
 \title{Add a status process}
 \usage{
-add_status_process(hh_model, ..., import = NULL)
+add_status_process(hh_model, ..., strata = NULL, import = NULL)
 }
 \arguments{
 \item{hh_model}{\code{HousepiModel} object.}
 
 \item{...}{Probabilities of the infected statuses, in order. When named, the
-names label the corresponding statuses: name all of them or none.}
+names label the statuses: name all of them or none. Unnamed probabilities
+draw the integer statuses 1, 2, and so on.}
 
-\item{import}{Named \code{list} of probabilities of the infected statuses, read
-like \code{...}, or \code{"template"} for the ones shipped with the model.
+\item{strata}{\code{data.frame} One row per rule: the infected status in column
+\code{status}, its non-negative \code{weight}, and a column per covariate.
+An \code{NA} cell matches any value, and a member reads the most specific rule it
+matches.
+Rows keyed on different covariates form separate rule groups, whose weights
+multiply. Every rule group must key on \code{status}.
+At every status, each member must match a rule of every rule group, and
+every rule must apply to some member, else the table is refused.
+The weights of a member are normalized over the statuses, so they need not
+sum to 1.
+\code{status} holds labels, or integer statuses from 1.
+Cannot be combined with \code{...}.}
+
+\item{import}{Named \code{list} of arguments, read as \code{...} or as a \code{strata}
+entry, or \code{"template"} for the status process shipped with the model.
 The template is R code evaluated from the model folder, so use it only with
 model folders you trust.
-Cannot be combined with \code{...}.}
+Cannot be combined with \code{...} or \code{strata}.}
 }
 \value{
 \code{HousepiModel} object. Deep clone of input with new definitions.
 }
 \description{
-Declare how a member's infected status is generated during simulation, as a
-categorical distribution over infected statuses. The probabilities are given
-in declaration order (the \eqn{k}-th probability is that of the \eqn{k}-th
-infected status); when named, the names become the status labels.
-During evaluation the status is fixed observed data, so it contributes a
-constant and the probabilities must be data or numeric constants.
+Declare how an infected member's status is drawn during simulation, as a
+categorical distribution over infected statuses.
+The probabilities apply to every member when given in \code{...}, or depend on
+member covariates when given as a \code{strata} table.
+Inference holds the observed status fixed and does not estimate the
+probabilities.
 }
 \examples{
 # simulate infected members as symptomatic (70\%) or asymptomatic (30\%)
@@ -44,4 +58,15 @@ probs <- list(symptomatic = 0.7, asymptomatic = 0.3)
 hh_model <- flu_1918_frederick |>
   new_housepi_model("final-size") |>
   add_status_process(import = probs)
+
+# adults are symptomatic more often than children
+strata <- data.frame(
+  age = c("adult", "adult", "child", "child"),
+  status = c("symptomatic", "asymptomatic", "symptomatic", "asymptomatic"),
+  weight = c(0.8, 0.2, 0.4, 0.6)
+)
+hh_model <- sarscov2_2021_icofs |>
+  new_housepi_model("final-size") |>
+  add_status_process(strata = strata)
+get_status_process(hh_model)
 }

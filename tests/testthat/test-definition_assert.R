@@ -43,9 +43,6 @@ test_that("Assert valid definition name rejects invalid names", {
     expect_error("cannot start with a dot")
   assert_valid_definition_name(".ration", "latent") |>
     expect_error("cannot start with a dot")
-  assert_valid_definition_name(".ration", "status process",
-                               allow_reserved = TRUE) |>
-    expect_null()
   # valid names pass
   assert_valid_definition_name("alpha", "parameter") |> expect_null()
   assert_valid_definition_name("beta_1", "parameter") |> expect_null()

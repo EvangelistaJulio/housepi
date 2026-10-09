@@ -43,6 +43,7 @@ HousepiModel <- R6::R6Class(
     augm_ = NULL,
     group_risks_ = NULL,
     contact_risks_ = NULL,
+    status_ = NULL,
     infec_profile_ = NULL,
     reporting_process_ = NULL,
     collapse_seen_ = character(),
@@ -451,6 +452,7 @@ HousepiModel <- R6::R6Class(
       private$augm_ <- HousepiAugmented$new()
       private$group_risks_ <- HousepiGroupRisk$new()
       private$contact_risks_ <- HousepiContactRisk$new()
+      private$status_ <- HousepiStatusProcess$new()
       private$infec_profile_ <- HousepiInfecProfile$new()
       private$reporting_process_ <- list(wide = NULL, long = NULL)
       private$collapse_seen_ <- character()
@@ -488,17 +490,20 @@ HousepiModel <- R6::R6Class(
     status_dictionary_ = function() {
       data_lab <- private$gen_$status_data_labels
       if (length(data_lab)) return(data_lab)
-      private$augm_$status_dictionary
+      if (length(private$status_$labels)) return(private$status_$labels)
+      private$augm_$status_labels
     },
 
     # @description
     # Engine infected-status codes, named after the labels a risk may key on.
-    # Labels win when the model knows any; a purely integer-coded status column
-    # is its own dictionary, and the codes stand for themselves.
+    # Labels win when the model knows any; purely integer-coded statuses are
+    # their own dictionary, the codes the data carries and the ones the status
+    # process draws, and the codes stand for themselves.
     status_codes_ = function() {
       dict <- private$status_dictionary_()
       if (length(dict)) return(stats::setNames(seq_along(dict), dict))
-      codes <- as.integer(private$gen_$infec_status_set)
+      codes <- sort(union(as.integer(private$gen_$infec_status_set),
+                          private$status_$codes))
       stats::setNames(codes, as.character(codes))
     },
 
@@ -516,7 +521,7 @@ HousepiModel <- R6::R6Class(
       obs <- character()
       if (!is.null(defs)) {
         kind <- defs[["kind"]]
-        latent <- defs[["name"]][kind %in% c("latent", "status")]
+        latent <- defs[["name"]][kind == "latent"]
         obs <- defs[["name"]][kind %in% c("member", "house")]
       }
       cols <- character()
@@ -601,7 +606,7 @@ HousepiModel <- R6::R6Class(
       need_param <- private$required_of_declaration_("P")
       all(need_latent %in% private$augm_$defs[["name"]]) &&
         all(need_param %in% private$effective_param_()$defs[["name"]]) &&
-        private$augm_$covers_statuses(defs, private$gen_$infec_status_set)
+        private$augm_$covers_statuses(defs, private$carried_statuses_())
     },
 
     # @description
@@ -680,6 +685,9 @@ HousepiModel <- R6::R6Class(
       # infectivity profile
       .engine$import_infec_profile(mcmc_ptr, private$resolved_profile_())
 
+      # status process
+      private$push_status_process_(derive)
+
       # latent
       latent_defs <- resolve_status_codes_(private$resolved_latent_(),
                                            status_dict)
@@ -692,6 +700,38 @@ HousepiModel <- R6::R6Class(
       private$gen_$set_status_levels(status_dict)
 
       invisible(self)
+    },
+
+    # @description
+    # Check the status-process table against the data and push it coded.
+    # Labelled statuses read the model dictionary, codes stand for themselves.
+    # @param derive `logical(1)` Whether to check the table against the data.
+    push_status_process_ = function(derive = TRUE) {
+      if (!private$status_$is_defined) return(invisible(self))
+      levels <- private$status_draw_levels_()
+      if (derive) private$status_$assert_fit(self$data_wide, levels)
+      .engine$import_status_process(
+        private$gen_$mcmc_ptr,
+        private$status_$expose_to_cpp(private$gen_$info_data_wide,
+                                      private$status_codes_()),
+        length(levels)
+      )
+      invisible(self)
+    },
+
+    # @description
+    # Infected levels a member may draw: the model dictionary when the status
+    # process is labelled, else its integer statuses.
+    status_draw_levels_ = function() {
+      private$status_$draw_levels(private$status_codes_())
+    },
+
+    # @description
+    # Infected status codes a member can carry: every level a status process
+    # draws, whatever the data carries, else the ones observed in the data.
+    carried_statuses_ = function() {
+      if (!private$status_$is_defined) return(private$gen_$infec_status_set)
+      seq_along(private$status_draw_levels_())
     },
 
     # @description
@@ -761,9 +801,7 @@ HousepiModel <- R6::R6Class(
       }
 
       # internal build function
-      private$build_full_(
-        steps = nrep, simulating = TRUE, ...
-      )
+      private$build_full_(steps = nrep, simulating = TRUE, ...)
 
       # NOTE: there might be not parameters at all
       if (!nrow(self$parameters)) return(nrep)
@@ -939,18 +977,13 @@ HousepiModel <- R6::R6Class(
     },
 
     #' @field status_process `data.frame`
-    #' Status process: one row per infected status, with its code, label and
-    #' probability.
+    #' Status process: one row per rule, with its status, weight, the members
+    #' it applies to, its rule group and covariates.
     status_process = function(value) {
       if (!missing(value)) stop_read_only("status_process")
-      defs <- augm_defs_of_kind(private$resolved_latent_(), "status")
-      weights <- if (is.null(defs)) numeric() else
-        unname(showcase_extract_args(defs[["model"]])[[1]])
-      labels <- private$augm_$status_levels
-      if (!length(labels)) labels <- rep(NA_character_, length(weights))
-      data.frame(status = seq_along(weights),
-                 label = labels,
-                 weight = weights)
+      data_wide <- self$data_wide
+      levels <- if (!is.null(data_wide)) private$status_draw_levels_()
+      private$status_$tidy_table(data_wide, levels)
     },
 
     #' @field infectivity_profiles `data.frame`
@@ -1019,7 +1052,7 @@ HousepiModel <- R6::R6Class(
 
       # clone definition fields
       for (field in c("param_", "augm_", "group_risks_", "contact_risks_",
-                      "infec_profile_", "reporting_process_",
+                      "status_", "infec_profile_", "reporting_process_",
                       "collapse_seen_")) {
         obj_priv[[field]] <- helper_clone(private[[field]])
       }
@@ -1179,6 +1212,10 @@ HousepiModel <- R6::R6Class(
 export_to_cpp_standalone <- function(hh_model, outpath = "inst/standalone/") {
   stopifnothousepi(hh_model)
   pvt <- hh_model$.__enclos_env__$private
+  if (pvt$status_$is_defined) stop_h(
+    "The standalone build reads no status process.",
+    "Export a model without {.fn add_status_process}."
+  )
   status_codes <- pvt$status_codes_()
   pvt$build_group_risks_()
   pvt$build_contact_risks_()

@@ -246,7 +246,7 @@ test_that("A session template compiles user flags and warns when they change", {
                               quiet = TRUE) |>
     add_status_process(import = "template") |>
     get_status_process()
-  status$label |> expect_identical(c("symptomatic", "asymptomatic"))
+  status$status |> expect_identical(c("symptomatic", "asymptomatic"))
   status$weight |> expect_equal(c(0.6, 0.4))
 
   # the loaded discrete dll cannot be replaced by the continuous variant

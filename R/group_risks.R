@@ -11,7 +11,43 @@ risk_reserved_cols <- c("group_risk", "param_name", "n", "rule_group",
                         risk_pin_cols)
 
 # Covariate columns of logic table `tbl`.
-risk_cov_cols_ <- function(tbl) setdiff(colnames(tbl), risk_reserved_cols)
+risk_cov_cols_ <- function(tbl) strata_cov_cols_(tbl, risk_reserved_cols)
+
+# Assert that the covariates of a risk are character and take no reserved name
+# but the ones in `allow`.
+assert_risk_covariates_ <- function(covariates, allow = character()) {
+  if (all(is.na(covariates))) return(invisible())
+  if (isFALSE(is.character(covariates))) stop_h(
+    "Argument {.arg by} must be of type character.",
+    format_type_error(covariates)
+  )
+  assert_valid_covariates(
+    covariates, setdiff(c(data_reserved_cols, risk_reserved_cols), allow)
+  )
+}
+
+# Rule groups of risk logic table `tbl`, keyed on its covariate columns.
+risk_rule_groups_ <- function(tbl) {
+  compute_rule_groups(tbl, risk_cov_cols_(tbl), "param_name")
+}
+
+# Stop on risk logic tables that do not resolve every unit of `cells` to one
+# rule per group, see assert_strata_fit_(). The hint of an automatic
+# definition `def` names its `by` covariates.
+assert_risk_fit_ <- function(tables, cells, label, unit, def) {
+  hint <- if (identical(def$mode, "auto")) cli::format_inline(
+    "Some {.field {def$by}} values are missing: change them, ",
+    "or pass a {.arg strata} table with a catch-all rule."
+  )
+  assert_strata_fit_(lapply(tables, risk_rule_groups_), cells,
+                     risk_reserved_cols, "param_name", label, unit, hint)
+}
+
+# Count the units of `cells` every rule of risk logic table `tbl` is resolved
+# to, see rule_counts_().
+count_risk_rules_ <- function(tbl, cells) {
+  rule_counts_(risk_rule_groups_(tbl), cells, risk_reserved_cols)
+}
 
 # Empty and typed prototype of every reserved column.
 risk_reserved_proto <- list(group_risk = character(), param_name = character(),
@@ -55,21 +91,6 @@ risk_is_absolute_ <- function(def, tables) {
   if (identical(def$mode, "auto") && !length(tables))
     return(is.null(def$reference))
   lacks_reference_(tables)
-}
-
-# Code rule columns as integers over the factor levels held in `info`.
-# `key` maps a column to its `info` entry; columns without one stay as they
-# are. An NA rule cell is a catch-all: it codes to NA, so the engine skips
-# that covariate and it counts for no specificity.
-encode_risk_levels_ <- function(defs, info, key = identity,
-                                cols = colnames(defs)) {
-  for (col in cols) {
-    lv <- info[[key(col)]]$levels
-    if (!is.null(lv)) {
-      defs[[col]] <- as.integer(factor(defs[[col]], levels = lv))
-    }
-  }
-  defs
 }
 
 # Reorder `df` to `cols`, padding the missing ones with typed `NA`.
@@ -134,57 +155,6 @@ assert_valid_strata_ <- function(strata, params, reference,
   invisible(strata)
 }
 
-# Stop when a risk of definition `def` leaves `n` units unmatched.
-stop_unmatched_ <- function(n, label, unit, def) {
-  if (n == 0) return(invisible())
-  stop_h(
-    "{label} leaves {n} {unit}{cli::qty(n)}{?s} unmatched by its rules.",
-    if (identical(def$mode, "auto")) {
-      paste("Some {.field {def$by}} values are missing: change them,",
-            "or pass a {.arg strata} table with a catch-all rule.")
-    } else {
-      "Add a rule covering them: an {.code NA} rule cell matches any value."
-    }
-  )
-}
-
-#' Assert that covariates choice is valid.
-#' @param covariates Covariates as list of data column names.
-#' @param allow Reserved names the caller accepts as covariates.
-#' @keywords internal
-#' @noRd
-assert_valid_covariates <- function(covariates, allow = character()) {
-  if (all(is.na(covariates))) return(invisible())
-
-  if (isFALSE(is.character(covariates))) stop_h(
-    "Argument {.arg by} must be of type character.",
-    format_type_error(covariates)
-  )
-
-  # avoid group risks associated to reserved data/definition names
-  reserved_data <- setdiff(c(data_reserved_cols, risk_reserved_cols), allow)
-  forbidden <- reserved_data[reserved_data %in% covariates]
-  if (length(forbidden)) stop_h(
-    "Impossible to associate risk to covariate{?s}: {.field {forbidden}}.",
-    "These names are reserved.",
-    paste("Change {cli::qty(forbidden)}covariate{?s} and/or",
-          "corresponding data column{?s}.")
-  )
-}
-
-#' Assert that covariates are present in data.
-#' @param covariates Covariates as list of data column names.
-#' @param headers All column names of the data.
-#' @keywords internal
-#' @noRd
-assert_data_covariates <- function(covariates, headers) {
-  missing <- setdiff(covariates, headers)
-  if (length(missing)) stop_h(
-    "Unknown covariate{?s}: {.field {missing}}.",
-    "Check your data headers."
-  )
-}
-
 #' Assert that covariate values in data are safe.
 #' @param this_table Logic table whose covariate columns are checked.
 #' @return `character()`
@@ -197,69 +167,15 @@ assess_covariate_values <- function(this_table) {
   colmask
 }
 
-#' Find the rules naming a value the data never carries.
-#' @param tbl `data.frame` logic table with a `param_name` column.
-#' @param known `list` Values the data carries, named after its columns.
-#' @param cols `character()` Data column every column of `tbl` reads, named
-#' after the columns of `tbl`.
-#' @return `logical()` One flag per row of `tbl`.
-#' @keywords internal
-#' @noRd
-unknown_strata_rows <- function(tbl, known, cols) {
-  unknown <- rep(FALSE, nrow(tbl))
-  for (col in intersect(names(cols), colnames(tbl))) {
-    # a catch-all cell keys on nothing: it names no value to be unknown
-    vals <- as.character(tbl[[col]])
-    unknown <- unknown |
-      (!is.na(vals) & !vals %in% as.character(known[[cols[[col]]]]))
-  }
-  unknown
-}
-
-#' Stop on the rules of a logic table that no unit resolves to.
-#' @param tbl `data.frame` logic table with a `param_name` column.
-#' @param dead `logical()` One flag per row of `tbl`.
-#' @param label `character(1)` The risk, as it opens the message.
-#' @param unit `character(1)` What a rule resolves: member or ordered pair.
-#' @param value_col `character(1)` Column holding what a rule applies.
-#' @param cov_cols `character()` Columns a rule keys on.
-#' @return `data.frame` the input, invisibly.
-#' @keywords internal
-#' @noRd
-assert_no_dead_rules <- function(tbl, dead, label, unit,
-                                 value_col = "param_name",
-                                 cov_cols = risk_cov_cols_(tbl)) {
-  if (!any(dead)) return(invisible(tbl))
-  # nolint next: object_usage_linter. read by the cli glue below
-  rules <- vapply(which(dead), function(i) {
-    cells <- as.list(tbl[i, cov_cols, drop = FALSE])
-    keyed <- cells[!is.na(unlist(cells))]
-    cli::format_inline(
-      if (!length(keyed)) "catch-all" else reference_to_phrase(keyed),
-      " ({.val {tbl[[value_col]][i]}})"
-    )
-  }, character(1))
-  stop_h(
-    paste("{label} has {length(rules)} rule{?s} no {unit}",
-          "resolves to: {rules}."),
-    "Remove the rule, or check its values against the data."
-  )
-}
-
 #' Assert that a user-provided logic table is valid.
 #' @param logic_table `data.frame` with a `param_name` column.
 #' @param allow Reserved names the caller accepts as covariates.
 #' @keywords internal
 #' @noRd
 assert_valid_logic_table <- function(logic_table, allow = character()) {
-  if (!is.data.frame(logic_table)) stop_h(
-    "Argument {.arg logic_table} must be a data.frame."
-  )
-  if (!"param_name" %in% colnames(logic_table)) stop_h(
-    "Logic table must contain a {.field param_name} column."
-  )
-  if (!nrow(logic_table)) stop_h(
-    "Logic table must contain at least one row."
+  assert_strata_shape_(
+    logic_table, "param_name", "The strata table",
+    "Give each rule its parameter in {.field param_name}."
   )
   # every row names its parameter, or tags the reference
   pnames <- as.character(logic_table$param_name)
@@ -274,7 +190,7 @@ assert_valid_logic_table <- function(logic_table, allow = character()) {
   }
   # validate covariate column names
   covariate_cols <- risk_cov_cols_(logic_table)
-  assert_valid_covariates(covariate_cols, allow)
+  assert_risk_covariates_(covariate_cols, allow)
   # no covariate column, or only catch-all cells, duplicates the baseline
   if (all(is.na(logic_table[covariate_cols]))) stop_h(
     paste("Strata table sets no covariate value:",
@@ -329,168 +245,6 @@ assert_valid_pins <- function(tbl) {
   invisible(tbl)
 }
 
-#' @title Assign rule_group to each rule of logic table.
-#' @description Rules belong to specificity groups.
-#' A group is identified by the unique `maximal` non-NA covariates.
-#' Rules with the same maximal pattern share a group.
-#' Rules that are subset of multiple groups are ambiguous.
-#' @param tbl `data.frame` logic table.
-#' @return `data.frame` with integer `rule_group` column appended.
-#' @keywords internal
-#' @noRd
-compute_rule_groups <- function(tbl) {
-  if (!nrow(tbl)) {
-    tbl$rule_group <- integer(0)
-    return(tbl)
-  }
-  cov_cols <- risk_cov_cols_(tbl)
-
-  # pattern of each row: names of non-NA covariate columns
-  patterns <- lapply(seq_len(nrow(tbl)), function(i) {
-    sort(cov_cols[!is.na(unlist(tbl[i, cov_cols, drop = FALSE]))])
-  })
-
-  # unique patterns for maximality check
-  uniq_patterns <- unique(patterns)
-
-  # a pattern is maximal when no other pattern strictly contains it
-  has_strict_superset <- function(p) {
-    any(vapply(uniq_patterns, \(q) length(q) > length(p) && all(p %in% q),
-               logical(1)))
-  }
-  max_patterns <- uniq_patterns[
-    !vapply(uniq_patterns, has_strict_superset, logical(1))
-  ]
-
-  # deterministic ordering: by serialized column set
-  ord <- order(vapply(
-    max_patterns, \(p) paste(p, collapse = key_sep_), character(1)
-  ))
-  max_patterns <- max_patterns[ord]
-
-  # assign each rule to exactly one maximal pattern
-  gids <- integer(nrow(tbl))
-  for (i in seq_along(patterns)) {
-    p <- patterns[[i]]
-    candidates <- which(vapply(max_patterns, \(m) all(p %in% m), logical(1)))
-    if (length(candidates) == 1) {
-      gids[i] <- candidates
-    } else {
-      # nolint next: object_usage_linter. read by the cli glue below
-      groups <- vapply(max_patterns[candidates], function(m) {
-        cli::format_inline("[{.field {m}}]")
-      }, character(1))
-      stop_h(
-        paste0("Ambiguous rule {i} ({.val {tbl$param_name[i]}}) ",
-               if (!length(p)) "names no covariates"
-               else "names only {.field {p}}",
-               ", fitting {length(candidates)} equally specific groups: ",
-               "{groups}."),
-        "Add a disambiguating column to the rule."
-      )
-    }
-  }
-  tbl$rule_group <- gids
-  tbl
-}
-
-#' Match every observed cell against every rule of a logic table.
-#' @param tbl `data.frame` logic table.
-#' @param cells `data.frame` observed cells, columns named as the rule columns.
-#' @return `logical` matrix, one row per cell and one column per rule.
-#' @keywords internal
-#' @noRd
-rule_hits_ <- function(tbl, cells) {
-  # a catch-all rule cell constrains nothing; a missing data cell matches
-  # nothing but a catch-all
-  Reduce(`&`, lapply(names(cells), function(col) {
-    outer(as.character(cells[[col]]), as.character(tbl[[col]]),
-          \(d, r) is.na(r) | (!is.na(d) & d == r))
-  }), matrix(TRUE, nrow(cells), nrow(tbl)))
-}
-
-#' Build the covariate cells a group risk is checked against.
-#' @description Members holding the same covariate values resolve alike, so
-#' each distinct combination stands once, weighted by the members holding it.
-#' A risk read on infected members only is checked at every infected status a
-#' member may take, whatever the data records.
-#' @param data_wide `data.frame` Data the members come from.
-#' @param covs `character()` Data columns the rules read, status excluded.
-#' @param status_levels `character()` Infected-status labels, empty for a
-#' risk that does not read the status.
-#' @return `data.frame` with columns `covs`, `status` when stratified, the
-#' `.weight` and the `.combo` index of each distinct combination.
-#' @keywords internal
-#' @noRd
-risk_check_cells_ <- function(data_wide, covs, status_levels = character()) {
-  if (!length(covs)) {
-    cells <- data.frame(.weight = nrow(data_wide))
-  } else {
-    key <- row_keys_(data_wide, covs)
-    first <- !duplicated(key)
-    cells <- data_wide[first, covs, drop = FALSE]
-    cells$.weight <- as.integer(table(key)[key[first]])
-  }
-  cells$.combo <- seq_len(nrow(cells))
-  if (!length(status_levels)) return(cells)
-  do.call(rbind, lapply(status_levels, function(lv) {
-    cells$status <- rep(lv, nrow(cells))
-    cells
-  }))
-}
-
-#' Find the observed cells some rule group of a logic table leaves unmatched.
-#' @param tbl `data.frame` logic table.
-#' @param cells `data.frame` observed cells, columns named as the rule columns.
-#' @return `logical()` One flag per row of `cells`.
-#' @keywords internal
-#' @noRd
-unmatched_cells_ <- function(tbl, cells) {
-  # a table without rules matches no cell
-  if (!nrow(tbl)) return(rep(TRUE, nrow(cells)))
-  hit <- rule_hits_(tbl, cells)
-  gid <- compute_rule_groups(tbl)$rule_group
-  Reduce(`|`, lapply(unique(gid), function(g) {
-    rowSums(hit[, gid == g, drop = FALSE]) == 0
-  }))
-}
-
-#' Resolve every cell against the rules of a logic table.
-#' @description Within each rule group, a cell goes to the most specific rule
-#' it matches, as in the engine. Rules tied at that specificity all win it.
-#' @param tbl `data.frame` logic table.
-#' @param cells `data.frame` observed cells, columns named as the rule columns.
-#' @return `logical` matrix, one row per cell and one column per rule.
-#' @keywords internal
-#' @noRd
-rule_winners_ <- function(tbl, cells) {
-  hit <- rule_hits_(tbl, cells)
-  # 0 scores no match, otherwise one plus the rule specificity
-  spec <- rowSums(!is.na(tbl[names(cells)]))
-  score <- hit * rep(spec + 1L, each = nrow(cells))
-  gid <- compute_rule_groups(tbl)$rule_group
-  win <- hit
-  for (g in unique(gid)) {
-    in_g <- gid == g
-    sub <- score[, in_g, drop = FALSE]
-    top <- sub[cbind(seq_len(nrow(sub)), max.col(sub, ties.method = "first"))]
-    win[, in_g] <- sub == top & top > 0
-  }
-  win
-}
-
-#' Count the units every rule of a logic table is resolved to.
-#' @description Rules tied at the top specificity share the cell.
-#' @param tbl `data.frame` logic table.
-#' @param cells `data.frame` observed cells, columns named as the rule columns.
-#' @param weight `integer()` units each cell holds.
-#' @return `integer()` One count per row of `tbl`.
-#' @keywords internal
-#' @noRd
-count_resolved_rules <- function(tbl, cells, weight = 1L) {
-  as.integer(colSums(rule_winners_(tbl, cells) * weight))
-}
-
 #' @title Assert that each rule group designates at most one reference cell.
 #' @description A reference sets the unit scale of its rule group,
 #' so two distinct cells of one group cannot both carry the tag.
@@ -505,7 +259,7 @@ assert_one_reference_per_group <- function(strata, symmetric = FALSE) {
   idx_refer <- which(strata$param_name == ".reference")
   if (length(idx_refer) < 2) return(invisible(strata))
 
-  tbl <- compute_rule_groups(strata)[idx_refer, , drop = FALSE]
+  tbl <- risk_rule_groups_(strata)[idx_refer, , drop = FALSE]
   cov_cols <- risk_cov_cols_(tbl)
   covariates <- pair_covs_(cov_cols)
   pair_wise <- isTRUE(symmetric)
@@ -576,7 +330,7 @@ helper_pin_param_def <- function(def, pin) {
 #' @noRd
 lacks_reference_ <- function(tables) {
   any(vapply(tables, function(tbl) {
-    gid <- compute_rule_groups(tbl)$rule_group
+    gid <- risk_rule_groups_(tbl)$rule_group
     !all(gid %in% gid[tbl$param_name == ".reference"])
   }, logical(1)))
 }
@@ -710,17 +464,6 @@ group_risk_logic_table <- function(data_wide, this_cov,
   y
 }
 
-#' Collapse a named reference into a rendered phrase of `name = value` pairs.
-#' @param reference `list()` Covariate values, named after the covariates.
-#' @param strip `character(1)` Prefix removed from the names before printing.
-#' @return `character(1)` Plain text, to be interpolated as a value.
-#' @noRd
-reference_to_phrase <- function(reference, strip = "^") {
-  cli::ansi_collapse(mapply(function(nm, val) {
-    cli::format_inline("{.field {nm}} = {.val {val}}")
-  }, sub(strip, "", names(reference)), unlist(reference)))
-}
-
 #' Associate parameter name to group risk logic table.
 #' @param this_table
 #' Data.frame containing conditions for the group risk.
@@ -792,8 +535,8 @@ tidyup_group_risk_tables <- function(all_tables) {
     # concat this risk's sub-tables, then compute rule_groups within risk
     cols <- unique(c("param_name", "n",
                      sort(unlist(lapply(this_table, names)))))
-    tbl <- compute_rule_groups(do.call(rbind, lapply(this_table, pad_risk_cols_,
-                                                     cols = cols)))
+    tbl <- risk_rule_groups_(do.call(rbind, lapply(this_table, pad_risk_cols_,
+                                                   cols = cols)))
     cbind(group_risk = risk, reorder_risks_logic_table(tbl))
   })
 
@@ -896,7 +639,7 @@ HousepiGroupRisk <- R6::R6Class(
                                 reference = NULL,
                                 joint = FALSE,
                                 .warn_over = TRUE) {
-      assert_valid_covariates(by, allow = "status")
+      assert_risk_covariates_(by, allow = "status")
       # remove previous definition if it exists
       rmv_name <- self$remove(name)
 
@@ -940,30 +683,18 @@ HousepiGroupRisk <- R6::R6Class(
       invisible(self)
     },
 
-    # Stop if a rule group of one risk leaves members unmatched, or if a rule
-    # is the best match of no member. A risk read on infected members only is
-    # checked at every level in `status_levels`, whatever the data records.
+    # Stop if one risk does not resolve every member to one rule per group.
+    # A risk read on infected members only is checked at every level in
+    # `status_levels`, whatever the data records.
     assert_rules_fit_ = function(risk_id, data_wide,
                                  status_levels = character()) {
       tables <- self$logic_tables[[risk_id]]
-      rule_cols <- lapply(tables, risk_cov_cols_)
-      covs <- setdiff(unique(unlist(rule_cols)), "status")
-      cells <- risk_check_cells_(data_wide, covs, status_levels)
-
-      # a combination is missed when one of its levels is
-      missed <- Reduce(`|`, Map(function(tbl, cols) {
-        unmatched_cells_(tbl, cells[cols])
-      }, tables, rule_cols))
-      missed <- unique(cells$.combo[missed])
-      label <- cli::format_inline("Group risk {.val {risk_id}}")
-      stop_unmatched_(sum(cells$.weight[match(missed, cells$.combo)]), label,
-                      "member", self$defs[[risk_id]])
-
-      for (k in seq_along(tables)) {
-        wins <- count_resolved_rules(tables[[k]], cells[rule_cols[[k]]],
-                                     cells$.weight)
-        assert_no_dead_rules(tables[[k]], wins == 0, label, "member")
-      }
+      covs <- setdiff(unique(unlist(lapply(tables, risk_cov_cols_))), "status")
+      assert_risk_fit_(
+        tables, member_cells_(data_wide, covs, status_levels),
+        cli::format_inline("Group risk {.val {risk_id}}"), "member",
+        self$defs[[risk_id]]
+      )
       invisible(self)
     },
 
@@ -1002,7 +733,7 @@ HousepiGroupRisk <- R6::R6Class(
         cov_cols <- risk_cov_cols_(tbl)
         # status is carried by the model, not required as a data column
         assert_data_covariates(setdiff(cov_cols, "status"), colnames(data_wide))
-        tbl$n <- count_resolved_rules(tbl, data_wide[cov_cols])
+        tbl$n <- count_risk_rules_(tbl, member_cells_(data_wide, cov_cols))
         # no status is observed: every declared stratum stands, sizes unknown
         if ("status" %in% cov_cols && isFALSE(status_observed))
           tbl$n <- NA_integer_
@@ -1266,13 +997,8 @@ HousepiGroupRisk <- R6::R6Class(
       defs[c("n", risk_pin_cols)] <- NULL
       # status carries no entry in `info`: it is coded against the engine
       # codes the individuals hold, not against a data column
-      if ("status" %in% colnames(defs)) {
-        defs[["status"]] <- unname(
-          status_codes[as.character(defs[["status"]])]
-        )
-      }
-      encode_risk_levels_(defs, info,
-                          cols = risk_cov_cols_(defs))
+      encode_strata_levels_(code_status_col_(defs, status_codes), info,
+                            cols = risk_cov_cols_(defs))
     }
   )
 )

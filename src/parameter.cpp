@@ -547,8 +547,8 @@ namespace housepi
 
             // a storage slot of its own for every status level a rule keys on
             StatusTable<StatusSlot> slot_of = {};
-            if (input.count(STATUS_KEY))
-                slot_of = helper_init_status_slots_(input.at(STATUS_KEY));
+            if (input.count(rules::STATUS_KEY))
+                slot_of = helper_init_status_slots_(input.at(rules::STATUS_KEY));
 
             const GroupDefinitions defs(input, data_wide, param, spec_headers, slot_of);
 
@@ -593,7 +593,7 @@ namespace housepi
 
             // the status is carried by the member: no data key, the equivalence-class hash mixes it in
             data_wide.set_eq_class_data_names(
-                vect::difference(data_headers, {STATUS_KEY}));
+                vect::difference(data_headers, {rules::STATUS_KEY}));
 
             return data_headers;
         }
@@ -601,9 +601,9 @@ namespace housepi
         void Group::assert_status_stratified_(const str_table &input,
                                               const std::vector<std::string> &g_input_vec) const
         {
-            if (!input.count(STATUS_KEY))
+            if (!input.count(rules::STATUS_KEY))
                 return;
-            const std::vector<std::string> &status_col = input.at(STATUS_KEY);
+            const std::vector<std::string> &status_col = input.at(rules::STATUS_KEY);
             for (size_t r = 0; r < status_col.size(); ++r)
             {
                 if (na::is(status_col[r]))
@@ -680,7 +680,7 @@ namespace housepi
                 scale_anchors_.push_back(anchor);
 
             // pairs of covariate classes resolve on first encounter only
-            const CovariateClasses classes(data_wide, defs.keys);
+            const rules::CovariateClasses classes(data_wide, defs.keys);
             std::vector<PairRisk> pair_risks(classes.count * classes.count);
 
             // every household's matrix, row-major, into the one flat store

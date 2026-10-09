@@ -51,18 +51,23 @@ contact_risk_logic_table <- function(data_wide, covariates) {
   y[y$n > 0, , drop = FALSE]
 }
 
-#' Count the observed pairs every contact rule matches.
-#' @param tbl `data.frame` logic table with from_X and to_X columns.
-#' @param data_wide Data the pairs are counted over.
-#' @param covariates `character()` Covariates the rules key on.
-#' @return `integer()` One count per row of `tbl`.
+#' Build the ordered member pairs a contact risk is checked against.
+#' @param data_wide Data the pairs come from.
+#' @param covs `character()` Covariates the rules key on.
+#' @return `data.frame` with the `from_` and `to_` columns of `covs`, the
+#' `.weight` pairs each holds and its `.combo` index.
 #' @keywords internal
 #' @noRd
-count_contact_rule_pairs <- function(tbl, data_wide, covariates) {
-  pairs <- contact_risk_logic_table(data_wide, covariates)
-  # no household structure, no pair to count
-  if (!NROW(pairs)) return(rep(0L, nrow(tbl)))
-  count_resolved_rules(tbl, pairs[pair_cols_(covariates)], pairs$n)
+pair_cells_ <- function(data_wide, covs) {
+  pairs <- contact_risk_logic_table(data_wide, covs)
+  # no household structure: no pair
+  if (is.null(pairs)) pairs <- data.frame(
+    lapply(stats::setNames(nm = pair_cols_(covs)), \(col) character()),
+    n = integer()
+  )
+  pairs$.weight <- pairs$n
+  pairs$.combo <- seq_len(nrow(pairs))
+  pairs
 }
 
 #' Associate parameter names to contact risk logic table.
@@ -188,7 +193,7 @@ tidyup_contact_risk_tables <- function(tables) {
 
   combined <- do.call(rbind, lapply(tables, pad_risk_cols_, cols = all_cols))
   rownames(combined) <- NULL
-  combined <- compute_rule_groups(combined)
+  combined <- risk_rule_groups_(combined)
   combined <- reorder_risks_logic_table(combined)
   rownames(combined) <- NULL
   as.data.frame(combined[c(setdiff(names(combined), tail_cols), tail_cols)])
@@ -272,7 +277,7 @@ HousepiContactRisk <- R6::R6Class(
     # Add risk definition in automatic mode.
     helper_auto_add_ = function(by, reference, prefix, joint, symmetric) {
       # validate covariates
-      assert_valid_covariates(by)
+      assert_risk_covariates_(by)
 
       # load reference and validate reference names
       if (length(reference)) {
@@ -340,15 +345,13 @@ HousepiContactRisk <- R6::R6Class(
       invisible(self)
     },
 
-    # Stop if a rule group leaves ordered member pairs unmatched.
-    assert_covered_ = function(data_wide) {
-      covs <- pair_covs_(unlist(lapply(self$logic_tables, names)))
-      pairs <- contact_risk_logic_table(data_wide, unique(covs))
-      missed <- Reduce(`|`, lapply(self$logic_tables, function(tbl) {
-        unmatched_cells_(tbl, pairs[risk_cov_cols_(tbl)])
-      }))
-      stop_unmatched_(sum(pairs$n[missed]), "Contact risk", "ordered pair",
-                      self$defs)
+    # Stop if the contact risk does not resolve every observed ordered pair
+    # to one rule per group.
+    assert_rules_fit_ = function(data_wide) {
+      covs <- unique(pair_covs_(unlist(lapply(self$logic_tables, names))))
+      assert_risk_fit_(self$logic_tables, pair_cells_(data_wide, covs),
+                       "Contact risk", "ordered pair", self$defs)
+      invisible(self)
     },
 
     # Validate custom mode logic table against data, then add counts.
@@ -370,14 +373,12 @@ HousepiContactRisk <- R6::R6Class(
           # both sides of a pair read the same data column
           cols = stats::setNames(rep(this_cov, 2L), pair_cols_(this_cov))
         )
-        assert_no_dead_rules(this_table, unknown, "Contact risk",
-                             "ordered pair")
+        assert_no_dead_rules(this_table, unknown, risk_cov_cols_(this_table),
+                             "param_name", "Contact risk", "ordered pair")
 
         if (symmetric) this_table <- fill_symmetric_gaps(this_table)
-        this_table$n <- count_contact_rule_pairs(this_table, data_wide,
-                                                 this_cov)
-        assert_no_dead_rules(this_table, this_table$n == 0, "Contact risk",
-                             "ordered pair")
+        this_table$n <- count_risk_rules_(this_table,
+                                          pair_cells_(data_wide, this_cov))
         self$logic_tables[[i]] <- this_table
       }
       invisible(self)
@@ -511,7 +512,7 @@ HousepiContactRisk <- R6::R6Class(
       } else {
         private$helper_implement_auto_(data_wide, symmetric)
       }
-      private$assert_covered_(data_wide)
+      private$assert_rules_fit_(data_wide)
       invisible(self)
     },
 
@@ -529,9 +530,9 @@ HousepiContactRisk <- R6::R6Class(
       defs <- self$tidy_table
       defs[risk_pin_cols] <- NULL
       # both ends of a pair encode against the levels of one data column
-      encode_risk_levels_(defs, info,
-                          key = \(col) sub("^(from|to)_", "", col),
-                          cols = risk_cov_cols_(defs))
+      encode_strata_levels_(defs, info,
+                            key = \(col) sub("^(from|to)_", "", col),
+                            cols = risk_cov_cols_(defs))
     }
   )
 )

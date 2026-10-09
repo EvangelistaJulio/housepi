@@ -50,15 +50,6 @@ mk_status <- local({
   list(data = hhdata, model = hh_model)
 })
 
-# every case_ascertained parameter pinned
-mk_pinned <- local({
-  hh_model <- new_housepi_model(model = "case-ascertained") |>
-    add_parameter(import = helper_onset_house$param) |>
-    add_latent(infec_time = infec_date) |>
-    add_infectivity_profile(func = "gamma", shape = shape, scale = scale)
-  list(model = hh_model)
-})
-
 # whether on an integer lattice
 on_integer_lattice <- function(x) {
   x <- as.numeric(x[!is.na(x)])
@@ -127,9 +118,6 @@ test_that("Latent definition errors are recognized", {
   mk_latent$model |>
     add_latent(hidden = list(model = "normal", `l:c` = 0, sd = 1)) |>
     expect_error("[Aa]rgument name .l.c. contained invalid")
-  mk_latent$model |>
-    add_status_process(`a:b` = 1) |>
-    expect_error("[Aa]rgument name .a.b. contained invalid")
 })
 
 test_that("Undefined definitions are controlled", {
@@ -769,7 +757,7 @@ test_that("A name is declared under a single kind", {
     add_observation(hidden = min(datum_2), level = "house") |>
     expect_error(err)
 
-  # the reserved status node is named by add_status_process, never by the user
+  # a leading dot is reserved to the definitions housepi generates itself
   hh_model |>
     add_latent(.status = list(value = 1, const = TRUE)) |>
     expect_error("cannot start with a dot")
@@ -1266,65 +1254,6 @@ test_that("Data-bound household observation rejects latent dependence", {
 ## STATUS : DEFINITIONS   ##
 ############################
 
-test_that("A status process needs probabilities, within the status storage", {
-  mk_latent$model |>
-    add_status_process() |>
-    expect_error("[Nn]o status probability")
-  mk_latent$model |>
-    add_status_process(symptomatic = 0.5, symptomatic = 0.5) |>
-    expect_error("[Rr]epeated argument .symptomatic. for status process")
-
-  # the engine stores at most 254 infected statuses
-  weights <- function(k) {
-    stats::setNames(as.list(rep(1 / k, k)), paste0("unit_", seq_len(k)))
-  }
-  do.call(add_status_process, c(list(mk_latent$model), weights(255))) |>
-    expect_error("255 statuses.*maximum of 254")
-  do.call(add_status_process, c(list(mk_latent$model), unname(weights(255)))) |>
-    expect_error("255 statuses.*maximum of 254")
-})
-
-test_that("Status labels name every probability or none", {
-  mk_latent$model |>
-    add_status_process(symptomatic = 0.7, 0.3) |>
-    expect_error("[Ss]tatus labels were given to some probabilities only")
-})
-
-test_that("The status process reads back one row per status", {
-  # codes follow declaration order, the names label them
-  status <- mk_latent$model |>
-    add_status_process(symptomatic = 0.7, asymptomatic = 0.3) |>
-    get_status_process()
-  status$status |> expect_identical(1:2)
-  status$label |> expect_identical(c("symptomatic", "asymptomatic"))
-  status$weight |> expect_equal(c(0.7, 0.3))
-
-  # unnamed probabilities leave the statuses unlabelled
-  status <- mk_latent$model |>
-    add_status_process(0, 1, 0) |>
-    get_status_process()
-  status$status |> expect_identical(1:3)
-  status$label |> expect_all_na()
-  status$weight |> expect_equal(c(0, 1, 0))
-
-  # no status process declared
-  status <- get_status_process(mk_latent$model)
-  nrow(status) |> expect_identical(0L)
-  colnames(status) |> expect_identical(c("status", "label", "weight"))
-})
-
-test_that("Status process rejects latent or parameter probabilities", {
-  # probabilities must be a pure function of data/numerics
-  mk_status$model |>
-    add_status_process(symptomatic = alpha, asymptomatic = 3) |>
-    evaluate_log_lik() |>
-    expect_error("only on data or numeric")
-  mk_status$model |>
-    add_status_process(symptomatic = infec_time, asymptomatic = 3) |>
-    evaluate_log_lik() |>
-    expect_error("only on data or numeric")
-})
-
 test_that("Escaped label colliding with an infected status is rejected", {
   mk_status$data |>
     new_housepi_model("case-ascertained", escaped = "symptomatic") |>
@@ -1344,20 +1273,6 @@ test_that("Mixing integer and character status declarations is rejected", {
     ) |>
     evaluate_log_lik() |>
     expect_error("[Mm]ix")
-})
-
-test_that("Status is a constant in inference", {
-  # refined statuses already in the data; infec_time is read from data so the
-  # density is deterministic and the only difference is the status process.
-  hh_model <- helper_onset_house$data |>
-    transform(status = c(1, 2, 1, 0, 0, 0, 0), infec_date = infec_time) |>
-    add_data_wide(hh_model = mk_pinned$model)
-
-  # the status process drops out of the density (status is fixed data)
-  hh_model |>
-    add_status_process(symptomatic = 0.7, asymptomatic = 0.3) |>
-    evaluate_log_lik() |>
-    expect_equal(evaluate_log_lik(hh_model))
 })
 
 #############################
@@ -2327,44 +2242,6 @@ test_that("Data-bound household observation supplies a required data column", {
 ## STATUS : END-TO-END   ##
 ###########################
 
-test_that("Status process generates a labelled status factor in simulation", {
-  simulated <- mk_outbreak$model |>
-    # categorical drawn first; labels (declaration order) name the statuses
-    add_status_process(symptomatic = 0.2, asymptomatic = 0.8) |>
-    run_simulation()
-
-  # status is a factor: code 0 -> escaped, 1 -> symptomatic, 2 -> asymptomatic
-  simulated$status |> expect_s3_class("factor")
-  levels(simulated$status) |>
-    expect_identical(c("escaped", "symptomatic", "asymptomatic"))
-  infected <- as.character(simulated$status[simulated$status != "escaped"])
-  # outcome split follows the probabilities (0.2 symptomatic)
-  abs(mean(infected == "symptomatic") - 0.2) |> expect_lt(0.08)
-
-  # feed the factor-status output back for inference: factorization maps the
-  # labels to the same codes (escaped -> 0), so the density is finite
-  hh_model <- simulated |>
-    dplyr::select(id, hh_id, status, infec_date = infec_time, start_date,
-                  end_date) |>
-    add_data_wide(hh_model = mk_pinned$model)
-  is.finite(evaluate_log_lik(hh_model)) |> expect_true()
-
-  # the data-derived dictionary matches the simulated infected labels
-  levels(get_data_wide(hh_model)$status) |>
-    expect_identical(c("escaped", "symptomatic", "asymptomatic"))
-})
-
-test_that("Unnamed status probabilities draw integer status codes", {
-  simulated <- mk_outbreak$model |>
-    add_status_process(0, 1, 0, 0) |>
-    run_simulation()
-
-  # the second of four statuses is certain, and none is labelled
-  infected <- simulated$status[simulated$status != 0]
-  infected |> expect_all_equal(2)
-  simulated$status |> expect_type("integer")
-})
-
 test_that("Status process drives status-specific latent blocks", {
   simulated <- mk_outbreak$model |>
     # status-specific block: symptomatic incubation is longer
@@ -2378,30 +2255,6 @@ test_that("Status process drives status-specific latent blocks", {
   # the resolved status selects the block: shape 8 symptomatic, 2 asymptomatic
   by_status[["symptomatic"]] |> expect_gt(5)
   by_status[["asymptomatic"]] |> expect_lt(4)
-})
-
-test_that("A status weight with no value errors only where the status is drawn", {
-  # the test model keeps the observed statuses: no status is drawn
-  simulated <- data.frame(hh_id = "h1", id = c("m1", "m2"), status = c(1, 0),
-                          datum = c(1, NA)) |>
-    new_housepi_model("test") |>
-    add_latent(hidden = list(model = "normal", mean = 0, sd = 1)) |>
-    add_status_process(symptomatic = datum, asymptomatic = 1) |>
-    run_simulation()
-  simulated$hidden[1] |> is.finite() |> expect_true()
-
-  # a saturated transmission draws the status of every member
-  hhdata <- mk_outbreak$data
-  hhdata$datum <- ifelse(seq_len(nrow(hhdata)) == 2L, NA, 1)
-  hhdata |>
-    new_housepi_model("case-ascertained") |>
-    add_infectivity_profile(import = "template") |>
-    add_parameter(alpha = 1e-12, beta = 100, gamma = 1, hh_size_ref = 4) |>
-    add_latent(incub_period = list(model = "gamma", shape = 2, scale = 1),
-               infec_time = -incub_period) |>
-    add_status_process(symptomatic = datum, asymptomatic = 1) |>
-    run_simulation() |>
-    expect_error("[Nn]o value to pass as argument .symptomatic.*household")
 })
 
 test_that("Escaped label is configurable", {

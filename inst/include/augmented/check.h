@@ -40,10 +40,6 @@ namespace housepi::augm::check
     /// telling apart a name declared for other statuses.
     void producers_declared(const DefTable &def, const dag::prod_graph &pgraph, StatusLvl s);
 
-    /// Assert that status observation `row` reads only data and numeric constants.
-    /// @note Coverage of the declared statuses is asserted R-side.
-    void status_obs_consistent(const DefTable &def, size_t row);
-
     /// Reject a member observation filling an every-member column only for infected members.
     ///
     /// A member observation has a value only for infected members when:

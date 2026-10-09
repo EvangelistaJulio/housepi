@@ -39,7 +39,6 @@ namespace housepi::augm
         /// - binding error: partial, never swapped in.
         std::vector<std::vector<Variable>> blocks = {};
         std::vector<std::exception_ptr> errors = {}; /// Binding error per status scheme, raised if reached.
-        std::exception_ptr status_error = nullptr;   /// Binding error of the status observation, raised if drawn.
         std::vector<size_t> swapped = {};            /// Keys the member holds from its block.
     };
 

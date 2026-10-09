@@ -25,6 +25,7 @@
 namespace housepi
 {
     struct InfecProfile;
+    struct StatusProcess;
     namespace data
     {
         struct Wide;
@@ -54,12 +55,15 @@ namespace housepi
         void request_transmission(std::vector<size_t> vec);
 
         /// Build definitions from `input` and the infectivity profile, then their sampling schemes.
-        void build(InfecProfile &infec_profile, const str_table &input);
+        /// - status process defined: every status it draws needs a scheme.
+        void build(InfecProfile &infec_profile,
+                   const StatusProcess &status_process,
+                   const str_table &input);
 
         /// Empty the variables of every infected member, between simulated repetitions.
         /// - variable from a block: returned to it;
         /// - value transmission set: cleared;
-        /// - status observation, static surrogate: kept.
+        /// - static surrogate: kept.
         /// - no definitions allocated: no-op.
         void clear_all();
         /// Hand member `m` the variables of its status scheme for simulation.
@@ -75,20 +79,15 @@ namespace housepi
         void init_house_for_simulation();
         /// Bind the member variables a simulation reads, once per run.
         ///
-        /// - status observation, for the whole run;
-        /// - one block per status scheme the member can reach, handed out by init_definitions_for_simulation().
+        /// - one block per status scheme the member can reach, handed out by init_definitions_for_simulation();
+        /// - reachable status: the observed one, and every one `status_process` can draw.
         ///
         /// A binding error is kept, and raised only if the member reaches what failed.
         /// Distinct warnings are raised once each.
         /// @note Call after init_house_for_simulation(), and release_simulation() when the run ends.
-        void init_members_for_simulation();
+        void init_members_for_simulation(const StatusProcess &status_process);
         /// Empty every member variable and drop the blocks, at the end of a simulation run.
         void release_simulation();
-        /// Draw the status observation of `indiv`, if any.
-        /// @todo Status should not be stored in viewers.
-        void simulate_infected_status(Household &house,
-                                      Individual &indiv,
-                                      rnd_gen &prng);
         /// Draw the observations of `indiv` from their models, for simulation.
         /// - each draw lands in its Variable, where data readers read it;
         /// - the data column, if any, is never overwritten.
@@ -262,8 +261,10 @@ namespace housepi
         /// Reject a member observation filling an every-member column only for infected members.
         void assert_every_member_cols_() const;
 
-        /// Bind the blocks of member `m`, one per status scheme its status observation can reach.
-        void bind_simulation_blocks_(const augm::Binder &binder, const Individual &m);
+        /// Bind the blocks of member `m`, one per status scheme it can reach.
+        void bind_simulation_blocks_(const augm::Binder &binder,
+                                     const StatusProcess &status_process,
+                                     const Individual &m);
 
         /// Point member `m` at the scheme of its status, and return its definition order for the run.
         /// - status the data does not carry: generic scheme.

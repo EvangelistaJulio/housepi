@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <cmath>
 #include <memory>
+#include <numeric>
 #include <random>
 #include <stdexcept>
 #include <string>
@@ -39,6 +40,8 @@
 #include "mcmc/base.h"
 #include "parameter.h"
 #include "registry.h"
+#include "rules.h"
+#include "status_process.h"
 #include "translator.h"
 #include "variable.h"
 
@@ -222,8 +225,6 @@ namespace housepi
                 return augm::Kind::Member;
             if (kstr == "house")
                 return augm::Kind::House;
-            if (kstr == "status")
-                return augm::Kind::Status;
             // if (kstr == "latent")
             return augm::Kind::Latent;
         }
@@ -475,15 +476,6 @@ namespace housepi
                     msg::stop("Could not find a latent definition for " + msg::val(astr) + ".\n" +
                               "Declare it with " + msg::fn("add_latent") + ".");
                 }
-        }
-
-        void status_obs_consistent(const DefTable &def, size_t row)
-        {
-            if (!def.is_pure_data(row))
-                msg::stop(
-                    "Probabilities of " + msg::fn("add_status_process") +
-                    " must depend only on data or numeric constants.\n" +
-                    "Inference holds the observed status fixed and does not estimate them.");
         }
 
         /// List the data names (source D) read by `def` that are in `names`.
@@ -778,14 +770,6 @@ namespace housepi
                 if (def_[k].kind == Kind::House)
                     continue;
 
-                // status observation is per-member, but out of status scheme
-                if (def_[k].kind == Kind::Status)
-                {
-                    scheme_.status_obs_row_ = k;
-                    scheme_.status_obs_key_ = keys_.consult(def_[k].name);
-                    continue;
-                }
-
                 // store status -> definition rows
                 scheme_.status_rows_[def_[k].status].push_back(k);
             }
@@ -794,7 +778,8 @@ namespace housepi
         //////  augm::SchemeBuilder : order  //////
 
         std::vector<std::string> SchemeBuilder::order(const std::vector<StatusLvl> &infected,
-                                                      const Parameter &param)
+                                                      const Parameter &param,
+                                                      bool draws_status)
         {
             const auto &rows = scheme_.status_rows_;
             auto &index = scheme_.status_index_;
@@ -828,7 +813,7 @@ namespace housepi
                 // a status drawn in simulation reports its gap then
                 // see Augmented::helper_materialize_definition_order_()
                 if (rows.count(status::MISSING) ||
-                    !scheme_.is_any_status_obs() ||
+                    !draws_status ||
                     index.empty())
                     order_status_(status::MISSING, status::MISSING, src);
 
@@ -1214,8 +1199,7 @@ namespace housepi
             for (const DefRow &row : def_.rows)
             {
                 if (row.name == infprof::LATENT_FUNC ||
-                    row.kind == Kind::House ||
-                    row.kind == Kind::Status)
+                    row.kind == Kind::House)
                     continue;
 
                 const bool is_obs = row.kind == Kind::Member; // else Kind::Latent
@@ -1351,6 +1335,79 @@ namespace housepi
         }
     }
 
+    //////////////////////////////  StatusProcess  //////////////////////////////
+
+    void StatusProcess::build(const data::Wide &data_wide,
+                              const str_table &input,
+                              size_t n_levels)
+    {
+        blocks_.clear();
+        totals_.clear();
+        block_of_.assign(data_wide.report_indiv.total, 0);
+        if (input.empty())
+            return;
+
+        // every column but weight and rule group is a covariate
+        std::vector<std::string> covariates = extract_keys(input);
+        vect::remove(covariates, {"weight", "rule_group"});
+        const rules::Member member(input, data_wide, covariates);
+        std::vector<double> row_weight(member.rules.n_rows);
+        for (size_t r = 0; r < member.rules.n_rows; ++r)
+            row_weight[r] = str::tod(input.at("weight")[r]);
+
+        // one block per covariate class
+        const rules::CovariateClasses classes(data_wide, member.keys);
+        block_of_ = classes.of_indiv;
+        blocks_.assign(classes.count, {});
+        totals_.assign(classes.count, 0.);
+
+        // weight per infected level: product of the rule groups, on the first member of each class
+        for (const Household &house : data_wide)
+            for (const Individual &indiv : house)
+            {
+                const size_t b = block_of_[Index::of(indiv)];
+                std::vector<double> &weights = blocks_[b];
+                if (!weights.empty())
+                    continue;
+                weights.assign(n_levels, 1.);
+                for (size_t c = 0; c < n_levels; ++c)
+                    for (const auto &[gid, r] : member.rules.resolve<size_t>(
+                             member.probe(data_wide, indiv, static_cast<double>(status::INFECTED + c)),
+                             [&](size_t row)
+                             { return member.rules.row_gid[row]; }))
+                        weights[c] *= row_weight[r];
+                totals_[b] = std::accumulate(weights.begin(), weights.end(), 0.);
+            }
+    }
+
+    StatusLvl StatusProcess::draw(const Individual &indiv, rnd_gen &prng) const
+    {
+        if (!is_defined())
+            return status::INFECTED;
+
+        // inverse cumulative weight of one uniform draw
+        const size_t b = block_of_[Index::of(indiv)];
+        const std::vector<double> &weights = blocks_[b];
+        const double target = standard_uniform(prng) * totals_[b];
+        size_t c = 0;
+        double acc = weights[0];
+        while (c + 1 < weights.size() && acc < target)
+            acc += weights[++c];
+        return static_cast<StatusLvl>(status::INFECTED + c);
+    }
+
+    std::vector<StatusLvl> StatusProcess::drawable(const Individual &indiv) const
+    {
+        if (!is_defined())
+            return {status::INFECTED};
+        std::vector<StatusLvl> out;
+        const std::vector<double> &weights = blocks_[block_of_[Index::of(indiv)]];
+        for (size_t c = 0; c < weights.size(); ++c)
+            if (weights[c] > 0.)
+                out.push_back(static_cast<StatusLvl>(status::INFECTED + c));
+        return out;
+    }
+
     //////////////////////////////  augm::Binder  //////////////////////////////
 
     namespace augm
@@ -1431,7 +1488,7 @@ namespace housepi
                 if (row.is_const)
                 {
                     // placeholder for observation node if generated by simulation
-                    if (simulation && (row.kind == Kind::Member || row.kind == Kind::Status))
+                    if (simulation && row.kind == Kind::Member)
                         var.init_numeric(0.);
                     else
                         var.init_numeric(translator_.to_numeric(row.value.root, &indiv).value());
@@ -1556,15 +1613,6 @@ namespace housepi
 
     //////////////////////////////  Augmented  //////////////////////////////
 
-    namespace
-    {
-        /// Infected status of a member whose status observation draws category `k`.
-        StatusLvl infected_level(double k) noexcept
-        {
-            return static_cast<StatusLvl>(status::INFECTED + static_cast<StatusLvl>(k));
-        }
-    }
-
     Augmented::Augmented(MCMCBase *mcmc, std::vector<std::string> keys)
         : KeyHolderWithRequests(std::move(keys)), mcmc_(mcmc) {}
     Augmented::~Augmented() = default;
@@ -1575,6 +1623,7 @@ namespace housepi
     }
 
     void Augmented::build(InfecProfile &infec_profile,
+                          const StatusProcess &status_process,
                           const str_table &input)
     {
         build_restore_internal_(); // reset internal state
@@ -1606,7 +1655,7 @@ namespace housepi
 
         // definition order per status, and equivalence-class covariates
         mcmc_->data.wide().set_eq_class_data_names(
-            builder.order({infected.begin(), infected.end()}, mcmc_->param));
+            builder.order({infected.begin(), infected.end()}, mcmc_->param, status_process.is_defined()));
 
         // surrogate columns
         builder.init_surrogates();
@@ -1616,9 +1665,6 @@ namespace housepi
         builder.init_transm(user_transm_vec_.empty() ? std::vector<std::string>{}
                                                      : transm_names_());
 
-        // assert status observation
-        if (scheme_.is_any_status_obs())
-            augm::check::status_obs_consistent(def_, scheme_.status_obs_row());
         // no definition reads an obs entry column, no simulation override reads an observation
         augm::check::no_obs_entry_collision(def_, consult(scheme_.list_obs_member));
         augm::check::no_sim_override_obs_read(def_, consult(scheme_.list_obs_member));
@@ -1832,15 +1878,13 @@ namespace housepi
         }
     }
 
-    void Augmented::init_members_for_simulation()
+    void Augmented::init_members_for_simulation(const StatusProcess &status_process)
     {
         if (empty() || !is_allocated())
             return;
 
-        // member variables bound for the whole run: status observation, static surrogates
+        // member variables bound for the whole run: static surrogates
         sim_fixed_.assign(size(), false);
-        if (scheme_.is_any_status_obs())
-            sim_fixed_[scheme_.status_obs_key()] = true;
         for (const augm::Surrogate &surr : scheme_.list_surrogate)
             if (surr.is_static && !surr.is_house)
                 sim_fixed_[consult(def_[surr.row].name)] = true;
@@ -1851,7 +1895,7 @@ namespace housepi
         msg::WarningBuffer warnings;
         for (const Household &house : mcmc_->data.wide())
             for (const Individual &indiv : house)
-                bind_simulation_blocks_(binder, indiv);
+                bind_simulation_blocks_(binder, status_process, indiv);
         warnings.flush();
     }
 
@@ -1955,7 +1999,9 @@ namespace housepi
         }
     }
 
-    void Augmented::bind_simulation_blocks_(const augm::Binder &binder, const Individual &indiv)
+    void Augmented::bind_simulation_blocks_(const augm::Binder &binder,
+                                            const StatusProcess &status_process,
+                                            const Individual &indiv)
     {
         augm::IndivState &st = state.of(indiv);
         augm::SimMember &sm = state.sim[Index::of(indiv)];
@@ -1971,31 +2017,11 @@ namespace housepi
 
         // reachable statuses:
         // - the observed one, kept by a model that does not redraw it;
-        // - the infected level, shifted by the status observation draw.
+        // - every status the status process can draw.
         if (indiv.is_infected_status())
             reach(indiv.status());
-        double k_min = 0., k_max = 0.;
-        if (scheme_.is_any_status_obs())
-        {
-            Variable &svar = st.vec[scheme_.status_obs_key()];
-            try
-            {
-                binder.bind_member(svar, scheme_.status_obs_row(), indiv, true);
-                svar.release_user_const(); // readers follow the draw, not the placeholder
-                const Codomain c = svar.codomain();
-                k_min = c.inf;
-                k_max = c.sup;
-            }
-            // raised if the member is ever drawn infected
-            catch (const std::exception &)
-            {
-                sm.status_error = std::current_exception();
-                svar.clear();
-                k_max = -1.;
-            }
-        }
-        for (double k = k_min; k <= k_max; ++k)
-            reach(infected_level(k));
+        for (StatusLvl s : status_process.drawable(indiv))
+            reach(s);
 
         for (size_t i : reached)
         {
@@ -2072,23 +2098,6 @@ namespace housepi
     }
 
     //////  Augmented : user reset  //////
-
-    void Augmented::simulate_infected_status(Household &house,
-                                             Individual &indiv,
-                                             rnd_gen &prng)
-    {
-        double k = 0.;
-        if (scheme_.is_any_status_obs())
-        {
-            if (const std::exception_ptr &err = state.sim[Index::of(indiv)].status_error)
-                std::rethrow_exception(err);
-            Variable &svar = state.of(indiv).vec[scheme_.status_obs_key()];
-            svar.draw_value(prng);
-            k = svar.value();
-        }
-
-        house.set_new_status_(indiv, infected_level(k));
-    }
 
     void Augmented::restart(rnd_gen &prng)
     {

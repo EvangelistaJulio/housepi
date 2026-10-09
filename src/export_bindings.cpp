@@ -520,8 +520,13 @@ namespace housepi
 
         void import_latent(Rcpp::XPtr<MCMC> mcmc_ptr, SEXP input)
         {
-            mcmc_ptr->augm.build(mcmc_ptr->infec_profile, rdataframe_to<str_table>(input));
+            mcmc_ptr->augm.build(mcmc_ptr->infec_profile, mcmc_ptr->status_process, rdataframe_to<str_table>(input));
             mcmc_ptr->init_equivalence_class_compression();
+        }
+
+        void import_status_process(Rcpp::XPtr<MCMC> mcmc_ptr, SEXP input, size_t n_levels)
+        {
+            mcmc_ptr->status_process.build(mcmc_ptr->data.wide(), rdataframe_to<str_table>(input), n_levels);
         }
 
         void import_param_table(Rcpp::XPtr<MCMC> mcmc_ptr, SEXP input)
@@ -1194,7 +1199,7 @@ namespace housepi
                 engine.augm.init_house_for_simulation();   // build household-level observations
                 data_wide.assert_required_everyone(engine.data.state, augm.get_live_cols());
                 engine.risks.assert_identifiability(engine.param);
-                engine.augm.init_members_for_simulation(); // bind member definitions once per run
+                engine.augm.init_members_for_simulation(engine.status_process); // bind member definitions once per run
 
                 // @todo Assert the infectivity profile here.
                 // latents are not built yet, so a latent profile cannot be checked
@@ -1568,6 +1573,7 @@ RCPP_MODULE(housepi)
     Rcpp::function("import_param", &import_param);
     Rcpp::function("import_infec_profile", &import_infec_profile);
     Rcpp::function("import_latent", &import_latent);
+    Rcpp::function("import_status_process", &import_status_process);
     Rcpp::function("import_param_table", &import_param_table);
     Rcpp::function("has_contact_risk", &has_contact_risk);
     Rcpp::function("has_infec_profile", &has_infec_profile);

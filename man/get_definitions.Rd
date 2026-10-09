@@ -41,8 +41,9 @@ get_reporting_process(hh_model)
 All of them when \code{NA} (default).}
 }
 \value{
-\code{data.frame}. \code{get_status_process()} returns one row per infected
-status: its code \code{status}, its \code{label} and its probability \code{weight}.
+\code{data.frame}. \code{get_status_process()} returns one row per rule of
+the status process: its \code{status} and \code{weight}, the \code{n} members it applies
+to, its \code{rule_group} and its covariates.
 \code{get_reporting_process()} returns \code{list(wide = , long = )}, see
 \code{\link[=add_reporting_process]{add_reporting_process()}}.
 }

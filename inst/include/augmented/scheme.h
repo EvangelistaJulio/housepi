@@ -85,11 +85,6 @@ namespace housepi::augm
         /// - else na::INDEX.
         size_t index_of(StatusLvl s) const noexcept;
 
-        /// Definition row of the status observation.
-        size_t status_obs_row() const noexcept { return status_obs_row_; }
-        /// Key of the status observation.
-        size_t status_obs_key() const noexcept { return status_obs_key_; }
-
         /// Whether any latent is sampled.
         bool is_any_sample() const noexcept { return is_any_sample_; }
         /// Whether any latent has an adaptive proposal.
@@ -100,8 +95,6 @@ namespace housepi::augm
         bool is_any_obs_model() const noexcept { return is_any_obs_model_; }
         /// Whether any member observation column is produced, model-carrying or deterministic.
         bool is_any_obs_node() const noexcept { return !list_obs_member.empty(); }
-        /// Whether a status observation is defined.
-        bool is_any_status_obs() const noexcept { return !na::is(status_obs_row_); }
         /// Whether definitions imply a unique household equivalence class.
         bool is_unique_eq_class() const noexcept
         {
@@ -121,9 +114,6 @@ namespace housepi::augm
         std::unordered_map<StatusLvl, std::vector<size_t>> status_rows_ = {}; /// Status -> definition rows.
         std::unordered_map<StatusLvl, size_t> status_index_ = {};              /// Status -> index in `status_schemes_`.
 
-        size_t status_obs_row_ = na::INDEX; /// Definition row of the status observation.
-        size_t status_obs_key_ = na::INDEX; /// Key of the status observation.
-
         bool is_any_sample_ = false;       /// Whether any latent is sampled.
         bool is_any_adaptive_ = false;     /// Whether any latent has an adaptive proposal.
         bool is_any_latent_model_ = false; /// Whether any latent carries a model.
@@ -142,8 +132,7 @@ namespace housepi::augm
             : scheme_(scheme), def_(def), keys_(keys) {}
 
         /// Route member definition rows by status.
-        /// - household observation: skipped, it needs neither key nor status;
-        /// - status observation: kept out of the status schemes.
+        /// - household observation: skipped, it needs neither key nor status.
         void register_rows();
 
         /// Order the definitions of every status, producer before consumer.
@@ -151,9 +140,11 @@ namespace housepi::augm
         /// Per status, it lists what a sweep samples, adapts and draws.
         /// Asserts that definitions are complete and acyclic.
         /// @param infected Infected statuses the data carries.
+        /// @param draws_status Whether a status process draws statuses the data may not carry.
         /// @return Data names read as equivalence-class covariates.
         std::vector<std::string> order(const std::vector<StatusLvl> &infected,
-                                       const Parameter &param);
+                                       const Parameter &param,
+                                       bool draws_status);
 
         /// Order and classify surrogate columns of both levels into `list_surrogate`.
         /// Household ones are also collected into `list_obs_house`.

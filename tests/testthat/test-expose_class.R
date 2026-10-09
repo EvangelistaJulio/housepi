@@ -134,6 +134,19 @@ test_that("Status probabilities import as a list or from the template", {
     expect_identical(get_status_process(add_status_process(mk_wrapper$model,
                                                            0, 1)))
 
+  # an imported table equals the `strata` argument
+  strata <- data.frame(status = c("symptomatic", "asymptomatic"),
+                       weight = c(0.7, 0.3))
+  mk_wrapper$model |>
+    add_status_process(import = list(strata = strata)) |>
+    get_status_process() |>
+    expect_identical(get_status_process(add_status_process(
+      mk_wrapper$model, strata = strata
+    )))
+  mk_wrapper$model |>
+    add_status_process(strata = strata, import = list(strata = strata)) |>
+    expect_error("[Mm]ixing imported and inline status probabilities")
+
   # `import` cannot be combined with inline probabilities
   mk_wrapper$model |>
     add_status_process(symptomatic = 1, import = list(asymptomatic = 1)) |>
