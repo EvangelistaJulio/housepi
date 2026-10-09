@@ -335,7 +335,7 @@ HousepiRecoveryCheck <- R6::R6Class(
 
     #' @description Override the default printing behavior.
     print = function() {
-      model <- spaced_template_choice(private$name_)
+      model <- spaced_choice(private$name_)
       flagged <- sum(private$replicates_[["flagged"]])
       print_bullets(c(
         i = "Parameter recovery check of model {.val {model}}.",

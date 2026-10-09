@@ -110,7 +110,7 @@ test_that("fmt_assert_cli formats messages correctly", {
 
 test_that("Template name normalization", {
   for (f in c("Final-Size", "final_size", " final siZe ", "FINAL SIZE")) {
-    spaced_template_choice(f) |> expect_identical("final size")
+    spaced_choice(f) |> expect_identical("final size")
   }
 
   result <- find_closest_template_name("final siz")

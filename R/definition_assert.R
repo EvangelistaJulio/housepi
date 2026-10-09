@@ -18,6 +18,18 @@ kind2family <- function(kind) {
   )
 }
 
+# Reserved data columns, each with its possible space-free spelled mistakes.
+data_reserved_aliases <- list(
+  id = outer(c("id", "ind", "indiv", "individual"),
+             c("", "id"), paste0),
+  hh_id = outer(c("h", "hh", "house", "household"),
+                c("", "id"), paste0),
+  status = outer(c("status", "inf", "infec", "infection"),
+                 c("", "status"), paste0)
+)
+# Reserved column names (non-covariate) in a logic table.
+data_reserved_cols <- names(data_reserved_aliases)
+
 # Augmented stores one display family per kind.
 is_latent_family <- function(family) {
   family %in% vapply(definition_kinds_, kind2family, character(1))
@@ -242,13 +254,29 @@ assert_valid_definition_name <- function(x, family, allow_reserved = FALSE) {
 }
 
 # Assert data columns have valid names and can be sourced by definitions.
-assert_valid_data_columns <- function(cols) {
+# Eventually warn about columns similar to missing reserved columns.
+# The engine reads reserved columns by exact name: lookalike stays a covariate.
+assert_valid_data_columns <- function(cols, targets = data_reserved_cols) {
   forbidden <- cols[!grepl("^[A-Za-z0-9_.]+$", cols)]
-  if (!length(forbidden)) return(invisible())
-  stop_h(
+  if (length(forbidden)) stop_h(
     "Column {cli::qty(forbidden)}name{?s} are forbidden: {.field {forbidden}}.",
     "Use only letters, digits and/or underscores {.code _}."
   )
+  # warn about lookalikes
+  what <- c(id = "individual identifier",
+            hh_id = "household identifier",
+            status = "infection status")
+  flat <- gsub(" ", "", spaced_choice(cols), fixed = TRUE)
+  for (target in setdiff(targets, cols)) {
+    hits <- cols[flat %in% data_reserved_aliases[[target]]]
+    if (length(hits)) warn_h(
+      paste("{cli::qty(hits)}Found column{?s} {.field {hits}} in data",
+            "recalling a {what[[target]]}."),
+      paste("If {cli::qty(hits)}{?it/one of them} is meant to be used as",
+            "a {what[[target]]}, rename it to {.field {target}}.")
+    )
+  }
+  invisible()
 }
 
 # Highest infected status level the engine stores.

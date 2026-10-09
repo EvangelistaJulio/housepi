@@ -5,8 +5,6 @@
 ## See the LICENSE file for details.
 ##
 
-# Reserved column names (non-covariate) in a logic table.
-data_reserved_cols <- c("id", "hh_id", "status")
 # `value` pins a stratum during simulation, `const` fixes it in inference too.
 risk_pin_cols <- c("value", "const")
 risk_reserved_cols <- c("group_risk", "param_name", "n", "rule_group",

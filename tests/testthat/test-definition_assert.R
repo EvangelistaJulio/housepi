@@ -84,6 +84,33 @@ test_that("Assert valid data columns holds the definition alphabet", {
     expect_error("bad name")
 })
 
+test_that("Reserved column lookalikes are named once per target", {
+  # every spelling folds onto the reserved column it stands for
+  assert_valid_data_columns(c("ID", "hhid", "Status")) |>
+    expect_warning("ID.*individual identifier") |>
+    expect_warning("hhid.*household identifier") |>
+    expect_warning("Status.*infection status")
+  assert_valid_data_columns(c("id", "hh.id", "Household_ID", "status")) |>
+    expect_warning("hh.id.*Household_ID.*rename it to.*hh_id")
+
+  # bare house and household stand for the household
+  assert_valid_data_columns(c("id", "House", "status")) |>
+    expect_warning("House.*household identifier")
+
+  # the reserved column is there: a lookalike is a covariate
+  assert_valid_data_columns(c("id", "hh_id", "status", "house_id", "ID")) |>
+    expect_null()
+  # an unrelated name, state included, is left alone
+  assert_valid_data_columns(c("id", "hh_id", "status", "state", "member")) |>
+    expect_null()
+
+  # long data only reads the individual identifier
+  assert_valid_data_columns(c("Status", "hhid", "measure"), "id") |>
+    expect_null()
+  assert_valid_data_columns(c("Id", "measure"), "id") |>
+    expect_warning("Id.*individual identifier")
+})
+
 test_that("Definitions carry the defaults the user left out", {
   # a bare uniform prior reports its unit interval, a given bound is kept
   param <- flu_1918_frederick |>

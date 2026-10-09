@@ -472,7 +472,7 @@ HousepiGenerator <- R6::R6Class(
     #' @field name `character(1)`
     #' Model name.
     name = function(value) {
-      spaced_template_choice(private$name_)
+      spaced_choice(private$name_)
     },
 
     #' @field raw_name `character(1)`
@@ -723,7 +723,7 @@ HousepiGenerator <- R6::R6Class(
         "Data-long should be an object of class {.cls data.frame}.",
         format_type_error(data_long)
       )
-      assert_valid_data_columns(colnames(data_long))
+      assert_valid_data_columns(colnames(data_long), "id")
 
       embed <- cpp_data_factorize(data_long, private$escaped_)
       private$info_data_long_ <- embed$info

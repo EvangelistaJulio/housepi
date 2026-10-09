@@ -304,7 +304,8 @@ test_that("Progress bar prints every `progress` seconds until interrupted", {
   outcome |> expect_s3_class("interrupt")
 
   # every line reports a percentage: the interrupted bar prints no closing line
-  bar <- grep("^sample [|]", printed, value = TRUE)
+  # interactive prints overwrite one line, each led by a carriage return
+  bar <- grep("^sample [|]", unlist(strsplit(printed, "\r")), value = TRUE)
   (length(bar) >= 2L) |> expect_true()
   bar |> expect_match("%")
   # elapsed whole seconds before "<", one second apart

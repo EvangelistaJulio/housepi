@@ -174,11 +174,13 @@ test_that("Deferred data answers the model requests", {
 
 test_that("Data without hh_id warns on every attach", {
   # no household structure: every row becomes a household of its own
-  hhdata <- data.frame(id = c("m1", "m2", "m3"), status = c(1, 0, 1))
+  hhdata <- data.frame(house_id = "x", id = c("m1", "m2", "m3"))
 
   new_housepi_model(hhdata, "test") |>
+    expect_warning("house_id.*household identifier") |>
     expect_warning("[Ii]gnored household structure")
   # a second model in the same session must warn again
+  hhdata$house_id <- NULL
   expect_warning(
     hh_model <- new_housepi_model(hhdata, "test"),
     "[Ii]gnored household structure"

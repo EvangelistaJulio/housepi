@@ -290,6 +290,11 @@ inline_cli_ <- function(..., .envir = parent.frame()) {
   escape_cli_(cli::format_inline(..., .envir = .envir))
 }
 
+# Lower-case name with `-`, `_`, `.` and runs of spaces folded to one space.
+spaced_choice <- function(x) {
+  trimws(tolower(gsub("\\s+", " ", gsub("[-_. ]", " ", x))))
+}
+
 #' Find closest match across list of options.
 #' Return a string with helpful comments.
 #' @param input `character(1)` String to be inspected.

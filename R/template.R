@@ -36,11 +36,6 @@ template_dll_file <- function(path) {
   file.path(path, dll_file_ext(template_name(path)))
 }
 
-# Return template name choice with spaces.
-spaced_template_choice <- function(x) {
-  trimws(tolower(gsub("\\s+", " ", gsub("-|_| ", " ", x))))
-}
-
 # Returns the directory to all housepi template models.
 template_models_dir <- function() {
   system.file("models", package = "housepi")
@@ -75,9 +70,9 @@ load_model_dll_ <- function(dll) {
 #' @keywords internal
 #' @noRd
 get_template_dir <- function(x) {
-  flat_choice <- spaced_template_choice(x)
+  flat_choice <- spaced_choice(x)
   path_to_options <- list.files(template_models_dir(), full.names = TRUE)
-  flat_options <- spaced_template_choice(basename(path_to_options))
+  flat_options <- spaced_choice(basename(path_to_options))
   # extract path if present (unique since folder name)
   mask <- flat_options == flat_choice
   if (any(mask)) return(path_to_options[mask])
@@ -96,9 +91,9 @@ get_template_dir <- function(x) {
 #' @keywords internal
 #' @noRd
 find_closest_template_name <- function(x) {
-  flat_choice <- spaced_template_choice(x)
+  flat_choice <- spaced_choice(x)
   options <- list.files(template_models_dir(), full.names = FALSE)
-  flat_options <- spaced_template_choice(options)
+  flat_options <- spaced_choice(options)
   # NOTE: avoid to attempt a suggestion for silly mistakes
   sms <- find_closest_match(flat_choice, flat_options)
   if (endsWith(sms, "?") && nchar(flat_choice) > 3) return(sms)

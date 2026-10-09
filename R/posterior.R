@@ -492,7 +492,7 @@ HousepiPosteriorDraws <- R6::R6Class(
       if (is.null(private$draws_$latent)) nlatent <- 0
       else nlatent <- posterior::nvariables(private$draws_$latent)
 
-      model <- spaced_template_choice(private$name_)
+      model <- spaced_choice(private$name_)
       print_bullets(c(
         i = "Posterior draws of model {.val {model}}.",
         paste0(
