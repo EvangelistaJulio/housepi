@@ -30,10 +30,22 @@
 #include "data/state.h"
 #include "data/status.h"
 #include "data/wide.h"
+#include "data.h"
 #include "function.h"
+#include "model.h"
 
 namespace housepi
 {
+    //////////////////////////////  Data  //////////////////////////////
+
+    Data::Store_::Store_(const ModelBase &model)
+        : wide(model.key_Data(),
+               model.key_HHmember(),
+               model.key_HHmembervec(),
+               model.key_HHdoublevec(),
+               model.key_HHdoublemtx()),
+          long_format(model.key_Long()) {}
+
     //////////////////////////////  Household  //////////////////////////////
 
     void Household::add_indiv(IndivIdx index, StatusLvl status)
@@ -118,24 +130,9 @@ namespace housepi::data
 {
     //////////////////////////////  data::Wide  //////////////////////////////
 
-    void Wide::init_cache_key_holders(const std::vector<std::string> &member_keys,
-                                      const std::vector<std::string> &member_vec_keys,
-                                      const std::vector<std::string> &double_vec_keys,
-                                      const std::vector<std::string> &double_mtx_keys)
-    {
-        khold_member_val.init(member_keys);
-        khold_member_vec.init(member_vec_keys);
-        khold_double_vec.init(double_vec_keys);
-        khold_double_mtx.init(double_mtx_keys);
-    }
-
     void Wide::build(const str_table &input)
     {
-        khold_.clear_optional();
-        khold_member_val.clear_optional();
-        khold_member_vec.clear_optional();
-        khold_double_vec.clear_optional();
-        khold_double_mtx.clear_optional();
+        clear_optional();
 
         helper_build_clear_data_();        // drop previous data and lists
         helper_build_data_headers_(input); // extract headers
@@ -192,10 +189,10 @@ namespace housepi::data
             // read individual data into external storage
             IndivWide_ &idata = indiv_data_[i];
             idata.status = status;
-            idata.vec.resize(khold_.size());
+            idata.vec.resize(size());
             for (size_t d = 0; d < idata.vec.size(); ++d)
             {
-                const std::string &dname = khold(d);
+                const std::string &dname = consult(d);
                 double &x = idata.vec[d];
 
                 // model-required column absent at import: missing, reported at the run wall
@@ -250,7 +247,7 @@ namespace housepi::data
 
         // columns known at import: model-declared keys plus the user ones
         // columns produced by an observation are appended later, see add_produced_cols
-        n_imported_ = khold_.size();
+        n_imported_ = size();
 
         // update report for data
         build_helper_fill_report_data_();
@@ -258,17 +255,15 @@ namespace housepi::data
 
     std::vector<std::string> Wide::imported_cols() const
     {
-        std::vector<std::string> all = khold_.all();
-        all.resize(n_imported_);
-        return all;
+        return std::vector<std::string>(all().begin(), all().begin() + n_imported_);
     }
 
     void Wide::add_produced_cols(const std::vector<std::string> &produced_cols)
     {
         for (const std::string &name : produced_cols)
-            khold_.add(name);
+            add(name);
         for (IndivWide_ &idata : indiv_data_)
-            idata.vec.resize(khold_.size(), na::DOUBLE);
+            idata.vec.resize(size(), na::DOUBLE);
     }
 
     size_t Wide::index_of_(std::string_view hh_id) const
@@ -310,7 +305,7 @@ namespace housepi::data
 
         // add optional keys to registry
         for (const std::string &datastring : headers)
-            khold_.add(datastring);
+            add(datastring);
     }
 
     void Wide::build_helper_fill_report_data_()
@@ -417,7 +412,7 @@ namespace housepi::data
 
     void Wide::set_eq_class_data_names(const std::vector<std::string> &data_list)
     {
-        for (size_t d : khold(data_list))
+        for (size_t d : consult(data_list))
             eq_class_covariates_.emplace(d);
     }
 
@@ -504,12 +499,12 @@ namespace housepi::data
                                         const std::vector<std::string> &live) const
     {
         for (size_t d : request_everyone_)
-            if (!vect::contains(live, khold(d)))
+            if (!vect::contains(live, consult(d)))
                 for (const Household &house : house_vector_)
                     for (const Individual &indiv : house)
                         if (na::is(state.readcell(d, indiv).value()))
                             msg::stop(
-                                "Data " + msg::val(khold(d)) + " has no value for " + str(indiv) + " for " +
+                                "Data " + msg::val(consult(d)) + " has no value for " + str(indiv) + " for " +
                                 str(house) + ".\nThe model request it for every member, escaped ones included.");
     }
 
@@ -524,7 +519,7 @@ namespace housepi::data
 
     void State::reset_readcells(const Wide &wide)
     {
-        const size_t total = wide.khold().size();
+        const size_t total = wide.size();
         readcell_.resize(wide.report_indiv.total);
         for (const Household &house : wide)
             for (const Individual &indiv : house)
@@ -533,7 +528,7 @@ namespace housepi::data
                 cells.resize(total);
                 for (size_t d = 0; d < total; ++d)
                 {
-                    cells[d].name(wide.khold(d), ErrType::Data);
+                    cells[d].name(wide.consult(d), ErrType::Data);
                     cells[d].init_numeric(wide.raw(d, indiv));
                 }
             }
@@ -563,12 +558,12 @@ namespace housepi::data
             Cache_ &curr = current_[R];
 
             // member value
-            size_t s_member = wide.khold_member_val.size();
+            size_t s_member = wide.keys_member_val.size();
             curr.member.assign(s_member, 0);
             prev.member.assign(s_member, 0);
 
             // member vector
-            size_t s_member_vec = wide.khold_member_vec.size();
+            size_t s_member_vec = wide.keys_member_vec.size();
             curr.member_vector.resize(s_member_vec);
             prev.member_vector.resize(s_member_vec);
             for (size_t e = 0; e < s_member_vec; ++e)
@@ -578,7 +573,7 @@ namespace housepi::data
             }
 
             // double vector
-            size_t s_double_vec = wide.khold_double_vec.size();
+            size_t s_double_vec = wide.keys_double_vec.size();
             curr.double_vector.resize(s_double_vec);
             prev.double_vector.resize(s_double_vec);
             for (size_t e = 0; e < s_double_vec; ++e)
@@ -588,7 +583,7 @@ namespace housepi::data
             }
 
             // double matrix
-            size_t s_double_mtx = wide.khold_double_mtx.size();
+            size_t s_double_mtx = wide.keys_double_mtx.size();
             curr.double_matrix.resize(s_double_mtx);
             prev.double_matrix.resize(s_double_mtx);
             for (size_t e = 0; e < s_double_mtx; ++e)
@@ -650,7 +645,7 @@ namespace housepi::data
     void Long::build(Wide &data_wide,
                      const str_table &input)
     {
-        khold_.clear_optional();
+        clear_optional();
 
         if (input.empty())
             return;
@@ -682,10 +677,10 @@ namespace housepi::data
 
             // append (since vector is initialized to empty)
             auto &idat = indiv_datalist[id_to_index.at(id)];
-            idat.resize(khold_.size());
-            for (size_t d = 0; d < khold_.size(); ++d)
+            idat.resize(size());
+            for (size_t d = 0; d < size(); ++d)
             {
-                const std::string &dstr = khold(d);
+                const std::string &dstr = consult(d);
                 idat[d].emplace_back(
                     str::tod(input.at(dstr)[r], "data long format " + msg::arg(dstr)));
             }
@@ -716,6 +711,6 @@ namespace housepi::data
 
         // add optional keys to registry
         for (const std::string &datastring : headers)
-            khold_.add(datastring);
+            add(datastring);
     }
 }

@@ -60,6 +60,7 @@ namespace housepi
 	public:
 		std::unique_ptr<ModelBase> model; /// Transmission model.
 
+		/// Create the engine of built-in or custom model `model_name`.
 		explicit MCMC(std::string_view model_name);
 
 		/// Detach a shared data store before mutation (copy-on-write).
@@ -79,6 +80,9 @@ namespace housepi
 		double sample();
 
 	private:
+		/// Create the engine of model `model_ptr`.
+		explicit MCMC(std::unique_ptr<ModelBase> model_ptr);
+
 		/// Assert definitions, then initialize for evaluation.
 		void init_for_evaluation_();
 

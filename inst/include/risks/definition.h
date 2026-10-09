@@ -17,6 +17,7 @@
 #include "tools/dictionary.h"
 #include "tools/messages.h"
 #include "tools/nan.h"
+#include "tools/rule_table.h"
 #include "tools/string.h"
 #include "tools/vector.h"
 #include "data/individual.h"
@@ -24,25 +25,28 @@
 #include "function.h"
 #include "parameter.h"
 #include "risks/anchor.h"
-#include "risks/rule_table.h"
 #include "risks/store.h"
 
 //////////////////////////////  risks::read_scale_anchors  //////////////////////////////
 
 namespace housepi::risks
 {
-    /// Read the scale anchoring of every rule group of `rules`.
-    /// - a rule named the reference: anchors its group;
+    constexpr const char *REFERENCE = ".reference"; /// Rule value choosing the reference.
+    constexpr double VALUE_REFERENCE = 1.0;         /// Risk value of the reference.
+
+    /// Read the scale anchoring of every rule group.
+    /// - a rule naming the reference: anchors its group;
     /// - any other rule: a risk its group applies.
+    /// @param row_param Parameter key per rule, NA for the reference.
     /// @param key_of Rule-group key of row `r`.
     template <class Key, class KeyFn>
-    std::map<Key, ScaleAnchor> read_scale_anchors(const RuleTable &rules, KeyFn key_of)
+    std::map<Key, ScaleAnchor> read_scale_anchors(const std::vector<size_t> &row_param, KeyFn key_of)
     {
         std::map<Key, ScaleAnchor> anchors;
-        for (size_t r = 0; r < rules.n_rows; ++r)
+        for (size_t r = 0; r < row_param.size(); ++r)
         {
             ScaleAnchor &anchor = anchors[key_of(r)];
-            const size_t p = rules.row_param[r];
+            const size_t p = row_param[r];
             if (na::is(p))
                 anchor.anchored = true;
             else if (!vect::contains(anchor.scaling_params, p))
@@ -62,9 +66,10 @@ namespace housepi::risks
     /// - every other covariate: carried by the data.
     struct GroupDefinitions
     {
-        std::vector<std::string> data; /// Covariates carried by the data.
-        std::vector<size_t> keys;      /// Data-wide keys of the covariates.
-        RuleTable rules;               /// Rules over the covariates, then the status slot if keyed.
+        std::vector<std::string> data;      /// Covariates carried by the data.
+        std::vector<size_t> keys;           /// Data-wide keys of the covariates.
+        RuleTable rules;                    /// Rules over the covariates, then the status slot if keyed.
+        std::vector<size_t> row_param = {}; /// Parameter key per rule, NA for the reference.
 
         /// Read the rules of `input`.
         /// @param spec_headers Every covariate a rule may key on.
@@ -75,13 +80,16 @@ namespace housepi::risks
                          const std::vector<std::string> &spec_headers,
                          const StatusTable<StatusSlot> &slot_of)
             : data(vect::difference(spec_headers, {STATUS_KEY})),
-              keys(data_wide.khold(data)),
+              keys(data_wide.consult(data)),
               rules(input,
                     input.count(STATUS_KEY)
                         ? vect::concatenate(data, std::vector<std::string>{STATUS_KEY})
                         : data,
-                    param)
+                    "param_name")
         {
+            if (input.count("param_name"))
+                row_param = param.find(input.at("param_name"));
+
             // a status cell reads as the slot of its level
             if (input.count(STATUS_KEY))
                 for (double &cell : rules.cells.back())
@@ -123,6 +131,7 @@ namespace housepi::risks
         std::vector<std::string> data; /// Covariates, prefix dropped.
         std::vector<size_t> keys;      /// Data-wide keys of the covariates.
         RuleTable rules;               /// Rules over the `from_` columns, then the `to_` columns.
+        std::vector<size_t> row_param; /// Parameter key per rule, NA for the reference.
 
         /// Read the rules of `input`.
         /// @note Expects as many `from_` as `to_` columns.
@@ -130,8 +139,9 @@ namespace housepi::risks
                            const data::Wide &data_wide,
                            const Parameter &param)
             : data(prefixed_(input, "from_", true)),
-              keys(data_wide.khold(data)),
-              rules(input, vect::concatenate(prefixed_(input, "from_"), prefixed_(input, "to_")), param) {}
+              keys(data_wide.consult(data)),
+              rules(input, vect::concatenate(prefixed_(input, "from_"), prefixed_(input, "to_")), "param_name"),
+              row_param(param.find(input.at("param_name"))) {}
 
         /// Resolve the risks the pair `indiv_from` to `indiv_to` multiplies.
         /// - per rule group: the most specific matching rule;
@@ -159,7 +169,7 @@ namespace housepi::risks
 
             std::vector<const Attribute *> param_ptrs;
             for (auto &[gid, r] : resolved)
-                if (const size_t p = rules.row_param[r]; !na::is(p))
+                if (const size_t p = row_param[r]; !na::is(p))
                     param_ptrs.push_back(param.at(p).pointer());
             return param_ptrs;
         }

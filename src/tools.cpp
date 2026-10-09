@@ -31,98 +31,78 @@
 
 namespace housepi
 {
-    void KeyHolder::init(const std::vector<std::string> &keys)
-    {
-        declared_ = keys;
-        optional_.clear();
-        size_ = declared_.size();
-    }
-
-    void KeyHolder::clear_optional()
-    {
-        optional_.clear();
-        size_ = declared_.size();
-    }
+    void KeyHolder::clear_optional() { keys_.resize(n_declared_); }
 
     void KeyHolder::add(std::string_view name)
     {
-        if (count(name))
-            return;
-        optional_.emplace_back(name);
-        ++size_;
+        if (!count(name))
+            keys_.emplace_back(name);
     }
 
-    std::vector<std::string> KeyHolder::all() const
+    std::string KeyHolder::consult(size_t index) const
     {
-        std::vector<std::string> vec;
-        vec.reserve(declared_.size() + optional_.size());
-        for (const std::string &s : declared_)
-            vec.push_back(s);
-        for (const std::string &s : optional_)
-            vec.push_back(s);
-        return vec;
+        if (index >= keys_.size())
+            msg::stop("Registration failed: key index out of bounds.");
+        return keys_[index];
     }
-
-    std::string KeyHolder::as_string(size_t index) const
-    {
-        if (index < declared_.size())
-            return declared_[index];
-        index -= declared_.size();
-        if (index < optional_.size())
-            return optional_[index];
-        msg::stop("Registration failed: key index out of bounds.");
-    }
-    std::vector<std::string> KeyHolder::as_string(std::vector<size_t> indexes) const
+    std::vector<std::string> KeyHolder::consult(const std::vector<size_t> &indexes) const
     {
         std::vector<std::string> output;
         output.reserve(indexes.size());
         for (size_t s : indexes)
-            output.push_back(as_string(s));
+            output.push_back(consult(s));
         return output;
     }
 
-    size_t KeyHolder::from_string(std::string_view name) const
+    size_t KeyHolder::consult(std::string_view name) const
     {
-        auto it = std::find(declared_.begin(), declared_.end(), name);
-        if (it != declared_.end())
-            return static_cast<size_t>(std::distance(declared_.begin(), it));
-        auto it2 = std::find(optional_.begin(), optional_.end(), name);
-        if (it2 != optional_.end())
-            return declared_.size() + static_cast<size_t>(std::distance(optional_.begin(), it2));
-        msg::stop("Registration failed: key name " + msg::val(std::string(name)) + " was not found.");
+        const size_t k = find(name);
+        if (na::is(k))
+            msg::stop("Registration failed: key name " + msg::val(std::string(name)) + " was not found.");
+        return k;
     }
-    std::vector<size_t> KeyHolder::from_string(const std::vector<std::string> &names) const
+    std::vector<size_t> KeyHolder::consult(const std::vector<std::string> &names) const
     {
         std::vector<size_t> output;
         output.reserve(names.size());
         for (const std::string &s : names)
-            output.push_back(from_string(s));
+            output.push_back(consult(s));
         return output;
     }
 
-    bool KeyHolder::count(std::string_view name) const
+    size_t KeyHolder::find(std::string_view name) const noexcept
     {
-        return vect::contains(declared_, name) || vect::contains(optional_, name);
+        const auto it = std::find(keys_.begin(), keys_.end(), name);
+        return it == keys_.end() ? na::INDEX : static_cast<size_t>(it - keys_.begin());
     }
-    void KeyModuleWithRequests::request_discrete(std::vector<size_t> vec)
+    std::vector<size_t> KeyHolder::find(const std::vector<std::string> &names) const
+    {
+        std::vector<size_t> output;
+        output.reserve(names.size());
+        for (const std::string &s : names)
+            output.push_back(find(s));
+        return output;
+    }
+
+    void KeyHolderWithRequests::request_discrete(std::vector<size_t> vec)
     {
         vect::append_unique(discr_, vec);
     }
-    void KeyModuleWithRequests::request_positive(std::vector<size_t> vec)
+    void KeyHolderWithRequests::request_positive(std::vector<size_t> vec)
     {
         vect::append_unique(posit_, vec);
     }
-    bool KeyModuleWithRequests::is_required_discrete(size_t p) const noexcept
+    bool KeyHolderWithRequests::is_required_discrete(size_t p) const noexcept
     {
         return vect::contains(discr_, p);
     }
-    bool KeyModuleWithRequests::is_required_positive(size_t p) const noexcept
+    bool KeyHolderWithRequests::is_required_positive(size_t p) const noexcept
     {
         return vect::contains(posit_, p);
     }
 
     template <class Def>
-    void KeyModuleWithRequests::assert_requests(size_t p, const Def &def) const
+    void KeyHolderWithRequests::assert_requests(size_t p, const Def &def) const
     {
         if (is_required_discrete(p) && !def.is_discrete())
             msg::stop(def.str() +
@@ -131,8 +111,8 @@ namespace housepi
             msg::stop(def.str() +
                       " was not strictly positive, as requested by the model.");
     }
-    template void KeyModuleWithRequests::assert_requests(size_t, const Attribute &) const;
-    template void KeyModuleWithRequests::assert_requests(size_t, const Variable &) const;
+    template void KeyHolderWithRequests::assert_requests(size_t, const Attribute &) const;
+    template void KeyHolderWithRequests::assert_requests(size_t, const Variable &) const;
 }
 
 ///////////////////////////  messages  ///////////////////////////

@@ -21,8 +21,10 @@ namespace housepi::data
     struct Wide;
 
     /// Long-format table: any number of rows per member.
-    struct Long : public KeyModule
+    struct Long : public KeyHolder
     {
+        using KeyHolder::KeyHolder;
+
         /// Rows of one member: values per column, one per row.
         using IndivLong = std::vector<std::vector<double>>;
 
@@ -30,8 +32,7 @@ namespace housepi::data
         std::vector<IndivLong> indiv_datalist = {}; /// Member rows, by member index.
 
         /// Build member rows from long-format table `input`, matched on `id` to `data_wide`.
-        void build(Wide &data_wide,
-                   const str_table &input);
+        void build(Wide &data_wide, const str_table &input);
 
         /// Rows of member `indiv`.
         const IndivLong *get_data_long_ptr(const Individual &indiv) const noexcept

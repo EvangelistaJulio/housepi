@@ -34,15 +34,16 @@ namespace housepi
     /// Translate parsed definitions into Attributes, across modules.
     struct Translator
     {
+        /// Bind the modules sources are read from.
+        /// - `data`, `group_risk`: read by member-specific sources.
         Translator(Parameter &param,
-                   Augmented &augm)
+                   Augmented &augm,
+                   const Data &data,
+                   const risks::Group &group_risk)
             : param_(param),
-              augm_(augm) {}
-
-        /// Bind data tables, read by member-specific sources.
-        void bind_data(const Data *data) noexcept { pdata_ = data; }
-        /// Bind group-risk storage, read by member-specific sources.
-        void bind_group_risk(const risks::Group *group_risk) noexcept { pgroup_risk_ = group_risk; }
+              augm_(augm),
+              data_(data),
+              group_risk_(group_risk) {}
 
         /// Translate definition node `node` into an attribute.
         /// - within household `house_ptr`, no member bound: a data cell is read through a fold only.
@@ -90,8 +91,8 @@ namespace housepi
     private:
         Parameter &param_;                /// Parameter key module.
         Augmented &augm_;                 /// Latent key module.
-        const Data *pdata_;               /// Data tables and key holder.
-        const risks::Group *pgroup_risk_; /// Group-risk storage and key holder.
+        const Data &data_;                /// Data tables and key holder.
+        const risks::Group &group_risk_;  /// Group-risk storage and key holder.
         mutable Attribute storage_;       /// Auxiliary storage attribute.
 
         /// Build function `node` into `storage_`, its arguments bound.

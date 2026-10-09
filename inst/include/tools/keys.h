@@ -9,75 +9,72 @@
 
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
+
+#include "tools/nan.h"
 
 namespace housepi
 {
     /// Register definition names: model-declared ones first, then optional user ones.
+    ///
+    /// Modules derive from it:
+    /// - read: public;
+    /// - write: by the deriving module only.
     struct KeyHolder
     {
     public:
-        //////  Setter  //////
+        //////  Constructor  //////
 
-        /// Assign model-declared keys `keys`, dropping optional ones.
-        void init(const std::vector<std::string> &keys);
-        /// Drop all optional definitions.
-        void clear_optional();
-        /// Add optional definition `name`, if absent.
-        void add(std::string_view name);
+        /// Register model-declared keys `keys`.
+        explicit KeyHolder(std::vector<std::string> keys)
+            : keys_(std::move(keys)), n_declared_(keys_.size()) {}
 
         //////  Getter  //////
 
         /// Total number of definition names.
-        size_t size() const noexcept { return size_; }
+        size_t size() const noexcept { return keys_.size(); }
 
         /// Return all definition names.
-        std::vector<std::string> all() const;
+        const std::vector<std::string> &all() const noexcept { return keys_; }
 
         /// Convert index to definition name.
-        std::string as_string(size_t index) const;
-        std::vector<std::string> as_string(std::vector<size_t> indexes) const;
-
+        std::string consult(size_t index) const;
+        std::vector<std::string> consult(const std::vector<size_t> &indexes) const;
         /// Convert definition name to index.
-        size_t from_string(std::string_view name) const;
-        std::vector<size_t> from_string(const std::vector<std::string> &names) const;
+        /// - name not registered: error.
+        size_t consult(std::string_view name) const;
+        std::vector<size_t> consult(const std::vector<std::string> &names) const;
+        /// Convert definition name to index.
+        /// - name not registered: NA.
+        size_t find(std::string_view name) const noexcept;
+        std::vector<size_t> find(const std::vector<std::string> &names) const;
 
         //////  Flags  //////
 
         /// Whether no definition has been provided.
         bool empty() const noexcept { return size() == 0; };
         /// Whether definition `name` is registered.
-        bool count(std::string_view name) const;
-
-    private:
-        size_t size_ = 0;                        /// Number of definitions.
-        std::vector<std::string> declared_ = {}; /// Model-declared definitions.
-        std::vector<std::string> optional_ = {}; /// Optional user definitions.
-    };
-
-    /// Module addressing its definitions through a key holder.
-    struct KeyModule
-    {
-    public:
-        /// Initialize the key holder with model-declared keys.
-        void init_key_holder(const std::vector<std::string> &keys) { khold_.init(keys); }
-
-        /// Key holder.
-        const KeyHolder &khold() const { return khold_; }
-        /// Convert indexes to definition names.
-        std::string khold(size_t index) const { return khold_.as_string(index); }
-        std::vector<std::string> khold(std::vector<size_t> indexes) const { return khold_.as_string(indexes); }
-        /// Convert definition names to indexes.
-        size_t khold(std::string_view name) const { return khold_.from_string(name); }
-        std::vector<size_t> khold(const std::vector<std::string> &names) const { return khold_.from_string(names); }
+        bool count(std::string_view name) const noexcept { return !na::is(find(name)); }
 
     protected:
-        KeyHolder khold_; /// Key holder of the definitions.
+        //////  Setter  //////
+
+        /// Drop all optional definitions.
+        void clear_optional();
+        /// Add optional definition `name`, if absent.
+        void add(std::string_view name);
+
+    private:
+        std::vector<std::string> keys_ = {}; /// Model-declared definitions, then optional ones.
+        size_t n_declared_ = 0;              /// Number of model-declared definitions.
     };
 
-    /// Key module recording discrete and positive requests per key.
-    struct KeyModuleWithRequests : public KeyModule
+    /// Key holder recording discrete and positive requests per key.
+    struct KeyHolderWithRequests : public KeyHolder
     {
+        using KeyHolder::KeyHolder;
+
         /// Request discrete definitions `vec`.
         void request_discrete(std::vector<size_t> vec);
         /// Request positive definitions `vec`.
@@ -88,10 +85,10 @@ namespace housepi
         /// Whether a key was requested positive.
         bool is_required_positive(size_t p) const noexcept;
         /// Names of the keys requested discrete.
-        std::vector<std::string> discrete_keys() const { return khold(discr_); }
+        std::vector<std::string> discrete_keys() const { return consult(discr_); }
 
-        /// Copy the requests registered on `other`, a module over the same keys.
-        void copy_requests(const KeyModuleWithRequests &other)
+        /// Copy the requests registered on `other`, a key holder over the same keys.
+        void copy_requests(const KeyHolderWithRequests &other)
         {
             discr_ = other.discr_;
             posit_ = other.posit_;

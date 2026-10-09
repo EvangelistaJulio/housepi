@@ -95,7 +95,7 @@ namespace housepi::augm::check
     /// Report the observations left out, per key.
     /// - some members carry the datum: warning;
     /// - no member does: error.
-    void report_missing_obs(const KeyHolder &khold,
+    void report_missing_obs(const KeyHolder &keys,
                             const std::vector<size_t> &declared,
                             const std::vector<size_t> &missing);
 }

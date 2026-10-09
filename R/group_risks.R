@@ -223,19 +223,22 @@ unknown_strata_rows <- function(tbl, known, cols) {
 #' @param dead `logical()` One flag per row of `tbl`.
 #' @param label `character(1)` The risk, as it opens the message.
 #' @param unit `character(1)` What a rule resolves: member or ordered pair.
+#' @param value_col `character(1)` Column holding what a rule applies.
+#' @param cov_cols `character()` Columns a rule keys on.
 #' @return `data.frame` the input, invisibly.
 #' @keywords internal
 #' @noRd
-assert_no_dead_rules <- function(tbl, dead, label, unit) {
+assert_no_dead_rules <- function(tbl, dead, label, unit,
+                                 value_col = "param_name",
+                                 cov_cols = risk_cov_cols_(tbl)) {
   if (!any(dead)) return(invisible(tbl))
-  cov_cols <- risk_cov_cols_(tbl)
   # nolint next: object_usage_linter. read by the cli glue below
   rules <- vapply(which(dead), function(i) {
     cells <- as.list(tbl[i, cov_cols, drop = FALSE])
     keyed <- cells[!is.na(unlist(cells))]
     cli::format_inline(
       if (!length(keyed)) "catch-all" else reference_to_phrase(keyed),
-      " ({.val {tbl$param_name[i]}})"
+      " ({.val {tbl[[value_col]][i]}})"
     )
   }, character(1))
   stop_h(
@@ -454,16 +457,15 @@ unmatched_cells_ <- function(tbl, cells) {
   }))
 }
 
-#' Count the units every rule of a logic table is resolved to.
+#' Resolve every cell against the rules of a logic table.
 #' @description Within each rule group, a cell goes to the most specific rule
-#' it matches, as in the engine. Rules tied at that specificity share the cell.
+#' it matches, as in the engine. Rules tied at that specificity all win it.
 #' @param tbl `data.frame` logic table.
 #' @param cells `data.frame` observed cells, columns named as the rule columns.
-#' @param weight `integer()` units each cell holds.
-#' @return `integer()` One count per row of `tbl`.
+#' @return `logical` matrix, one row per cell and one column per rule.
 #' @keywords internal
 #' @noRd
-count_resolved_rules <- function(tbl, cells, weight = 1L) {
+rule_winners_ <- function(tbl, cells) {
   hit <- rule_hits_(tbl, cells)
   # 0 scores no match, otherwise one plus the rule specificity
   spec <- rowSums(!is.na(tbl[names(cells)]))
@@ -476,7 +478,19 @@ count_resolved_rules <- function(tbl, cells, weight = 1L) {
     top <- sub[cbind(seq_len(nrow(sub)), max.col(sub, ties.method = "first"))]
     win[, in_g] <- sub == top & top > 0
   }
-  as.integer(colSums(win * weight))
+  win
+}
+
+#' Count the units every rule of a logic table is resolved to.
+#' @description Rules tied at the top specificity share the cell.
+#' @param tbl `data.frame` logic table.
+#' @param cells `data.frame` observed cells, columns named as the rule columns.
+#' @param weight `integer()` units each cell holds.
+#' @return `integer()` One count per row of `tbl`.
+#' @keywords internal
+#' @noRd
+count_resolved_rules <- function(tbl, cells, weight = 1L) {
+  as.integer(colSums(rule_winners_(tbl, cells) * weight))
 }
 
 #' @title Assert that each rule group designates at most one reference cell.

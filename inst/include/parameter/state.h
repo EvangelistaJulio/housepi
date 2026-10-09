@@ -23,8 +23,8 @@ namespace housepi::param
     {
         std::vector<Variable> vec = {}; /// Parameters, by key.
 
-        /// Allocate one Variable per key of `khold`, named after it.
-        void allocate(const KeyHolder &khold);
+        /// Allocate one Variable per key of `keys`, named after it.
+        void allocate(const KeyHolder &keys);
     };
 
     //////  Sampling  //////

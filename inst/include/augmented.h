@@ -38,13 +38,14 @@ namespace housepi
     /// - definitions, stored;
     /// - sampling schemes, built from definitions;
     /// - member and household variables, bound to definitions.
-    struct Augmented : public KeyModuleWithRequests
+    struct Augmented : public KeyHolderWithRequests
     {
         augm::State state; /// Variables moved by inference and simulation.
 
         //////  Constructor  //////
 
-        Augmented(MCMCBase *mcmc);
+        /// Register model-declared latent keys `keys`, within engine `mcmc`.
+        Augmented(MCMCBase *mcmc, std::vector<std::string> keys);
         ~Augmented();
 
         //////  Setter  //////

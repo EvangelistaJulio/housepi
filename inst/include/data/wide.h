@@ -11,6 +11,7 @@
 #include <string>
 #include <string_view>
 #include <unordered_set>
+#include <utility>
 #include <vector>
 
 #include "tools/dictionary.h"
@@ -27,15 +28,29 @@ namespace housepi::data
     struct State;
 
     /// Wide-format table: one row per member, households and their equivalence classes.
-    struct Wide : public KeyModuleWithRequests
+    struct Wide : public KeyHolderWithRequests
     {
-        KeyHolder khold_member_val; /// Cache key holder, member values.
-        KeyHolder khold_member_vec; /// Cache key holder, member vectors.
-        KeyHolder khold_double_vec; /// Cache key holder, double vectors.
-        KeyHolder khold_double_mtx; /// Cache key holder, double matrices.
+        KeyHolder keys_member_val; /// Cache key holder, member values.
+        KeyHolder keys_member_vec; /// Cache key holder, member vectors.
+        KeyHolder keys_double_vec; /// Cache key holder, double vectors.
+        KeyHolder keys_double_mtx; /// Cache key holder, double matrices.
 
-        ReportIndividual report_indiv;   /// Member report.
-        ReportHousehold report_house;    /// Household report.
+        ReportIndividual report_indiv; /// Member report.
+        ReportHousehold report_house;  /// Household report.
+
+        //////  Constructor  //////
+
+        /// Register model-declared keys: data columns `keys`, then cache keys per layout.
+        Wide(std::vector<std::string> keys,
+             std::vector<std::string> member_keys,
+             std::vector<std::string> member_vec_keys,
+             std::vector<std::string> double_vec_keys,
+             std::vector<std::string> double_mtx_keys)
+            : KeyHolderWithRequests(std::move(keys)),
+              keys_member_val(std::move(member_keys)),
+              keys_member_vec(std::move(member_vec_keys)),
+              keys_double_vec(std::move(double_vec_keys)),
+              keys_double_mtx(std::move(double_mtx_keys)) {}
 
         //////  Setter  //////
 
@@ -96,15 +111,6 @@ namespace housepi::data
         Household &eq_class_head(size_t R) noexcept { return at(eq_classes_[R].head_); }
         const Household &eq_class_head(size_t R) const noexcept { return at(eq_classes_[R].head_); }
 
-        //////  Cache layout  //////
-
-        /// Initialize cache key holders with model-declared keys.
-        void init_cache_key_holders(
-            const std::vector<std::string> &member_keys,
-            const std::vector<std::string> &member_vec_keys,
-            const std::vector<std::string> &double_vec_keys,
-            const std::vector<std::string> &double_mtx_keys);
-
         //////  Flags  //////
 
         /// Throw if every member has missing status.
@@ -115,7 +121,7 @@ namespace housepi::data
         /// Copy the requests registered on `other`, a store over the same keys.
         void copy_requests(const Wide &other)
         {
-            KeyModuleWithRequests::copy_requests(other);
+            KeyHolderWithRequests::copy_requests(other);
             request_everyone_ = other.request_everyone_;
         }
         /// Request a value for every member, escaped ones included.
@@ -141,10 +147,10 @@ namespace housepi::data
         };
 
         std::vector<size_t> request_everyone_ = {}; /// Keys requested for every member.
-        dict<size_t> hh_id_to_index_ = {};           /// Internal index per household user id.
+        dict<size_t> hh_id_to_index_ = {};          /// Internal index per household user id.
         std::vector<IndivWide_> indiv_data_;        /// Member data, by member index.
         std::vector<std::string> indiv_ids_ = {};   /// Member user ids, by member index.
-        std::vector<std::string> hh_ids_ = {};       /// Household user ids, by household index.
+        std::vector<std::string> hh_ids_ = {};      /// Household user ids, by household index.
         size_t n_imported_ = 0;                     /// Number of columns known at import.
 
         std::vector<Household> house_vector_ = {}; /// Every household.

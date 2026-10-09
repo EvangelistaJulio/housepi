@@ -35,9 +35,11 @@ namespace housepi::risks
     ///
     /// - one block per unique definition, one slot per status a rule keys on;
     /// - a member drawing a new status reads the matching slot, no storage rewritten.
-    struct Group : public KeyModule, public Store
+    struct Group : public KeyHolder, public Store
     {
     public:
+        using KeyHolder::KeyHolder;
+
         //////  Setter  //////
 
         /// Build group risks from rule table `input`, one block per unique member definition.

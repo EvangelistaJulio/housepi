@@ -598,7 +598,7 @@ namespace housepi
         {
             const data::Wide &data_wide = data.wide();
             const size_t n_rows = n_members(scope);
-            const std::vector<size_t> keys = data_wide.khold(columns);
+            const std::vector<size_t> keys = data_wide.consult(columns);
             Rcpp::CharacterVector hh_id_col(n_rows);
             Rcpp::IntegerVector status_col(n_rows);
 
@@ -638,7 +638,7 @@ namespace housepi
             // discrete_export_cols starts with the list_latent_export columns
             const std::vector<bool> discr_cols = augm.discrete_export_cols();
             for (size_t c = 0; c < list.size(); ++c)
-                frame.add(augm.khold(list[c]), rcpp_typed_column(cols[c], discr_cols[c]));
+                frame.add(augm.consult(list[c]), rcpp_typed_column(cols[c], discr_cols[c]));
         }
 
         /// Export the imported data columns to an R data frame.
@@ -679,7 +679,7 @@ namespace housepi
             const Augmented &augm = mcmc_ptr->augm;
 
             const std::vector<size_t> &list = augm.scheme().list_latent_export;
-            const std::vector<std::string> columns = vect::difference(data_wide.khold().all(), augm.khold(list));
+            const std::vector<std::string> columns = vect::difference(data_wide.all(), augm.consult(list));
             RcppFrame frame(n_wide_cols(columns.size(), true) + list.size());
             add_wide_columns(frame, mcmc_ptr->data, data_wide, columns, true);
             add_latent_columns(frame, augm, data_wide);
@@ -709,13 +709,13 @@ namespace housepi
             for_each_member(scope, [&](const Household &, const Individual &indiv)
                             { n_rows += n_entries(indiv); });
 
-            RcppFrame frame(1 + data_long.khold().size());
+            RcppFrame frame(1 + data_long.size());
             Rcpp::CharacterVector id_col(n_rows);
             frame.add("id", id_col);
             std::vector<Rcpp::NumericVector> cols;
-            cols.reserve(data_long.khold().size());
-            for (size_t d = 0; d < data_long.khold().size(); ++d)
-                cols.push_back(frame.add_na(data_long.khold(d), n_rows));
+            cols.reserve(data_long.size());
+            for (size_t d = 0; d < data_long.size(); ++d)
+                cols.push_back(frame.add_na(data_long.consult(d), n_rows));
 
             size_t row = 0;
             for_each_member(scope, [&](const Household &, const Individual &indiv)
@@ -834,10 +834,10 @@ namespace housepi
             if (!param.is_allocated())
                 return Rcpp::NumericVector::create();
 
-            Rcpp::NumericVector output(param.khold().size());
+            Rcpp::NumericVector output(param.size());
             for (R_xlen_t p = 0; p < output.size(); ++p)
                 output[p] = hsp_to_rcpp(param.at(p).value());
-            output.names() = Rcpp::wrap(param.khold().all());
+            output.names() = Rcpp::wrap(param.all());
 
             return output;
         }
@@ -846,7 +846,7 @@ namespace housepi
         Rcpp::DataFrame rcpp_snapshot_data_wide(Rcpp::XPtr<MCMC> mcmc_ptr,
                                                 const Household &house)
         {
-            const std::vector<std::string> &columns = mcmc_ptr->data.wide().khold().all();
+            const std::vector<std::string> &columns = mcmc_ptr->data.wide().all();
             RcppFrame frame(n_wide_cols(columns.size(), true));
             add_wide_columns(frame, mcmc_ptr->data, house, columns, true);
             return frame.frame();
@@ -857,7 +857,7 @@ namespace housepi
                                                   const Household &house)
         {
             const risks::Group &group_risk = mcmc_ptr->risks.group();
-            const std::vector<std::string> &headers = group_risk.khold().all();
+            const std::vector<std::string> &headers = group_risk.all();
 
             if (headers.empty() || group_risk.is_empty())
                 return Rcpp::DataFrame::create();
@@ -951,7 +951,7 @@ namespace housepi
             frame.add("id", rcpp_ids(mcmc_ptr->data.wide(), house));
             for (size_t c = 0; c < list.size(); ++c)
             {
-                Rcpp::NumericVector col = frame.add_na(augm.khold(list[c]), house.size());
+                Rcpp::NumericVector col = frame.add_na(augm.consult(list[c]), house.size());
                 for (size_t i = 0; i < house.size(); ++i)
                 {
                     const Variable &avar = augm.at(list[c], house.at(i));
@@ -1059,7 +1059,7 @@ namespace housepi
                                 }
                                 else
                                 {
-                                    const size_t a = augm.khold(augm.def()[surr.row].name);
+                                    const size_t a = augm.consult(augm.def()[surr.row].name);
                                     size_t r = row_offsets[H];
                                     for (const Individual &indiv : house)
                                         latent_cols[c][r++] = hsp_to_rcpp(augm.at(a, indiv));
@@ -1081,7 +1081,7 @@ namespace housepi
                 ParamTrace(const Parameter &param, size_t n_rep)
                     : param_(param)
                 {
-                    for (const std::string &name : param.khold().all())
+                    for (const std::string &name : param.all())
                         draws_.add(name, n_rep);
                 }
 
@@ -1317,9 +1317,9 @@ namespace housepi
             Rcpp::CharacterVector names(anchors.size());
             for (size_t a = 0; a < anchors.size(); ++a)
             {
-                names[a] = mcmc_ptr->param.khold(anchors[a].baseline);
+                names[a] = mcmc_ptr->param.consult(anchors[a].baseline);
                 out[a] = Rcpp::List::create(
-                    Rcpp::_["risks"] = Rcpp::wrap(mcmc_ptr->risks.group().khold(anchors[a].risks)),
+                    Rcpp::_["risks"] = Rcpp::wrap(mcmc_ptr->risks.group().consult(anchors[a].risks)),
                     Rcpp::_["contacts"] = anchors[a].contacts);
             }
             out.names() = names;
@@ -1330,7 +1330,7 @@ namespace housepi
         Rcpp::CharacterVector risk_status_stratified(Rcpp::XPtr<MCMC> mcmc_ptr)
         {
             const risks::Group &group = mcmc_ptr->risks.group();
-            return Rcpp::wrap(group.khold(group.status_stratified()));
+            return Rcpp::wrap(group.consult(group.status_stratified()));
         }
 
         Rcpp::XPtr<MCMC> create_mcmc_runner(std::string module_name)

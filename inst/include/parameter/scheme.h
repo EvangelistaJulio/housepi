@@ -34,9 +34,9 @@ namespace housepi::param
 
         std::vector<std::vector<double>> simulation_values = {}; /// Pinned values per repetition, per parameter.
 
-        /// Classify definitions `def`, visited in `rows` order, over keys `khold`.
+        /// Classify definitions `def`, visited in `rows` order, over `keys`.
         void build(const DefTable &def,
-                   const KeyHolder &khold,
+                   const KeyHolder &keys,
                    std::vector<size_t> rows);
         /// Pin parameter `p` to `values`, one per simulation repetition, and drop it from sampling.
         void pin(size_t p, std::vector<double> values);

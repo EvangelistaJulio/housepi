@@ -61,7 +61,7 @@ namespace housepi::augm
 
         /// Allocate variables of `n_indiv` members for every key, named after their level.
         void allocate(size_t n_indiv,
-                      const KeyHolder &khold,
+                      const KeyHolder &keys,
                       const DefTable &def);
         /// Drop every variable.
         void clear() noexcept

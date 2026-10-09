@@ -57,10 +57,6 @@ profile, reporting process).
 a deterministic observation stands in for carries the derived value, not the
 imported one. A column an observation produces without standing in for data
 is not part of the dataset, and is reported by \code{\link[=get_observations]{get_observations()}}.
-
-Definitions are listed by name. Those that apply to every status come
-first, followed by the status-specific ones ordered by status, numerically
-when the statuses are numbers.
 }
 \examples{
 hh_model <- new_housepi_model(flu_1918_frederick, "final_size") |>

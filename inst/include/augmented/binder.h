@@ -31,7 +31,7 @@ namespace housepi::augm
     struct Binder
     {
         Binder(const DefTable &def,
-               const KeyModuleWithRequests &keys,
+               const KeyHolderWithRequests &keys,
                const Translator &translator,
                Data &data)
             : def_(def),
@@ -79,7 +79,7 @@ namespace housepi::augm
 
     private:
         const DefTable &def_;               /// Definitions, one row per latent or observation.
-        const KeyModuleWithRequests &keys_; /// Latent keys and their model requests.
+        const KeyHolderWithRequests &keys_; /// Latent keys and their model requests.
         const Translator &translator_;      /// Resolves definition entries into Attributes.
         Data &data_;                        /// Data columns, whose read-cells surrogates fill.
 

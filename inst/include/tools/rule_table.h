@@ -18,46 +18,41 @@
 #include "tools/messages.h"
 #include "tools/nan.h"
 #include "tools/string.h"
-#include "parameter.h"
 
-//////////////////////////////  risks::RuleTable  //////////////////////////////
+//////////////////////////////  RuleTable  //////////////////////////////
 
-namespace housepi::risks
+namespace housepi
 {
-    constexpr const char *REFERENCE = ".reference"; /// Rule value choosing the reference.
-    constexpr const char *STATUS_KEY = "status";    /// Rule column carrying the infected status.
-    constexpr double VALUE_REFERENCE = 1.0;         /// Risk value of the reference.
+    constexpr const char *STATUS_KEY = "status"; /// Rule column carrying the infected status.
 
-    /// View over a rule table, with rule group, parameter, specificity and cells precomputed per row.
+    /// View over a rule table, with rule group, specificity and cells precomputed per row.
     ///
     /// - conflicts resolve by specificity: 'generalia specialibus non derogant';
-    /// - specificity of a row: number of non-NA cells among the specificity columns.
+    /// - specificity of a row: number of non-NA cells among the specificity columns;
+    /// - what a row applies is read by the caller, from its own column.
     struct RuleTable
     {
-        const str_table &input;                  /// User tidy definition table.
-        const std::size_t n_rows;                /// Rows in the table.
-        std::vector<std::size_t> row_gid;        /// Rule-group id per row.
-        std::vector<std::size_t> row_param;      /// Parameter key per row, NA for the reference.
-        std::vector<std::size_t> row_spec;       /// Specificity per row.
-        std::vector<std::vector<double>> cells;  /// Cells per specificity column, NA for a catch-all.
+        const str_table &input;                 /// User tidy definition table.
+        const std::size_t n_rows;               /// Rows in the table.
+        std::vector<std::size_t> row_gid;       /// Rule-group id per row.
+        std::vector<std::size_t> row_spec;      /// Specificity per row.
+        std::vector<std::vector<double>> cells; /// Cells per specificity column, NA for a catch-all.
 
-        /// View `input`, parsing `spec_columns` into the cells and parameter names into `param` keys.
+        /// View `input`, parsing `spec_columns` into the cells.
+        /// @param label_col Column naming a row in the tie error.
         RuleTable(const str_table &input_,
                   const std::vector<std::string> &spec_columns,
-                  const Parameter &param)
+                  std::string label_col)
             : input(input_),
               n_rows(count_rows(input_)),
               row_gid(n_rows),
-              row_param(n_rows, na::INDEX),
               row_spec(n_rows),
-              cells(spec_columns.size(), std::vector<double>(n_rows, na::DOUBLE))
+              cells(spec_columns.size(), std::vector<double>(n_rows, na::DOUBLE)),
+              label_col_(std::move(label_col))
         {
             for (std::size_t r = 0; r < n_rows; ++r)
-            {
                 row_gid[r] = static_cast<std::size_t>(str::toi(input.at("rule_group")[r]));
-                if (const std::string &pstr = input.at("param_name")[r]; pstr != REFERENCE)
-                    row_param[r] = param.khold(pstr);
-            }
+
             for (std::size_t c = 0; c < spec_columns.size(); ++c)
             {
                 const std::vector<std::string> &col = input.at(spec_columns[c]);
@@ -97,11 +92,13 @@ namespace housepi::risks
 
             std::map<Key, std::size_t> out;
             for (auto &[key, w] : best)
-                out.emplace(key, resolve_best_match_(w, input, ctx_of(key)));
+                out.emplace(key, resolve_best_match_(w, ctx_of(key)));
             return out;
         }
 
     private:
+        std::string label_col_; /// Column naming a row in the tie error.
+
         /// Best rule of one key: top specificity, and the rows tied at it.
         using BestMatch_ = std::pair<std::size_t, std::vector<std::size_t>>;
 
@@ -120,15 +117,14 @@ namespace housepi::risks
         }
 
         /// Return the surviving row, throw on a tie at the top specificity.
-        static std::size_t resolve_best_match_(const BestMatch_ &b,
-                                               const str_table &input,
-                                               const std::string &ctx)
+        std::size_t resolve_best_match_(const BestMatch_ &b,
+                                        const std::string &ctx) const
         {
             if (b.second.size() == 1)
                 return b.second[0];
             std::string names;
             for (std::size_t r : b.second)
-                names += (names.empty() ? "" : ", ") + input.at("param_name")[r];
+                names += (names.empty() ? "" : ", ") + input.at(label_col_)[r];
             msg::stop(
                 "Ambiguous " + ctx + ": tied rules [" + names + "].\n" +
                 "Add a disambiguating rule in order to proceed.");

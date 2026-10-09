@@ -13,6 +13,7 @@
 #include <string>
 #include <tuple>
 #include <unordered_set>
+#include <utility>
 #include <vector>
 
 #include "tools/dag.h"
@@ -506,8 +507,8 @@ namespace housepi
             {
                 const std::string &name = def[k].name;
                 if (def[k].kind != Kind::Member ||
-                    !data_wide.khold().count(name) ||
-                    !data_wide.is_required_everyone(data_wide.khold(name)))
+                    !data_wide.count(name) ||
+                    !data_wide.is_required_everyone(data_wide.consult(name)))
                     continue;
 
                 // drawn, or computed from a draw, with the infection of each member
@@ -731,7 +732,7 @@ namespace housepi
                 "\nCheck the individual data or revise the domain.");
         }
 
-        void report_missing_obs(const KeyHolder &khold,
+        void report_missing_obs(const KeyHolder &keys,
                                 const std::vector<size_t> &declared,
                                 const std::vector<size_t> &missing)
         {
@@ -742,12 +743,12 @@ namespace housepi
 
                 if (missing[a] == declared[a])
                     msg::stop(
-                        "Observation " + msg::val(khold.as_string(a)) +
+                        "Observation " + msg::val(keys.consult(a)) +
                         " is missing for every infected individual.\n"
                         "An observation model needs at least one observed value: check the data column.");
 
                 msg::warn(
-                    "Observation " + msg::val(khold.as_string(a)) + " is missing for " +
+                    "Observation " + msg::val(keys.consult(a)) + " is missing for " +
                     std::to_string(missing[a]) + " of " + std::to_string(declared[a]) +
                     " infected individuals.\n" +
                     msg::alert("A missing observation does not contribute to the likelihood."));
@@ -777,14 +778,11 @@ namespace housepi
                 if (def_[k].kind == Kind::House)
                     continue;
 
-                // fill registry with optional latent definitions
-                khold_.add(def_[k].name);
-
                 // status observation is per-member, but out of status scheme
                 if (def_[k].kind == Kind::Status)
                 {
                     scheme_.status_obs_row_ = k;
-                    scheme_.status_obs_key_ = khold_.from_string(def_[k].name);
+                    scheme_.status_obs_key_ = keys_.consult(def_[k].name);
                     continue;
                 }
 
@@ -899,7 +897,7 @@ namespace housepi
                 }
                 for (size_t k : at_(s).sim_order)
                 {
-                    const size_t a = khold_.from_string(def_[k].name);
+                    const size_t a = keys_.consult(def_[k].name);
                     if (vect::contains(at_(s).sample, a))
                         at_(s).sim_sample.push_back(a);
                 }
@@ -941,7 +939,7 @@ namespace housepi
                                              Sources_ &src)
         {
             const std::string &astr = def_[k].name;
-            size_t a = khold_.from_string(astr);
+            size_t a = keys_.consult(astr);
 
             bool is_to_export = true;
             bool is_to_draw = true;
@@ -1019,7 +1017,7 @@ namespace housepi
             // inspect status-specific latent definitions: draw unless constant
             // relies on the definition order
             for (const std::string &bstr : parser.list_latent_producers())
-                if (vect::contains(at_(s).draws, khold_.from_string(bstr)))
+                if (vect::contains(at_(s).draws, keys_.consult(bstr)))
                     all_consts = false;
 
             // to draw if not all constant dependencies
@@ -1089,7 +1087,7 @@ namespace housepi
         {
             for (StatusScheme &ss : scheme_.status_schemes_)
             {
-                ss.obs_consumers.resize(khold_.size());
+                ss.obs_consumers.resize(keys_.size());
 
                 // an observation reaches its sampled producers through deterministic nodes
                 // the consumer map follows the transitive closure, as the latent-model map does
@@ -1110,7 +1108,7 @@ namespace housepi
                     if (skip)
                         continue;
 
-                    const size_t obs_key = khold_.from_string(def_[k].name);
+                    const size_t obs_key = keys_.consult(def_[k].name);
 
                     // unique observation keys to return as simulated columns
                     if (!vect::contains(scheme_.list_obs_member, obs_key))
@@ -1126,7 +1124,7 @@ namespace housepi
                     // list the observation under each of its producers, so moving any of them recomputes it
                     for (const std::string &astr : dag::transitive_producers(def_[k].name, pgraph, ErrType::Latent))
                         if (astr != def_[k].name) // transitive_producers returns 'start' last
-                            ss.obs_consumers[khold_.from_string(astr)].push_back(obs_key);
+                            ss.obs_consumers[keys_.consult(astr)].push_back(obs_key);
                 }
             }
         }
@@ -1135,13 +1133,13 @@ namespace housepi
         {
             for (StatusScheme &ss : scheme_.status_schemes_)
             {
-                ss.produces_transm.assign(khold_.size(), false);
+                ss.produces_transm.assign(keys_.size(), false);
                 // declaring no transmission key skips the computation
                 if (transm.empty())
                     continue;
 
                 for (const std::string &pstr : graph::transm_producers(def_, ss.order, transm))
-                    ss.produces_transm[khold_.from_string(pstr)] = true;
+                    ss.produces_transm[keys_.consult(pstr)] = true;
             }
         }
 
@@ -1151,12 +1149,12 @@ namespace housepi
         {
             for (StatusScheme &ss : scheme_.status_schemes_)
             {
-                ss.consumers.resize(khold_.size());
+                ss.consumers.resize(keys_.size());
 
                 // index the consumer lists by their producer key
                 const str_table model_consumers = graph::model_consumers(def_, ss.order);
                 for (const auto &[astr, consumers] : model_consumers)
-                    ss.consumers[khold_.from_string(astr)] = khold_.from_string(consumers);
+                    ss.consumers[keys_.consult(astr)] = keys_.consult(consumers);
 
                 // a flat row adds no density to the latent log-likelihood
                 std::vector<std::string> with_model = extract_keys(model_consumers), flat;
@@ -1164,7 +1162,7 @@ namespace housepi
                     if (def_[k].is_flat())
                         flat.push_back(def_[k].name);
                 vect::remove(with_model, flat);
-                ss.latent_models = khold_.from_string(with_model);
+                ss.latent_models = keys_.consult(with_model);
                 scheme_.is_any_latent_model_ |= !ss.latent_models.empty();
             }
         }
@@ -1174,8 +1172,8 @@ namespace housepi
                                            const std::vector<std::string> &transm)
         {
             StatusScheme ss = scheme_.status_schemes_[base]; // copy: the store reallocates below
-            const std::vector<size_t> dead = khold_.from_string(
-                graph::dead_names(def_, ss.order, transm, khold_.as_string(absent)));
+            const std::vector<size_t> dead = keys_.consult(
+                graph::dead_names(def_, ss.order, transm, keys_.consult(absent)));
 
             vect::remove(ss.obs_models, absent);
             vect::remove(ss.draws, dead);
@@ -1185,7 +1183,7 @@ namespace housepi
 
             std::vector<size_t> order;
             for (size_t k : ss.order)
-                if (!vect::contains(dead, khold_.from_string(def_[k].name)))
+                if (!vect::contains(dead, keys_.consult(def_[k].name)))
                     order.push_back(k);
             ss.order = std::move(order);
 
@@ -1207,7 +1205,7 @@ namespace housepi
             scheme_.param_produces_latent_ll_.assign(param.size(), false);
             scheme_.param_produces_obs_ll_.assign(param.size(), false);
 
-            std::vector<bool> latent_produces_obs(khold_.size(), false);
+            std::vector<bool> latent_produces_obs(keys_.size(), false);
             for (const StatusScheme &ss : scheme_.status_schemes_)
                 for (size_t a = 0; a < ss.obs_consumers.size(); ++a)
                     if (!ss.obs_consumers[a].empty())
@@ -1224,10 +1222,10 @@ namespace housepi
                 // a deterministic latent forwards its parameters to the observation it produces
                 const bool to_obs = is_obs ||
                                     (!row.is_sampled() &&
-                                     latent_produces_obs[khold_.from_string(row.name)]);
+                                     latent_produces_obs[keys_.consult(row.name)]);
 
                 for (const parse::Definition *col : row.source_cols(false))
-                    for (size_t p : param.from_string(col->list_parameter_producers()))
+                    for (size_t p : param.consult(col->list_parameter_producers()))
                     {
                         if (!is_obs)
                             scheme_.param_produces_latent_ll_[p] = true;
@@ -1243,15 +1241,15 @@ namespace housepi
     namespace augm
     {
         void State::allocate(size_t n_indiv,
-                             const KeyHolder &khold,
+                             const KeyHolder &keys,
                              const DefTable &def)
         {
-            blank.assign(khold.size(), Variable());
+            blank.assign(keys.size(), Variable());
             for (size_t a = 0; a < blank.size(); ++a)
-                if (def.has_row(khold.as_string(a), Kind::Member))
-                    blank[a].name(khold.as_string(a), ErrType::Observation);
+                if (def.has_row(keys.consult(a), Kind::Member))
+                    blank[a].name(keys.consult(a), ErrType::Observation);
                 else
-                    blank[a].name(khold.as_string(a), ErrType::Latent);
+                    blank[a].name(keys.consult(a), ErrType::Latent);
 
             varia.resize(n_indiv);
             for (IndivState &st : varia)
@@ -1462,7 +1460,7 @@ namespace housepi
                     var.init_proposal(row.proposal.root.func, translator_.to_numeric_args(row.proposal.root, &indiv));
 
                 // check discreteness and positivity
-                keys_.assert_requests(keys_.khold(row.name), var);
+                keys_.assert_requests(keys_.consult(row.name), var);
             }
             catch (const std::exception &e)
             {
@@ -1491,7 +1489,7 @@ namespace housepi
                                     bool for_evaluation) const
         {
             const std::string &name = def_[surr.row].name;
-            const size_t d = data_.wide().khold(name);
+            const size_t d = data_.wide().consult(name);
             const auto build = [&](Variable &var,
                                    const Individual &anchor,
                                    const Household *hptr)
@@ -1523,7 +1521,7 @@ namespace housepi
             }
 
             // member level
-            const size_t a = keys_.khold(name);
+            const size_t a = keys_.consult(name);
             for (const Individual &indiv : house)
             {
                 Variable &avar = state.of(indiv).vec[a];
@@ -1567,8 +1565,8 @@ namespace housepi
         }
     }
 
-    Augmented::Augmented(MCMCBase *mcmc)
-        : mcmc_(mcmc) {}
+    Augmented::Augmented(MCMCBase *mcmc, std::vector<std::string> keys)
+        : KeyHolderWithRequests(std::move(keys)), mcmc_(mcmc) {}
     Augmented::~Augmented() = default;
 
     void Augmented::request_transmission(std::vector<size_t> vec)
@@ -1588,11 +1586,16 @@ namespace housepi
         if (def_.empty())
             return;
 
-        augm::SchemeBuilder builder(scheme_, def_, khold_);
-        // definition names and status routing
+        // register member definition names, household observations excluded
+        for (size_t k = 0; k < def_.size(); ++k)
+            if (def_[k].kind != augm::Kind::House)
+                add(def_[k].name);
+
+        augm::SchemeBuilder builder(scheme_, def_, *this);
+        // status routing
         builder.register_rows();
         // per-member storage
-        state.allocate(mcmc_->data.wide().report_indiv.total, khold_, def_);
+        state.allocate(mcmc_->data.wide().report_indiv.total, *this, def_);
 
         // infected statuses the data carries
         std::unordered_set<StatusLvl> infected;
@@ -1617,17 +1620,17 @@ namespace housepi
         if (scheme_.is_any_status_obs())
             augm::check::status_obs_consistent(def_, scheme_.status_obs_row());
         // no definition reads an obs entry column, no simulation override reads an observation
-        augm::check::no_obs_entry_collision(def_, khold(scheme_.list_obs_member));
-        augm::check::no_sim_override_obs_read(def_, khold(scheme_.list_obs_member));
+        augm::check::no_obs_entry_collision(def_, consult(scheme_.list_obs_member));
+        augm::check::no_sim_override_obs_read(def_, consult(scheme_.list_obs_member));
         // a flat latent is generated by transmission, a generated latent has no model
-        augm::check::flat_rows(def_, mcmc_->param, khold(user_transm_vec_));
+        augm::check::flat_rows(def_, mcmc_->param, consult(user_transm_vec_));
     }
 
     void Augmented::build_restore_internal_()
     {
         def_.clear();
         scheme_ = augm::Scheme();
-        khold_.clear_optional();
+        clear_optional();
         state.clear();
     }
 
@@ -1637,8 +1640,8 @@ namespace housepi
             return;
 
         def_.append(infec_profile.latent_definitions);
-        khold_.add(infprof::LATENT_FUNC);
-        infec_profile.latent_key = khold(infprof::LATENT_FUNC);
+        add(infprof::LATENT_FUNC);
+        infec_profile.latent_key = consult(infprof::LATENT_FUNC);
         infec_profile.bind_augm(this); // for runtime per-member profile resolution
     }
 
@@ -1661,7 +1664,7 @@ namespace housepi
     bool Augmented::is_col_discrete_(size_t i, bool is_house) const
     {
         // a household column carries no status partition, hence no declaration to check
-        if (!is_house && def_.has_continuous_declaration(khold(i)))
+        if (!is_house && def_.has_continuous_declaration(consult(i)))
             return false;
 
         bool seen = false;
@@ -1689,7 +1692,7 @@ namespace housepi
         for (const augm::Surrogate &surr : scheme_.list_surrogate)
             if (surr.is_own_column())
                 out.push_back(surr.is_house ? is_col_discrete_(surr.slot, true)
-                                            : is_col_discrete_(khold(def_[surr.row].name), false));
+                                            : is_col_discrete_(consult(def_[surr.row].name), false));
 
         return out;
     }
@@ -1698,12 +1701,12 @@ namespace housepi
 
     void Augmented::init_for_evaluation()
     {
-        if (khold_.empty())
+        if (empty())
             return;
 
         assert_every_member_cols_();
         materialize_surrogate_columns(false);
-        augm::SchemeBuilder builder(scheme_, def_, khold_);
+        augm::SchemeBuilder builder(scheme_, def_, *this);
         builder.init_models();
         const augm::Binder binder = binder_();
 
@@ -1711,13 +1714,13 @@ namespace housepi
         for (const Household &house : mcmc_->data.wide())
             for (const Individual &indiv : house.infected_indivs())
                 for (size_t k : helper_materialize_definition_order_(indiv, false))
-                    binder.bind_member(state.of(indiv).vec[khold(def_[k].name)], k, indiv, false);
+                    binder.bind_member(state.of(indiv).vec[consult(def_[k].name)], k, indiv, false);
 
         // observations the data provide a value for, and what still reaches a sink
         init_live_schemes_(builder);
 
         // parameters that may move latent/observation models
-        builder.init_param_producers(mcmc_->param.khold());
+        builder.init_param_producers(mcmc_->param);
     }
 
     void Augmented::init_live_schemes_(augm::SchemeBuilder &builder)
@@ -1728,7 +1731,7 @@ namespace housepi
         const std::vector<std::string> transm = transm_names_();
 
         // per observation key: members declaring it, and those without a datum
-        std::vector<size_t> declared(khold_.size(), 0), missing(khold_.size(), 0);
+        std::vector<size_t> declared(size(), 0), missing(size(), 0);
         // base scheme and observations left out -> the variant standing for them
         std::vector<std::pair<std::vector<size_t>, size_t>> variants;
 
@@ -1753,13 +1756,13 @@ namespace housepi
                         : variants.emplace_back(key, builder.make_variant(key.front(), absent, transm)).second;
             }
 
-        augm::check::report_missing_obs(khold_, declared, missing);
+        augm::check::report_missing_obs(*this, declared, missing);
     }
 
     std::vector<std::string> Augmented::transm_names_() const
     {
         // transmission reads model-declared keys, and the latent infectivity profile if any
-        std::vector<std::string> transm = khold(user_transm_vec_);
+        std::vector<std::string> transm = consult(user_transm_vec_);
         transm.push_back(infprof::LATENT_FUNC);
         return transm;
     }
@@ -1778,7 +1781,7 @@ namespace housepi
 
     std::vector<std::string> Augmented::get_produced_cols()
     {
-        std::vector<std::string> produced_cols = khold(scheme_.list_obs_member);
+        std::vector<std::string> produced_cols = consult(scheme_.list_obs_member);
         for (const augm::Surrogate &surr : scheme_.list_surrogate)
             produced_cols.push_back(def_[surr.row].name);
         return produced_cols;
@@ -1786,7 +1789,7 @@ namespace housepi
 
     std::vector<std::string> Augmented::get_live_cols() const
     {
-        std::vector<std::string> live_cols = khold(scheme_.list_obs_member);
+        std::vector<std::string> live_cols = consult(scheme_.list_obs_member);
         for (const augm::Surrogate &surr : scheme_.list_surrogate)
             if (!surr.is_static)
                 live_cols.push_back(def_[surr.row].name);
@@ -1818,7 +1821,7 @@ namespace housepi
             // wire stochastic member observations to their data read-cells
             for (const Individual &indiv : house)
                 for (size_t a : scheme_.list_obs_member)
-                    mcmc_->data.state.wire_readcell(data_wide.khold(khold(a)), indiv,
+                    mcmc_->data.state.wire_readcell(data_wide.consult(consult(a)), indiv,
                                                     &state.of(indiv).vec[a]);
 
             // build and wire surrogate columns in dependency order
@@ -1831,16 +1834,16 @@ namespace housepi
 
     void Augmented::init_members_for_simulation()
     {
-        if (khold_.empty() || !is_allocated())
+        if (empty() || !is_allocated())
             return;
 
         // member variables bound for the whole run: status observation, static surrogates
-        sim_fixed_.assign(khold_.size(), false);
+        sim_fixed_.assign(size(), false);
         if (scheme_.is_any_status_obs())
             sim_fixed_[scheme_.status_obs_key()] = true;
         for (const augm::Surrogate &surr : scheme_.list_surrogate)
             if (surr.is_static && !surr.is_house)
-                sim_fixed_[khold(def_[surr.row].name)] = true;
+                sim_fixed_[consult(def_[surr.row].name)] = true;
 
         // bind one block per reachable status scheme, swapped in by the household loop
         state.sim.assign(state.varia.size(), {});
@@ -1895,7 +1898,7 @@ namespace housepi
 
     void Augmented::clear_all()
     {
-        if (khold_.empty() || !is_allocated())
+        if (empty() || !is_allocated())
             return;
 
         for (const Household &house : mcmc_->data.wide())
@@ -1932,7 +1935,7 @@ namespace housepi
 
         for (size_t k : order)
         {
-            const size_t a = khold(def_[k].name);
+            const size_t a = consult(def_[k].name);
             Variable &avar = st.vec[a];
             // set by transmission, or bound for the whole run
             if (avar.has_definition())
@@ -2015,7 +2018,7 @@ namespace housepi
                 for (size_t k : scheme_.at(i).sim_order)
                 {
                     const augm::DefRow &row = def_[k];
-                    const size_t a = khold(row.name);
+                    const size_t a = consult(row.name);
                     if (st.vec[a].has_definition()) // bound for the whole run
                         continue;
                     if (vect::contains(user_transm_vec_, a))
@@ -2109,7 +2112,7 @@ namespace housepi
 
     void Augmented::finalize()
     {
-        if (khold_.empty())
+        if (empty())
             return;
 
         for (const Household &house : mcmc_->data.wide())
@@ -2126,7 +2129,7 @@ namespace housepi
         {
             if (def_[k].kind != augm::Kind::Member)
                 continue;
-            const size_t a = khold(def_[k].name);
+            const size_t a = consult(def_[k].name);
             if (vect::contains(list_obs_models(indiv), a) &&
                 !std::isfinite(state.of(indiv).vec[a].guarded_log_pdf()))
                 rows.push_back(k);

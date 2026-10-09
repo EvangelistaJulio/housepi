@@ -35,10 +35,14 @@ namespace housepi
     /// - identifiability anchors, declared by the model.
     struct Risks
     {
+        //////  Constructor  //////
+
+        /// Register model-declared group-risk keys `keys`.
+        explicit Risks(std::vector<std::string> keys)
+            : group_(std::move(keys)) {}
+
         //////  Setter  //////
 
-        /// Initialize the group-risk key holder with model-declared `keys`.
-        void init_key_holder(const std::vector<std::string> &keys) { group_.init_key_holder(keys); }
         /// Declare the group-risk keys `vec` a rule may stratify by infected status.
         void request_status_stratified(std::vector<size_t> vec) { group_.request_status_stratified(std::move(vec)); }
         /// Declare that baseline parameter `baseline` and group risks `keys` share one reference.

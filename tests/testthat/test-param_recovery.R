@@ -133,6 +133,20 @@ test_that("Recovery results are read only", {
                            "point_estimate", "cri_level", "warnings")
 })
 
+test_that("Recovery results print their settings", {
+  results <- mk_recov$results
+  lines <- capture.output(printed <- print(results))
+  # printing returns the object itself
+  printed |> expect_identical(results)
+  lines[1] |> expect_match("[Pp]arameter recovery check.*final size")
+  lines |> expect_contains("Households: 20 and 40. Replicates each: 2.")
+  lines |> expect_contains("Point estimate: \"median\". Credible level: 0.95.")
+  # the count is that of the flagged replicates
+  lines |>
+    expect_contains(paste0("Flagged by diagnostics: ",
+                           sum(results$replicates$flagged), "."))
+})
+
 test_that("Recovery sweeps every household count", {
   results <- mk_recov$results
   results$houses |> expect_identical(c(20L, 40L))

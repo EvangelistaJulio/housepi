@@ -135,15 +135,15 @@ namespace housepi::augm
         std::vector<bool> param_produces_obs_ll_ = {};
     };
 
-    /// Build a Scheme from definitions, registering their names in `khold`.
+    /// Build a Scheme from definitions, keyed in `keys`.
     struct SchemeBuilder
     {
-        SchemeBuilder(Scheme &scheme, const DefTable &def, KeyHolder &khold)
-            : scheme_(scheme), def_(def), khold_(khold) {}
+        SchemeBuilder(Scheme &scheme, const DefTable &def, const KeyHolder &keys)
+            : scheme_(scheme), def_(def), keys_(keys) {}
 
-        /// Register every member definition name, and route rows by status.
+        /// Route member definition rows by status.
         /// - household observation: skipped, it needs neither key nor status;
-        /// - status observation: registered, kept out of the status schemes.
+        /// - status observation: kept out of the status schemes.
         void register_rows();
 
         /// Order the definitions of every status, producer before consumer.
@@ -178,9 +178,9 @@ namespace housepi::augm
         void init_param_producers(const KeyHolder &param);
 
     private:
-        Scheme &scheme_;       /// Scheme being built.
-        const DefTable &def_;  /// Definitions.
-        KeyHolder &khold_;     /// Keys of member definitions.
+        Scheme &scheme_;        /// Scheme being built.
+        const DefTable &def_;   /// Definitions.
+        const KeyHolder &keys_; /// Keys of member definitions.
 
         /// Sources read while ordering, and covariates collected along the way.
         struct Sources_

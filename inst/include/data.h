@@ -20,6 +20,8 @@
 
 namespace housepi
 {
+    class ModelBase;
+
     /// Data of a run.
     ///
     /// - imported tables, shared copy-on-write across engines;
@@ -28,7 +30,9 @@ namespace housepi
     {
         data::State state; /// Values written by inference and simulation.
 
-        Data() : store_(std::make_shared<Store_>()) {}
+        /// Register the data keys declared by `model`.
+        explicit Data(const ModelBase &model)
+            : store_(std::make_shared<Store_>(model)) {}
 
         //////  Setter  //////
 
@@ -78,6 +82,9 @@ namespace housepi
         /// Imported tables.
         struct Store_
         {
+            /// Register the data keys declared by `model`.
+            explicit Store_(const ModelBase &model);
+
             data::Wide wide;        /// Wide-format table.
             data::Long long_format; /// Long-format table.
         };

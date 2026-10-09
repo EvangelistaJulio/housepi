@@ -365,7 +365,7 @@ namespace housepi
                 ofs << "NA";
             else
                 ofs << static_cast<int>(indiv.status());
-            for (size_t d = 0; d < data_wide.khold().size(); ++d)
+            for (size_t d = 0; d < data_wide.size(); ++d)
                 ofs << str::DELIMITER << data.at(d, indiv).value();
             for (size_t a : latent_export)
             {
@@ -395,8 +395,8 @@ namespace housepi
         std::ofstream ofs;
         if (is_writing)
             ofs = open_ofstream_datawide(pathtofile,
-                                         data_wide.khold().all(),
-                                         augm.khold().as_string(augm.scheme().list_latent_export));
+                                         data_wide.all(),
+                                         augm.consult(augm.scheme().list_latent_export));
 
         // the setup step count is the number of replicates
         for (size_t r = 0; r < engine.setup.n_steps; ++r)

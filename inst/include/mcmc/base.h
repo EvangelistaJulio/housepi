@@ -25,6 +25,8 @@
 
 namespace housepi
 {
+	class ModelBase;
+
 	class MCMCBase
 	{
 	public:
@@ -45,19 +47,9 @@ namespace housepi
 
 		//////  Constructor  //////
 
-		MCMCBase();
+		/// Register the keys declared by `model` in every key holder.
+		explicit MCMCBase(const ModelBase &model);
 		virtual ~MCMCBase();
-
-		/// Initialize every key holder.
-		void init_key_holder(const std::vector<std::string> &data_wide_keys,
-							 const std::vector<std::string> &hh_member_keys,
-							 const std::vector<std::string> &hh_member_vec_keys,
-							 const std::vector<std::string> &hh_double_vec_keys,
-							 const std::vector<std::string> &hh_double_mtx_keys,
-							 const std::vector<std::string> &data_long_keys,
-							 const std::vector<std::string> &param_keys,
-							 const std::vector<std::string> &group_risk_keys,
-							 const std::vector<std::string> &latent_keys);
 
 		//////  Data  //////
 

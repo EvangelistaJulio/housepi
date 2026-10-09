@@ -30,8 +30,10 @@ namespace housepi
     /// - definitions, stored;
     /// - sampling scheme, built from definitions;
     /// - parameter variables, bound to definitions.
-    struct Parameter : public KeyModuleWithRequests
+    struct Parameter : public KeyHolderWithRequests
     {
+        using KeyHolderWithRequests::KeyHolderWithRequests;
+
         param::State state; /// Variables moved by inference and simulation.
 
         //////  Setter  //////
@@ -65,7 +67,7 @@ namespace housepi
         const Variable &at(size_t p) const noexcept { return state.vec[p]; }
 
         /// Whether parameter `pstr` is constant.
-        bool is_constant(std::string_view pstr) const { return at(khold(pstr)).is_constant(); }
+        bool is_constant(std::string_view pstr) const { return at(consult(pstr)).is_constant(); }
 
         /// Whether parameter storage is allocated.
         bool is_allocated() const noexcept { return !state.vec.empty(); }

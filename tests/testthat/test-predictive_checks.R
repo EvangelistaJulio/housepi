@@ -288,9 +288,8 @@ test_that("Tables are filtered by household size band", {
     expect_identical(2:3)
   helper_filter_tables(tables, min_hh_size = 3)$observed$hh_size |>
     expect_identical(3:4)
-  helper_filter_tables(tables, min_hh_size = 3, max_hh_size = 3) |>
-    (\(x) x$observed$hh_size)() |>
-    expect_identical(3L)
+  x <- helper_filter_tables(tables, min_hh_size = 3, max_hh_size = 3)
+  x$observed$hh_size |> expect_identical(3L)
 })
 
 test_that("Observations and predictions are interleaved row by row", {

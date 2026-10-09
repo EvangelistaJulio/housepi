@@ -129,6 +129,21 @@ test_that("Every replicate is ranked at a value drawn from the prior", {
   results$rank_draws |> expect_identical(9L)
 })
 
+test_that("Calibration results print their settings", {
+  results <- mk_calib$results
+  lines <- capture.output(printed <- print(results))
+  # printing returns the object itself
+  printed |> expect_identical(results)
+  lines[1] |> expect_match("[Ss]imulation calibration check.*\"test\"")
+  lines |> expect_contains("Households: 30. Replicates: 3.")
+  lines |>
+    expect_contains("Posterior draws each value is ranked among: 9.")
+  # the count is that of the flagged replicates
+  lines |>
+    expect_contains(paste0("Flagged by diagnostics: ",
+                           sum(results$replicates$flagged), "."))
+})
+
 test_that("A sweep reproduces from a seed at any thread count", {
   sweep_at <- function(threads) {
     withr::with_seed(1L, check_calibration(

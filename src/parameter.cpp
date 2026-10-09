@@ -284,7 +284,7 @@ namespace housepi
     namespace param
     {
         void Scheme::build(const DefTable &def,
-                           const KeyHolder &khold,
+                           const KeyHolder &keys,
                            std::vector<size_t> rows)
         {
             order = std::move(rows);
@@ -297,7 +297,7 @@ namespace housepi
             for (size_t k : order)
             {
                 const DefRow &row = def[k];
-                size_t p = khold.from_string(row.name);
+                size_t p = keys.consult(row.name);
                 if (row.has_func)
                 {
                     constant.push_back(p);
@@ -318,7 +318,7 @@ namespace housepi
             // no parameter feeds the transmission cache until marked
             sample_standard = sample;
             // one slot per parameter
-            simulation_values.assign(khold.size(), {});
+            simulation_values.assign(keys.size(), {});
         }
 
         void Scheme::pin(size_t p, std::vector<double> values)
@@ -345,12 +345,12 @@ namespace housepi
 
     namespace param
     {
-        void State::allocate(const KeyHolder &khold)
+        void State::allocate(const KeyHolder &keys)
         {
             vec.clear();
-            vec.resize(khold.size());
+            vec.resize(keys.size());
             for (size_t p = 0; p < vec.size(); ++p)
-                vec[p].name(khold.as_string(p), ErrType::Parameter);
+                vec[p].name(keys.consult(p), ErrType::Parameter);
         }
 
         void restart(const Scheme &scheme, State &state, rnd_gen &prng)
@@ -380,7 +380,7 @@ namespace housepi
     void Parameter::build(const str_table &input,
                           const Translator &translator)
     {
-        khold_.clear_optional();
+        clear_optional();
 
         if (input.empty())
             return;
@@ -390,24 +390,24 @@ namespace housepi
 
         // user parameters take keys after model-declared ones, producer first
         for (size_t k : order)
-            if (!khold_.count(def_[k].name))
-                khold_.add(def_[k].name);
+            if (!count(def_[k].name))
+                add(def_[k].name);
 
-        scheme_.build(def_, khold_, std::move(order));
-        state.allocate(khold_);
+        scheme_.build(def_, *this, std::move(order));
+        state.allocate(*this);
         bind_(translator);
     }
 
     void Parameter::build_for_predic(const dbl_table &input)
     {
         // classification from build() is kept: a parameter with no table column is drawn
-        scheme_.simulation_values.assign(khold_.size(), {});
-        for (const std::string &pstr : khold_.all())
+        scheme_.simulation_values.assign(size(), {});
+        for (const std::string &pstr : all())
             if (auto found = input.find(pstr); found != input.end())
             {
                 // a value per repetition: readers follow it
-                at(khold(pstr)).release_user_const();
-                scheme_.pin(khold(pstr), found->second);
+                at(consult(pstr)).release_user_const();
+                scheme_.pin(consult(pstr), found->second);
             }
     }
 
@@ -417,7 +417,7 @@ namespace housepi
         for (size_t k : scheme_.order)
         {
             const param::DefRow &row = def_[k];
-            size_t p = khold(row.name);
+            size_t p = consult(row.name);
             Variable &var = at(p);
 
             if (row.has_func)
@@ -525,7 +525,7 @@ namespace housepi
                           const str_table &input)
         {
             // drop the previous build
-            khold_.clear_optional();
+            clear_optional();
             reset_store_(data_wide.report_indiv.total);
             scale_anchors_.clear();
             slot_base_.fill(0);
@@ -535,9 +535,9 @@ namespace housepi
             std::vector<std::string> spec_headers = {};
             if (!input.empty())
                 spec_headers = helper_process_definitions_(data_wide, input);
-            else if (khold_.empty())
+            else if (empty())
                 return;
-            scale_anchors_.assign(khold_.size(), {});
+            scale_anchors_.assign(size(), {});
 
             // group-risk name column, if any
             std::vector<std::string> g_input_vec = {};
@@ -554,12 +554,12 @@ namespace housepi
 
             // scale anchoring per risk name and rule group
             for (const auto &[key, anchor] : read_scale_anchors<GroupKey>(
-                     defs.rules, [&](size_t r)
+                     defs.row_param, [&](size_t r)
                      { return GroupKey{g_input_vec[r], defs.rules.row_gid[r]}; }))
-                scale_anchors_[khold(key.first)].push_back(anchor);
+                scale_anchors_[consult(key.first)].push_back(anchor);
 
             // unique definitions: parameter keys per status slot and risk, the reference left out
-            const size_t n_keys = khold_.size();
+            const size_t n_keys = size();
             std::map<std::vector<std::vector<size_t>>, RiskOffset> unique_defin_map;
             for (Household &house : data_wide)
                 for (Individual &indiv : house)
@@ -567,8 +567,8 @@ namespace housepi
                     std::vector<std::vector<size_t>> cell_params(n_slots_ * n_keys);
                     for (size_t s = 0; s < n_slots_; ++s)
                         for (auto &[key, r] : defs.resolve(data_wide, indiv, static_cast<StatusSlot>(s)))
-                            if (const size_t p = defs.rules.row_param[r]; !na::is(p))
-                                cell_params[s * n_keys + khold(key.first)].push_back(p);
+                            if (const size_t p = defs.row_param[r]; !na::is(p))
+                                cell_params[s * n_keys + consult(key.first)].push_back(p);
 
                     auto [it, is_new] = unique_defin_map.try_emplace(
                         std::move(cell_params), static_cast<RiskOffset>(flat_.size()));
@@ -589,7 +589,7 @@ namespace housepi
 
             // register the group-risk names
             for (const std::string &gstr : str::unique(input.at("group_risk")))
-                khold_.add(gstr);
+                add(gstr);
 
             // the status is carried by the member: no data key, the equivalence-class hash mixes it in
             data_wide.set_eq_class_data_names(
@@ -608,7 +608,7 @@ namespace housepi
             {
                 if (na::is(status_col[r]))
                     continue;
-                const size_t g = khold(g_input_vec[r]);
+                const size_t g = consult(g_input_vec[r]);
                 if (vect::contains(status_stratified_, g))
                     continue;
                 msg::stop(
@@ -634,7 +634,7 @@ namespace housepi
                 if (is_keyed[level])
                     slot_of[level] = static_cast<StatusSlot>(n_slots_++);
                 slot_base_[level] =
-                    static_cast<SlotOffset>(slot_of[level] * khold_.size());
+                    static_cast<SlotOffset>(slot_of[level] * size());
             }
             return slot_of;
         }
@@ -643,7 +643,7 @@ namespace housepi
                                              const std::vector<std::vector<size_t>> &cell_params)
         {
             // every cell starts at the reference: status rules never cover escaped members
-            const std::vector<std::string> names = khold_.all();
+            const std::vector<std::string> names = all();
             for (size_t c = 0; c < cell_params.size(); ++c)
             {
                 flat_.emplace_back(VALUE_REFERENCE);
@@ -675,7 +675,7 @@ namespace housepi
 
             // scale anchoring per rule group
             for (const auto &[gid, anchor] : read_scale_anchors<size_t>(
-                     defs.rules, [&](size_t r)
+                     defs.row_param, [&](size_t r)
                      { return defs.rules.row_gid[r]; }))
                 scale_anchors_.push_back(anchor);
 
@@ -749,7 +749,7 @@ namespace housepi
                     continue;
 
                 n_scale_free += n_group;
-                free_names.emplace_back(group_.khold(g));
+                free_names.emplace_back(group_.consult(g));
             }
 
             // the R front end holds baselines at the reference for absolute risks
