@@ -178,6 +178,30 @@ public:
 		return output;
 	}
 
+	/// Export community and person-to-person infection rates of `house`, by member.
+	/// - `community_rate`: one per member;
+	/// - `p2p_rate`: infector by row, infectee by column, diagonal 0, scaling the infector's profile.
+	void export_house_quantities(const Household &house, HouseQuantities &out) override final
+	{
+		const MemberIdx house_size = house.size();
+		const double alpha = par(Param::alpha);
+		const double beta = transmission_rate(house_size);
+
+		std::vector<double> commu(house_size);
+		std::vector<std::vector<double>> p2p(house_size, std::vector<double>(house_size, 0.));
+		for (MemberIdx i = 0; i < house_size; ++i)
+		{
+			const Individual &indiv_i = house.at(i);
+			commu[i] = alpha * group_risk(GroupRisk::community, indiv_i);
+			const double inf_i = beta * group_risk(GroupRisk::infectivity, indiv_i);
+			for (MemberIdx j = 0; j < house_size; ++j)
+				if (j != i)
+					p2p[i][j] = inf_i * contact_risk(house, i, j) * group_risk(GroupRisk::susceptibility, house.at(j));
+		}
+		out.vector("community_rate", std::move(commu));
+		out.matrix("p2p_rate", std::move(p2p));
+	}
+
 	//////////////////////////////  Model : transmission cache  //////////////////////////////
 
 	/// Store profiles between infected members `indiv_i` and `indiv_j`, by generation time.

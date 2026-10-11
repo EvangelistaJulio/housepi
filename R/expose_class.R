@@ -1229,8 +1229,13 @@ inspect_augmented_data <- function(hh_model) {
 #' @param hh_id `r rd_hh_id_`
 #' @return `list`, all variables of the household.
 #' Entries are named after the homonymous active fields, followed by the
-#' latent, observation and transmission log-likelihood contributions.
+#' latent, observation and transmission log-likelihood contributions,
+#' and by `model_quantities`, the named quantities the model exports
+#' (see its `template_<model>` help page).
 #' An empty definition is dropped unless the model requires it.
+#' Until [evaluate_log_lik()] on every household, or [run_inference()],
+#' evaluates the current definitions, the transmission log-likelihood is `NA`
+#' and `model_quantities` is absent.
 #' @seealso [inspect_augmented_data()]
 #' @examples
 #' hh_model <- flu_1918_frederick |>
@@ -1266,6 +1271,8 @@ inspect_house_state <- function(hh_model, hh_id) {
     df$func_args <- lst$func_args
     out$infectivity_profiles <- df
   }
+  ## model quantities
+  if (!length(out$model_quantities)) out$model_quantities <- NULL
   out
 }
 

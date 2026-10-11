@@ -14,8 +14,13 @@ inspect_house_state(hh_model, hh_id)
 \value{
 \code{list}, all variables of the household.
 Entries are named after the homonymous active fields, followed by the
-latent, observation and transmission log-likelihood contributions.
+latent, observation and transmission log-likelihood contributions,
+and by \code{model_quantities}, the named quantities the model exports
+(see its \verb{template_<model>} help page).
 An empty definition is dropped unless the model requires it.
+Until \code{\link[=evaluate_log_lik]{evaluate_log_lik()}} on every household, or \code{\link[=run_inference]{run_inference()}},
+evaluates the current definitions, the transmission log-likelihood is \code{NA}
+and \code{model_quantities} is absent.
 }
 \description{
 Read all the variables a \code{HousepiModel} holds for one household.

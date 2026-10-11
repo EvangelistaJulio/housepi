@@ -335,6 +335,40 @@ namespace housepi::data
 
     namespace
     {
+        /// Whether member `a` sorts before `b`, by status then covariates `data_list`.
+        /// - missing cell: a class of its own, ordered last, so the equivalence stays transitive.
+        bool indiv_less_(const std::unordered_set<size_t> &data_list,
+                         const State &state,
+                         const Individual &a,
+                         const Individual &b)
+        {
+            if (a.status() != b.status())
+                return a.status() < b.status();
+            for (size_t d : data_list)
+            {
+                const double x = state.readcell(d, a).value(), y = state.readcell(d, b).value();
+                const bool na_x = na::is(x), na_y = na::is(y);
+                if (na_x != na_y)
+                    return na_y;
+                if (!na_x && x != y)
+                    return x < y;
+            }
+            return false;
+        }
+
+        /// Member indices of `house` sorted by indiv_less_().
+        std::vector<MemberIdx> sorted_members_(const std::unordered_set<size_t> &data_list,
+                                               const State &state,
+                                               const Household &house)
+        {
+            std::vector<MemberIdx> order(house.size());
+            std::iota(order.begin(), order.end(), 0);
+            std::sort(order.begin(), order.end(),
+                      [&](MemberIdx i, MemberIdx j)
+                      { return indiv_less_(data_list, state, house.at(i), house.at(j)); });
+            return order;
+        }
+
         struct FrequencyMapper_
         {
             FrequencyMapper_(const std::unordered_set<size_t> data_list,
@@ -352,17 +386,10 @@ namespace housepi::data
                 {
                     const Household &house = house_vector[H];
 
-                    // sorted member indices
-                    std::vector<size_t> order(house.size());
-                    std::iota(order.begin(), order.end(), 0);
-                    std::sort(order.begin(), order.end(),
-                              [this, &house](size_t i, size_t j)
-                              { return indiv_less_(house.at(i), house.at(j)); });
-
                     // equal house sizes share seeding
                     size_t seed = std::hash<size_t>{}(house.size());
                     // combine hashes over sorted members
-                    for (size_t i : order)
+                    for (MemberIdx i : sorted_members_(data_list_, state_, house))
                     {
                         const Individual &indiv = house.at(i);
                         hash_combine_(seed, std::hash<StatusLvl>{}(indiv.status()));
@@ -378,24 +405,6 @@ namespace housepi::data
         private:
             const std::unordered_set<size_t> data_list_; /// Covariates hashed into equivalence classes.
             const State &state_;                         /// Read-cells of every member.
-
-            /// Whether member `a` sorts before `b`, by status then covariates.
-            /// - missing cell: a class of its own, ordered last, so the equivalence stays transitive.
-            bool indiv_less_(const Individual &a, const Individual &b) const
-            {
-                if (a.status() != b.status())
-                    return a.status() < b.status();
-                for (size_t d : data_list_)
-                {
-                    const double x = state_.readcell(d, a).value(), y = state_.readcell(d, b).value();
-                    const bool na_x = na::is(x), na_y = na::is(y);
-                    if (na_x != na_y)
-                        return na_y;
-                    if (!na_x && x != y)
-                        return x < y;
-                }
-                return false;
-            }
 
             /// Combine hash `h` into `seed`, golden-ratio mixing.
             /// Based on @cite james_boostcontainerhash_2022.
@@ -449,6 +458,18 @@ namespace housepi::data
 
             eq_classes_.emplace_back(group);
         }
+    }
+
+    std::vector<MemberIdx> Wide::map_head_members(const Household &house, const State &state) const
+    {
+        const Household &head = eq_class_head(house.eq_class());
+        const std::vector<MemberIdx> head_order = sorted_members_(eq_class_covariates_, state, head);
+        const std::vector<MemberIdx> house_order = sorted_members_(eq_class_covariates_, state, house);
+
+        std::vector<MemberIdx> output(house.size());
+        for (size_t k = 0; k < house.size(); ++k)
+            output[head_order[k]] = house_order[k];
+        return output;
     }
 
     void Wide::helper_init_unique_eq_classes_()
@@ -558,10 +579,12 @@ namespace housepi::data
     void State::allocate_transm_log_lik(const Wide &wide)
     {
         transm_log_lik_.assign(wide.eq_class_size(), LogProba());
+        is_evaluated_ = false;
     }
 
     void State::allocate_cache(const Wide &wide)
     {
+        is_evaluated_ = false;
         previous_.resize(wide.eq_class_size());
         current_.resize(wide.eq_class_size());
 

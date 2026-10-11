@@ -65,6 +65,11 @@ NULL
 #' \eqn{q^\mathrm{pp}_{ji} = \exp\left(-\beta \left(\tfrac{n_\mathrm{ref}}{n}\right)^{\gamma} \mu^\mathrm{inf}_{j} \, \mu^\mathrm{ctc}_{ji} \, \mu^\mathrm{sus}_{i}\right)}{q^pp_ji = exp(-beta (n_ref / n)^gamma mu^inf_j mu^ctc_ji mu^sus_i)}
 #' - \eqn{\mu^\mathrm{ctc}_{ji}}{mu^ctc_ji} : contact risk from member \eqn{j} to member \eqn{i}, equal to 1 unless set by [add_contact_risk()]
 #'
+#' @section Model Quantities:
+#' [inspect_house_state()] reports in `model_quantities`:
+#' - \code{community_escape} : \eqn{q^\mathrm{com}_{i}}{q^com_i}, per member
+#' - \code{p2p_escape} : \eqn{q^\mathrm{pp}_{ji}}{q^pp_ji}, infector \eqn{j} by row and infectee \eqn{i} by column, 1 on the diagonal
+#'
 #' @section Notes:
 #' In a household of size \eqn{n} the baseline person-to-person risk is \eqn{\beta (n_\mathrm{ref}/n)^{\gamma}}{beta (n_ref / n)^gamma} \insertCite{cauchemez_bayesian_2004}{housepi},
 #' so \eqn{\beta}{beta} is the baseline risk in a household of size \eqn{n_\mathrm{ref}}{n_ref}.
@@ -141,6 +146,11 @@ NULL
 #' \eqn{p^\mathrm{esc} = \prod_{i:\,s_{i} = 0} \exp\left(-\sum_{t = t_{0} + 1}^{t_\mathrm{end}} \lambda_{i}(t)\right)}{p^esc = prod_{i: s_i = 0} exp(-sum_{t = t_0 + 1}^{t_end} lambda_i(t))}
 #' }
 #' }
+#'
+#' @section Model Quantities:
+#' [inspect_house_state()] reports in `model_quantities` the terms of \eqn{\lambda_{i}(t)}{lambda_i(t)}:
+#' - \code{community_rate} : \eqn{\alpha \, \mu^\mathrm{com}_{i}}{alpha mu^com_i}, per member
+#' - \code{p2p_rate} : \eqn{\beta \left(\tfrac{n_\mathrm{ref}}{n}\right)^{\gamma} \mu^\mathrm{inf}_{j} \, \mu^\mathrm{ctc}_{ji} \, \mu^\mathrm{sus}_{i}}{beta (n_ref / n)^gamma mu^inf_j mu^ctc_ji mu^sus_i}, multiplying \eqn{f_{j}(t - t_{j})}{f_j(t - t_j)}, infector \eqn{j} by row and infectee \eqn{i} by column, 0 on the diagonal
 #'
 #' @section Notes:
 #' In a household of size \eqn{n} the baseline person-to-person risk is \eqn{\beta (n_\mathrm{ref}/n)^{\gamma}}{beta (n_ref / n)^gamma} \insertCite{cauchemez_bayesian_2004}{housepi},

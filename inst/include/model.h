@@ -9,9 +9,11 @@
 
 #include <vector>
 #include <string>
+#include <utility>
 
 #include "data/individual.h"
 #include "mcmc/base.h"
+#include "tools/messages.h"
 
 //////////////////////////////  ModelBase  //////////////////////////////
 
@@ -29,6 +31,37 @@ namespace housepi
 	{                                                                         \
 		return mcmc_->data.state.cache_##NAME(house, e);                      \
 	}
+
+	/// Named quantities of one household that a model exports, indexed by member.
+	struct HouseQuantities
+	{
+		/// Collect quantities of a household of `n` members.
+		explicit HouseQuantities(size_t n) noexcept : n_(n) {}
+
+		/// Add `values` as `name`, one per member.
+		void vector(std::string name, std::vector<double> values)
+		{
+			if (values.size() != n_)
+				msg::stop("Exported vector " + msg::val(name) + " is not sized by household members.");
+			vectors.emplace_back(std::move(name), std::move(values));
+		}
+		/// Add `values` as `name`, one row and one column per member.
+		void matrix(std::string name, std::vector<std::vector<double>> values)
+		{
+			bool sized = values.size() == n_;
+			for (const std::vector<double> &row : values)
+				sized = sized && row.size() == n_;
+			if (!sized)
+				msg::stop("Exported matrix " + msg::val(name) + " is not sized by household members.");
+			matrices.emplace_back(std::move(name), std::move(values));
+		}
+
+		std::vector<std::pair<std::string, std::vector<double>>> vectors = {};               /// Vectors, by name.
+		std::vector<std::pair<std::string, std::vector<std::vector<double>>>> matrices = {}; /// Matrices, by name.
+
+	private:
+		size_t n_; /// Household size.
+	};
 
 	/// Transmission model: per-household log-likelihood and simulation hooks.
 	///
@@ -70,6 +103,11 @@ namespace housepi
 													  const Individual & /*indiv*/) {}
 		/// Compute the transmission log-likelihood of `house`.
 		virtual double compute_house_transm_log_lik(const Household & /*house*/) = 0;
+		/// Export named quantities of `house` at the current state into `out`.
+		/// - called on an equivalence-class head, once every class is evaluated;
+		/// - default: nothing.
+		/// @note A cache written by compute_house_transm_log_lik() may hold a rejected proposal.
+		virtual void export_house_quantities(const Household & /*house*/, HouseQuantities & /*out*/) {}
 
 		/// Initialize the model for evaluation (cache variables, lookup tables).
 		virtual void init_model_for_evaluation() {}
@@ -212,6 +250,12 @@ namespace housepi
 
 		//////  Cache  //////
 
+		/// @name Model cache of the equivalence class of `house`, by cache key.
+		/// - recovered on a rejected latent move;
+		/// - recovered on a rejected move of a parameter feeding the infectivity profile.
+		/// @note Values computed from other parameters may hold a rejected proposal: recompute them.
+		///@{
+
 		/// Cached member value.
 		MAKE_HOUSEPI_CACHE_FORWARDER(member)
 		/// Cached member vector.
@@ -220,6 +264,7 @@ namespace housepi
 		MAKE_HOUSEPI_CACHE_FORWARDER(double_vector)
 		/// Cached double matrix.
 		MAKE_HOUSEPI_CACHE_FORWARDER(double_matrix)
+		///@}
 
 	private:
 		MCMCBase *mcmc_; /// Engine the model reads.

@@ -401,3 +401,43 @@ test_that("Chain binomial raises if the log-likelihood is not a number", {
     evaluate_log_lik() |>
     expect_error("[Nn]ot a number")
 })
+
+################################################
+###  FINAL SIZE HH MODEL : MODEL QUANTITIES  ###
+################################################
+
+test_that("Escape probabilities follow the transmission formulas per member", {
+  # `h2` lists the members of `h1` in another order: one equivalence class
+  house <- mk_heter$house
+  house_2 <- transform(house[c(4, 2, 1, 3), ],
+                       id = sprintf("m%s", 5:8), hh_id = "h2")
+  hh_model <- rbind(house, house_2) |>
+    build_house_model(mk_heter$par, mk_heter$groups, mk_heter$contacts)
+  evaluate_log_lik(hh_model)
+  summary <- summarise_house_cases(hh_model)
+  summary$count[summary$metric == "classes"] |> expect_equal(1)
+
+  for (hhdata in list(house, house_2)) {
+    ctr <- mk_ctr_mtx(hhdata, mk_heter$crisks)
+    inspect_house_state(hh_model, hhdata$hh_id[1])$model_quantities |>
+      expect_equal(escape_probas(hhdata, mk_heter$par, ctr))
+  }
+})
+
+test_that("Escape probabilities follow the last accepted parameters of a run", {
+  # the last move of a run may be rejected
+  hh_model <- flu_1918_frederick |>
+    new_housepi_model("final-size") |>
+    add_parameter(import = "template")
+  for (i in 1:3) {
+    run_inference(hh_model, steps = 10L, thin = 1L, adapt = 0L, chains = 1L,
+                  progress = FALSE, warn = FALSE)
+
+    # three members, default group and contact risks
+    snapshot <- inspect_house_state(hh_model, "119")
+    n <- nrow(snapshot$group_risks)
+    snapshot$model_quantities |>
+      expect_equal(escape_probas(snapshot$group_risks,
+                                 as.list(snapshot$parameters), 1 - diag(n)))
+  }
+})

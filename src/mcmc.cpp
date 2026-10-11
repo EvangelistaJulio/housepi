@@ -731,6 +731,7 @@ namespace housepi
         {
             // evaluation across all households
             commit_total_log_posterior_(true);
+            data.state.set_evaluated(true);
             acc.obs_ll = tot_obs_log_lik.value();
             acc.transm_ll = tot_transm_log_lik.value();
             acc.latent_ll = tot_latent_log_lik.value();
@@ -930,6 +931,7 @@ namespace housepi
             init_chain_();
             run_chain_(chain_id);
         }
+        data.state.set_evaluated(true);
         return std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count();
     }
 

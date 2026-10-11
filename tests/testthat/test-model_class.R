@@ -229,9 +229,48 @@ test_that("Household snapshot reads before any definition is pushed", {
               "latent_log_lik", "observation_log_lik")) {
     snapshot[[f]] |> expect_length(0)
   }
+  snapshot$transmission_log_lik |> expect_all_na()
 
   # single household
   snapshot$data_wide |> expect_equal(dummy_household)
+})
+
+test_that("Household snapshot reports transmission once all are evaluated", {
+  hh_model <- data.frame(id = c("m1", "m2"), hh_id = c("h1", "h2"),
+                         status = c(1, 0)) |>
+    new_housepi_model("final-size") |>
+    add_parameter(alpha = 0.3, beta = 0.2, gamma = 1, hh_size_ref = 4)
+  expect_unevaluated <- function(hh_model) {
+    snapshot <- inspect_house_state(hh_model, "h2")
+    snapshot$transmission_log_lik |> expect_all_na()
+    snapshot$model_quantities |> expect_null()
+  }
+
+  # never evaluated, then one household evaluated
+  expect_unevaluated(hh_model)
+  evaluate_log_lik(hh_model, "h1")
+  expect_unevaluated(hh_model)
+
+  # every household evaluated: `m2` escapes the community alone
+  evaluate_log_lik(hh_model)
+  snapshot <- inspect_house_state(hh_model, "h2")
+  snapshot$transmission_log_lik |> expect_equal(-0.3)
+  names(snapshot$model_quantities) |>
+    expect_identical(c("community_escape", "p2p_escape"))
+
+  # a redefinition or a simulation discards the evaluation
+  expect_warning(hh_model_2 <- add_parameter(hh_model, alpha = 0.5),
+                 "[Oo]verwriting")
+  expect_unevaluated(hh_model_2)
+  run_simulation(hh_model)
+  expect_unevaluated(hh_model)
+
+  # a model exporting nothing drops the entry
+  hh_model_3 <- new_housepi_model(dummy_household, "test")
+  evaluate_log_lik(hh_model_3)
+  snapshot <- inspect_house_state(hh_model_3, "house")
+  snapshot$transmission_log_lik |> is.finite() |> expect_true()
+  snapshot$model_quantities |> expect_null()
 })
 
 test_that("Data long format is correctly handled", {

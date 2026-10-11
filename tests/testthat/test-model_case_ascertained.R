@@ -291,6 +291,42 @@ test_that("A case with no source of infection has zero likelihood", {
   }
 })
 
+test_that("Model quantities are the rates of the force of infection", {
+  # `m2` is the only child: its own community, susceptibility, infectivity
+  # and contact with the adults
+  child <- c(FALSE, TRUE, rep(FALSE, 5))
+  house <- transform(mk_house$data[c("id", "hh_id", "status", "infec_time",
+                                     "start_date", "end_date", "index_case")],
+                     age = ifelse(child, "child", "adult"))
+  strata <- function(param_name, value) {
+    data.frame(age = c(NA, "child"), param_name = c(".reference", param_name),
+               value = c(NA, value), const = c(NA, TRUE))
+  }
+  hh_model <- build_onset_model(house, mk_house$param, FALSE) |>
+    add_group_risk(community = list(strata = strata("com_child", 2)),
+                   susceptibility = list(strata = strata("sus_child", 3)),
+                   infectivity = list(strata = strata("inf_child", 0.5))) |>
+    add_contact_risk(strata = data.frame(
+      from_age = c("child", NA), to_age = c("adult", NA),
+      param_name = c("child_to_adult", ".reference"),
+      value = c(1.5, NA), const = c(TRUE, NA)
+    ))
+  evaluate_log_lik(hh_model)
+
+  # infector by row, infectee by column, no self-contact
+  par <- mk_house$param
+  beta_star <- par$beta * (par$hh_size_ref / nrow(house))^par$gamma
+  ctr <- ifelse(outer(child, child, xor), 1.5, 1)
+  diag(ctr) <- 0
+  inspect_house_state(hh_model, "h1")$model_quantities |>
+    expect_equal(list(
+      community_rate = setNames(par$alpha * ifelse(child, 2, 1), house$id),
+      p2p_rate = matrix(beta_star * ifelse(child, 0.5, 1) * ctr *
+                          rep(ifelse(child, 3, 1), each = nrow(house)),
+                        nrow(house), dimnames = list(house$id, house$id))
+    ))
+})
+
 test_that("Latent moves preserve log-likelihood", {
   house <- mk_house$data[c("id", "hh_id", "status", "onset_date",
                            "start_date", "end_date", "index_case")]

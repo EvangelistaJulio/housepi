@@ -258,5 +258,15 @@ hh_model |>
 
 We obtain that transmission between members of the same class is much larger than across classes.
 
+After the run, the model holds the state of the last iteration of its last chain.
+Inspected again, the household from the strata example now also reports `model_quantities`: the escape probabilities the likelihood reads at that state (see `?template_final_size`).
+Entry `[j, i]` of `p2p_escape` is the probability that member `i` escapes infection by member `j`.
+
+```{r}
+#| label: escape-probabilities
+inspect_house_state(hh_model, hh_id)$model_quantities$p2p_escape |>
+  round(3)
+```
+
 ```{r footer-child, child = "helpers/_footer.Rmd"}
 ```

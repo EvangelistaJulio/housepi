@@ -124,7 +124,12 @@ public:
 	}
 
 	/// Store community and person-to-person escape rates of `house` in the cache.
-	/// @todo Compute per partition, not per member, escaped partitions included.
+	/// @todo Compute per partition, not per member, escaped partitions included:
+	/// - fill rates between part representatives (`part_indexes`) only;
+	/// - partition escaped members in `init_house_for_evaluation()`;
+	/// - sum escaped contributions by counts, sum_E n_E (commu_E + sum_P n_P p2p_PE);
+	/// - read the intra-partition diagonal in the homogeneous branch, not `[0][1]`;
+	/// - keep a per-member fill for export_house_quantities().
 	void fill_house_escape_matrix(const Household &house)
 	{
 		const MemberIdx house_size = house.size();
@@ -181,6 +186,33 @@ public:
 			cache_member_vector(house, HHmembervec::part_indexes),
 			cache_double_vector(house, HHdoublevec::commu_escape_rate),
 			cache_double_matrix(house, HHdoublemtx::p2p_escape_rate));
+	}
+
+	/// Export community and person-to-person escape probabilities of `house`, by member.
+	/// - `community_escape`: one per member;
+	/// - `p2p_escape`: infector by row, infectee by column, diagonal 1.
+	void export_house_quantities(const Household &house, HouseQuantities &out) override final
+	{
+		// escape rates at the current parameters
+		fill_house_escape_matrix(house);
+
+		const MemberIdx house_size = house.size();
+		const auto &order = cache_member_vector(house, HHmembervec::order);
+		const auto &commu_mtx = cache_double_vector(house, HHdoublevec::commu_escape_rate);
+		const auto &p2p_mtx = cache_double_matrix(house, HHdoublemtx::p2p_escape_rate);
+
+		// from member order back to member index
+		std::vector<double> commu(house_size);
+		std::vector<std::vector<double>> p2p(house_size, std::vector<double>(house_size, 1.));
+		for (MemberIdx oi = 0; oi < house_size; ++oi)
+		{
+			commu[order[oi]] = std::exp(-commu_mtx[oi]);
+			for (MemberIdx oj = 0; oj < house_size; ++oj)
+				if (oj != oi)
+					p2p[order[oi]][order[oj]] = std::exp(-p2p_mtx[oi][oj]);
+		}
+		out.vector("community_escape", std::move(commu));
+		out.matrix("p2p_escape", std::move(p2p));
 	}
 
 	//////////////////////////////  Model : household simulation  //////////////////////////////

@@ -478,6 +478,7 @@ namespace housepi
         // their build() paths raise housepi::TrustedException through msg::stop
         // Rcpp forwards it to R with its class
         // no import needs its own try/catch conversion
+        // every import but setup clears the evaluated flag (class rebuilds clear it on reallocation)
         void import_setup(Rcpp::XPtr<MCMC> mcmc_ptr, SEXP input)
         {
             mcmc_ptr->setup.build(rdataframe_to<str_table>(input));
@@ -486,6 +487,7 @@ namespace housepi
         void import_param(Rcpp::XPtr<MCMC> mcmc_ptr, SEXP input)
         {
             mcmc_ptr->param.build(rdataframe_to<str_table>(input), mcmc_ptr->translator);
+            mcmc_ptr->data.state.set_evaluated(false);
         }
 
         void import_data_wide(Rcpp::XPtr<MCMC> mcmc_ptr, SEXP input)
@@ -499,6 +501,7 @@ namespace housepi
         {
             // @todo Decide whether long data should be copy-on-write too.
             mcmc_ptr->data.build_long(rdataframe_to<str_table>(input));
+            mcmc_ptr->data.state.set_evaluated(false);
         }
 
         void import_group_risk(Rcpp::XPtr<MCMC> mcmc_ptr, SEXP input)
@@ -516,6 +519,7 @@ namespace housepi
         void import_infec_profile(Rcpp::XPtr<MCMC> mcmc_ptr, SEXP input)
         {
             mcmc_ptr->infec_profile.build(mcmc_ptr->translator, rdataframe_to<str_table>(input));
+            mcmc_ptr->data.state.set_evaluated(false);
         }
 
         void import_latent(Rcpp::XPtr<MCMC> mcmc_ptr, SEXP input)
@@ -527,11 +531,13 @@ namespace housepi
         void import_status_process(Rcpp::XPtr<MCMC> mcmc_ptr, SEXP input, size_t n_levels)
         {
             mcmc_ptr->status_process.build(mcmc_ptr->data.wide(), rdataframe_to<str_table>(input), n_levels);
+            mcmc_ptr->data.state.set_evaluated(false);
         }
 
         void import_param_table(Rcpp::XPtr<MCMC> mcmc_ptr, SEXP input)
         {
             mcmc_ptr->param.build_for_predic(rdataframe_to<dbl_table>(input));
+            mcmc_ptr->data.state.set_evaluated(false);
         }
 
         //////////////////////////////  MCMC : exports to Rcpp  //////////////////////////////
@@ -982,6 +988,44 @@ namespace housepi
             return frame.frame();
         }
 
+        /// Snapshot the quantities the model exports for `house`, with member ids as names and dimnames.
+        /// - read from the class head, mapped onto the members of `house`;
+        /// - some household not evaluated at the current state: empty list.
+        Rcpp::List rcpp_snapshot_model_quantities(Rcpp::XPtr<MCMC> mcmc_ptr,
+                                                  const Household &house)
+        {
+            if (!mcmc_ptr->data.state.is_evaluated())
+                return Rcpp::List::create();
+
+            const data::Wide &data_wide = mcmc_ptr->data.wide();
+            const Household &head = data_wide.eq_class_head(house.eq_class());
+            HouseQuantities out(head.size());
+            mcmc_ptr->model->export_house_quantities(head, out);
+
+            const std::vector<MemberIdx> member = data_wide.map_head_members(house, mcmc_ptr->data.state);
+            const Rcpp::CharacterVector ids = rcpp_ids(data_wide, house);
+            const size_t n = house.size();
+            Rcpp::List output;
+            for (const auto &[name, values] : out.vectors)
+            {
+                Rcpp::NumericVector vec(n);
+                for (size_t i = 0; i < n; ++i)
+                    vec[member[i]] = hsp_to_rcpp(values[i]);
+                vec.names() = ids;
+                output.push_back(vec, name);
+            }
+            for (const auto &[name, values] : out.matrices)
+            {
+                Rcpp::NumericMatrix mtx(n, n);
+                for (size_t i = 0; i < n; ++i)
+                    for (size_t j = 0; j < n; ++j)
+                        mtx(member[i], member[j]) = hsp_to_rcpp(values[i][j]);
+                mtx.attr("dimnames") = Rcpp::List::create(ids, ids);
+                output.push_back(mtx, name);
+            }
+            return output;
+        }
+
         /// Export every snapshot of household `hh_id`, for debugging.
         Rcpp::List export_house_snapshot(Rcpp::XPtr<MCMC> mcmc_ptr, const std::string &hh_id)
         {
@@ -992,6 +1036,7 @@ namespace housepi
 
                 const Household &house = mcmc_ptr->data.wide().at(hh_id);
                 const Augmented &augm = mcmc_ptr->augm;
+                data::State &state = mcmc_ptr->data.state;
 
                 return Rcpp::List::create(
                     Rcpp::_["data_wide"] = rcpp_snapshot_data_wide(mcmc_ptr, house),
@@ -1003,7 +1048,8 @@ namespace housepi
                     Rcpp::_["infectivity_profiles"] = rcpp_snapshot_infec_profile(mcmc_ptr, house),
                     Rcpp::_["latent_log_lik"] = rcpp_snapshot_log_lik(mcmc_ptr, house, augm.scheme().list_latent_export),
                     Rcpp::_["observation_log_lik"] = rcpp_snapshot_log_lik(mcmc_ptr, house, augm.scheme().list_obs_member),
-                    Rcpp::_["transmission_log_lik"] = hsp_to_rcpp(mcmc_ptr->data.state.transm_log_lik(house).value()));
+                    Rcpp::_["transmission_log_lik"] = state.is_evaluated() ? hsp_to_rcpp(state.transm_log_lik(house).value()) : NA_REAL,
+                    Rcpp::_["model_quantities"] = rcpp_snapshot_model_quantities(mcmc_ptr, house));
             }
             catch (const housepi::TrustedException &e)
             {
@@ -1191,6 +1237,7 @@ namespace housepi
             Setup &setup = engine.setup;
             const Augmented &augm = engine.augm;
             const data::Wide &data_wide = engine.data.wide();
+            engine.data.state.set_evaluated(false); // simulation overwrites the evaluated state
 
             // every exit restores the engine
             try

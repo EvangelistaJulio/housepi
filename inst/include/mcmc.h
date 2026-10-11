@@ -68,13 +68,14 @@ namespace housepi
 
 		/// Initialize the model and evaluate the complete-data log-likelihood, joint over latents.
 		/// - sum of observation, transmission and latent terms;
-		/// - missing `hh_id`: every household.
+		/// - missing `hh_id`: every household, flagged evaluated.
 		double evaluate_log_lik(std::string_view hh_id);
 
 		/// Assert definitions and allocate the posterior, before sample().
 		/// @note Call on the main thread: it may raise warnings.
 		void prepare_inference();
 		/// Run every chain: initialization, adaptation, then posterior sampling.
+		/// - completion: every household flagged evaluated, at the last state.
 		/// @return Seconds spent sampling.
 		/// @note Call after prepare_inference(). Off the main thread, it calls no R.
 		double sample();

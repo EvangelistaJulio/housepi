@@ -110,6 +110,10 @@ namespace housepi::data
         /// Head household of equivalence class `R`.
         Household &eq_class_head(size_t R) noexcept { return at(eq_classes_[R].head_); }
         const Household &eq_class_head(size_t R) const noexcept { return at(eq_classes_[R].head_); }
+        /// Member of `house` standing for each member of its class head, by head member index.
+        /// - equivalent members pair up in sorted order, so ties pair arbitrarily;
+        /// - covariates read through the read-cells of `state`.
+        std::vector<MemberIdx> map_head_members(const Household &house, const State &state) const;
 
         //////  Flags  //////
 
