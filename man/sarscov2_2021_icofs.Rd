@@ -5,7 +5,7 @@
 \alias{sarscov2_2021_icofs}
 \title{SARS-CoV-2 2021 household survey from the Israeli COVID-19 Family Study}
 \format{
-A data frame with 4,168 rows and 12 columns
+A data frame with 3,578 rows and 13 columns
 }
 \source{
 \url{https://gitlab.pasteur.fr/mmmi-pasteur/hh_israel_sarscov2_delta2/-/raw/main/codes/db_filtered.txt}
@@ -26,17 +26,20 @@ Contacts averaged 3 tests during follow-up.
 \item{age}{Age class, adult or child}
 \item{sex}{Sex}
 \item{start_date}{Follow-up start: household's first positive PCR}
-\item{end_date}{Follow-up end: last date the household is still observed}
+\item{end_date}{Follow-up end: 21 days after \code{start_date}}
 \item{test_date}{Date of the first positive test within the follow-up}
 \item{vacc_status}{Vaccination status at the follow-up start}
 \item{recovered}{Whether previously recovered from infection}
 \item{isolated}{Whether isolated}
 \item{asymptomatic}{Whether asymptomatic}
+\item{index_case}{1 for the member positive on the household's first test day, 0 otherwise}
 }
 
-Each household is followed from its first positive SARS-CoV-2 PCR test
-starting from July 2021 (\code{start_date}),
-until the latest in-window positive or negative test (\code{end_date}).
+Each household is followed for 21 days from its first positive SARS-CoV-2 PCR test
+as in the original analysis. Study starts from July 2021.
+A member first testing positive after \code{end_date} counts as escaped.
+Households where several members test positive on the first day are left out,
+so each household has a single index case (\code{index_case}).
 Vaccination status (\code{vacc_status}) reflects the doses effective
 at the start of the follow-up, assuming a 7-day delay for effectiveness.
 

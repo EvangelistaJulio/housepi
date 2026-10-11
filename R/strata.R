@@ -351,14 +351,17 @@ assert_strata_fit_ <- function(tables, cells, reserved, value_col,
 }
 
 # Code rule columns as integers over the factor levels held in `info`.
-# `key` maps a column to its `info` entry; columns without one stay as they
-# are. An NA rule cell is a catch-all: it codes to NA, so the engine skips
-# that covariate and it counts for no specificity.
+# `key` maps a column to its `info` entry: a logical column codes FALSE to 0
+# and TRUE to 1, and columns without levels stay as they are. An NA rule cell
+# is a catch-all: it codes to NA, so the engine skips that covariate and it
+# counts for no specificity.
 encode_strata_levels_ <- function(defs, info, cols, key = identity) {
   for (col in cols) {
-    lv <- info[[key(col)]]$levels
-    if (!is.null(lv)) {
-      defs[[col]] <- as.integer(factor(defs[[col]], levels = lv))
+    entry <- info[[key(col)]]
+    if (identical(entry$class, "logical")) {
+      defs[[col]] <- as.integer(as.logical(defs[[col]]))
+    } else if (!is.null(entry$levels)) {
+      defs[[col]] <- as.integer(factor(defs[[col]], levels = entry$levels))
     }
   }
   defs

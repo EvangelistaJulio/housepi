@@ -136,7 +136,7 @@ test_that("Required keys reflect the underlying template", {
 
   generator <- HousepiGenerator$new("case ascertained")
   generator$data_required |>
-    expect_setequal(c("start_date", "end_date"))
+    expect_setequal(c("start_date", "end_date", "index_case"))
   generator$param_required |>
     expect_setequal(c("alpha", "beta", "gamma", "hh_size_ref"))
   generator$group_risks_required |>

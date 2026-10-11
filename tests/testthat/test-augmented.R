@@ -42,7 +42,8 @@ mk_onset <- local({
 # two infected statuses under the template definitions
 mk_status <- local({
   hhdata <- data.frame(id = c("m1", "m2", "m3", "m4"), hh_id = "h1",
-                       status = c(1, 2, 0, 0), start_date = 0, end_date = 21)
+                       status = c(1, 2, 0, 0), start_date = 0, end_date = 21,
+                       index_case = c(1, 0, 0, 0))
   hh_model <- hhdata |>
     new_housepi_model("case-ascertained") |>
     add_parameter(import = "template") |>
@@ -166,7 +167,7 @@ test_that("A latent without a model is sampled within its bounds", {
   latent$proposal |> expect_all_na()
 })
 
-test_that("A latent without a model rejects an ambiguous or unbounded definition", {
+test_that("A latent without a model rejects incomplete definitions", {
   # a value with bounds reads either as a constant or as a simulation value
   mk_latent$model |>
     add_latent(hidden = list(value = 0, min = 0, max = 5)) |>
@@ -927,8 +928,10 @@ test_that("A missing observation leaves the likelihood", {
       new_housepi_model("test") |>
       add_observation("record", model = "uniform", min = 0, max = 3)
   }
-  expect_warning(log_lik <- evaluate_log_lik(mk_categorical(c(TRUE, NA))),
-                 "[Mm]issing for 1 of 2 infected individuals")
+  expect_warning(
+    log_lik <- evaluate_log_lik(mk_categorical(c("a", NA))),
+    "[Mm]issing for 1 of 2 infected individuals"
+  )
   log_lik |> expect_equal(log(1 / 3))
   mk_categorical(c(NA, NA)) |>
     evaluate_log_lik() |>
@@ -1200,7 +1203,8 @@ test_that("A surrogate column proves the requirement its model asks", {
   mk <- function(defin, level = "house") {
     data.frame(id = c("m1", "m2", "m3", "m4"),
                hh_id = c("h1", "h1", "h2", "h2"),
-               status = c(1, 0, 1, 0), end_date = 16, datum = 0.5) |>
+               status = c(1, 0, 1, 0), end_date = 16, datum = 0.5,
+               index_case = c(1, 0, 1, 0)) |>
       new_housepi_model("case-ascertained") |>
       add_observation("start_date", value = !!defin, level = level) |>
       get_data_wide()
@@ -2193,8 +2197,8 @@ test_that("A latent reads a static data-bound household observation", {
 })
 
 test_that("Simulation rejects a latent reading a live household observation", {
-  # the simulation value of infec_time depends on start_date, a surrogate of
-  # the generated test_date: an unsatisfiable cycle, rejected with a clear message
+  # simulation value of infec_time depends on start_date,
+  # but start_date is consumer of test_date: cycle get rejected
   mk_outbreak$model |>
     add_data_wide(dplyr::select(mk_outbreak$data, -test_date, -start_date)) |>
     add_latent(
@@ -2276,7 +2280,7 @@ test_that("Status-specific blocks alone cover every drawn status", {
   mk <- function(..., weights = c(0.5, 0.5)) {
     data.frame(
       id = c("m1", "m2", "m3", "m4"), hh_id = c("h1", "h1", "h2", "h2"),
-      status = NA, start_date = 0, end_date = 21
+      status = NA, start_date = 0, end_date = 21, index_case = c(1, 0, 1, 0)
     ) |>
       new_housepi_model("case-ascertained") |>
       add_parameter(import = "template") |>

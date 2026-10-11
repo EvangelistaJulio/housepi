@@ -167,8 +167,10 @@ test_that("Data factorization handles default types", {
   # character encoded with levels
   result$info$char_col$class |> expect_identical("character")
   result$info$char_col$levels |> expect_identical(c("male", "female"))
-  # logical encoded
+  # logical encoded as FALSE 0, TRUE 1, with no levels
   result$info$logic_col$class |> expect_identical("logical")
+  result$info$logic_col$levels |> expect_null()
+  result$data$logic_col |> expect_identical(c("1", "0"))
 
   # numeric column untouched, and id, hh_id, status skipped (no info entry)
   (c("num_col", "id", "hh_id", "status") %in% names(result$info)) |>
@@ -191,6 +193,18 @@ test_that("Data refactor restores original types", {
   # column order matches original headers
   colnames(restored)[seq_along(factored$cols)] |>
     expect_identical(factored$cols)
+})
+
+test_that("A logical data column reads 0 and 1 in a definition", {
+  hhdata <- data.frame(id = c("m1", "m2", "m3"), hh_id = "h1",
+                       status = c(1, 0, 0), datum = c(TRUE, FALSE, TRUE),
+                       datum_2 = 0)
+  hh_model <- hhdata |>
+    new_housepi_model("test", quiet = TRUE) |>
+    add_observation(datum_2 = list(value = datum * 2))
+
+  hh_model$data_wide$datum_2 |> expect_equal(c(2, 0, 2))
+  hh_model$data_wide$datum |> expect_identical(hhdata$datum)
 })
 
 test_that("Data factorization codes a labelled status column", {
@@ -243,7 +257,8 @@ test_that("Data factorization flags discrete-valued columns", {
   discr |> expect_type("logical")
   names(discr) |> expect_identical(colnames(mk_types$data))
 
-  discr[c("date_col", "int_col", "empty_int")] |> expect_all_true()
+  discr[c("date_col", "int_col", "logic_col", "empty_int")] |>
+    expect_all_true()
   discr[c("whole_col", "num_col", "char_col", "empty_col")] |>
     expect_all_false()
 })
@@ -254,7 +269,6 @@ test_that("Data factorization leaves a missing cell missing", {
   # an empty cell is no category of its own: it carries no level, and it codes
   # to NA so the engine reads it as an empty cell
   factored$info$datum$levels |> expect_identical(c("a"))
-  factored$info$datum_2$levels |> expect_identical(c("TRUE"))
   factored$data$datum |> expect_identical(c("1", NA))
   factored$data$datum_2 |> expect_identical(c("1", NA))
 

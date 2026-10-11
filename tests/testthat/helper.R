@@ -15,14 +15,15 @@ helper_flat_sink <- function(hh_model, ..., column = "obs") {
 }
 
 # Case-ascertained household of three cases and four escapees followed for 21
-# days, the introduction at day 0, and the transmission parameters it is
-# evaluated at.
+# days, the introduction at day 0 as its index case, and the transmission
+# parameters it is evaluated at.
 helper_onset_house <- list(
   data = data.frame(id = sprintf("m%s", seq(7)), hh_id = "h1",
                     status = c(rep(1, 3), rep(0, 4)),
                     infec_time = c(0, 3, 4, rep(NA, 4)),
                     onset_date = c(2, 6, 6, rep(NA, 4)),
-                    start_date = 0, end_date = 21),
+                    start_date = 0, end_date = 21,
+                    index_case = c(1, rep(0, 6))),
   param = list(alpha = 1e-04, beta = 0.07, gamma = 0.9,
                hh_size_ref = 4, shape = 2, scale = 1.1)
 )

@@ -508,6 +508,20 @@ namespace housepi::data
                                 str(house) + ".\nThe model request it for every member, escaped ones included.");
     }
 
+    void Wide::assert_one_per_house(const State &state, size_t d) const
+    {
+        for (const Household &house : house_vector_)
+        {
+            size_t n_flagged = 0;
+            for (const Individual &indiv : house)
+                n_flagged += (state.readcell(d, indiv).value() == 1.);
+            if (n_flagged != 1)
+                msg::stop(
+                    "Data " + msg::val(consult(d)) + " flags " + std::to_string(n_flagged) +
+                    " members of " + str(house) + ".\nThe model requires exactly one per household.");
+        }
+    }
+
     void Wide::recover_all_status() noexcept
     {
         for (Household &house : house_vector_)

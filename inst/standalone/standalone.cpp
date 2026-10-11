@@ -385,9 +385,8 @@ namespace housepi
         // no output file: simulate without serializing
         const bool is_writing = !na::is(pathtofile);
 
-        // model-specific initialization
-        engine.model->init_model_for_simulation();
         engine.augm.init_house_for_simulation(); // build household-level observations
+        engine.model->init_model_for_simulation(); // model-specific initialization
         engine.augm.init_members_for_simulation(engine.status_process); // bind member definitions once per run
 
         // header after initialization: a produced observation registers its data column there

@@ -625,13 +625,16 @@ cpp_data_factorize <- function(df, escaped = "escaped") {
 
   for (col in setdiff(cols, skip)) {
     x <- df[[col]]
-    discr[[col]] <- inherits(x, "Date") || is.integer(x)
+    discr[[col]] <- inherits(x, "Date") || is.integer(x) || is.logical(x)
     if (inherits(x, "Date")) {
       info[[col]] <- list(class = "Date")
       df[[col]] <- as.numeric(x)
-    } else if (is.character(x) || is.factor(x) || is.logical(x)) {
-      cls <- if (is.character(x)) "character"
-      else if (is.logical(x)) "logical" else "factor"
+    } else if (is.logical(x)) {
+      # FALSE reads 0 and TRUE reads 1
+      info[[col]] <- list(class = "logical")
+      df[[col]] <- as.integer(x)
+    } else if (is.character(x) || is.factor(x)) {
+      cls <- if (is.character(x)) "character" else "factor"
       # a missing cell is missing data, not a category: it carries no level
       # and codes to NA, which the engine reads as an empty cell
       y <- factor(x, levels = unique(x))
@@ -661,6 +664,8 @@ cpp_data_refactor <- function(data, info, headers,
     cls <- info[[col]]$class
     if (identical(cls, "Date")) {
       data[[col]] <- as.Date(data[[col]])
+    } else if (identical(cls, "logical")) {
+      data[[col]] <- as.logical(data[[col]])
     } else {
       lv <- info[[col]]$levels
       data[[col]] <- factor(data[[col]],
@@ -668,8 +673,6 @@ cpp_data_refactor <- function(data, info, headers,
                             labels = lv)
       if (identical(cls, "character")) {
         data[[col]] <- as.character(data[[col]])
-      } else if (identical(cls, "logical")) {
-        data[[col]] <- as.logical(data[[col]])
       }
     }
   }

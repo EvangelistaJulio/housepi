@@ -70,7 +70,7 @@ namespace housepi
         size_t n_declared_ = 0;              /// Number of model-declared definitions.
     };
 
-    /// Key holder recording discrete and positive requests per key.
+    /// Key holder recording discrete, positive and boolean requests per key.
     struct KeyHolderWithRequests : public KeyHolder
     {
         using KeyHolder::KeyHolder;
@@ -79,11 +79,15 @@ namespace housepi
         void request_discrete(std::vector<size_t> vec);
         /// Request positive definitions `vec`.
         void request_positive(std::vector<size_t> vec);
+        /// Request boolean definitions `vec`, valued 0 or 1.
+        void request_boolean(std::vector<size_t> vec);
 
         /// Whether a key was requested discrete.
         bool is_required_discrete(size_t p) const noexcept;
         /// Whether a key was requested positive.
         bool is_required_positive(size_t p) const noexcept;
+        /// Whether a key was requested boolean.
+        bool is_required_boolean(size_t p) const noexcept;
         /// Names of the keys requested discrete.
         std::vector<std::string> discrete_keys() const { return consult(discr_); }
 
@@ -92,6 +96,7 @@ namespace housepi
         {
             discr_ = other.discr_;
             posit_ = other.posit_;
+            boolean_ = other.boolean_;
         }
 
         /// Throw if definition `def` does not satisfy the requests registered on key `p`.
@@ -99,7 +104,8 @@ namespace housepi
         void assert_requests(size_t p, const Def &def) const;
 
     private:
-        std::vector<size_t> discr_ = {}; /// Keys requested discrete.
-        std::vector<size_t> posit_ = {}; /// Keys requested positive.
+        std::vector<size_t> discr_ = {};   /// Keys requested discrete.
+        std::vector<size_t> posit_ = {};   /// Keys requested positive.
+        std::vector<size_t> boolean_ = {}; /// Keys requested boolean.
     };
 }

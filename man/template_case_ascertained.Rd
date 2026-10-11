@@ -14,9 +14,12 @@ The household is followed from its first infection, the primary case, which ente
 \itemize{
 \item \code{start_date} : first day of follow-up of the member
 \item \code{end_date} \eqn{t_\mathrm{end}}{t_end} : last day of follow-up of the member, included
+\item \code{index_case} : 1 for the index case of the household, 0 for every other member
 }
 
-Both need a value for every member, escaped ones included.
+All three need a value for every member, escaped ones included.
+Each household has exactly one index case, so households with several are dropped beforehand.
+In simulation the index case is the primary case.
 An observation standing for them is defined at household level, or from data columns only.
 }
 

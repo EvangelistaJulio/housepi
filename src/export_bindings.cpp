@@ -1195,9 +1195,9 @@ namespace housepi
             // every exit restores the engine
             try
             {
-                engine.model->init_model_for_simulation(); // model-specific initialization
-                engine.augm.init_house_for_simulation();   // build household-level observations
+                engine.augm.init_house_for_simulation(); // build household-level observations
                 data_wide.assert_required_everyone(engine.data.state, augm.get_live_cols());
+                engine.model->init_model_for_simulation(); // model-specific initialization
                 engine.risks.assert_identifiability(engine.param);
                 engine.augm.init_members_for_simulation(engine.status_process); // bind member definitions once per run
 
@@ -1431,9 +1431,9 @@ namespace housepi
         /// Export a mean rate per household size, in column `name`.
         /// - size with no contributing household: NA.
         Rcpp::DataFrame rcpp_rate_by_hh_size(unsigned grid_min,
-                                            const std::vector<double> &mean,
-                                            const std::vector<unsigned> &count,
-                                            const char *name)
+                                             const std::vector<double> &mean,
+                                             const std::vector<unsigned> &count,
+                                             const char *name)
         {
             Rcpp::NumericVector rate(mean.size());
             for (size_t i = 0; i < mean.size(); ++i)

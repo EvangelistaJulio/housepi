@@ -63,6 +63,9 @@ namespace housepi
             return below != Interval::Unbounded &&
                    (inf > 0. || (inf == 0. && below == Interval::Open));
         }
+
+        /// Whether every value returned is 0 or 1.
+        bool is_boolean() const noexcept { return on_integers() && inf >= 0. && sup <= 1.; }
     };
 
     //////////////////////////////  Attribute  //////////////////////////////
@@ -175,6 +178,8 @@ namespace housepi
         bool is_discrete() const noexcept { return codomain().on_integers(); }
         /// Whether every value it returns is positive.
         bool is_positive() const noexcept { return codomain().is_positive(); }
+        /// Whether every value it returns is 0 or 1.
+        bool is_boolean() const noexcept { return codomain().is_boolean(); }
         /// Whether it can return a value.
         bool is_callable() const noexcept;
 
