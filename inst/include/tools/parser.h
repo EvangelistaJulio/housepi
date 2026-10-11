@@ -46,7 +46,6 @@ namespace housepi::parse
         std::string key;             /// Argument name in the parent.
         std::string type;            /// Terminal type.
         std::string value;           /// Terminal value.
-        bool is_bracketed = false;   /// Whether the node was wrapped in [].
         std::vector<Entry> children; /// Arguments of a function node.
 
         Entry() = default;

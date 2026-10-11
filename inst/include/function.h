@@ -83,7 +83,7 @@ namespace housepi
         /// Copy constructor.
         Attribute(const Attribute &other);
         /// Move constructor.
-        Attribute(Attribute &&);
+        Attribute(Attribute &&) noexcept;
         /// Copy assignment.
         Attribute &operator=(Attribute other);
 

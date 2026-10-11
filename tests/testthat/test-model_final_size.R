@@ -135,22 +135,61 @@ build_house_model <- function(house, par, groups, contacts) {
     add_parameter(import = par, append = FALSE)
 }
 
-# log-likelihood of a house through the chain binomial debugger
-chain_binomial_log_lik <- function(house, par, ctr) {
-  n_full <- nrow(house)
-  n_infec <- sum(house$status > 0L)
-  commu_infec_rate <- par$alpha * house$community
-  p2p_infec_rate <- par$beta * (par$hh_size_ref / n_full) ^ par$gamma *
-    house$infectivity %o% house$susceptibility * ctr
-  if (n_infec == 0) return(-sum(commu_infec_rate))
+# probability of every transmission chain among infected members, given their
+# community escapes `B` and person-to-person escapes `Q` (infector by row)
+# a chain orders the infected into generations: the first is infected by the
+# community, a later member escapes the community and every generation before
+# the previous one, and is infected by the previous one
+enumerate_chains <- function(B, Q) {
+  # ordered set partitions of `remaining`, one integer vector per generation
+  ordered_partitions <- function(remaining) {
+    if (!length(remaining)) return(list(list()))
+    unlist(lapply(seq_along(remaining), function(n) {
+      firsts <- utils::combn(seq_along(remaining), n,
+                             function(i) remaining[i], simplify = FALSE)
+      unlist(lapply(firsts, function(first) {
+        lapply(ordered_partitions(setdiff(remaining, first)),
+               \(rest) c(list(first), rest))
+      }), recursive = FALSE)
+    }), recursive = FALSE)
+  }
+  chain_proba <- function(gens) {
+    log_p <- sum(log1p(-B[gens[[1L]]]))
+    for (g in seq_along(gens)[-1L]) {
+      earlier <- unlist(gens[seq_len(g - 2L)])
+      for (i in gens[[g]]) {
+        log_p <- log_p + log(B[i]) + sum(log(Q[earlier, i])) +
+          log1p(-prod(Q[gens[[g - 1L]], i]))
+      }
+    }
+    exp(log_p)
+  }
 
-  infec <- seq_len(n_infec)
-  escaped <- (n_infec + 1):n_full
-  # escape probabilities restricted to the infected members
-  B <- exp(-commu_infec_rate[infec])
-  Q <- exp(-p2p_infec_rate[infec, infec, drop = FALSE])
-  -sum(commu_infec_rate[escaped]) - sum(p2p_infec_rate[infec, escaped]) +
-    log(eval_chain_binomial_debugger_(B, Q))
+  chains <- ordered_partitions(seq_along(B))
+  list(chains = chains, proba = vapply(chains, chain_proba, numeric(1L)))
+}
+
+# log-likelihood of a house, summing its transmission chains
+chain_binomial_log_lik <- function(house, par, ctr) {
+  esc <- escape_probas(house, par, ctr)
+  B <- esc$community_escape
+  Q <- esc$p2p_escape
+  infec <- house$status > 0L
+  if (!any(infec)) return(sum(log(B)))
+  sum(log(B[!infec])) + sum(log(Q[infec, !infec])) +
+    log(sum(enumerate_chains(B[infec], Q[infec, infec, drop = FALSE])$proba))
+}
+
+# escape probabilities of a house, named after its members
+escape_probas <- function(house, par, ctr) {
+  n <- nrow(house)
+  p2p_rate <- par$beta * (par$hh_size_ref / n) ^ par$gamma *
+    house$infectivity %o% house$susceptibility * ctr
+  list(
+    community_escape = setNames(exp(-par$alpha * house$community), house$id),
+    p2p_escape = matrix(exp(-p2p_rate), n, n,
+                        dimnames = list(house$id, house$id))
+  )
 }
 
 ######################################
@@ -175,14 +214,6 @@ test_that("Chain binomial guards against misusage", {
     new_housepi_model("final-size") |>
     add_infectivity_profile(import = "template") |>
     expect_error("not supported.*dropped")
-})
-
-test_that("Debugger cannot be called on large numbers of infections", {
-  n_infec <- 10L
-  eval_chain_binomial_debugger_(
-    runif(n_infec), matrix(runif(n_infec * n_infec), ncol = n_infec)
-  ) |>
-    expect_error("Maximum number")
 })
 
 ##############################################
@@ -229,6 +260,28 @@ test_that("Likelihood is correct when using risk partitions", {
       mk_part$house, mk_part$par,
       mk_ctr_mtx(mk_part$house, mk_part$crisks)
     ))
+})
+
+test_that("Likelihood sums to one over every final outcome of a household", {
+  # one house per status vector of the members of `mk_part`: the infected take
+  # the homogeneous (`c`, `c`), partitioned (`a`, `c`, `c`) and heterogeneous
+  # (`a`, `b`) branches
+  house <- mk_part$house
+  outcomes <- as.matrix(expand.grid(rep(list(0:1), nrow(house))))
+  houses <- do.call(rbind, lapply(seq_len(nrow(outcomes)), function(k) {
+    transform(house, id = paste0(id, "_", k), hh_id = paste0("h", k),
+              status = unname(outcomes[k, ]))
+  }))
+  hh_model <- houses |>
+    build_house_model(mk_part$par, mk_part$groups, mk_part$contacts)
+  evaluate_log_lik(hh_model)
+
+  unique(houses$hh_id) |>
+    vapply(\(hh_id) inspect_house_state(hh_model, hh_id)$transmission_log_lik,
+           numeric(1)) |>
+    exp() |>
+    sum() |>
+    expect_equal(1)
 })
 
 test_that("A contact-risk mismatch keeps risk-equivalent members apart", {

@@ -48,7 +48,7 @@ namespace housepi
           ratio_mode_(other.ratio_mode_),
           old_(other.old_),
           pDistr_(other.pDistr_ ? other.pDistr_->clone_distrib() : nullptr) {}
-    Variable::Variable(Variable &&) = default;
+    Variable::Variable(Variable &&) noexcept = default;
 
     Variable &Variable::operator=(Variable other)
     {

@@ -30,8 +30,7 @@
 
 namespace housepi::risks
 {
-    constexpr const char *REFERENCE = ".reference"; /// Rule value choosing the reference.
-    constexpr double VALUE_REFERENCE = 1.0;         /// Risk value of the reference.
+    constexpr double VALUE_REFERENCE = 1.0; /// Risk value of the reference.
 
     /// Read the scale anchoring of every rule group.
     /// - a rule naming the reference: anchors its group;

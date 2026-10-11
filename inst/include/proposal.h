@@ -210,7 +210,7 @@ namespace housepi
         }
 
         /// Destructor.
-        virtual ~AdaptableProposal() = default;
+        ~AdaptableProposal() override = default;
 
         //////  Adaptation  //////
 

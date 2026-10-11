@@ -251,7 +251,7 @@ namespace housepi
           pAttr_(other.pAttr_),
           pFunc_(other.pFunc_ ? other.pFunc_->clone() : nullptr) {}
 
-    Attribute::Attribute(Attribute &&) = default;
+    Attribute::Attribute(Attribute &&) noexcept = default;
 
     Attribute &Attribute::operator=(Attribute other)
     {
@@ -559,14 +559,17 @@ namespace housepi
                 " for " + str() + ".");
     }
 
-    /// Raise on an attribute that must hold an integer value but does not.
-    [[noreturn]] void raise_not_discrete_(const Attribute &attr, std::string sms)
+    namespace
     {
-        if (attr.is_numeric())
-            sms += "\nSet argument " + msg::arg(attr.name()) + " from " + attr.str_val() + " to integer.";
-        else
-            sms += "\nChange " + attr.pointer()->str() + " to discrete " + msg::code("discr = TRUE") + ".";
-        msg::stop(sms);
+        /// Raise on an attribute that must hold an integer value but does not.
+        [[noreturn]] void raise_not_discrete_(const Attribute &attr, std::string sms)
+        {
+            if (attr.is_numeric())
+                sms += "\nSet argument " + msg::arg(attr.name()) + " from " + attr.str_val() + " to integer.";
+            else
+                sms += "\nChange " + attr.pointer()->str() + " to discrete " + msg::code("discr = TRUE") + ".";
+            msg::stop(sms);
+        }
     }
 
     void Function::assert_location_matches_discrete() const

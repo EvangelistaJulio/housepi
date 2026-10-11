@@ -1555,8 +1555,6 @@ RCPP_MODULE(housepi)
     Rcpp::function("measure_geom_mean_hh_size", &measure_geom_mean_hh_size);
     Rcpp::function("count_houses_by_hh_size", &count_houses_by_hh_size);
 
-    Rcpp::function("aux_chain_binomial_debugger", &chain_binom::aux_debugger);
-
     Rcpp::function("create_mcmc_runner", &create_mcmc_runner);
     Rcpp::function("run_inference_list", &run_inference_list);
     Rcpp::function("run_simulation", &run_simulation);

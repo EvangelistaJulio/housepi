@@ -189,8 +189,8 @@ namespace housepi
         /// Build the per-member profile, read from a latent function.
         void build_latent_(Translator &translator, const str_table &input);
         /// Compose a profile distribution `func` and bind its arguments.
-        std::unique_ptr<Distribution> helper_build_(Translator &translator,
-                                                    const std::string &func,
-                                                    bool discr);
+        static std::unique_ptr<Distribution> helper_build_(Translator &translator,
+                                                           const std::string &func,
+                                                           bool discr);
     };
 }

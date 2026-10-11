@@ -691,34 +691,6 @@ cpp_data_refactor <- function(data, info, headers,
   data[c(headers, setdiff(colnames(data), headers))]
 }
 
-#' Evaluate the symbolic chain-binomial seropositive-contribution.
-#'
-#' @param community_escape `numeric` Community escape probabilities.
-#' One entry for each of the $n_\mathrm{infec}$ seropositives.
-#' @param p2p_escape `matrix` Person-to-person escape-probabilities.
-#' Square matrix $n_\mathrm{infec} \times n_\mathrm{infec}$.
-#' Convention `[i][k]` of infectee `k` from infector `i`.
-#' @return `numeric(1)` Positive-contribution probability.
-#' @keywords internal
-#' @noRd
-eval_chain_binomial_debugger_ <- function(community_escape, p2p_escape) {
-  n_infec <- length(community_escape)
-  stopifnot(is.matrix(p2p_escape),
-            identical(dim(p2p_escape), c(n_infec, n_infec)))
-
-  formula <- .engine$aux_chain_binomial_debugger(n_infec)
-
-  for (r in seq_len(n_infec)) for (c in seq_len(n_infec)) {
-    formula <- gsub(paste0("\\bQ", r, "_", c, "\\b"),
-                    format(p2p_escape[r, c], digits = 17), formula)
-  }
-  for (i in seq_len(n_infec)) {
-    formula <- gsub(paste0("\\bB", i, "\\b"),
-                    format(community_escape[i], digits = 17), formula)
-  }
-  eval(str2lang(formula))
-}
-
 #' @title Set a warm default theme for housepi visualizations
 #' @param base_size Base font size (pts). Default `11`.
 #' @param base_family Base font family. Default `""` (device default).

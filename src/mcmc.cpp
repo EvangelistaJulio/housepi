@@ -156,10 +156,13 @@ namespace housepi
             storage_.init_numeric(na::DOUBLE);
     }
 
-    /// Whether `f` is an explicit reduction, folding household members.
-    bool is_reduction_(std::string_view f)
+    namespace
     {
-        return f == "sum" || f == "prod" || f == "min" || f == "max";
+        /// Whether `f` is an explicit reduction, folding household members.
+        bool is_reduction_(std::string_view f)
+        {
+            return f == "sum" || f == "prod" || f == "min" || f == "max";
+        }
     }
 
     bool Translator::reads_member_cell_(const parse::Entry &node) const
@@ -497,50 +500,53 @@ namespace housepi
 
     namespace infprof
     {
-        /// Throw if the profile transmits at generation time 0.
-        /// Only a determinate profile is checked: an argument resolved per member leaves it undetermined.
-        void assert_zero_at_origin(const Function &f, bool is_discr_requested)
+        namespace
         {
-            // skip for hand-written infectivity profiles
-            if (!is_discr_requested && registry::instance(registry::Kind::InfecProfile).contains(f.name()))
-                return;
-
-            const Domain &domain = f.domain();
-            // relocated domain, not support(): the dense rule of support() would relax a floor at zero
-            const Codomain reach = domain.relocated();
-            // the bounds keep every attainable draw past the origin
-            if (reach.is_positive())
-                return;
-
-            std::string sms = "Infectivity profile " + msg::val(f.name());
-
-            if (na::is(domain.delocate(0.)))
+            /// Throw if the profile transmits at generation time 0.
+            /// Only a determinate profile is checked: an argument resolved per member leaves it undetermined.
+            void assert_zero_at_origin(const Function &f, bool is_discr_requested)
             {
-                // the origin reads an undrawn value the bounds do not keep away from it
-                sms += " is not kept away from generation " +
-                       std::string(is_discr_requested ? "day" : "time") + " 0.\n" +
-                       msg::alert("Its support is " + reach.str() + ", so it can put infectivity on the " +
-                                  (is_discr_requested ? "day" : "instant") + " of infection.");
-            }
-            else
-            {
-                const double y = f.pdf(0.);
-                if (std::abs(y) < 1.e-10 || na::is(y))
+                // skip for hand-written infectivity profiles
+                if (!is_discr_requested && registry::instance(registry::Kind::InfecProfile).contains(f.name()))
                     return;
 
-                sms += " is non-zero at generation ";
-                if (is_discr_requested)
-                    sms += "day 0 (F[0] = " + str::format(y) + ").\n" +
-                           "A discrete-time profile admits no transmission on the day of infection.";
-                else
-                    sms += "time 0 (f(0) = " + str::format(y) + ").\n" +
-                           "A continuous-time profile admits no transmission at the instant of infection.";
-            }
+                const Domain &domain = f.domain();
+                // relocated domain, not support(): the dense rule of support() would relax a floor at zero
+                const Codomain reach = domain.relocated();
+                // the bounds keep every attainable draw past the origin
+                if (reach.is_positive())
+                    return;
 
-            msg::stop(
-                sms +
-                "\nConsider truncating the distribution with " + msg::arg("min") +
-                ", or shifting with " + msg::arg("loc") + ".");
+                std::string sms = "Infectivity profile " + msg::val(f.name());
+
+                if (na::is(domain.delocate(0.)))
+                {
+                    // the origin reads an undrawn value the bounds do not keep away from it
+                    sms += " is not kept away from generation " +
+                           std::string(is_discr_requested ? "day" : "time") + " 0.\n" +
+                           msg::alert("Its support is " + reach.str() + ", so it can put infectivity on the " +
+                                      (is_discr_requested ? "day" : "instant") + " of infection.");
+                }
+                else
+                {
+                    const double y = f.pdf(0.);
+                    if (std::abs(y) < 1.e-10 || na::is(y))
+                        return;
+
+                    sms += " is non-zero at generation ";
+                    if (is_discr_requested)
+                        sms += "day 0 (F[0] = " + str::format(y) + ").\n" +
+                               "A discrete-time profile admits no transmission on the day of infection.";
+                    else
+                        sms += "time 0 (f(0) = " + str::format(y) + ").\n" +
+                               "A continuous-time profile admits no transmission at the instant of infection.";
+                }
+
+                msg::stop(
+                    sms +
+                    "\nConsider truncating the distribution with " + msg::arg("min") +
+                    ", or shifting with " + msg::arg("loc") + ".");
+            }
         }
     }
 

@@ -39,7 +39,7 @@ namespace housepi
 			set_eval_as_pdf();
 			err_family_ = ErrType::Distribution;
 		}
-		virtual ~Distribution() = default;
+		~Distribution() override = default;
 
 		/// Return a copy, typed as a distribution.
 		std::unique_ptr<Distribution> clone_distrib() const
@@ -141,8 +141,10 @@ namespace housepi
 		/// Raw cumulative distribution function.
 		virtual double raw_cdf_(double /*x*/) const = 0;
 		/// Raw complementary cumulative distribution, 1 - cdf.
-		/// @note Discretization reads it where a tail-accurate closed form exists.
-		virtual double raw_ccdf_(double /*x*/) const = 0;
+		///
+		/// - continuous distribution: a tail-accurate closed form, read by Center and Left discretization;
+		/// - any other: undefined.
+		virtual double raw_ccdf_(double /*x*/) const { raise_undefined_call_err_("ccdf"); }
 		/// Raw quantile at cumulative probability `p`.
 		virtual double raw_quantile_(double /*p*/) const = 0;
 		/// Raw log-density or log-mass.
@@ -423,7 +425,6 @@ namespace housepi
 		double raw_pdf_(double /*x*/) const override final { return 1.; }
 		double raw_log_pdf_(double /*x*/) const override final { return 0.; }
 		double raw_cdf_(double x) const override final { return x < x0_ ? 0. : 1.; }
-		double raw_ccdf_(double x) const override final { return x < x0_ ? 1. : 0.; }
 		double raw_quantile_(double /*p*/) const override final { return x0_; }
 		double raw_log_ratio_(double /*xo*/, double /*xn*/) const override final { return 0.; }
 

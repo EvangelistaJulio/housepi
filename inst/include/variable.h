@@ -33,12 +33,12 @@ namespace housepi
         //////  Constructor  //////
 
         Variable();                          /// Constructor.
-        ~Variable();                         /// Destructor.
+        ~Variable() override;                /// Destructor.
         /// Copy constructor.
         /// - proposal: not copied, the copy binds its own.
         /// @note Copy only before proposals are bound, as State allocation does.
         Variable(const Variable &other);
-        Variable(Variable &&);               /// Move constructor.
+        Variable(Variable &&) noexcept;      /// Move constructor.
         Variable &operator=(Variable other); /// Copy assignment.
 
         /// Swap contents with `other`.

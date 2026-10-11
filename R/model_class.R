@@ -180,7 +180,6 @@ HousepiModel <- R6::R6Class(
     # risks that absorbed it.
     # @return `list` of `character()`
     baseline_pins_ = function() {
-      if (is.null(private$gen_$mcmc_ptr)) return(list())
       anchors <- private$gen_$risk_anchors
       defs <- private$param_$defs
       pins <- list()
@@ -626,15 +625,8 @@ HousepiModel <- R6::R6Class(
     # @param wall `logical(1)` Whether to raise error.
     # @param derive `logical(1)` Whether to re-derive the risk tables.
     push_definitions_ = function(wall = FALSE, derive = TRUE) {
-      # guard: pre-init (before generator is created)
-      if (is.null(private$gen_) ||
-            is.null(private$gen_$mcmc_ptr)) {
-        return(invisible(self))
-      }
       # risks stratify on data: nothing to derive while none is attached
-      if (!length(private$gen_$cols_data_wide)) {
-        return(invisible(self))
-      }
+      if (!length(private$gen_$cols_data_wide)) return(invisible(self))
 
       # the status dictionary keys the risks that stratify on it, and the
       # latent status codes below: it must be settled before either reads it

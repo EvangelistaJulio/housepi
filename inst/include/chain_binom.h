@@ -9,7 +9,6 @@
 
 #include <cstdint>
 #include <map>
-#include <string>
 #include <utility>
 #include <vector>
 
@@ -87,11 +86,4 @@ namespace housepi::chain_binom
                           const std::vector<MemberIdx> &part_indexes,
                           const std::vector<double> &commu_infec_rate,
                           const std::vector<std::vector<double>> &p2p_infec_rate);
-
-    /// Return the symbolic chain-binomial polynomial, for debugging.
-    ///
-    /// - `B<i>`: community escape of infected `i`, 1-indexed;
-    /// - `Q<i>_<j>`: escape of infectee `j` from infector `i`, 1-indexed, `i = 0` for community.
-    /// @param max_n_infec Number of seropositives, below 8.
-    std::string aux_debugger(unsigned max_n_infec);
 }

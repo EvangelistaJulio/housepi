@@ -399,7 +399,7 @@ namespace housepi::data
 
             /// Combine hash `h` into `seed`, golden-ratio mixing.
             /// Based on @cite james_boostcontainerhash_2022.
-            void hash_combine_(size_t &seed, size_t h)
+            static void hash_combine_(size_t &seed, size_t h)
             {
 #if __x86_64__ || __ppc64__ || __aarch64__ || _WIN64
                 seed ^= h + 0x9e3779b97f4a7c15ULL + (seed << 12) + (seed >> 4);

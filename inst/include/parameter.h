@@ -91,11 +91,11 @@ namespace housepi
         /// - each Variable checked against the requests on its key.
         void bind_(const Translator &translator);
         /// Bind constant `var` to definition `row`.
-        void bind_constant_(Variable &var, const param::DefRow &row, const Translator &translator);
+        static void bind_constant_(Variable &var, const param::DefRow &row, const Translator &translator);
         /// Bind sampled `var` to definition `row`: initial value, prior, proposal.
-        void bind_to_sample_(Variable &var, const param::DefRow &row, const Translator &translator);
+        static void bind_to_sample_(Variable &var, const param::DefRow &row, const Translator &translator);
         /// Bind function `var` to definition `row`.
         /// - terminal function: alias of another parameter.
-        void bind_function_(Variable &var, const param::DefRow &row, const Translator &translator);
+        static void bind_function_(Variable &var, const param::DefRow &row, const Translator &translator);
     };
 }

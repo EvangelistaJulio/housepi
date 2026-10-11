@@ -203,19 +203,22 @@ namespace housepi::str
         return false;
     }
 
-    /// Call conversion `func` on `input`, raising an invalid argument as an error naming `errtxt`.
-    template <typename Func, typename... Args>
-    auto helper_converter_(Func func, const std::string &input, const std::string &errtxt, Args &&...args) -> decltype(func(input, std::forward<Args>(args)...))
+    namespace
     {
-        try
+        /// Call conversion `func` on `input`, raising an invalid argument as an error naming `errtxt`.
+        template <typename Func, typename... Args>
+        auto helper_converter_(Func func, const std::string &input, const std::string &errtxt, Args &&...args) -> decltype(func(input, std::forward<Args>(args)...))
         {
-            return func(input, std::forward<Args>(args)...);
-        }
-        catch (const std::invalid_argument &e)
-        {
-            msg::stop(
-                (errtxt.empty() ? "" : "Unable to import " + errtxt + ". ") +
-                "Value " + msg::val(input) + " is not suitable to conversion.");
+            try
+            {
+                return func(input, std::forward<Args>(args)...);
+            }
+            catch (const std::invalid_argument &)
+            {
+                msg::stop(
+                    (errtxt.empty() ? "" : "Unable to import " + errtxt + ". ") +
+                    "Value " + msg::val(input) + " is not suitable to conversion.");
+            }
         }
     }
 
@@ -320,30 +323,33 @@ namespace housepi::str
         return out;
     }
 
-    /// Return Levenshtein distance between `seq_A` and `seq_B`.
-    /// - one empty sequence: length of the other.
-    /// Based on @cite wikipedia_levenshtein_2026
-    size_t helper_levenshtein_(std::string_view seq_A, std::string_view seq_B)
+    namespace
     {
-        size_t len_A = seq_A.size();
-        size_t len_B = seq_B.size();
-        std::vector<size_t> prev(len_B + 1), curr(len_B + 1);
-
-        for (size_t b = 0; b <= len_B; ++b)
-            prev[b] = b;
-
-        for (size_t a = 1; a <= len_A; ++a)
+        /// Return Levenshtein distance between `seq_A` and `seq_B`.
+        /// - one empty sequence: length of the other.
+        /// Based on @cite wikipedia_levenshtein_2026
+        size_t helper_levenshtein_(std::string_view seq_A, std::string_view seq_B)
         {
-            curr[0] = a;
-            for (size_t b = 1; b <= len_B; ++b)
-            {
-                size_t cost = (seq_A[a - 1] == seq_B[b - 1]) ? 0 : 1;
-                curr[b] = std::min({prev[b] + 1, curr[b - 1] + 1, prev[b - 1] + cost});
-            }
-            std::swap(prev, curr);
-        }
+            size_t len_A = seq_A.size();
+            size_t len_B = seq_B.size();
+            std::vector<size_t> prev(len_B + 1), curr(len_B + 1);
 
-        return prev[len_B];
+            for (size_t b = 0; b <= len_B; ++b)
+                prev[b] = b;
+
+            for (size_t a = 1; a <= len_A; ++a)
+            {
+                curr[0] = a;
+                for (size_t b = 1; b <= len_B; ++b)
+                {
+                    size_t cost = (seq_A[a - 1] == seq_B[b - 1]) ? 0 : 1;
+                    curr[b] = std::min({prev[b] + 1, curr[b - 1] + 1, prev[b - 1] + cost});
+                }
+                std::swap(prev, curr);
+            }
+
+            return prev[len_B];
+        }
     }
 
     std::string find_closest(std::string_view input,
@@ -537,100 +543,90 @@ namespace housepi::dag
 
 namespace housepi::parse
 {
-    /// Split `s` at top-level delimiters, skipping those inside brackets.
-    ///
-    /// - n delimiters give n + 1 entries, empty ones included: an unnamed argument keeps its key slot.
-    std::vector<std::string> split_top_(const std::string &s)
+    namespace
     {
-        std::vector<std::string> entries;
-        std::string current;
-        int level = 0;
-
-        for (char c : s)
+        /// Split `s` at top-level delimiters, skipping those inside brackets.
+        ///
+        /// - n delimiters give n + 1 entries, empty ones included: an unnamed argument keeps its key slot.
+        std::vector<std::string> split_top_(const std::string &s)
         {
-            // bracket depth
-            if (c == '[')
-                ++level;
-            else if (c == ']')
-                --level;
-            // parse only top level
-            if (c == str::LIST_DELIMITER && level == 0)
+            std::vector<std::string> entries;
+            std::string current;
+            int level = 0;
+
+            for (char c : s)
             {
-                entries.push_back(current);
-                current.clear();
+                // bracket depth
+                if (c == '[')
+                    ++level;
+                else if (c == ']')
+                    --level;
+                // parse only top level
+                if (c == str::LIST_DELIMITER && level == 0)
+                {
+                    entries.push_back(current);
+                    current.clear();
+                }
+                else
+                    current.push_back(c);
             }
-            else
-                current.push_back(c);
+            entries.push_back(current);
+
+            return entries;
         }
-        entries.push_back(current);
 
-        return entries;
-    }
-
-    /// Parse a single expression into an AST node.
-    Entry parse_expression_(std::string_view input)
-    {
-        // empty node
-        if (na::is(input))
-            return Entry();
-
-        // pure function node
-        const std::string expr(input);
-        size_t bar_1 = expr.find('|');
-        if (bar_1 == std::string::npos)
+        /// Parse a single expression into an AST node.
+        Entry parse_expression_(std::string_view input)
         {
+            // empty node
+            if (na::is(input))
+                return Entry();
+
+            // pure function node
+            const std::string expr(input);
+            size_t bar_1 = expr.find('|');
+            if (bar_1 == std::string::npos)
+            {
+                Entry node;
+                node.func = expr;
+                return node;
+            }
+
+            const std::string expr_head = expr.substr(0, bar_1);
+            const std::string expr_tail = expr.substr(bar_1 + 1);
+
+            // no second bar: terminal node "value|type"
+            size_t bar_2 = expr_tail.find('|');
+            if (bar_2 == std::string::npos)
+                return Entry(expr_head, expr_tail);
+
+            // non-default function node, e.g. "func|arg_1:...:arg_n|child_1:...child_n"
+            const std::vector<std::string> args = split_top_(expr_tail.substr(0, bar_2));
+            const std::vector<std::string> children = split_top_(expr_tail.substr(bar_2 + 1));
+
+            // children nodes
             Entry node;
-            node.func = expr;
+            node.func = expr_head;
+            node.children.reserve(children.size());
+            // every child is wrapped in []
+            for (size_t i = 0; i < children.size(); ++i)
+            {
+                const std::string &c = children[i];
+                Entry child = parse_expression_(c.substr(1, c.size() - 2));
+                child.key = args[i];
+                node.children.emplace_back(std::move(child));
+            }
+
+            // "x" argument goes last
+            auto it = std::find_if(node.children.begin(), node.children.end(),
+                                   [&](const Entry &e)
+                                   { return e.key == "x"; });
+
+            if (it != node.children.end())
+                std::rotate(it, it + 1, node.children.end());
+
             return node;
         }
-
-        const std::string expr_head = expr.substr(0, bar_1);
-        const std::string expr_tail = expr.substr(bar_1 + 1);
-
-        // no second bar: terminal node "value|type"
-        size_t bar_2 = expr_tail.find('|');
-        if (bar_2 == std::string::npos)
-            return Entry(expr_head, expr_tail);
-
-        // non-default function node, e.g. "func|arg_1:...:arg_n|child_1:...child_n"
-        const std::vector<std::string> args = split_top_(expr_tail.substr(0, bar_2));
-        const std::vector<std::string> children = split_top_(expr_tail.substr(bar_2 + 1));
-
-        // children nodes
-        Entry node;
-        node.func = expr_head;
-        node.children.reserve(children.size());
-        for (size_t i = 0; i < children.size(); ++i)
-        {
-            const std::string &c = children[i];
-
-            if (c.size() >= 2 && c.front() == '[' && c.back() == ']')
-            {
-                // function child: parse inner expression, keep bracketed flag
-                auto child = parse_expression_(c.substr(1, c.size() - 2));
-                child.is_bracketed = true;
-                child.key = args[i];
-                node.children.emplace_back(child);
-            }
-            else
-            {
-                // terminal child
-                size_t barc = c.find('|');
-                Entry child(c.substr(0, barc), c.substr(barc + 1));
-                child.key = args[i];
-                node.children.emplace_back(child);
-            }
-        }
-
-        // "x" argument goes last
-        auto it = std::find_if(node.children.begin(), node.children.end(),
-                               [&](const Entry &e)
-                               { return e.key == "x"; });
-
-        if (it != node.children.end())
-            std::rotate(it, it + 1, node.children.end());
-
-        return node;
     }
 
     Entry::Entry(const std::string &value_, const std::string &type_)
@@ -659,11 +655,7 @@ namespace housepi::parse
             }
             str_args += child.key;
 
-            const std::string &cs = child.str();
-            if (child.is_bracketed)
-                str_children += "[" + cs + "]";
-            else
-                str_children += cs;
+            str_children += "[" + child.str() + "]";
         }
         return func + "|" + str_args + "|" + str_children;
     }
