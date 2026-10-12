@@ -98,7 +98,7 @@ namespace housepi::parse
     };
 
     /// Whether proposal `prop` adapts its scale: a random walk with no `scale` argument.
-    /// - user-defined scale: frozen.
+    /// * user-defined scale -> frozen.
     inline bool is_adaptive_proposal(const Definition &prop)
     {
         const std::string &pf = prop.root.func;

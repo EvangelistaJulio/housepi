@@ -25,9 +25,9 @@ namespace housepi
 
     /// Model parameters of a run.
     ///
-    /// - definitions, stored;
-    /// - sampling scheme, built from definitions;
-    /// - parameter variables, bound to definitions.
+    /// * definitions, stored;
+    /// * sampling scheme, built from definitions;
+    /// * parameter variables, bound to definitions.
     struct Parameter : public KeyHolderWithRequests
     {
         using KeyHolderWithRequests::KeyHolderWithRequests;
@@ -71,8 +71,8 @@ namespace housepi
         bool is_allocated() const noexcept { return !state.vec.empty(); }
 
         /// Whether parameter `p` is pinned and cannot move.
-        /// - constant by definition;
-        /// - held by the simulation table of the current run.
+        /// * constant by definition;
+        /// * held by the simulation table of the current run.
         bool is_pinned(size_t p) const noexcept
         {
             return at(p).is_constant() || !scheme_.simulation_values[p].empty();
@@ -86,14 +86,14 @@ namespace housepi
         param::Scheme scheme_; /// Sampling scheme built from definitions.
 
         /// Bind Variables to definitions, producer before consumer.
-        /// - each Variable checked against the requests on its key.
+        /// * each Variable checked against the requests on its key.
         void bind_(const Translator &translator);
         /// Bind constant `var` to definition `row`.
         static void bind_constant_(Variable &var, const param::DefRow &row, const Translator &translator);
         /// Bind sampled `var` to definition `row`: initial value, prior, proposal.
         static void bind_to_sample_(Variable &var, const param::DefRow &row, const Translator &translator);
         /// Bind function `var` to definition `row`.
-        /// - terminal function: alias of another parameter.
+        /// * terminal function -> alias of another parameter.
         static void bind_function_(Variable &var, const param::DefRow &row, const Translator &translator);
     };
 }

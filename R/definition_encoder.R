@@ -12,10 +12,10 @@ coerce_date_ <- function(x) {
   else x
 }
 
-# Try to evaluate a self-contained constant (sub)expression to a scalar number.
-# Housepi node references are unbound symbols that fail to evaluate, so a clean
-# scalar result marks a base-R constant to fold (e.g. as.Date(), as.integer());
-# anything else fails and stays symbolic. Date results collapse to a day count.
+# Evaluate a self-contained constant (sub)expression to a scalar number.
+# * base-R constant, as.Date() or as.integer() -> folded;
+# * Date result -> its day count;
+# * housepi node reference -> fails to evaluate, stays symbolic.
 try_fold_const_ <- function(expr, env) {
   val <- tryCatch(suppressWarnings(coerce_date_(eval(expr, envir = env))),
                   error = \(e) NULL)
@@ -28,8 +28,9 @@ source_labels_ <- c(A = "latent variable",
                     G = "group risk",
                     P = "parameter")
 
-# Encode leaf values with their source: a number is numeric, a name is left
-# unresolved, as only the model knows what declares it.
+# Encode leaf values with their source:
+# * number -> numeric;
+# * name -> left unresolved, only the model knows what declares it.
 housepi_format_sources <- function(func_args) {
   # default return
   if (is.null(func_args) || all(is.na(func_args))) return(NA_character_)
@@ -52,8 +53,7 @@ assert_valid_arg_keys <- function(keys) {
   for (k in keys[nzchar(keys)]) assert_valid_character(k, "argument name")
 }
 
-# Format a call over encoded arguments to match housepi standard typed
-# definitions.
+# Format a call over encoded arguments as a typed housepi definition.
 housepi_format_call <- function(func_name, func_args) {
   if (!func_name %in% c("+", "*"))
     assert_valid_character(func_name, "function name")
@@ -65,7 +65,7 @@ housepi_format_call <- function(func_name, func_args) {
          collapse = "|")
 }
 
-# Helper to unwrap from useless parenthesis.
+# Strip redundant parentheses.
 strip_useless_parens <- function(x) {
   while (rlang::is_call(x) &&
            rlang::call_name(x) == "(" &&
@@ -78,7 +78,7 @@ strip_useless_parens <- function(x) {
 # Collect leaf operands by flattening chains of the same binary operator.
 collect_flat_args <- function(node, op) {
   node_args <- lapply(rlang::call_args(node), strip_useless_parens)
-  # NOTE: differences sum minuend with negated subtrahend: a - b = a + (-b)
+  # a - b folds as a + (-b)
   ops <- if (op == "+") c("+", "-") else op
   if (rlang::call_name(node) == "-")
     node_args[[2]] <- rlang::call2("-", node_args[[2]])
@@ -95,7 +95,7 @@ collect_flat_args <- function(node, op) {
   result
 }
 
-# Assert that expression node is an admissible definition.
+# Assert an expression node is an admissible definition.
 assert_valid_defin_node <- function(x) {
   if (is.null(x) || rlang::is_syntactic_literal(x) ||
         rlang::is_scalar_atomic(x) || rlang::is_symbol(x) ||
@@ -106,8 +106,8 @@ assert_valid_defin_node <- function(x) {
   )
 }
 
-# Label a leaf operand as spelled: a string and a name read the same, with
-# neither quotes nor backticks, which are R syntax and never part of the key.
+# Label a leaf operand as spelled, without quotes or backticks.
+# A string and a name read the same, quotes and backticks being R syntax.
 housepi_label_leaf <- function(y) {
   if (is.character(y)) y
   else if (rlang::is_syntactic_literal(y) && is.numeric(y)) as.character(y)
@@ -115,12 +115,12 @@ housepi_label_leaf <- function(y) {
   else rlang::as_label(y)
 }
 
-# Helper to extract functin from call.
+# Encode a call as a function name over encoded arguments.
 housepi_func_from_call <- function(call, env = rlang::global_env()) {
   args <- lapply(rlang::call_args(call), strip_useless_parens)
 
   # map to function name
-  # NOTE `+` and `*` tell an operator apart from their reduction counterpart
+  # `+` and `*` stay operators, apart from their reductions sum() and prod()
   func_name <- switch(rlang::call_name(call),
                       `+` = if (length(args) == 1) NA_character_ else "+",
                       `-` = if (length(args) == 1) "minus" else "+",
@@ -164,14 +164,15 @@ housepi_bar_count <- function(x) {
   else nchar(x) - nchar(gsub("|", "", x, fixed = TRUE))
 }
 
-# Flag to tell if object is a sourced value (one '|').
+# Whether `x` is a sourced value, one '|'.
 housepi_is_sourced_value <- function(x) isTRUE(housepi_bar_count(x) == 1)
 
-# Flag to tell if object is a call: default functions carry 0 '|', a call
-# more than one.
+# Whether `x` is a call:
+# * default function -> no '|';
+# * call -> more than one.
 housepi_is_call <- function(x) isTRUE(housepi_bar_count(x) > 1)
 
-# Combione function name and arguments.
+# Combine function name and arguments.
 housepi_combine_to_call <- function(func_name, func_args, is_func = FALSE) {
   func_name <- as.character(func_name)
   if (housepi_is_call(func_name) && length(func_args)) {
@@ -187,12 +188,12 @@ housepi_combine_to_call <- function(func_name, func_args, is_func = FALSE) {
           paste(sprintf("[%s]", func_args), collapse = ":"))
 }
 
-# Handle case of list() or c() container.
+# Unpack a list() or c() container into one quosure per element.
 helper_case_container <- function(x_quos) {
   if (length(x_quos) == 1) {
     x_expr <- rlang::quo_get_expr(x_quos[[1]])
     x_env <- rlang::quo_get_env(x_quos[[1]])
-    # inspect for container # UPDATE is this complete?
+    # @todo other containers than list() and c()
     if (rlang::is_call(x_expr, c("list", "c"))) {
       elements <- as.list(x_expr[-1])
       # convert each element to a quosure with the same environment
@@ -212,13 +213,13 @@ housepi_smart_unwrap <- function(x, arg_name, null_ok = FALSE) {
          format_type_error(x))
 }
 
-# Deal with housepi quosures.
+# Encode the definitions carried by housepi quosures.
 housepi_extractor <- function(...) {
   .extract_node <- function(x_quo) {
     x_env <- rlang::quo_get_env(x_quo)
     x_expr <- coerce_date_(rlang::quo_get_expr(x_quo))
 
-    # expand formula in case
+    # expand a formula
     if (rlang::is_formula(x_expr)) x_expr <- rlang::f_rhs(x_expr)
     x_expr <- strip_useless_parens(x_expr)
 
@@ -230,8 +231,8 @@ housepi_extractor <- function(...) {
       # unary
       housepi_format_sources(c(x = eval(x_expr)))
     } else if (rlang::is_call(x_expr)) {
-      # a self-contained constant call (e.g. as.Date()) folds to its numeric
-      # value; a call over housepi nodes fails to evaluate and stays symbolic
+      # * constant call, e.g. as.Date() -> folded to its numeric value;
+      # * call over housepi nodes -> fails to evaluate, stays symbolic.
       folded <- try_fold_const_(x_expr, x_env)
       if (!is.null(folded)) housepi_format_sources(c(x = folded))
       else housepi_func_from_call(x_expr, x_env)
@@ -254,16 +255,15 @@ housepi_extractor <- function(...) {
 }
 
 # Load a named list of quosures for definitions.
-# Resets the store first unless 'append' is TRUE.
-# 'defaults' supplies named arguments applied to every definition that does not
-# set them itself (e.g. a bulk-level 'status =' shared by all entries).
+# * not `append` -> store reset first;
+# * `defaults` -> named arguments for every definition not setting them,
+#   e.g. a bulk-level 'status =' shared by all entries.
 housepi_load_defin_quos <- function(self, implicit_name, xquos,
                                     append = FALSE, defaults = list()) {
   if (isFALSE(append)) self$initialize()
   self$store_warn_over <- character()
 
-  # all holder but the infectivity profile key their definitions by a name; a
-  # nameless entry there is the tell-tale of a list passed without '!!!'
+  # nameless entry, outside the infectivity profile -> list passed without !!!
   requires_name <- "name" %in% names(formals(self$add_quo))
 
   # only inject defaults the per-definition arguments did not override
@@ -292,8 +292,7 @@ housepi_load_defin_quos <- function(self, implicit_name, xquos,
                                  .warn_over = FALSE))
 
     } else {
-      # single implicit definition to pass to add_quo. A stray 'name' is
-      # harmless for the nameless infectivity profile (dropped by its add_quo).
+      # single implicit definition, a stray 'name' dropped by a nameless holder
       extra_arg <- rlang::set_names(list(def_quo), implicit_name)
       inj <- inject_defaults(implicit_name)
       rlang::inject(

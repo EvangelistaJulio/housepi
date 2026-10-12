@@ -37,14 +37,14 @@ namespace housepi::math
 {
     /// Return `exp(x) - 1`, to a relative precision of 2^-42 or better.
     ///
-    /// - `|x| < 2^-10`: `std::expm1`, where `exp(x) - 1` cancels;
-    /// - otherwise: `exp(x) - 1`, cheaper than `std::expm1`.
+    /// * `|x| < 2^-10` -> `std::expm1`, where `exp(x) - 1` cancels;
+    /// * otherwise -> `exp(x) - 1`, cheaper than `std::expm1`.
     inline double expm1(double x) { return std::fabs(x) < 0x1p-10 ? std::expm1(x) : std::exp(x) - 1.; }
 
     /// Return `log(1 - exp(-r))` for `r >= 0`, to a relative precision of 2^-42 or better.
     ///
     /// Split at `log(2)` after @cite machler_accurately_2012:
-    /// - `r < log(2)`: `log(-expm1(-r))`, where `1 - exp(-r)` cancels;
-    /// - otherwise: `log1p(-exp(-r))`, where `log` of a value near 1 cancels.
+    /// * `r < log(2)` -> `log(-expm1(-r))`, where `1 - exp(-r)` cancels;
+    /// * otherwise -> `log1p(-exp(-r))`, where `log` of a value near 1 cancels.
     inline double log1mexp(double r) { return r < M_LN2 ? std::log(-expm1(-r)) : std::log1p(-std::exp(-r)); }
 }

@@ -65,15 +65,15 @@ namespace housepi
 		void detach_data_store();
 
 		/// Initialize the model and evaluate the complete-data log-likelihood, joint over latents.
-		/// - sum of observation, transmission and latent terms;
-		/// - missing `hh_id`: every household, flagged evaluated.
+		/// * sum of observation, transmission and latent terms;
+		/// * missing `hh_id` -> every household, flagged evaluated.
 		double evaluate_log_lik(std::string_view hh_id);
 
 		/// Assert definitions and allocate the posterior, before sample().
 		/// @note Call on the main thread: it may raise warnings.
 		void prepare_inference();
 		/// Run every chain: initialization, adaptation, then posterior sampling.
-		/// - completion: every household flagged evaluated, at the last state.
+		/// * completion -> every household flagged evaluated, at the last state.
 		/// @return Seconds spent sampling.
 		/// @note Call after prepare_inference(). Off the main thread, it calls no R.
 		double sample();
@@ -86,14 +86,14 @@ namespace housepi
 		void init_for_evaluation_();
 
 		/// Compute the total log-posterior, storing every old value.
-		/// - result: `tot_obs_log_lik`, `tot_transm_log_lik`, `tot_latent_log_lik`;
-		/// - `with_latent_ll`, `with_obs_ll`: re-evaluate the latent and observation terms.
+		/// * result: `tot_obs_log_lik`, `tot_transm_log_lik`, `tot_latent_log_lik`;
+		/// * `with_latent_ll`, `with_obs_ll`: re-evaluate the latent and observation terms.
 		void commit_total_log_posterior_(bool with_cache,
 										 bool with_latent_ll = true,
 										 bool with_obs_ll = true);
 		/// Store the totals of `acc`.
-		/// - transmission: always;
-		/// - observation, latent model: when `do_obs`, `do_latent`.
+		/// * transmission -> always;
+		/// * observation, latent model -> when `do_obs`, `do_latent`.
 		void set_total_log_lik_(const LogLikAccumulator &acc,
 								bool do_obs,
 								bool do_latent);
@@ -136,7 +136,7 @@ namespace housepi
 		}
 
 		/// Initialize a chain: restart every variable, then commit the guarded total.
-		/// - infeasible start: redraws, then error.
+		/// * infeasible start -> redraws, then error.
 		void init_chain_()
 		{
 			init_monte_carlo_chain_();
@@ -151,16 +151,16 @@ namespace housepi
 		}
 
 		/// Compute the total log-posterior at initialization, guarded.
-		/// - non-finite contribution: recovered in place, or error.
+		/// * non-finite contribution -> recovered in place, or error.
 		void init_guarded_commit_total_();
 		/// Run the finite adaptation iterations.
 		void run_mc_finite_adaptation_();
 		/// Run posterior sampling iterations, burn-in included.
-		/// - draws: stored in the column block of chain `chain_id`.
+		/// * draws -> stored in the column block of chain `chain_id`.
 		void run_mc_posterior_sampling_(unsigned long chain_id);
 
 		/// Move every parameter and latent.
-		/// - `Adapt`: moves credited to the proposals, read by adaptation only.
+		/// * `Adapt` -> moves credited to the proposals, read by adaptation only.
 		template <bool Adapt>
 		void move_all_();
 		/// Attempt a move of parameter `p`.
@@ -192,11 +192,11 @@ namespace housepi
 	/// Component-wise Metropolis-Hastings algorithm.
 	/// Based on @cite metropolis_equation_1953 and @cite hastings_monte_1970
 	///
-	/// - preparation: in order, on the calling thread;
-	/// - sampling: one engine per unit, in an arena of the largest `inner` among engines;
-	/// - sampling on a new thread, `monitor` called on the calling thread every 250 ms;
-	/// - error while preparing: nothing sampled;
-	/// - error while sampling, or `monitor` throwing: every engine stops at its next iteration.
+	/// * preparation -> in order, on the calling thread;
+	/// * sampling -> one engine per unit, in an arena of the largest `inner` among engines;
+	/// * sampling on a new thread, `monitor` called on the calling thread every 250 ms;
+	/// * error while preparing -> nothing sampled;
+	/// * error while sampling, or `monitor` throwing -> every engine stops at its next iteration.
 	/// @param monitor Callback taking the sum over engines of the fraction of iterations done.
 	/// @note An exception thrown by `monitor` escapes once every engine has stopped.
 	InferenceRun run_inference(const std::vector<MCMC *> &engine_list, size_t workers,

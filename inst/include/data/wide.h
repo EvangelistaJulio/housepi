@@ -74,7 +74,7 @@ namespace housepi::data
         Household &at(std::string_view hh_id) { return at(index_of_(hh_id)); }
 
         /// Imported value of column `d` for member `indiv`.
-        /// - column produced by an observation: missing.
+        /// * column produced by an observation -> missing.
         double raw(size_t d, const Individual &indiv) const noexcept { return indiv_data_[Index::of(indiv)].vec[d]; }
 
         /// User id of member `indiv`.
@@ -94,9 +94,9 @@ namespace housepi::data
         /// Declare data columns `data_list` as equivalence-class keys.
         void set_eq_class_data_names(const std::vector<std::string> &data_list);
         /// Group households into equivalence classes, weighted by their frequency.
-        /// - equivalence class: households with the same likelihood, computed once;
-        /// - `force_unique`: one class per household;
-        /// - covariates read through the read-cells of `state`.
+        /// * equivalence class: households with the same likelihood, computed once;
+        /// * `force_unique` -> one class per household;
+        /// * covariates read through the read-cells of `state`.
         void init_eq_classes(bool force_unique, const State &state);
 
         /// Number of households in equivalence class `R`.
@@ -109,8 +109,8 @@ namespace housepi::data
         Household &eq_class_head(size_t R) noexcept { return at(eq_classes_[R].head_); }
         const Household &eq_class_head(size_t R) const noexcept { return at(eq_classes_[R].head_); }
         /// Member of `house` standing for each member of its class head, by head member index.
-        /// - equivalent members pair up in sorted order, so ties pair arbitrarily;
-        /// - covariates read through the read-cells of `state`.
+        /// * equivalent members pair up in sorted order, so ties pair arbitrarily;
+        /// * covariates read through the read-cells of `state`.
         std::vector<MemberIdx> map_head_members(const Household &house, const State &state) const;
 
         //////  Flags  //////
@@ -131,11 +131,11 @@ namespace housepi::data
         /// Whether key `d` was requested for every member.
         bool is_required_everyone(size_t d) const noexcept;
         /// Throw if a column requested for every member has no value for one.
-        /// - values read through the read-cells of `state`;
-        /// - `live` columns: skipped, they take their value during the run.
+        /// * values read through the read-cells of `state`;
+        /// * `live` columns -> skipped, they take their value during the run.
         void assert_required_everyone(const State &state, const std::vector<std::string> &live = {}) const;
         /// Throw if boolean column `d` does not flag exactly one member per household.
-        /// - values read through the read-cells of `state`.
+        /// * values read through the read-cells of `state`.
         void assert_one_per_house(const State &state, size_t d) const;
 
         /// Whether no data was provided.

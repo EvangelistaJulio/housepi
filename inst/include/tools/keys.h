@@ -17,8 +17,8 @@ namespace housepi
     /// Register definition names: model-declared ones first, then optional user ones.
     ///
     /// Modules derive from it:
-    /// - read: public;
-    /// - write: by the deriving module only.
+    /// * read -> public;
+    /// * write -> by the deriving module only.
     struct KeyHolder
     {
     public:
@@ -40,11 +40,11 @@ namespace housepi
         std::string consult(size_t index) const;
         std::vector<std::string> consult(const std::vector<size_t> &indexes) const;
         /// Convert definition name to index.
-        /// - name not registered: error.
+        /// * name not registered -> error.
         size_t consult(std::string_view name) const;
         std::vector<size_t> consult(const std::vector<std::string> &names) const;
         /// Convert definition name to index.
-        /// - name not registered: NA.
+        /// * name not registered -> NA.
         size_t find(std::string_view name) const noexcept;
         std::vector<size_t> find(const std::vector<std::string> &names) const;
 

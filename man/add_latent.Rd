@@ -26,37 +26,39 @@ add_latent(
 
 \item{name}{\code{character(1)} Name used by internal calls.}
 
-\item{value}{\code{numeric(1)} | \code{character(1)} Value the definition is
-pinned to in simulations. In inference, it pins a constant or deterministic
-definition, and is ignored when the latent is sampled, with a \code{model} or a
-\code{proposal}. Either a plain value, the name of another definition,
-or an arithmetic expression combining them. A name is looked up among the
-latent variables, data columns, observations, group risks and parameters the
-model carries: two of them sharing a name cannot be read.}
+\item{value}{\code{numeric(1)} | \code{character(1)}
+Value the definition is pinned to in simulations.
+In inference, it pins a constant or deterministic definition,
+and is ignored when the latent is sampled, with a \code{model} or a \code{proposal}. Either a plain value, the name of another definition,
+or an arithmetic expression combining them.
+A name is looked up among the latent variables, data columns, observations,
+group risks and parameters the model carries.
+Two of them sharing a name cannot be read.}
 
-\item{...}{named arguments for the model distribution, or for \code{func} when the definition is deterministic.
-Advanced Monte Carlo options may also be passed through \code{...}, each prefixed
-\code{proposal_}. For a random walk, \code{proposal_scale} sets the step scale: if
-omitted it is adapted during inference when \code{adapt > 0}; if a positive numeric
-it is fixed and never adapted. For independence sampling from a named
-distribution, the distribution parameters are supplied the same way (e.g.
-\code{proposal_mean}, \code{proposal_sd}).
+\item{...}{Named arguments for the model distribution, or for \code{func} when the definition is deterministic.
+Advanced Monte Carlo options may also be passed through \code{...},
+each prefixed \code{proposal_}.
+For a random walk, \code{proposal_scale} sets the step scale.
+If omitted, it is adapted during inference when \code{adapt > 0}.
+If a positive number, it is fixed and never adapted.
+For independence sampling from a named distribution,
+the distribution parameters are passed the same way,
+e.g. \code{proposal_mean} and \code{proposal_sd}.
 In mode 'multiple', the \code{name = value} definitions.}
 
-\item{status}{\code{integer(1)} Individual positive status.
-Used to specify status-specific definitions.
-If \code{NA}, associate definition to all infectious individuals (default).}
+\item{status}{\code{integer(1)} Infected status the definition is specific to.
+If \code{NA}, the definition applies to every infected member.}
 
-\item{const}{\code{logical(1)} Treat definition as constant.
-If \code{TRUE}, additional Monte Carlo details are ignored.}
+\item{const}{\code{logical(1)} Whether the definition is constant.
+If \code{TRUE}, Monte Carlo settings are ignored.}
 
-\item{discr}{\code{logical(1)} Treat model definition as discrete, if applicable.
-Inferred from the model requirements if \code{NA} (default).}
+\item{discr}{\code{logical(1)} Whether the model definition is discrete, if applicable.
+If \code{NA}, inferred from the model requirements.}
 
-\item{func}{One between:
+\item{func}{One of:
 \itemize{
-\item \code{character(1)} Name of latent function;
-\item rlang expression.
+\item \code{character(1)} Name of a latent function;
+\item an rlang expression.
 }}
 
 \item{model}{\code{character(1)} Latent model distribution.
@@ -64,53 +66,54 @@ Omitted for a latent the transmission model generates (see Details).}
 
 \item{min}{\code{numeric(1)} Truncate to a minimum value.
 Relative to the location argument \code{loc}, when one is given. Either a plain value, the name of another definition,
-or an arithmetic expression combining them. A name is looked up among the
-latent variables, data columns, observations, group risks and parameters the
-model carries: two of them sharing a name cannot be read.
-Without a \code{model}, the bound the latent is sampled within
-in inference, reading only data, observations and constant parameters.}
+or an arithmetic expression combining them.
+A name is looked up among the latent variables, data columns, observations,
+group risks and parameters the model carries.
+Two of them sharing a name cannot be read. Without a \code{model},
+the bound the latent is sampled within in inference,
+reading only data, observations and constant parameters.}
 
 \item{max}{\code{numeric(1)} Truncate to a maximum value.
 Relative to the location argument \code{loc}, when one is given. Either a plain value, the name of another definition,
-or an arithmetic expression combining them. A name is looked up among the
-latent variables, data columns, observations, group risks and parameters the
-model carries: two of them sharing a name cannot be read.
-Without a \code{model}, the bound the latent is sampled within
-in inference, reading only data, observations and constant parameters.}
+or an arithmetic expression combining them.
+A name is looked up among the latent variables, data columns, observations,
+group risks and parameters the model carries.
+Two of them sharing a name cannot be read. Without a \code{model},
+the bound the latent is sampled within in inference,
+reading only data, observations and constant parameters.}
 
 \item{proposal}{\code{character(1)} Proposal used in the Monte Carlo.
-Random walks changes current value:
+Random walks update the current value:
 \describe{
-\item{\code{"rw"}}{normal increments (default);}
-\item{\code{"rw_log"}}{lognormal log-increments (positive, non-discrete
-values only);}
-\item{\code{"rw_unif"}}{uniform increments (bounded).}
+\item{\code{"rw"}}{normal increments;}
+\item{\code{"rw_log"}}{lognormal log-increments,
+positive non-discrete values only;}
+\item{\code{"rw_unif"}}{uniform increments, bounded values only.}
 }
 Independence samplers draw a fresh value from a distribution:
 \describe{
-\item{\code{"forward"}}{drawn from the variable's own defining distribution
-(its prior for a parameter, its model for a latent variable);}
-\item{a distribution name}{drawn from that distribution, e.g.
-\code{proposal = "normal"} with \code{proposal_mean}/\code{proposal_sd}.}
+\item{\code{"forward"}}{drawn from the variable's own defining distribution,
+its prior for a parameter, its model for a latent variable;}
+\item{a distribution name}{drawn from that distribution,
+e.g. \code{proposal = "normal"} with \code{proposal_mean} and \code{proposal_sd}.}
 }
-\code{NA} defaults to \code{"rw"}.}
+If \code{NA}, \code{"rw"} is used.}
 
 \item{import}{Named \code{list} of pre-built definitions to import,
 or \code{"template"} for the definitions shipped with the model.
-The template is R code evaluated from the model folder, so use it only with
-model folders you trust.
-Cannot be combined with single and/or multiple definitions.}
+The template is R code evaluated from the model folder,
+so use it only with model folders you trust.
+Cannot be combined with single or multiple definitions.}
 
-\item{append}{\code{logical(1)} Append to current definitions.
-If \code{FALSE} drop all pre-existing definitions.}
+\item{append}{\code{logical(1)} Whether to append to the current definitions.
+If \code{FALSE}, the previous definitions are dropped.}
 }
 \value{
 \code{HousepiModel} object. Deep clone of input with new definitions.
 }
 \description{
-Add latent variables/functions to housepi model.
-If a latent definitions with the same name and status exists,
-the former gets overwritten.
+Add latent variables to a housepi model.
+A latent with the same name and status as an existing one overwrites it.
 There are three mutually exclusive definition modes:
 \describe{
 \item{single}{
@@ -126,11 +129,12 @@ Pass a pre-built named list of definitions through \code{import}.
 }
 \details{
 A latent with a \code{model} is sampled from it.
-A latent the transmission model generates, such as the infection times of
-\link{template_case_ascertained}, takes no \code{model}: transmission gives its
-probability, and inference samples it flat within \code{min} and \code{max}.
-In simulation, transmission sets it, except where it does not, such as the
-first infection of a household, which takes \code{value}.
+A latent the transmission model generates takes no \code{model},
+such as the infection times of \link{template_case_ascertained}.
+Transmission gives its probability,
+and inference samples it flat within \code{min} and \code{max}.
+In simulation, transmission sets it, except where it does not,
+such as the first infection of a household, which takes \code{value}.
 }
 \examples{
 hh_model <- dummy_household |>

@@ -16,9 +16,9 @@ namespace housepi::param
 {
     /// Sampling scheme of parameters: evaluation order, what a sweep samples and adapts.
     ///
-    /// - `constant` + `sample`: every parameter;
-    /// - `func`: subset of `constant`, deterministic function parameters;
-    /// - `sample_standard` + `sample_cached`: `sample`.
+    /// * `constant` + `sample`: every parameter;
+    /// * `func`: subset of `constant`, deterministic function parameters;
+    /// * `sample_standard` + `sample_cached`: `sample`.
     struct Scheme
     {
         std::vector<size_t> order = {};    /// Definition rows, producer before consumer.

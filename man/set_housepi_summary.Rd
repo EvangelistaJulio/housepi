@@ -7,14 +7,15 @@
 set_housepi_summary(point_estimate = NULL, cri_level = NULL)
 }
 \arguments{
-\item{point_estimate}{\code{character(1)} One between \code{"mean"} and \code{"median"}.
-Default is \code{"median"}.}
+\item{point_estimate}{\code{character(1)} One of \code{"mean"} and \code{"median"}.
+The package default is \code{"median"}.}
 
-\item{cri_level}{\code{numeric(1)} Must lie in \verb{(0.5, 1)}. Default is \code{0.9}.}
+\item{cri_level}{\code{numeric(1)} Between 0.5 and 1, both excluded.
+The package default is \code{0.9}.}
 }
 \value{
-Invisibly returns the previous values, as a \code{list} the function
-takes back to restore them.
+\code{list} The previous values, invisibly,
+which the function takes back to restore them.
 }
 \description{
 Set the point estimate and the credible level housepi objects report.

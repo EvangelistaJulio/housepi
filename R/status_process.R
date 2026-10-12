@@ -11,18 +11,18 @@ status_covs_ <- function(strata) {
   strata_cov_cols_(strata, c(status_reserved_cols, "status"))
 }
 
-# Number of infected levels a status column draws: its labels, or its highest
-# code.
+# Number of infected levels a status column draws:
+# * labels -> their count;
+# * codes -> the highest.
 status_n_levels_ <- function(status) {
   if (is.character(status)) return(length(unique(stats::na.omit(status))))
   max(0L, status, na.rm = TRUE)
 }
 
 #' Validate a status-process table and number its rule groups.
-#' @param strata `data.frame` with columns `status`, `weight` and covariates.
-#' @return `data.frame` the table, with `status` as labels or integer codes
-#' and its `rule_group` appended.
-#' @keywords internal
+#' @param strata `data.frame` Columns `status`, `weight` and covariates.
+#' @return `data.frame` The table, `status` as labels or integer codes,
+#' `rule_group` appended.
 #' @noRd
 assert_status_strata_ <- function(strata) {
   assert_strata_shape_(
@@ -75,15 +75,14 @@ assert_status_strata_ <- function(strata) {
   strata
 }
 
-#' Stop on a status-process table that leaves a member's status undrawable.
-#' @description Checked at every infected level a member may draw: each rule
-#' group has exactly one best rule for it, every rule resolves some member,
-#' and some status carries a positive weight.
-#' @param strata `data.frame` validated by `assert_status_strata_()`.
-#' @param data_wide `data.frame` Data the members come from.
+#' Assert a status-process table leaves no member's status undrawable,
+#' at every infected level a member may draw:
+#' * each rule group has exactly one best rule for it;
+#' * every rule resolves some member;
+#' * some status carries a positive weight.
+#' @param strata `data.frame` Table validated by `assert_status_strata_()`.
 #' @param levels `character()` Infected levels a member may draw.
-#' @return `data.frame` the table, invisibly.
-#' @keywords internal
+#' @return `data.frame` Table, invisibly.
 #' @noRd
 assert_status_fit_ <- function(strata, data_wide, levels) {
   covs <- status_covs_(strata)
@@ -135,50 +134,36 @@ status_weight_values_ <- function(weights) {
   }, numeric(1))
 }
 
-############################################################################
-############################################################################
-######################### Housepi Status Process ###########################
-############################################################################
-############################################################################
+########  HousepiStatusProcess  ########
 
-#' @title Internal R6 holder for the housepi status process
-#' @description
-#' Helper class managing the rule table that draws the infected status of a
-#' member in simulation.
-#' @keywords internal
+#' Hold the rule table drawing the infected status of members in simulation.
 #' @noRd
 HousepiStatusProcess <- R6::R6Class(
   classname = "HousepiStatusProcess",
   cloneable = TRUE,
 
-  ############################################################################
-  ################################## PRIVATE #################################
-  ############################################################################
+  ####  Private  ####
 
   private = list(
     deep_clone = function(name, value) helper_clone(value)
   ),
 
-  ############################################################################
-  ################################## ACTIVE ##################################
-  ############################################################################
+  ####  Active  ####
 
   active = list(
-    #' @field is_defined `logical(1)`. Whether a status process is declared.
+    # `logical(1)` Whether a status process is declared.
     is_defined = function(value) !is.null(self$strata),
 
-    #' @field labels `character()`.
-    #' Status labels in order of first appearance, empty when the statuses are
-    #' integer codes or no status process is declared.
+    # `character()` Status labels, in order of first appearance.
+    # * integer statuses, or no status process -> empty.
     labels = function(value) {
       status <- self$strata[["status"]]
       if (!is.character(status)) return(character())
       unique(status[!is.na(status)])
     },
 
-    #' @field codes `integer()`.
-    #' Integer statuses drawn, from 1 to the highest code, empty when the
-    #' statuses are labelled or no status process is declared.
+    # `integer()` Integer statuses drawn, from 1 to the highest code.
+    # * labelled statuses, or no status process -> empty.
     codes = function(value) {
       status <- self$strata[["status"]]
       if (!is.numeric(status)) return(integer())
@@ -186,49 +171,39 @@ HousepiStatusProcess <- R6::R6Class(
     }
   ),
 
-  ############################################################################
-  ################################## PUBLIC ##################################
-  ############################################################################
+  ####  Public  ####
 
   public = list(
-    #' @field strata `data.frame`. Rule table: covariates, `status`, `weight`
-    #' and `rule_group`.
+    # `data.frame` Rule table: covariates, `status`, `weight` and `rule_group`.
     strata = NULL,
 
-    #' @description Record the rule table.
-    #' @param strata `data.frame` with columns `status`, `weight` and
-    #' covariates. Labels order the statuses by first appearance.
+    # Record the rule table, labels ordering the statuses by first appearance.
+    # @param strata `data.frame` Columns `status`, `weight` and covariates.
     set = function(strata) {
       self$strata <- assert_status_strata_(strata)
       invisible(self)
     },
 
-    #' @description Infected levels a member may draw: every label of the
-    #' model dictionary when the statuses are labelled, else the integer
-    #' statuses up to the highest.
-    #' @param status_codes `integer()` Engine status codes, named after the
-    #' labels.
-    #' @return `character()`
+    # Infected levels a member may draw:
+    # * labelled statuses -> every label of the model dictionary;
+    # * otherwise -> the integer statuses up to the highest.
+    # @param status_codes `integer()` Engine status codes, named by label.
     draw_levels = function(status_codes) {
       if (is.character(self$strata[["status"]])) return(names(status_codes))
       as.character(self$codes)
     },
 
-    #' @description Stop on a rule table that leaves a member's status
-    #' undrawable, see `assert_status_fit_()`.
-    #' @param data_wide `data.frame` Data the members come from.
-    #' @param levels `character()` Infected levels a member may draw.
+    # Assert no member's status is undrawable, see assert_status_fit_().
+    # @param levels `character()` Infected levels a member may draw.
     assert_fit = function(data_wide, levels) {
       assert_status_fit_(self$strata, data_wide, levels)
       invisible(self)
     },
 
-    #' @description One row per rule: its status and weight, the `n` members
-    #' it applies to, its rule group and its covariates.
-    #' @param data_wide `data.frame` or `NULL`. Data the members come from,
-    #' `NULL` leaving `n` unknown.
-    #' @param levels `character()` Infected levels a member may draw.
-    #' @return `data.frame`
+    # Read the rule table, one row per rule: its status and weight,
+    # the `n` members it applies to, its rule group and its covariates.
+    # * `data_wide` NULL -> `n` unknown.
+    # @param levels `character()` Infected levels a member may draw.
     tidy_table = function(data_wide, levels) {
       if (!self$is_defined) return(data.frame(
         status = character(), weight = numeric(), n = integer(),
@@ -243,12 +218,11 @@ HousepiStatusProcess <- R6::R6Class(
             self$strata[c("rule_group", covs)])
     },
 
-    #' @description Rule table coded for the engine: covariates over the data
-    #' levels, labelled statuses over the engine codes.
-    #' @param info `list` Class and levels of every data column.
-    #' @param status_codes `integer()` Engine status codes, named after the
-    #' labels.
-    #' @return `data.frame`
+    # Encode the rule table for the engine:
+    # * covariates -> over the data levels;
+    # * labelled statuses -> over the engine codes.
+    # @param info `list` Class and levels of every data column.
+    # @param status_codes `integer()` Engine status codes, named by label.
     expose_to_cpp = function(info, status_codes) {
       encode_strata_levels_(
         code_status_col_(self$strata, status_codes), info,

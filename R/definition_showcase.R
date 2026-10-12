@@ -3,9 +3,10 @@
 ## SPDX-License-Identifier: GPL-3.0-or-later
 ##
 
-# Map `fn(fields, element)` over encoded definitions, `fields` being the
-# '|'-separated parts of a character element. `na` (a value or a function of
-# the element) answers NA elements; other non-character elements pass through.
+# Map `fn(fields, element)` over encoded definitions,
+# `fields` the '|'-separated parts of a character element.
+# * NA element -> `na`, a value or a function of the element;
+# * other non-character element -> passed through.
 showcase_map_ <- function(x, fn, na = NA_character_) {
   sapply(x, function(element) {
     if (is.na(element)) return(if (is.function(na)) na(element) else na)
@@ -22,7 +23,7 @@ showcaser_extract <- function(x, src) {
   })
 }
 
-# helper to extract numeric values from a definition
+# Extract the numeric value of a definition.
 showcaser_extract_numeric <- function(x) {
   showcase_map_(x, function(z, element) {
     if (length(z) != 2 || z[2] != "N") return(element)
@@ -31,13 +32,13 @@ showcaser_extract_numeric <- function(x) {
   }, na = \(e) if (is.logical(e)) e else NA_real_)
 }
 
-# helper to extract function name from a definition
+# Extract the function name of a definition.
 showcaser_extract_func <- function(x) {
   showcase_map_(x, \(z, element) if (length(z) <= 2) element else z[1],
                 na = NA_real_)
 }
 
-# helper to split most external semicolon separator
+# Split on the outermost semicolon separators.
 helper_split_external_semicol <- function(x) {
   chars <- strsplit(x, "")[[1]]
   depth <- 0
@@ -61,7 +62,7 @@ helper_split_external_semicol <- function(x) {
   gsub("^\\[(.*)\\]$", "\\1", result)
 }
 
-# Helper to extract arguments from a definition.
+# Extract the arguments of a definition.
 showcase_extract_args <- function(x) {
   lapply(x, function(element) {
     if (is.na(element)) return(NA_real_)
@@ -77,10 +78,8 @@ showcase_extract_args <- function(x) {
   })
 }
 
-#' Convert encoded definition strings into a more human-readable format.
-#' @param defs `data.frame()`. Encoded definition strings.
-#' @return `data.frame()`. Readable definitions.
-#' @keywords internal
+#' Convert encoded definitions into a readable format.
+#' @return `data.frame()` Readable definitions.
 #' @noRd
 housepi_defin_showcaser <- function(defs) {
   defs <- as.data.frame(defs)
@@ -90,7 +89,7 @@ housepi_defin_showcaser <- function(defs) {
     if (isTRUE(any(housepi_bar_count(output[[col]]) > 1))) {
       pos <- match(col, names(output))
       # format column with arguments
-      # UPDATE: this is not clean at all.
+      # @todo build the argument columns more cleanly
       col_args <- data.frame(
         args = base::I(showcase_extract_args(output[[col]]))
       )
@@ -111,15 +110,15 @@ housepi_defin_showcaser <- function(defs) {
   output
 }
 
-#' Order readable definitions for display.
-#' Generic definitions (no `status`) come first, then by status (numerically
-#' when every status is a number, alphabetically otherwise), then by name.
-#' @param defs `data.frame()` or `NULL`. Readable definitions.
-#' @param name `character(1)`. Column holding the definition name.
-#' @param by_status `logical(1)`. Order by `status` first; `FALSE` for tables
-#' where `status` is a stratum, not a definition key.
-#' @return `defs` with its rows reordered.
-#' @keywords internal
+#' Order readable definitions for display:
+#' * generic definitions, without `status`, first;
+#' * then by status, numeric when every status is a number, else alphabetical;
+#' * then by name.
+#' @param defs `data.frame()` | `NULL` Readable definitions.
+#' @param name `character(1)` Column holding the definition name.
+#' @param by_status `logical(1)` Whether to order by `status` first.
+#' `FALSE` for tables where `status` is a stratum, not a definition key.
+#' @return `data.frame()` `defs`, rows reordered.
 #' @noRd
 sort_definitions_ <- function(defs, name = "name", by_status = TRUE) {
   if (NROW(defs) < 2L) return(defs)

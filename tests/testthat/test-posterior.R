@@ -42,10 +42,10 @@ test_that("Invalid posterior summary settings are rejected", {
     expect_error("single")
 
   set_housepi_summary(point_estimate = "mode") |>
-    expect_error("one between")
+    expect_error("one of")
   # an abbreviation is not a choice
   set_housepi_summary(point_estimate = "med") |>
-    expect_error("one between")
+    expect_error("one of")
   set_housepi_summary(point_estimate = NA_character_) |>
     expect_error("non-NA")
   set_housepi_summary(point_estimate = 0.5) |>

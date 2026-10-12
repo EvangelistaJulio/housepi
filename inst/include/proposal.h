@@ -124,9 +124,9 @@ namespace housepi
 
         /// Own bounds of the proposal, snapshot before it inherits the prior's.
         ///
-        /// - the transfer runs at construction, ahead of reshape() settling the truncation mode;
-        /// - it overwrites the bounds: finalize() checks coverage against this snapshot;
-        /// - user arguments land first: a given `min` is captured here too.
+        /// * the transfer runs at construction, ahead of reshape() settling the truncation mode;
+        /// * it overwrites the bounds: finalize() checks coverage against this snapshot;
+        /// * user arguments land first: a given `min` is captured here too.
         double intrinsic_min_ = na::DOUBLE;
         double intrinsic_max_ = na::DOUBLE;
 
@@ -194,7 +194,7 @@ namespace housepi
         //////  Constructor  //////
 
         /// Build distribution `distr_name`.
-        /// - NA `scale`: adaptive.
+        /// * NA `scale` -> adaptive.
         AdaptableProposal(const std::string &distr_name,
                           double scale,
                           bool is_discr)
@@ -305,7 +305,7 @@ namespace housepi
         }
         double get_scale_() const override final { return pDistr_->max().value(); }
         /// Set steps to [-scale, scale].
-        /// - discrete: scale rounded, at least 1.
+        /// * discrete -> scale rounded, at least 1.
         void set_scale_(double scale) override final
         {
             const double s = is_discrete_ ? std::max(1., std::round(scale)) : scale;

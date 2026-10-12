@@ -18,16 +18,16 @@
 namespace housepi::augm::graph
 {
     /// Build the latent producer graph of `rows`, for a simulation or inference run.
-    /// - node: definition name;
-    /// - edges: latent names it reads, across the source columns of the run, see DefRow::source_cols().
+    /// * node: definition name;
+    /// * edges: latent names it reads, across the source columns of the run, see DefRow::source_cols().
     dag::prod_graph producers(const DefTable &def,
                               const std::vector<size_t> &rows,
                               bool simulation);
 
     /// Add an edge from each row of `rows` to the definitions `targets` whose data column it reads.
     ///
-    /// - node: every row of `rows`, with or without edges;
-    /// - row reading its own column: no edge.
+    /// * node: every row of `rows`, with or without edges;
+    /// * row reading its own column -> no edge.
     /// @note Edges follow the source columns of a simulation run, see DefRow::source_cols().
     void add_data_edges(dag::prod_graph &pgraph,
                         const DefTable &def,
@@ -41,9 +41,9 @@ namespace housepi::augm::graph
     /// List latent names of `order` that no sink reaches.
     ///
     /// Sinks:
-    /// - transmission names `transm`;
-    /// - observations of `order`, except `absent` ones;
-    /// - latents a household observation reduces over.
+    /// * transmission names `transm`;
+    /// * observations of `order`, except `absent` ones;
+    /// * latents a household observation reduces over.
     ///
     /// Such a latent is an unused parameter.
     /// Marginalizing it integrates its model to one: its draw and density are dropped.

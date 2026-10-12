@@ -34,9 +34,9 @@ namespace housepi
     /// Latent variables and observations of a run.
     /// Based on @cite tanner_calculation_1987
     ///
-    /// - definitions, stored;
-    /// - sampling schemes, built from definitions;
-    /// - member and household variables, bound to definitions.
+    /// * definitions, stored;
+    /// * sampling schemes, built from definitions;
+    /// * member and household variables, bound to definitions.
     struct Augmented : public KeyHolderWithRequests
     {
         augm::State state; /// Variables moved by inference and simulation.
@@ -53,21 +53,21 @@ namespace housepi
         void request_transmission(std::vector<size_t> vec);
 
         /// Build definitions from `input` and the infectivity profile, then their sampling schemes.
-        /// - status process defined: every status it draws needs a scheme.
+        /// * status process defined -> every status it draws needs a scheme.
         void build(InfecProfile &infec_profile,
                    const StatusProcess &status_process,
                    const str_table &input);
 
         /// Empty the variables of every infected member, between simulated repetitions.
-        /// - variable from a block: returned to it;
-        /// - value transmission set: cleared;
-        /// - static surrogate: kept.
-        /// - no definitions allocated: no-op.
+        /// * variable from a block -> returned to it;
+        /// * value transmission set -> cleared;
+        /// * static surrogate -> kept.
+        /// * no definitions allocated -> no-op.
         void clear_all();
         /// Hand member `m` the variables of its status scheme for simulation.
-        /// - variable transmission set: kept;
-        /// - flat latent transmission did not set: error;
-        /// - binding error of the scheme, kept by init_members_for_simulation(): raised.
+        /// * variable transmission set -> kept;
+        /// * flat latent transmission did not set -> error;
+        /// * binding error of the scheme, kept by init_members_for_simulation() -> raised.
         void init_definitions_for_simulation(const Individual &m);
         /// Initialize latent dependencies and models.
         /// @note Evaluation only, never for simulation.
@@ -77,8 +77,8 @@ namespace housepi
         void init_house_for_simulation();
         /// Bind the member variables a simulation reads, once per run.
         ///
-        /// - one block per status scheme the member can reach, handed out by init_definitions_for_simulation();
-        /// - reachable status: the observed one, and every one `status_process` can draw.
+        /// * one block per status scheme the member can reach, handed out by init_definitions_for_simulation();
+        /// * reachable status: the observed one, and every one `status_process` can draw.
         ///
         /// A binding error is kept, and raised only if the member reaches what failed.
         /// Distinct warnings are raised once each.
@@ -87,8 +87,8 @@ namespace housepi
         /// Empty every member variable and drop the blocks, at the end of a simulation run.
         void release_simulation();
         /// Draw the observations of `indiv` from their models, for simulation.
-        /// - each draw lands in its Variable, where data readers read it;
-        /// - the data column, if any, is never overwritten.
+        /// * each draw lands in its Variable, where data readers read it;
+        /// * the data column, if any, is never overwritten.
         void sample_obs(const Individual &indiv, rnd_gen &prng)
         {
             augm::draw_sample(scheme_of_(indiv).obs_models, state.of(indiv), prng);
@@ -97,8 +97,8 @@ namespace housepi
         /// Build surrogate columns standing in for data columns, and point member read-surfaces at them.
         ///
         /// Only static columns are eligible: a live one has no fixed value.
-        /// - evaluation: live column rejected;
-        /// - `for_export`: live column skipped.
+        /// * evaluation -> live column rejected;
+        /// * `for_export` -> live column skipped.
         void materialize_surrogate_columns(bool for_export = false);
 
         /// Initialize the latents of `indiv`, for inference.
@@ -107,7 +107,7 @@ namespace housepi
             augm::restart(scheme_of_(indiv), state.of(indiv), prng);
         }
         /// Initialize the latents of every individual, for inference.
-        /// - no latent to sample: skipped.
+        /// * no latent to sample -> skipped.
         void restart(rnd_gen &prng);
 
         /// Draw the sampled latents of `indiv` from their models, for simulation.
@@ -118,7 +118,7 @@ namespace housepi
         }
         /// Draw the sampled latents of every individual from their models, for evaluation.
         /// Unlike restart(), it uses no proposal.
-        /// - no latent to sample: skipped.
+        /// * no latent to sample -> skipped.
         void draw_sample(rnd_gen &prng);
 
         /// Finalize every variable, see Variable::finalize().
@@ -144,7 +144,7 @@ namespace housepi
         /// Keys carrying a latent-model density for member `m`.
         const std::vector<size_t> &list_latent_models(const Individual &m) const { return scheme_of_(m).latent_models; }
         /// Keys carrying an observation-model density for member `m`.
-        /// - missing datum: marginalized out, see init_live_schemes_().
+        /// * missing datum -> marginalized out, see init_live_schemes_().
         const std::vector<size_t> &list_obs_models(const Individual &m) const { return scheme_of_(m).obs_models; }
 
         /// List the columns definitions produce: drawn member observations and surrogate columns.
@@ -156,7 +156,7 @@ namespace housepi
         /// Number of exported columns in simulation.
         size_t n_export_cols() const noexcept;
         /// Whether each exported column requests a discrete output type.
-        /// - mixed continuous and discrete definitions: continuous.
+        /// * mixed continuous and discrete definitions -> continuous.
         /// @note Run a simulation repetition first.
         std::vector<bool> discrete_export_cols() const;
 
@@ -213,7 +213,7 @@ namespace housepi
         //////  Flags  //////
 
         /// Whether per-individual storage covers current data.
-        /// - deferred definitions: storage may be stale.
+        /// * deferred definitions -> storage may be stale.
         bool is_allocated() const noexcept;
 
         /// Whether moving latent `a` of member `m` changes the transmission log-likelihood.
@@ -241,8 +241,8 @@ namespace housepi
         void build_append_profile_(InfecProfile &infec_profile);
 
         /// Point every individual at a status scheme holding what its run reads.
-        /// - observations whose datum is present;
-        /// - definitions still reaching a sink.
+        /// * observations whose datum is present;
+        /// * definitions still reaching a sink.
         ///
         /// A datum absent at build stays absent for the run: the likelihood never reads it.
         /// @note Evaluation only: a simulation reads every definition it produces.
@@ -252,8 +252,8 @@ namespace housepi
         std::vector<std::string> transm_names_() const;
 
         /// Whether the variables filling an exported column are discrete, at least one carrying a value.
-        /// - member column `i`: a key, never discrete when declared continuous;
-        /// - household column `i`: a slot.
+        /// * member column `i` -> a key, never discrete when declared continuous;
+        /// * household column `i` -> a slot.
         bool is_col_discrete_(size_t i, bool is_house) const;
 
         /// Reject a member observation filling an every-member column only for infected members.
@@ -265,7 +265,7 @@ namespace housepi
                                      const Individual &m);
 
         /// Point member `m` at the scheme of its status, and return its definition order for the run.
-        /// - status the data does not carry: generic scheme.
+        /// * status the data does not carry -> generic scheme.
         const std::vector<size_t> &helper_materialize_definition_order_(const Individual &m, bool simulation);
     };
 }

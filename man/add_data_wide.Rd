@@ -9,9 +9,7 @@ add_data_wide(hh_model, data)
 \arguments{
 \item{hh_model}{\code{HousepiModel} object.}
 
-\item{data}{\code{data.frame} Household data used for analysis (wide format).
-Optional at construction; if omitted, attach it later with
-\link[=add_data_wide]{add_data_wide()}.}
+\item{data}{\code{data.frame} Household data used for analysis (wide format).}
 }
 \value{
 \code{HousepiModel} object. Deep clone of input with new definitions.
@@ -19,8 +17,8 @@ Optional at construction; if omitted, attach it later with
 \description{
 Make an internal copy of the provided household data in wide format,
 (re)building any definitions that depend on it.
-An empty cell of a categorical column is missing data, not a category of
-its own: recode it to a label of your choice to stratify on it.
+An empty cell of a categorical column is missing data, not a category.
+To stratify on it, recode it to a label of your choice.
 }
 \examples{
 # construct the model first, attach the data afterwards

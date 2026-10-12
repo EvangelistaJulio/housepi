@@ -7,18 +7,20 @@
 set_housepi_theme(base_size = 11, base_family = "", transparent = FALSE)
 }
 \arguments{
-\item{base_size}{Base font size (pts). Default \code{11}.}
+\item{base_size}{\code{numeric(1)} Base font size, in points.}
 
-\item{base_family}{Base font family. Default \code{""} (device default).}
+\item{base_family}{\code{character(1)} Base font family, \code{""} for the device's.}
 
-\item{transparent}{\code{logical(1)} Leave the plot background transparent.}
+\item{transparent}{\code{logical(1)}
+Whether to leave the plot background transparent.}
 }
 \value{
-Invisibly returns \code{NULL}; called for setting the themes.
+\code{NULL}, invisibly.
+The function sets the themes.
 }
 \description{
-If suggested packages are installed, sets corresponding \code{ggplot2},
-\code{bayesplot} and \code{flextable} themes as used in housepi vignettes.
+Set the housepi vignette themes of \code{ggplot2}, \code{bayesplot} and \code{flextable},
+for each package installed.
 }
 \examples{
 \donttest{

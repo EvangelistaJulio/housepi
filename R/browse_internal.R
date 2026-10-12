@@ -12,7 +12,7 @@ rd_test_return_ <- paste("`NULL` if the available names were printed.",
 rd_test_x_ <- "`numeric()` Points of evaluation."
 
 # Show registered names of family, as `show_model_names()` does for templates.
-# No `{.run}` links: there is no per-name description to open.
+# No `{.run}` links, since no name has a description to open.
 show_registered_ <- function(names, family) {
   fmt_names <- vapply(sort(names),
                       \(nm) inline_cli_("{.val {nm}}"),
@@ -32,13 +32,9 @@ format_interval_ <- function(x, loc = 0) {
           if (x$closed[["max"]]) "]" else ")")
 }
 
-############################################################################
-############################################################################
-############################# Housepi Exposed ##############################
-############################################################################
-############################################################################
+########  HousepiExposed  ########
 
-# dictionary of exposed object
+# family words of exposed objects
 .family <- list(func = "function",
                 distr = "distribution",
                 infec = "infectivity profile")
@@ -47,8 +43,8 @@ format_interval_ <- function(x, loc = 0) {
 #' @description
 #' Base of the objects returned by [browse_functions()],
 #' [browse_distributions()] and [browse_infectivity_profiles()].
-#' It carries one definition built by the C++ kernel, reports the user
-#' argument values it was built with, and the domain it is defined on.
+#' It holds one definition, the argument values it was built with,
+#' and the domain it is defined on.
 #' @examples
 #' dst <- browse_distributions("gamma", shape = 2, scale = 1)
 #' dst$args
@@ -58,12 +54,9 @@ HousepiExposed <- R6::R6Class(
   classname = "HousepiExposed",
   cloneable = FALSE,
 
-  ############################################################################
-  ################################## PRIVATE #################################
-  ############################################################################
+  ####  Private  ####
 
   private = list(
-    # @field
     obj_ = NULL,
     # family word, set by each derived class
     family_ = NA_character_,
@@ -77,9 +70,7 @@ HousepiExposed <- R6::R6Class(
     }
   ),
 
-  ############################################################################
-  ################################## ACTIVE ##################################
-  ############################################################################
+  ####  Active  ####
 
   active = list(
     #' @field args `numeric()`
@@ -90,26 +81,26 @@ HousepiExposed <- R6::R6Class(
     },
 
     #' @field domain `list()`
-    #' Values the definition is evaluated on: bounds `min` and `max`, and
-    #' `closed`, whether each bound belongs to the interval. The bounds are
-    #' read before the location shift `loc`.
+    #' Values the definition is evaluated on: bounds `min` and `max`,
+    #' and `closed`, whether each bound belongs to the interval.
+    #' The bounds are read before the location shift `loc`.
     domain = function(value) {
       assert_read_only_(value, "domain")
       private$call_("domain")
     },
 
     #' @field is_discrete `logical(1)`
-    #' Whether the values the definition takes lie on a lattice of
-    #' integers. A distribution answers for the values it draws.
+    #' Whether the values the definition takes lie on a lattice of integers.
+    #' A distribution answers for the values it draws.
     is_discrete = function(value) {
       assert_read_only_(value, "is_discrete")
       private$discr_
     },
 
     #' @field is_positive `logical(1)`
-    #' Whether the values the definition takes are known to be strictly
-    #' positive. A distribution answers for the values it draws.
-    #' Note that `FALSE` reads as "not known to be positive".
+    #' Whether the values the definition takes are known to be above zero.
+    #' A distribution answers for the values it draws.
+    #' `FALSE` means not known to be above zero.
     is_positive = function(value) {
       assert_read_only_(value, "is_positive")
       private$call_("is_positive")
@@ -125,14 +116,12 @@ HousepiExposed <- R6::R6Class(
     }
   ),
 
-  ############################################################################
-  ################################## PUBLIC ##################################
-  ############################################################################
+  ####  Public  ####
 
   public = list(
     #' @description
-    #' Internal: the `browse_*()` functions build this object,
-    #' don't call `$new()` directly.
+    #' Create an exposed definition.
+    #' Use the `browse_*()` functions instead of calling `$new()`.
     #' @param obj Internal engine handle.
     #' @param name Registered name of the definition.
     initialize = function(obj, name) {
@@ -143,7 +132,7 @@ HousepiExposed <- R6::R6Class(
       invisible(self)
     },
 
-    #' @description Override the default printing behavior.
+    #' @description Print the family, name, arguments and domain.
     print = function() {
       args <- vapply(self$args, \(x) escape_cli_(format(x)), character(1))
       if (!is.na(private$loc_)) args <- c(args, loc = format(private$loc_))
@@ -158,11 +147,7 @@ HousepiExposed <- R6::R6Class(
   )
 )
 
-############################################################################
-############################################################################
-######################### Housepi Exposed Function #########################
-############################################################################
-############################################################################
+########  HousepiExposedFunction  ########
 
 #' @title Exposed housepi function
 #' @description
@@ -197,11 +182,7 @@ HousepiExposedFunction <- R6::R6Class(
   )
 )
 
-############################################################################
-############################################################################
-####################### Housepi Exposed Distribution #######################
-############################################################################
-############################################################################
+########  HousepiExposedDistribution  ########
 
 #' @title Exposed housepi distribution
 #' @description
@@ -233,8 +214,7 @@ HousepiExposedDistribution <- R6::R6Class(
     log_pdf = function(x) private$call_("log_pdf", x),
 
     #' @description
-    #' Evaluate the natural logarithm of the ratio between the probability
-    #' density at two points.
+    #' Evaluate the log-ratio of the density/mass between two points.
     #' @param xo `numeric()` Points the ratio is taken from.
     #' @param xn `numeric()` Points the ratio is taken to.
     #' @return `numeric()`
@@ -252,16 +232,12 @@ HousepiExposedDistribution <- R6::R6Class(
 
     #' @description Draw from the distribution.
     #' @param n `integer(1)` Number of draws.
-    #' @return `integer()` for a discrete distribution, `numeric()` otherwise.
+    #' @return `numeric()` Draws, `integer()` for a discrete distribution.
     rand = function(n) private$call_("rand", n)
   )
 )
 
-############################################################################
-############################################################################
-######################### Housepi Exposed Profile ##########################
-############################################################################
-############################################################################
+########  HousepiExposedProfile  ########
 
 #' @title Exposed housepi infectivity profile
 #' @description
@@ -291,9 +267,7 @@ HousepiExposedProfile <- R6::R6Class(
   )
 )
 
-############################################################################
-############################################################################
-############################################################################
+########  Browse  ########
 
 #' @title Navigate through housepi functions
 #' @description
@@ -381,7 +355,7 @@ browse_infectivity_profiles <- function(name = NA_character_, ...,
   if (is.na(name))
     return(show_registered_(.engine$list_infec_profiles(), .family$infec))
 
-  # FIXME: this is unaware of loc !
+  # @todo the default `min` ignores `loc`
   if (is.na(min)) min <- if (discr) 1 else 0
   assert_unique_arg_names(names(list(...)), .family$infec, name)
   obj <- .engine$expose_infec_profile(name, unlist(list(...)), min, max, discr)

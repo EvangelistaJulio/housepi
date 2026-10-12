@@ -82,8 +82,7 @@ dst$rand(5)
 \if{html}{\out{<a id="method-HousepiExposedDistribution-log_ratio"></a>}}
 \if{latex}{\out{\hypertarget{method-HousepiExposedDistribution-log_ratio}{}}}
 \subsection{\code{HousepiExposedDistribution$log_ratio()}}{
-  Evaluate the natural logarithm of the ratio between the probability
-density at two points.
+  Evaluate the log-ratio of the density/mass between two points.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{HousepiExposedDistribution$log_ratio(xo, xn)}
@@ -164,7 +163,7 @@ density at two points.
     \if{html}{\out{</div>}}
   }
   \subsection{Returns}{
-    \code{integer()} for a discrete distribution, \code{numeric()} otherwise.
+    \code{numeric()} Draws, \code{integer()} for a discrete distribution.
   }
 }
 

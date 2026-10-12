@@ -14,9 +14,9 @@
 
 /// Traverse directed acyclic graphs of definitions.
 ///
-/// - producer of `A`: what `A` reads, upstream;
-/// - consumer of `A`: what reads `A`, downstream;
-/// - graph: each consumer node maps to its producers.
+/// * producer of `A`: what `A` reads, upstream;
+/// * consumer of `A`: what reads `A`, downstream;
+/// * graph: each consumer node maps to its producers.
 namespace housepi::dag
 {
     /// Map every node to the set of nodes it reads.
@@ -25,8 +25,8 @@ namespace housepi::dag
 
     /// Walk the edges of `graph` from `entry`, appending nodes to `ordered` in post-order.
     ///
-    /// - unknown node: error;
-    /// - closed cycle: error.
+    /// * unknown node -> error;
+    /// * closed cycle -> error.
     /// @param visited Nodes visited during the walk.
     /// @param recursion_stack Nodes on the current recursion path.
     /// @param err Entity type named in errors.
@@ -44,8 +44,8 @@ namespace housepi::dag
 
     /// Return `start` and its transitive producers, producers first.
     ///
-    /// - producers: read by `start` directly or through intermediaries;
-    /// - `start` comes last.
+    /// * producers: read by `start` directly or through intermediaries;
+    /// * `start` comes last.
     /// @param err Entity type named in errors.
     std::vector<std::string> transitive_producers(const std::string &start,
                                                   const prod_graph &graph,
@@ -53,8 +53,8 @@ namespace housepi::dag
 
     /// Return `start` and its transitive consumers, producers first.
     ///
-    /// - consumers: read `start` directly or through intermediaries;
-    /// - `start` comes first.
+    /// * consumers: read `start` directly or through intermediaries;
+    /// * `start` comes first.
     /// @param err Entity type named in errors.
     std::vector<std::string> transitive_consumers(const std::string &start,
                                                   const prod_graph &graph,

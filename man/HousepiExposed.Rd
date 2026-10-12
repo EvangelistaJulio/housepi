@@ -7,8 +7,8 @@
 \description{
 Base of the objects returned by \code{\link[=browse_functions]{browse_functions()}},
 \code{\link[=browse_distributions]{browse_distributions()}} and \code{\link[=browse_infectivity_profiles]{browse_infectivity_profiles()}}.
-It carries one definition built by the C++ kernel, reports the user
-argument values it was built with, and the domain it is defined on.
+It holds one definition, the argument values it was built with,
+and the domain it is defined on.
 }
 \examples{
 dst <- browse_distributions("gamma", shape = 2, scale = 1)
@@ -22,18 +22,18 @@ dst$domain
 Named argument values the definition was built with.}
 
     \item{\code{domain}}{\code{list()}
-Values the definition is evaluated on: bounds \code{min} and \code{max}, and
-\code{closed}, whether each bound belongs to the interval. The bounds are
-read before the location shift \code{loc}.}
+Values the definition is evaluated on: bounds \code{min} and \code{max},
+and \code{closed}, whether each bound belongs to the interval.
+The bounds are read before the location shift \code{loc}.}
 
     \item{\code{is_discrete}}{\code{logical(1)}
-Whether the values the definition takes lie on a lattice of
-integers. A distribution answers for the values it draws.}
+Whether the values the definition takes lie on a lattice of integers.
+A distribution answers for the values it draws.}
 
     \item{\code{is_positive}}{\code{logical(1)}
-Whether the values the definition takes are known to be strictly
-positive. A distribution answers for the values it draws.
-Note that \code{FALSE} reads as "not known to be positive".}
+Whether the values the definition takes are known to be above zero.
+A distribution answers for the values it draws.
+\code{FALSE} means not known to be above zero.}
 
     \item{\code{codomain}}{\code{list()}
 Values evaluating the definition returns, in the same form as \code{domain}.
@@ -53,8 +53,8 @@ never a draw: see \code{domain} for the values it is defined on.}
 \if{html}{\out{<a id="method-HousepiExposed-initialize"></a>}}
 \if{latex}{\out{\hypertarget{method-HousepiExposed-initialize}{}}}
 \subsection{\code{HousepiExposed$new()}}{
-  Internal: the \verb{browse_*()} functions build this object,
-don't call \verb{$new()} directly.
+  Create an exposed definition.
+Use the \verb{browse_*()} functions instead of calling \verb{$new()}.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{HousepiExposed$new(obj, name)}
@@ -74,7 +74,7 @@ don't call \verb{$new()} directly.
 \if{html}{\out{<a id="method-HousepiExposed-print"></a>}}
 \if{latex}{\out{\hypertarget{method-HousepiExposed-print}{}}}
 \subsection{\code{HousepiExposed$print()}}{
-  Override the default printing behavior.
+  Print the family, name, arguments and domain.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{HousepiExposed$print()}

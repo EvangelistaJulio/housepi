@@ -3,10 +3,7 @@
 ## SPDX-License-Identifier: GPL-3.0-or-later
 ##
 
-#' @title Internal R6 holder for housepi parameter definitions
-#' @description
-#' Helper class managing parameter definitions of the model object.
-#' @keywords internal
+#' Hold the parameter definitions of a model.
 #' @noRd
 HousepiParameter <- R6::R6Class(
   classname = "HousepiParameter",
@@ -16,30 +13,26 @@ HousepiParameter <- R6::R6Class(
     deep_clone = function(name, value) helper_clone(value)
   ),
 
-  ############################################################################
-  ################################## PUBLIC ##################################
-  ############################################################################
+  ####  Public  ####
 
   public = list(
-    #' @field family `character(1)`. Holder family.
+    # `character(1)` Holder family.
     family = "parameter",
 
-    #' @field store_warn_over `character()`. Cached overwritten names.
+    # `character()` Cached overwritten names.
     store_warn_over = character(),
 
-    #' @field defs `data.frame`. Formatted parameter definitions.
+    # `data.frame` Formatted parameter definitions.
     defs = NULL,
 
-    #' @description
-    #' New object of class
-    #' [HousepiParameter][housepi::HousepiParameter].
+    # Create an empty holder.
     initialize = function() {
       self$defs <- NULL
       invisible(self)
     },
 
-    #' @description Remove a given parameter.
-    #' @param name `character(1)`. Parameter definition to remove.
+    # Remove the parameter `name`.
+    # @return `character(1)` | `NULL` Name removed, `NULL` when none matched.
     remove = function(name) {
       mask <- self$defs[["name"]] == name
       if (any(mask)) {
@@ -49,7 +42,7 @@ HousepiParameter <- R6::R6Class(
       c()
     },
 
-    #' @inherit add_parameter
+    # Add one definition, arguments as in add_parameter().
     add_quo = function(name, ...,
                        value = NULL, const = NA, discr = NA,
                        prior = NA_character_,
@@ -78,20 +71,20 @@ HousepiParameter <- R6::R6Class(
       args <- def_args$args
       proposal <- def_args$proposal
 
-      # control valid name
+      # check the name
       assert_valid_definition_name(name, self$family)
       assert_no_sibling_dist_arg(args, self$family, name)
       if (all(is.null(c(value, func)), is.na(prior))) stop_h(
         "Incomplete definition for parameter {.val {name}}.",
-        "Provide at least one between {.arg {c('value', 'prior', 'func')}}."
+        "Provide at least one of {.arg {c('value', 'prior', 'func')}}."
       )
       if (!is.null(func) && !is.na(prior)) stop_h(
         "Wrong definition for parameter {.val {name}}.",
-        "Provide only one between {.arg {c('func', 'prior')}}."
+        "Provide only one of {.arg {c('func', 'prior')}}."
       )
       if (!is.null(value) && !is.null(func)) stop_h(
         "Wrong definition for parameter {.val {name}}.",
-        "Provide only one between {.arg {c('value', 'func')}}."
+        "Provide only one of {.arg {c('value', 'func')}}."
       )
 
       opts <- list(name = as.character(name),
@@ -126,25 +119,24 @@ HousepiParameter <- R6::R6Class(
       invisible(self)
     },
 
-    #' @inherit add_parameter
+    # Add definitions from a list of quosures.
+    # * not `append` -> previous definitions dropped.
     add_quo_list = function(xquos, append = FALSE) {
       housepi_load_defin_quos(self, "value", xquos, append)
       housepi_assert_args(self)
       invisible(self)
     },
 
-    #' @description
-    #' Assert parameter definitions match the requirement list.
-    #' @param required `character()` Required definitions.
-    #' @param wall `logical(1)` Whether to raise error.
-    #' @param warn_unused `logical(1)` Warn if unused are found.
+    # Assert the parameters the model requires are defined.
+    # * `wall` -> error on missing ones, else their messages returned;
+    # * `warn_unused` -> warning on parameters the model never reads.
     assert = function(required, wall, warn_unused = TRUE) {
       defined <- self$defs[["name"]]
-      # point out parameters that are not used
+      # unused parameters -> warning
       if (isTRUE(warn_unused))
         template_not_used_warn(required, defined, self$family)
 
-      # stop if parameters are missing
+      # missing parameters -> error, or messages returned
       sms <- template_missing_stop(required, defined, self$family)
       wall_or_return_(sms, wall)
     }

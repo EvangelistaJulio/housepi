@@ -23,40 +23,43 @@ check_calibration(
 \arguments{
 \item{hh_model}{\code{HousepiModel} object.}
 
-\item{nrep}{\code{integer(1)} Number of surveys simulated and fitted back
-at each household count.}
+\item{nrep}{\code{integer(1)}
+Number of surveys simulated and fitted back at each household count.}
 
 \item{houses}{\code{integer(1)} Household count of the surveys.
-\code{NA} targets the number of households carried by the attached data.}
+If \code{NA}, the number of households carried by the attached data.}
 
-\item{structure_sampler}{\code{function} Sampler of the household structure the surveys
-are generated on, called as \code{structure_sampler(data_wide, houses)}.
-\code{NULL} reuses the attached structure verbatim and ignores \code{houses}.}
+\item{structure_sampler}{\code{function}
+Sampler of the household structure the surveys are generated on,
+called as \code{structure_sampler(data_wide, houses)}.
+If \code{NULL}, the attached structure is reused verbatim and \code{houses} ignored.}
 
-\item{rank_draws}{\code{integer(1)} Number of posterior draws each simulating
-value is ranked among, thinned evenly from the stored draws of all chains.}
+\item{rank_draws}{\code{integer(1)}
+Number of posterior draws each simulating value is ranked among,
+thinned evenly from the stored draws of all chains.}
 
 \item{steps}{\code{integer(1)} Number of MCMC iterations per chain.}
 
-\item{burn}{\code{integer(1)} Number of iterations per chain discarded before
-\code{steps}. Run after adaptation.}
+\item{burn}{\code{integer(1)}
+Number of iterations per chain discarded before \code{steps}.
+Run after adaptation.}
 
 \item{thin}{\code{integer(1)} Keep one iteration every \code{thin} of \code{steps}.}
 
 \item{adapt}{\code{integer(1)} Number of iterations to adapt proposal scales.
 Run first and not stored as draws.
-If no proposal is adaptable, dropped or run as burn-in when \code{burn = 0}.}
+If no proposal is adaptable, run as burn-in when \code{burn = 0}, else dropped.}
 
 \item{chains}{\code{integer(1)} Number of independent MCMC chains to run.}
 
-\item{threads}{\code{integer(1)} Number of threads. Up to \code{threads}
-replicates are fitted at once. Beyond \code{nrep}, the households of each fit
-share the threads left over.}
+\item{threads}{\code{integer(1)} Number of threads.
+Up to \code{threads} replicates are fitted at once.
+Beyond \code{nrep}, the households of each fit share the threads left over.}
 
-\item{progress}{\code{integer(1)} | \code{logical(1)} Control the progress bar.
-One between:
+\item{progress}{\code{integer(1)} | \code{logical(1)} Control the progress bar,
+one of:
 \describe{
-\item{\code{integer}}{seconds between prints. A shorter run does not print.}
+\item{\code{integer}}{seconds between prints, a shorter run printing nothing;}
 \item{\code{TRUE}}{one print per second;}
 \item{\code{FALSE} or \code{0}}{no progress bar.}
 }
@@ -69,41 +72,43 @@ An object of class \link{HousepiCalibrationCheck}.
 }
 \description{
 Simulation-based calibration: draw parameter values from their prior,
-simulate a survey at each draw, fit it back with the same model, and rank
-the drawn value among the posterior draws of its fit. When inference is
-correct, the ranks are uniform over the replicates. Ranks piling at both
-ends point to a posterior too narrow, in the middle to one too wide, on one
-side to a biased one.
+simulate a survey at each draw, fit it back with the same model,
+and rank the drawn value among the posterior draws of its fit.
+When inference is correct, the ranks are uniform over the replicates.
+Ranks piling at both ends point to a posterior too narrow,
+in the middle to one too wide, on one side to a biased one.
 
-Every parameter carrying a prior and free to move is drawn anew for each
-replicate, and its \code{value} is ignored. Any other parameter is held at its
-value.
+Every parameter carrying a prior and free to move is drawn anew
+for each replicate, and its \code{value} is ignored.
+Any other parameter is held at its value.
 }
 \details{
-Ranks follow \insertCite{modrak_simulation_2025;textual}{housepi}: the
-drawn value is ranked among \code{rank_draws} posterior draws thinned evenly
-from the fit, and ties are split at random. Correlated draws make the
-ranks pile at the ends even when inference is correct, so a parameter
-whose bulk effective sample size
+Ranks follow \insertCite{modrak_simulation_2025;textual}{housepi}:
+the drawn value is ranked among \code{rank_draws} posterior draws thinned evenly
+from the fit, and ties are split at random.
+Correlated draws make the ranks pile at the ends,
+even when inference is correct,
+so a parameter whose bulk effective sample size
 \insertCite{vehtari_rank_normalization_2021}{housepi} falls below
 \code{rank_draws} is flagged.
 
 Uniformity is tested on the empirical CDF of the ranks, with the
 simultaneous band and the statistic of
-\insertCite{sailynoja_graphical_2022;textual}{housepi}. Uniformity is
-rejected when the statistic falls below its 5th percentile under uniform
-ranks \insertCite{modrak_simulation_2025}{housepi}, so a calibrated
-sampler is rejected with probability at most 0.05.
+\insertCite{sailynoja_graphical_2022;textual}{housepi}.
+Uniformity is rejected when the statistic falls below its 5th percentile
+under uniform ranks \insertCite{modrak_simulation_2025}{housepi},
+so a calibrated sampler is rejected with probability at most 0.05.
 The check itself goes back to
 \insertCite{talts_validating_2020;textual}{housepi}.
 
 Each survey goes through the \code{wide} reporting process
 of the model before it is fitted back, see \code{\link[=add_reporting_process]{add_reporting_process()}}.
-Inference does not model it: one losing information makes the check measure
-the resulting misspecification.
+Inference does not model it,
+so a process losing information makes the check measure the misspecification.
 
-Replicates are independent draws: call \code{set.seed()} before
-the check to replay a whole sweep, at any \code{threads} up to \code{nrep}.
+Replicates are independent draws.
+Call \code{set.seed()} before the check to replay a whole sweep,
+at any \code{threads} up to \code{nrep}.
 }
 \examples{
 calibration <- flu_1918_frederick |>

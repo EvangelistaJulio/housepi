@@ -25,81 +25,86 @@ add_observation(
 
 \item{name}{\code{character(1)} Name used by internal calls.}
 
-\item{model}{\code{character(1)} Choice for the observation model distribution.
+\item{model}{\code{character(1)} Observation model distribution.
 Reserved to member-level observations.}
 
-\item{...}{named arguments for the observation distribution.
+\item{...}{Named arguments for the observation distribution.
 In mode 'multiple', the \code{name = value} definitions.}
 
-\item{level}{\code{character(1)} Level the datum is observed at.
-One between \code{"member"}, one value per positive status individual, and
-\code{"house"}, one value per household reduced over all its members.
+\item{level}{\code{character(1)} Level the datum is observed at, one of:
+\describe{
+\item{\code{"member"}}{one value per infected member;}
+\item{\code{"house"}}{one value per household, reduced over its members.}
+}
 In mode 'multiple', applies to every entry not setting its own.}
 
-\item{value}{\code{numeric(1)} | \code{character(1)} Definition of the
-observation, depending on \code{level}:
+\item{value}{\code{numeric(1)} | \code{character(1)}
+Definition of the observation, depending on \code{level}:
 \describe{
-\item{\code{"member"}}{without a \code{model}, the value computed for every member;
-with a \code{model}, the datum the model is evaluated at, the like-named data
-column when omitted;}
-\item{\code{"house"}}{one value for the whole household. The reductions
-\code{min()}, \code{max()}, \code{sum()} and \code{prod()} fold a per-member value (data column,
-latent or group risk) over the members: their argument is computed for each
-member, and members with no value are left out, e.g. \code{min(onset_date) + 21}
-or \code{max(test_date - onset_date)}. A per-member value read outside a
-reduction is an error.}
+\item{\code{"member"}}{without a \code{model}, the value computed for every member.
+With a \code{model}, the datum the model is evaluated at,
+the like-named data column when omitted;}
+\item{\code{"house"}}{one value for the whole household.
+The reductions \code{min()}, \code{max()}, \code{sum()} and \code{prod()} fold over the members
+a per-member value: a data column, a latent or a group risk.
+Their argument is computed for each member, members with no value left out,
+e.g. \code{min(onset_date) + 21} or \code{max(test_date - onset_date)}.
+A per-member value read outside a reduction is an error.}
 } Either a plain value, the name of another definition,
-or an arithmetic expression combining them. A name is looked up among the
-latent variables, data columns, observations, group risks and parameters the
-model carries: two of them sharing a name cannot be read.}
+or an arithmetic expression combining them.
+A name is looked up among the latent variables, data columns, observations,
+group risks and parameters the model carries.
+Two of them sharing a name cannot be read.}
 
-\item{func}{One between:
+\item{func}{One of:
 \itemize{
-\item \code{character(1)} Name of latent function;
-\item rlang expression.
+\item \code{character(1)} Name of a latent function;
+\item an rlang expression.
 }}
 
-\item{status}{\code{integer(1)} Individual positive status.
-Used to specify status-specific definitions.
-If \code{NA}, associate definition to all infectious individuals (default).}
+\item{status}{\code{integer(1)} Infected status the definition is specific to.
+If \code{NA}, the definition applies to every infected member.}
 
-\item{discr}{\code{logical(1)} Treat model definition as discrete, if applicable.
-Inferred from the observed data column, or the model requirements if \code{NA} (default).}
+\item{discr}{\code{logical(1)} Whether the model definition is discrete, if applicable.
+If \code{NA}, inferred from the observed data column, or the model requirements.}
 
 \item{min}{\code{numeric(1)} Truncate to a minimum value.
 Relative to the location argument \code{loc}, when one is given. Either a plain value, the name of another definition,
-or an arithmetic expression combining them. A name is looked up among the
-latent variables, data columns, observations, group risks and parameters the
-model carries: two of them sharing a name cannot be read.}
+or an arithmetic expression combining them.
+A name is looked up among the latent variables, data columns, observations,
+group risks and parameters the model carries.
+Two of them sharing a name cannot be read.}
 
 \item{max}{\code{numeric(1)} Truncate to a maximum value.
 Relative to the location argument \code{loc}, when one is given. Either a plain value, the name of another definition,
-or an arithmetic expression combining them. A name is looked up among the
-latent variables, data columns, observations, group risks and parameters the
-model carries: two of them sharing a name cannot be read.}
+or an arithmetic expression combining them.
+A name is looked up among the latent variables, data columns, observations,
+group risks and parameters the model carries.
+Two of them sharing a name cannot be read.}
 
 \item{import}{Named \code{list} of pre-built definitions to import.
-Cannot be combined with single and/or multiple definitions.}
+Cannot be combined with single or multiple definitions.}
 
-\item{append}{\code{logical(1)} Append to current definitions.
-If \code{FALSE} drop all pre-existing definitions.}
+\item{append}{\code{logical(1)} Whether to append to the current definitions.
+If \code{FALSE}, the previous definitions are dropped.}
 }
 \value{
 \code{HousepiModel} object. Deep clone of input with new definitions.
 }
 \description{
-Add observation associated to data \eqn{x}, at the level set by \code{level}.
+Add an observation of data \eqn{x}, at the level set by \code{level}.
 
 At member level, the observation is attached to every infected individual.
-If \code{model} is provided, adds to household likelihood during evaluations,
-and \eqn{x} is sampled from it during simulations.
-An individual whose datum is missing is left out of that likelihood, with a
-warning: there is nothing to condition on, and the observation constrains
-neither the individual latent variables nor the parameters. A column holding
-no value at all is an error.
+If \code{model} is provided, it adds to the household likelihood in evaluations,
+and \eqn{x} is drawn from it in simulations.
+An individual whose datum is missing is left out of that likelihood,
+with a warning.
+Nothing conditions on it, so the observation constrains neither
+the individual latent variables nor the parameters.
+A column holding no value at all is an error.
 
 At household level, the observation is a reduction across all members,
-it's shared by the whole household, and must reduce to a constant value.
+shared by the whole household, and must reduce to a constant value.
 
 An observation carrying no \code{model} produces its own data column:
 it is evaluated for every member, and overwrites data of the same name.

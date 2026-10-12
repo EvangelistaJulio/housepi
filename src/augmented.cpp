@@ -371,9 +371,9 @@ namespace housepi
         }
 
         /// List the names a run reads.
-        /// - transmission names;
-        /// - observations of `order` carrying a datum;
-        /// - latents a household observation reduces over.
+        /// * transmission names;
+        /// * observations of `order` carrying a datum;
+        /// * latents a household observation reduces over.
         static std::vector<std::string> sinks(const DefTable &def,
                                               const std::vector<size_t> &order,
                                               const std::vector<std::string> &transm,
@@ -554,8 +554,8 @@ namespace housepi
                 const std::string &name = def[k].name;
 
                 // the two rules partition DefRow::source_cols() by role:
-                // - model support: model, min, max;
-                // - deterministic value: value, func.
+                // * model support: model, min, max;
+                // * deterministic value: value, func.
                 // keep them in sync with source_cols()
 
                 // rule 1: a latent's model (distribution and support) reads no observation
@@ -2014,8 +2014,8 @@ namespace housepi
         };
 
         // reachable statuses:
-        // - the observed one, kept by a model that does not redraw it;
-        // - every status the status process can draw.
+        // * the observed one, kept by a model that does not redraw it;
+        // * every status the status process can draw.
         if (indiv.is_infected_status())
             reach(indiv.status());
         for (StatusLvl s : status_process.drawable(indiv))

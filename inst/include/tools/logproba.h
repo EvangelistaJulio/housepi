@@ -15,7 +15,7 @@ namespace housepi
     struct LogProba
     {
         /// Set value to `new_ll`, keeping the previous one.
-        /// - NaN or `+Inf` `new_ll`: error.
+        /// * NaN or `+Inf` `new_ll` -> error.
         void set(double new_ll)
         {
             old_ = value_;
@@ -26,7 +26,7 @@ namespace housepi
                 throw_invalid_(new_ll);
         }
         /// Increment value by `delta_ll`, keeping the previous one.
-        /// - NaN or `+Inf` result: error.
+        /// * NaN or `+Inf` result -> error.
         void increment(double delta_ll) { set(value_ + delta_ll); }
         /// Restore previous value.
         void recover() noexcept { value_ = old_; }

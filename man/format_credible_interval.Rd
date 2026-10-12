@@ -13,18 +13,17 @@ format_credible_interval(
 )
 }
 \arguments{
-\item{point_estimate}{\code{numeric()}. Point estimate values.}
+\item{point_estimate}{\code{numeric()} Point estimate values.}
 
-\item{cri_lower}{\code{numeric()}. Lower bounds of the credible interval.}
+\item{cri_lower}{\code{numeric()} Lower bounds of the credible interval.}
 
-\item{cri_upper}{\code{numeric()}. Upper bounds of the credible interval.}
+\item{cri_upper}{\code{numeric()} Upper bounds of the credible interval.}
 
-\item{fmt}{\code{character(1)}.
-Sprintf-style format with 3 '\%s' placeholders.
-Default is \code{"point_estimate [cri_lower, cri_upper]"}.}
+\item{fmt}{\code{character(1)}
+Sprintf-style format with 3 \verb{\%s} placeholders,
+filled with the point estimate, then the lower and upper bounds.}
 
-\item{as_integer}{\code{logical(1)}. Whether values are formatted as integers.
-Default is \code{FALSE}.}
+\item{as_integer}{\code{logical(1)} Whether values are formatted as integers.}
 }
 \value{
 \code{character()}

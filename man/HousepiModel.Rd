@@ -5,8 +5,8 @@
 \alias{HousepiModel}
 \title{R6 class for compiling and running a household transmission model}
 \description{
-Compile the household transmission model, manage your data, associate
-definitions, run inference and simulations from a single class.
+Compile the household transmission model, manage its data and definitions,
+run inference and simulations, from a single class.
 }
 \examples{
 # created and modified through new_housepi_model() and the add_*() verbs
@@ -19,44 +19,36 @@ hh_model$parameters
 \section{Active bindings}{
   \if{html}{\out{<div class="r6-active-bindings">}}
   \describe{
-    \item{\code{name}}{\code{character(1)}
-Model name.}
+    \item{\code{name}}{\code{character(1)} Model name.}
 
     \item{\code{escaped}}{\code{character(1)}
 Label for status code \code{0} in a character or factor \code{status} column.}
 
-    \item{\code{setup}}{\code{list}
-Last setup used by the build process.}
+    \item{\code{setup}}{\code{list} Last setup used by the build process.}
 
     \item{\code{data_wide}}{\code{data.frame}
-Individual level data.
-One row per individual index by corresponding ID.}
+Individual-level data, one row per individual, indexed by ID.}
 
     \item{\code{data_long}}{\code{data.frame}
 Additional data rows indexed by individual (long format).}
 
-    \item{\code{parameters}}{\code{data.frame}
-Parameter definitions.}
+    \item{\code{parameters}}{\code{data.frame} Parameter definitions.}
 
-    \item{\code{group_risks}}{\code{data.frame}
-Group risk definitions.}
+    \item{\code{group_risks}}{\code{data.frame} Group risk definitions.}
 
-    \item{\code{contact_risks}}{\code{data.frame}
-Contact risk definitions.}
+    \item{\code{contact_risks}}{\code{data.frame} Contact risk definitions.}
 
-    \item{\code{latent}}{\code{data.frame}
-Latent definitions.}
+    \item{\code{latent}}{\code{data.frame} Latent definitions.}
 
     \item{\code{observations}}{\code{data.frame}
 Observation definitions.
 Column 'level' tells member ("member") from household ("house") entries.}
 
     \item{\code{status_process}}{\code{data.frame}
-Status process: one row per rule, with its status, weight, the members
-it applies to, its rule group and covariates.}
+Status process, one row per rule: its status, weight,
+the members it applies to, its rule group and covariates.}
 
-    \item{\code{infectivity_profiles}}{\code{data.frame}
-Infectivity profile definitions.}
+    \item{\code{infectivity_profiles}}{\code{data.frame} Infectivity profile definitions.}
 
     \item{\code{reporting_process}}{\code{list}
 Reporting process: functions \code{wide} and \code{long}, \code{NULL} when absent.}
@@ -76,8 +68,7 @@ Reporting process: functions \code{wide} and \code{long}, \code{NULL} when absen
 \if{html}{\out{<a id="method-HousepiModel-initialize"></a>}}
 \if{latex}{\out{\hypertarget{method-HousepiModel-initialize}{}}}
 \subsection{\code{HousepiModel$new()}}{
-  Create a new object of class 'HousepiModel'
-used to run inference and simulation routines.
+  Create a \code{HousepiModel}, the object inference and simulation run on.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{HousepiModel$new(
@@ -95,27 +86,27 @@ used to run inference and simulation routines.
     \if{html}{\out{<div class="arguments">}}
     \describe{
       \item{\code{data}}{\code{data.frame} Household data used for analysis (wide format).
-Optional at construction; if omitted, attach it later with
-\link[=add_data_wide]{add_data_wide()}.}
-      \item{\code{model}}{\code{character(1)} Choice for the model.
-One between:
+If omitted, attach it later with \code{\link[=add_data_wide]{add_data_wide()}}.}
+      \item{\code{model}}{\code{character(1)} Model to use, one of:
 \describe{
 \item{\verb{<template>}}{a built-in template name;}
 \item{\code{path/to/source}}{folder with implementation file \code{"model.cpp"};}
 \item{\code{path/to/compiled}}{folder with a previously compiled model;}
 \item{\code{"test"}}{template name for test model;}
-\item{\code{NA}}{fall back to \code{"test"} (default).}
+\item{\code{NA}}{same as \code{"test"}.}
 }}
-      \item{\code{as_template}}{\code{logical(1)} Store dynamic library as a local template.
-If \code{FALSE} recompile the model at every new session (default).}
-      \item{\code{force}}{\code{logical(1)} Compile even if cached model already exists.}
-      \item{\code{quiet}}{\code{logical(1)} If \code{TRUE} hide compilation commands.}
-      \item{\code{escaped}}{\code{character(1)} Label for status code \code{0} (individuals not
-among the declared infected statuses) when the \code{status} column is
-character/factor.}
+      \item{\code{as_template}}{\code{logical(1)}
+Whether to store the compiled model as a local template.
+If \code{FALSE}, the model is recompiled in every new session.}
+      \item{\code{force}}{\code{logical(1)}
+Whether to compile even when a cached model exists.}
+      \item{\code{quiet}}{\code{logical(1)} Whether to hide compilation commands.}
+      \item{\code{escaped}}{\code{character(1)} Label of status code \code{0},
+members outside the declared infected statuses,
+when the \code{status} column is character or factor.}
       \item{\code{...}}{Named arguments. Additional compilation options:
 \describe{
-\item{\code{discr}}{\code{logical(1)} If \code{TRUE} compile to discrete time.}
+\item{\code{discr}}{\code{logical(1)} Whether to compile to discrete time.}
 \item{\code{flags}}{\code{character()} Compilation flags.}
 \item{\code{libs}}{\code{character()} Links to libraries.}
 \item{\code{paths}}{\code{character()} Include paths.}
@@ -144,7 +135,7 @@ character/factor.}
 \if{html}{\out{<a id="method-HousepiModel-print"></a>}}
 \if{latex}{\out{\hypertarget{method-HousepiModel-print}{}}}
 \subsection{\code{HousepiModel$print()}}{
-  Override the default printing behavior.
+  Print the model and the state of its definitions.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{HousepiModel$print()}

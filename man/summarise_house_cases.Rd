@@ -13,18 +13,18 @@ summarize_house_cases(hh_model)
 \item{hh_model}{\code{HousepiModel} object.}
 }
 \value{
-\code{data.frame}, one row per metric:
+\code{data.frame} One row per metric:
 \describe{
-\item{level}{\code{individual} or \code{household}}
-\item{metric}{quantity counted in the row}
-\item{count}{absolute count}
-\item{percent}{percentage of the relevant total, \code{NA} for \code{classes}}
+\item{level}{\code{individual} or \code{household};}
+\item{metric}{quantity counted in the row;}
+\item{count}{absolute count;}
+\item{percent}{percentage of the relevant total, \code{NA} for \code{classes}.}
 }
 }
 \description{
-Summarise cases as given from the statuses in the loaded household data.
-The row \code{classes}, counts the equivalence classes:
-households indistinguishable by the model (same size, statuses, risk, etc.).
+Summarise cases from the statuses in the loaded household data.
+The row \code{classes} counts the equivalence classes,
+households the model cannot tell apart, e.g. same size, statuses and risks.
 }
 \examples{
 hh_model <- new_housepi_model(flu_1918_frederick, "final_size")

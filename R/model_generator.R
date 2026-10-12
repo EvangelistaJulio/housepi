@@ -15,7 +15,8 @@ cache_overlaps_source <- function(cache, source) {
   cache == source || startsWith(source, paste0(cache, "/"))
 }
 
-# Assert valid household data. Return dummy_household if nothing is provided.
+# Assert valid household data.
+# * nothing provided -> dummy_household.
 assert_household_data <- function(data, model) {
   is_test_model <- is.character(model) && length(model) == 1 &&
     isTRUE(model == "test")
@@ -40,25 +41,16 @@ assert_household_data <- function(data, model) {
   data
 }
 
-############################################################################
-############################################################################
-############################# Housepi Generator ############################
-############################################################################
-############################################################################
+########  HousepiGenerator  ########
 
-#' @title Internal R6 helper for generating the Rcpp model object
-#' @description
-#' Helper class for compilation and instantiation of the Rcpp model object.
-#' @keywords internal
+#' Compile and instantiate the Rcpp model object.
 #' @noRd
 HousepiGenerator <- R6::R6Class(
   classname = "HousepiGenerator",
   cloneable = FALSE,
   lock_class = TRUE,
 
-  ############################################################################
-  ################################## PRIVATE #################################
-  ############################################################################
+  ####  Private  ####
 
   private = list(
     name_ = NA_character_,
@@ -69,48 +61,37 @@ HousepiGenerator <- R6::R6Class(
     mcmc_ptr_ = NULL,
     last_flags_ = character(),
 
-    # @field infec_status_set_ `integer()`\cr
-    # All positive status extracted from data.
+    # `integer()` Infected statuses in the data.
     infec_status_set_ = integer(),
 
-    # @field cols_data_wide_ `character()`\cr
-    # Headers of last imported data wide.
+    # `character()` Columns of the last imported data_wide.
     cols_data_wide_ = character(),
 
-    # @field info_data_wide_ `list`\cr
-    # List of levels of the factors in data wide.
+    # `list` Factor levels of data_wide.
     info_data_wide_ = NULL,
 
-    # @field discr_data_wide_ `logical()`\cr
-    # Discrete-valued columns of data wide, named by column.
+    # `logical()` Whether each data_wide column is discrete, by name.
     discr_data_wide_ = NULL,
 
-    # @field cols_data_long_ `character()`\cr
-    # Headers of the last data long imported.
+    # `character()` Columns of the last imported data_long.
     cols_data_long_ = character(),
 
-    # @field info_data_long_ `list`\cr
-    # List of levels of the factors in the data long.
+    # `list` Factor levels of data_long.
     info_data_long_ = NULL,
 
-    # @field status_levels_ `character()`\cr
-    # Ordered infected-status labels for refactoring the status column.
+    # `character()` Ordered infected-status labels, to refactor the status.
     status_levels_ = character(),
 
-    # @field escaped_ `character(1)`\cr
-    # Label for status code 0 (not among the declared infected statuses).
+    # `character(1)` Label of status code 0, outside declared infected statuses.
     escaped_ = "escaped",
 
-    # @field status_data_labels_ `character()`\cr
-    # Infected-status labels observed in (character/factor) input data, in code
-    # order. Empty when status was numeric. Source of truth for the dictionary.
+    # `character()` Infected-status labels of character or factor data,
+    # in code order, the source of truth for the dictionary.
+    # * numeric status -> empty.
     status_data_labels_ = character(),
 
-    ############################################################################
-    ############################################################################
-    ############################################################################
+    ####  Options  ####
 
-    # @description
     # Process user options for compilation.
     pre_process_user_options_ = function(quiet, ...) {
       options <- list(...)
@@ -128,7 +109,6 @@ HousepiGenerator <- R6::R6Class(
       list(quiet = isTRUE(quiet), paths = paths, flags = flags, libs = libs)
     },
 
-    # @description
     # Check whether source model contains a literal macro/token.
     assert_allows_flag_ = function(source_dir, flag) {
       model_cpp <- file.path(source_dir, "model.cpp")
@@ -137,11 +117,10 @@ HousepiGenerator <- R6::R6Class(
       any(grepl(patt, lines, perl = TRUE))
     },
 
-    # @description
-    # Assign source directory and filter requested flags according to source.
-    # If a flag is not present in model.cpp, raise a warning.
+    # Assign the source directory and keep the requested flags it reads.
+    # * flag absent from model.cpp -> warning.
     store_source_and_filter_flags_ = function(source_dir) {
-      # asses if model flags actually make sense
+      # check the model flags make sense
       keep <- character()
       for (f in private$last_flags_) {
         if (private$assert_allows_flag_(source_dir, f)) keep <- c(keep, f)
@@ -161,28 +140,24 @@ HousepiGenerator <- R6::R6Class(
       invisible(self)
     },
 
-    # @description
-    # Wheter user flags are the same as existing dll.
+    # Whether the user flags match the existing dll.
     has_same_flags_as_dll_ = function() {
       # custom dll carries its flags in a sidecar for comparison
       if (!is.null(private$dll_) &&
             !is.na(private$dll_) &&
             file.exists(private$dll_)) {
         flags_file <- dll_flags_file(private$dll_)
-        # unknown flags: force a rebuild
+        # unknown flags -> rebuild
         if (!file.exists(flags_file)) return(FALSE)
         return(setequal(private$last_flags_, readLines(flags_file)))
       }
-      # NOTE: built-in templates have no extra flags
+      # built-in templates have no extra flags
       !length(private$last_flags_)
     },
 
-    ############################################################################
-    ############################################################################
-    ############################################################################
+    ####  Paths  ####
 
-    # @description
-    # Initialize custom model loading path to model source code.
+    # Point a custom model to its source code.
     init_custom_model_ = function(choice, as_template, force) {
       private$store_source_and_filter_flags_(choice)
       private$dll_ <- template_dll_file(choice)
@@ -195,8 +170,7 @@ HousepiGenerator <- R6::R6Class(
       invisible(self)
     },
 
-    # @description
-    # Initialize template model loading template model name.
+    # Point a template model to its template.
     init_template_model_ = function(choice, force) {
       private$store_source_and_filter_flags_(get_template_dir(choice))
       if (force || !private$has_same_flags_as_dll_())
@@ -205,12 +179,9 @@ HousepiGenerator <- R6::R6Class(
       invisible(self)
     },
 
-    ############################################################################
-    ############################################################################
-    ############################################################################
+    ####  Compilation  ####
 
-    # @description
-    # Wheter model choice is interpretable.
+    # Whether the model choice is interpretable.
     helper_init_model_choice_ = function(model) {
       choice <- "test"
       if (all(is.na(model) | is.null(model))) warn_h(
@@ -231,7 +202,6 @@ HousepiGenerator <- R6::R6Class(
       choice
     },
 
-    # @description
     # Assert source files exist.
     assert_source_files_ = function() {
       file_name <- file.path(private$source_dir_, "model.cpp")
@@ -242,8 +212,7 @@ HousepiGenerator <- R6::R6Class(
       invisible(self)
     },
 
-    # @description
-    # Predispose temporary folder for the installation.
+    # Prepare the temporary folder for the installation.
     build_temporary_cache_ = function(as_template, force) {
       private$cache_dir_ <- file.path(tempdir(), template_name(private$name_))
 
@@ -286,19 +255,17 @@ HousepiGenerator <- R6::R6Class(
       invisible(self)
     },
 
-    # @description Build a new custom model.
-    # @param as_template `logical(1)`.
-    # If `TRUE` store the dynamic library as a local template.
-    # If `FALSE` recompile the model at every new session.
-    # @param force `logical(1)`.
-    # If `TRUE` compile even if a cached model already exists.
+    # Build a new custom model.
+    # * `as_template` -> dynamic library stored as a local template,
+    #   else recompiled in every new session;
+    # * `force` -> compiled even when a cached model exists.
     build_as_custom_model_ = function(as_template, force) {
       private$needs_compile_ <- TRUE
       # temporary directory where to store source code
-      # note: if it's been already cached, mark needs_compile_ false
+      # already cached -> needs_compile_ FALSE
       private$build_temporary_cache_(as_template, force)
 
-      # asses if still to be compiled after further checks
+      # check whether it still needs compiling
       if (!private$needs_compile_) return(invisible(self))
 
       # change dll name if not as template
@@ -313,19 +280,16 @@ HousepiGenerator <- R6::R6Class(
       invisible(self)
     },
 
-    # @description
-    # Check for previous cached dll files and tell if to be recompiled.
-    # @return `logical(1)`.
-    # Wheter nothing is cached or changes are untracked.
+    # Whether the model needs recompiling: nothing cached, or changes untracked.
     search_for_cached_dll_ = function() {
-      # look for dynamic library name; anchor the extension so the flags
-      # sidecar sitting next to the dll is not picked up as a second match
+      # look for the dynamic library, the extension anchored so the flags
+      # sidecar next to the dll is not picked up as a second match
       cache_dll_files <- list.files(
         private$cache_dir_,
         pattern = paste0("\\", .Platform$dynlib.ext, "$"),
         full.names = TRUE
       )
-      # NOTE: multiple dlls are treated as an error
+      # multiple dlls -> treated as an error
       if (length(cache_dll_files) == 1) {
         private$dll_ <- cache_dll_files[1]
         # cached dll is the one if changes are tracked and flags still match
@@ -337,10 +301,9 @@ HousepiGenerator <- R6::R6Class(
       TRUE
     },
 
-    # @description
     # Create temporary folder and copy source code there.
     copy_source_code_ = function() {
-      # clean all previous file in the cache
+      # clean all previous files in the cache
       unlink(list.files(private$cache_dir_, full.names = TRUE),
              recursive = TRUE)
 
@@ -365,7 +328,6 @@ HousepiGenerator <- R6::R6Class(
       invisible(self)
     },
 
-    # @description
     # Generate flags used for environment compilation.
     build_compile_flags_ = function(paths = NULL, flags = NULL, libs = NULL) {
       flags <- c(
@@ -394,15 +356,13 @@ HousepiGenerator <- R6::R6Class(
       )
     },
 
-    # @description
-    # macOS only. Relevant under `devtools::load_all``.
-    # Custom DLL id linked against `housepi.so` with basename linker.
-    # If load_all reloads housepi during the same session,
-    # two images are mapped under that same basename:
-    # * `dyld` binds custom DLL to the first one;
-    # * `.engine` to the most-recently-loaded.
-    # Problem: Cpp Registries are singletons defined per-image.
-    # Fix: rewrite dependency the image .engine is actually using.
+    # Relink a custom DLL to the housepi image .engine uses, macOS only.
+    # Under devtools::load_all(), the custom DLL links housepi.so by basename.
+    # A reload in the same session maps two images under that basename:
+    # * dyld -> binds the custom DLL to the first one;
+    # * .engine -> uses the most recently loaded.
+    # C++ registries are singletons per image, so the dependency is rewritten
+    # to the image .engine uses.
     bind_to_active_housepi_ = function(custom_dll) {
       if (Sys.info()[["sysname"]] != "Darwin") return(invisible())
       # R's PACKAGE="housepi" lookup picks the last loaded entry, so the
@@ -416,9 +376,8 @@ HousepiGenerator <- R6::R6Class(
       invisible()
     },
 
-    # @description
-    # Compile and load the source files inside cached directory.
-    # @param quiet `r rd_mdl_quiet_`
+    # Compile and load the source files inside the cache directory.
+    # @param quiet `logical(1)` Whether to hide compilation commands.
     # @param user_paths `character()` Additional include paths.
     # @param user_flags `character()` Additional compiler flags.
     # @param user_libs `character()` Additional linker flags.
@@ -456,7 +415,7 @@ HousepiGenerator <- R6::R6Class(
       invisible(self)
     },
 
-    # @description Initialize new Rcpp pointers to Model and MCMC.
+    # Create new Rcpp pointers to Model and MCMC.
     create_new_pointers_ = function() {
       if (!is.null(private$mcmc_ptr_)) return(invisible())
       load_model_dll_(private$dll_)
@@ -466,159 +425,127 @@ HousepiGenerator <- R6::R6Class(
     }
   ),
 
-  ############################################################################
-  ################################## ACTIVE ##################################
-  ############################################################################
+  ####  Active  ####
 
   active = list(
-    #' @field name `character(1)`
-    #' Model name.
+    # `character(1)` Model name.
     name = function(value) {
       spaced_choice(private$name_)
     },
 
-    #' @field raw_name `character(1)`
-    #' Internal unformmated model name.
+    # `character(1)` Model name as given, unformatted.
     raw_name = function(value) {
       private$name_
     },
 
-    #' @field mcmc_ptr
-    #' Internal Rcpp MCMC runner pointer.
+    # Rcpp pointer to the MCMC runner.
     mcmc_ptr = function(value) {
       private$mcmc_ptr_
     },
 
-    #' @field source_dir `character(1)`
-    #' Model source directory.
+    # `character(1)` Model source directory.
     source_dir = function(value) {
       private$source_dir_
     },
 
-    #' @field data_required `character()`
-    #' Data required by the model.
+    # `character()` Data required by the model.
     data_required = function(value) {
       set_source_name_(.engine$key_Data(private$mcmc_ptr_), "model")
     },
 
-    #' @field param_required `character()`
-    #' Parameters required by the model.
+    # `character()` Parameters required by the model.
     param_required = function(value) {
       set_source_name_(.engine$key_Param(private$mcmc_ptr_), "model")
     },
 
-    #' @field group_risks_required `character()`
-    #' Group risks required by the model.
+    # `character()` Group risks required by the model.
     group_risks_required = function(value) {
       set_source_name_(.engine$key_GroupRisk(private$mcmc_ptr_), "model")
     },
 
-    #' @field latent_required `character()`
-    #' Latent variables required by the model.
+    # `character()` Latent variables required by the model.
     latent_required = function(value) {
       set_source_name_(.engine$key_Latent(private$mcmc_ptr_), "model")
     },
 
-    #' @field param_discr_required `character()`
-    #' Parameters the model requires discrete.
+    # `character()` Parameters the model requires discrete.
     param_discr_required = function(value) {
       .engine$key_Param_discrete(private$mcmc_ptr_)
     },
 
-    #' @field latent_discr_required `character()`
-    #' Latent variables the model requires discrete.
+    # `character()` Latent variables the model requires discrete.
     latent_discr_required = function(value) {
       .engine$key_Latent_discrete(private$mcmc_ptr_)
     },
 
-    #' @field data_wide_discr_required `character()`
-    #' Data columns the model requires discrete.
+    # `character()` Data columns the model requires discrete.
     data_wide_discr_required = function(value) {
       .engine$key_Data_discrete(private$mcmc_ptr_)
     },
 
-    #' @field has_contact_risk `logical(1)`
-    #' Whether model allows for contact risk definitions.
+    # `logical(1)` Whether the model allows contact risk definitions.
     has_contact_risk = function(value) {
       .engine$has_contact_risk(private$mcmc_ptr_)
     },
 
-    #' @field risk_anchors `list`
-    #' Baseline parameters and the risks scaling them, keyed by parameter.
-    #' Each entry lists the `risks` group names and whether `contacts`
-    #' scale the same term.
+    # `list` Baseline parameters and the risks scaling them, keyed by parameter.
+    # Each entry lists the `risks` group names,
+    # and whether `contacts` scale the same term.
     risk_anchors = function(value) {
       .engine$risk_anchors(private$mcmc_ptr_)
     },
 
-    #' @field risk_status_stratified `character()`
-    #' Group risks the model reads on members with infected status only.
+    # `character()` Group risks the model reads on infected members only.
     risk_status_stratified = function(value) {
       .engine$risk_status_stratified(private$mcmc_ptr_)
     },
 
-    #' @field has_infec_profile `logical(1)`
-    #' Whether model allows for infectivity profile definitions.
+    # `logical(1)` Whether the model allows infectivity profile definitions.
     has_infec_profile = function(value) {
       .engine$has_infec_profile(private$mcmc_ptr_)
     },
 
-    #' @field is_discrete_time `logical(1)`
-    #' Model steps one whole day at once.
+    # `logical(1)` Whether the model steps one whole day at once.
     is_discrete_time = function(value) {
       "_HOUSEPI_DISCRETE_TIME" %in% private$last_flags_
     },
 
-    #' @field cols_data_wide `character()`
-    #' Columns of the imported wide data.
+    # `character()` Columns of the imported wide data.
     cols_data_wide = function(value) {
       private$cols_data_wide_
     },
 
-    #' @field info_data_wide `list`
-    #' Levels of factors of the wide data.
+    # `list` Levels of factors of the wide data.
     info_data_wide = function(value) {
       private$info_data_wide_
     },
 
-    #' @field discr_data_wide `logical()`
-    #' Discrete-valued columns of the imported data-wide, named by column.
+    # `logical()` Whether each imported data_wide column is discrete, by name.
     discr_data_wide = function(value) {
       private$discr_data_wide_
     },
 
-    #' @field infec_status_set `integer()`
-    #' Positive statuses in the wide data.
+    # `integer()` Infected statuses in the wide data.
     infec_status_set = function(value) {
       private$infec_status_set_
     },
 
-    #' @field status_data_labels `character()`
-    #' Infected labels seen in data.
+    # `character()` Infected labels seen in data.
     status_data_labels = function(value) {
       private$status_data_labels_
     },
 
-    #' @field escaped `character(1)`
-    #' Label for status code 0.
+    # `character(1)` Label for status code 0.
     escaped = function(value) {
       private$escaped_
     }
   ),
 
-  ############################################################################
-  ################################## PUBLIC ##################################
-  ############################################################################
+  ####  Public  ####
 
   public = list(
-    #' @description
-    #' Initialize model generator defining name of dynamic library.
-    #' @param model `r rd_mdl_choice_`
-    #' @param as_template `r rd_mdl_astmpl_`
-    #' @param force `r rd_mdl_force_`
-    #' @param quiet `r rd_mdl_quiet_`
-    #' @param escaped `r rd_mdl_escaped_`
-    #' @param ... `r rd_mdl_flags_`
+    # Create the generator, naming the dynamic library.
+    # Arguments as in new_housepi_model().
     initialize = function(model = NA_character_, as_template = FALSE,
                           force = FALSE, quiet = FALSE,
                           escaped = "escaped", ...) {
@@ -633,7 +560,7 @@ HousepiGenerator <- R6::R6Class(
 
       # assign name to the model
       choice <- private$helper_init_model_choice_(model)
-      # if falls back to 'test', enforce no spurious template
+      # fallback to 'test' -> no spurious template
       if (all(is.na(model) | is.null(model))) as_template <- FALSE
 
       # assign quiet field and load user options
@@ -669,44 +596,41 @@ HousepiGenerator <- R6::R6Class(
       invisible(self)
     },
 
-    #' @description Wheter model is test.
-    #' @return `logical(1)`
+    # Whether the model is the test model.
     is_test_model = function() {
       private$name_ == "test"
     },
 
-    #' @description Record the ordered infected-status labels for refactoring.
-    #' @param levels `character()` Status labels in code order (1..K).
+    # Record the ordered infected-status labels for refactoring.
+    # @param levels `character()` Status labels in code order (1..K).
     set_status_levels = function(levels) {
       private$status_levels_ <- as.character(levels)
       invisible(self)
     },
 
-    # UPDATE: I shall drop necessity for refactoring with variant data.
-    #' @description Refactor a wide-format data.frame back to user levels.
+    # Refactor a wide-format data.frame back to user levels.
+    # @todo drop the refactoring of variant data
     refactor_data_wide = function(x) {
       cpp_data_refactor(x, private$info_data_wide_, private$cols_data_wide_,
                         private$status_levels_, private$escaped_)
     },
 
-    # UPDATE: I shall drop necessity for refactoring with variant data.
-    #' @description Refactor a long-format data.frame back to user levels.
+    # Refactor a long-format data.frame back to user levels.
+    # @todo drop the refactoring of variant data
     refactor_data_long = function(x) {
       cpp_data_refactor(x, private$info_data_long_, private$cols_data_long_,
                         private$status_levels_, private$escaped_)
     },
 
-    #' @description Allocate fresh Rcpp pointers (used after a copy).
+    # Allocate fresh Rcpp pointers (used after a copy).
     init_pointers = function() {
       private$create_new_pointers_()
       invisible(self)
     },
 
-    #' @description
-    #' Validate and factorize wide-format data, populating `cols_data_wide`
-    #' so it can be asserted before pushing to the C++ engine.
-    #' @param data `data.frame` Input line-list data in wide format.
-    #' @return `data.frame` Factorized data, ready for `push_data_wide()`.
+    # Validate and factorize wide-format data, populating `cols_data_wide`
+    # for the assertions before the push to the engine.
+    # @return `data.frame` Factorized data, ready for push_data_wide().
     factorize_data_wide = function(data) {
       embed <- cpp_data_factorize(data, private$escaped_)
       private$info_data_wide_ <- embed$info
@@ -717,9 +641,7 @@ HousepiGenerator <- R6::R6Class(
       embed$data
     },
 
-    #' @description
-    #' Validate, factorize, and push long-format data into the C++ engine.
-    #' @param data_long `data.frame` Input line-list data in long format.
+    # Validate, factorize, and push long-format data into the engine.
     import_data_long = function(data_long) {
       if (!is.data.frame(data_long)) stop_h(
         "Data-long should be an object of class {.cls data.frame}.",

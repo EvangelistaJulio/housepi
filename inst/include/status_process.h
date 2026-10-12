@@ -24,12 +24,12 @@ namespace housepi
 {
     /// Infected status drawn per member, weighted by a rule table over covariates and status.
     ///
-    /// - weight of infected level `k`: product over rule groups of the most specific matching rule;
-    /// - members of one covariate class share one block.
+    /// * weight of infected level `k`: product over rule groups of the most specific matching rule;
+    /// * members of one covariate class share one block.
     struct StatusProcess
     {
         /// Resolve the weights of every member from rule table `input`, over `n_levels` infected levels.
-        /// - empty `input`: no status process.
+        /// * empty `input` -> no status process.
         /// @note Coverage, ties and positive totals are asserted R-side.
         void build(const data::Wide &data_wide,
                    const str_table &input,
@@ -39,11 +39,11 @@ namespace housepi
         bool is_defined() const noexcept { return !blocks_.empty(); }
 
         /// Draw the infected status of member `indiv`.
-        /// - no status process: the lowest infected status.
+        /// * no status process -> the lowest infected status.
         StatusLvl draw(const Individual &indiv, rnd_gen &prng) const;
 
         /// Infected statuses member `indiv` can draw, those of positive weight.
-        /// - no status process: the lowest infected status.
+        /// * no status process -> the lowest infected status.
         std::vector<StatusLvl> drawable(const Individual &indiv) const;
 
     private:

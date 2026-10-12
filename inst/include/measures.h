@@ -51,8 +51,8 @@ namespace housepi::measure
 
     /// Tabulate households by size and number of cases, aggregating individuals by `hh_id`.
     ///
-    /// - `hh_id`: 1-based codes 1..n_houses, each code used at least once;
-    /// - `status`: values as read from an R column, NA missing, 0 escaped, 1 or more infected.
+    /// * `hh_id`: 1-based codes 1..n_houses, each code used at least once;
+    /// * `status`: values as read from an R column, NA missing, 0 escaped, 1 or more infected.
     inline cases::Table summarise_houses(const std::vector<int> &hh_id,
                                          const std::vector<int> &status)
     {

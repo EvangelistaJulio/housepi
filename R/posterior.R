@@ -19,7 +19,7 @@ diagnostic_ <- list(
   # max Rhat
   rhat_max = 1.05,
   # ESS ratio
-  # NOTE: 10% bayesplot/HMC default seems unrealistic for Metropolis
+  # 10% bayesplot/HMC default is unrealistic for Metropolis
   neff_min = 0.01,
   # min absolute ESS
   ess_min = 100
@@ -46,8 +46,8 @@ validate_cri_level <- function(value) {
   value
 }
 
-# Return the global credible interval level (option "housepi.cri_level").
-# Not exported: housepi internals must always pull through this helper.
+# Global credible interval level, option "housepi.cri_level".
+# housepi internals read it through this helper only.
 get_global_cri_level <- function() {
   validate_cri_level(getOption("housepi.cri_level", 0.9))
 }
@@ -63,13 +63,13 @@ validate_point_estimate <- function(value) {
     "Point estimate must be a single non-NA character value."
   )
   if (!value %in% c("mean", "median")) stop_h(
-    "Point estimate must be one between {.val mean} and {.val median}."
+    "Point estimate must be one of {.val mean} and {.val median}."
   )
   value
 }
 
-# Return the global point estimate (option "housepi.point_estimate").
-# Not exported: housepi internals must always pull through this helper.
+# Global point estimate, option "housepi.point_estimate".
+# housepi internals read it through this helper only.
 get_global_point_estimate <- function() {
   validate_point_estimate(getOption("housepi.point_estimate", "median"))
 }
@@ -78,11 +78,12 @@ get_global_point_estimate <- function() {
 #' @description
 #' Set the point estimate and the credible level housepi objects report.
 #' An argument left out keeps the value in place.
-#' @param point_estimate `character(1)` One between `"mean"` and `"median"`.
-#' Default is `"median"`.
-#' @param cri_level `numeric(1)` Must lie in `(0.5, 1)`. Default is `0.9`.
-#' @return Invisibly returns the previous values, as a `list` the function
-#' takes back to restore them.
+#' @param point_estimate `character(1)` One of `"mean"` and `"median"`.
+#' The package default is `"median"`.
+#' @param cri_level `numeric(1)` Between 0.5 and 1, both excluded.
+#' The package default is `0.9`.
+#' @return `list` The previous values, invisibly,
+#' which the function takes back to restore them.
 #' @details
 #' A rejected value leaves both settings as they were.
 #' @examples
@@ -109,8 +110,7 @@ tag_as_housepi_draws <- function(x) {
   x
 }
 
-# @description Return empty draws.
-# @return `posterior::draws_df`
+# Empty `posterior::draws_df`.
 empty_draws_ <- function() {
   tag_as_housepi_draws(posterior::as_draws_df(data.frame()))
 }
@@ -123,9 +123,9 @@ draws_index_ <- function(setup) {
        iteration = setup[["burn"]] + seq_len(chain_size) * setup[["thin"]])
 }
 
-# Tag an Rcpp draws data.frame (rows = draws, cols = variables) as a housepi
-# `posterior::draws_df`, attaching the `.chain`/`.iteration`/`.draw` bookkeeping
-# from a `draws_index_()` result.
+# Tag an Rcpp draws data.frame, draws by variables,
+# as a housepi `posterior::draws_df`,
+# with `.chain`, `.iteration` and `.draw` from a draws_index_() result.
 tag_rcpp_draws_ <- function(df, index) {
   if (!length(df)) return(NULL)
   df$.chain <- index$chain
@@ -137,11 +137,11 @@ tag_rcpp_draws_ <- function(df, index) {
 #' @title Summarise housepi posterior draws using the global credible interval
 #' @description
 #' S3 method on [posterior::summarise_draws()] for objects tagged
-#' `"housepi_draws"` (returned by housepi getters and active fields on
-#' [`HousepiPosteriorDraws`]). When no summary functions are passed via
-#' `...`, the housepi defaults are used and the quantile pair tracks
-#' [set_housepi_summary()]. Otherwise dispatch falls through to
-#' [posterior::summarise_draws()] behaviour.
+#' `"housepi_draws"`, returned by housepi getters and by the active fields
+#' of [`HousepiPosteriorDraws`].
+#' Without summary functions in `...`, the housepi defaults are used,
+#' and the quantile pair tracks [set_housepi_summary()].
+#' Otherwise the call falls through to [posterior::summarise_draws()].
 #' @param .x A housepi-tagged draws object, or a [`HousepiPosteriorDraws`].
 #' @param ... Summary functions, as in [posterior::summarise_draws()].
 #' @param .args,.num_args,.cores Forwarded to [posterior::summarise_draws()].
@@ -206,22 +206,19 @@ summarize_draws.housepi_draws <- summarise_draws.housepi_draws
 #' @exportS3Method posterior::summarize_draws
 summarize_draws.HousepiPosteriorDraws <- summarise_draws.HousepiPosteriorDraws
 
-############################################################################
-############################################################################
-#########################  Housepi Posterior Draws  ########################
-############################################################################
-############################################################################
+########  HousepiPosteriorDraws  ########
 
 # Per-variable R-hat and Bulk ESS of a draws block over a sample of size `ss`,
-# and which of them fail: `NA` where a diagnostic is undefined.
+# and which of them fail.
+# * undefined diagnostic -> `NA`.
 diagnose_block_ <- function(d, ss) {
   if (is.null(d) || posterior::nvariables(d) == 0L) return(NULL)
   # a capped ESS on a short sample is reported as a low ESS finding
   sm <- as.data.frame(suppressWarnings(posterior::summarise_draws(
     d, rhat = posterior::rhat, ess_bulk = posterior::ess_bulk
   )))
-  # Round R-hat to 2 dp so the check matches the 3-sig-fig value shown by
-  # summarise_draws() (e.g. 1.0512 prints as 1.05 and must not be flagged).
+  # R-hat rounded to 2 dp, matching the 3 significant figures summarise_draws()
+  # shows: 1.0512 prints as 1.05 and is not flagged
   sm$bad_rhat <- round(sm$rhat, 2) > diagnostic_[["rhat_max"]]
   sm$bad_ess <- sm$ess_bulk <
     max(diagnostic_[["ess_min"]], diagnostic_[["neff_min"]] * ss)
@@ -229,8 +226,8 @@ diagnose_block_ <- function(d, ss) {
 }
 
 # Findings of one diagnosed block, under a header naming the flagged draws,
-# one line per failure combination, with a hint on the failure modes present;
-# `NULL` when nothing is flagged.
+# one line per failure combination, with a hint on the failure modes present.
+# * nothing flagged -> `NULL`.
 check_diagnostics_one_ <- function(sm, draws_kind) {
   if (is.null(sm)) return(NULL)
   bad_rhat <- which(sm$bad_rhat %in% TRUE)
@@ -266,9 +263,9 @@ check_diagnostics_one_ <- function(sm, draws_kind) {
        findings = findings, hint = paste0(hint, "."))
 }
 
-# Stan-style post-inference diagnostics: the message blocks to report and the
-# per-parameter R-hat, Bulk ESS and whether the parameter is flagged.
-# A short sample reports its findings under one block of its own.
+# Stan-style post-inference diagnostics: the message blocks to report,
+# and the per-parameter R-hat, Bulk ESS and flag.
+# * short sample -> its findings under one block of its own.
 # See https://mc-stan.org/learn-stan/diagnostics-warnings.html
 check_diagnostics_ <- function(draws) {
   niter <- posterior::niterations(draws$point_log_lik)
@@ -299,7 +296,7 @@ check_diagnostics_ <- function(draws) {
 }
 
 # Distinct headers of a list of message blocks, with their counts.
-# The header states the defect; its bullets are detail.
+# The header states the defect, its bullets the detail.
 count_diagnostics_ <- function(blocks) {
   headers <- vapply(blocks, `[[`, character(1L), 1L)
   counts <- table(headers)
@@ -311,26 +308,30 @@ count_diagnostics_ <- function(blocks) {
 #' @title Posterior draws from housepi model inference
 #' @description
 #' Posterior draws returned by [run_inference()] on a household model.
-#' This class stores posterior draws of model parameters, the joint log-prior
-#' (`lprior`) and the pointwise per-household log-likelihood (`log_lik`).
+#' This class stores posterior draws of model parameters,
+#' the joint log-prior (`lprior`)
+#' and the pointwise per-household log-likelihood (`log_lik`).
 #' If requested during inference, it also stores latent variables.
 #'
-#' For models with latent variables the chain targets the joint
-#' (latent, parameter) posterior. Write \eqn{x} for a single household's
-#' data, \eqn{\theta} for the parameter vector and \eqn{z} for that household's
-#' latent variables. The unnormalised joint log-density splits into the two
-#' bundles this class exposes,
+#' For models with latent variables,
+#' the chain targets the joint (latent, parameter) posterior.
+#' Write \eqn{x} for a single household's data,
+#' \eqn{\theta} for the parameter vector
+#' and \eqn{z} for that household's latent variables.
+#' The unnormalised joint log-density splits into the two bundles
+#' this class exposes,
 #' \deqn{\log p(\theta, z, x) =
 #'   \underbrace{\log p(\theta)}_{\texttt{lprior}}
 #'   + \underbrace{\log p^\mathrm{lat}(z \mid \theta)
 #'     + \log p^\mathrm{transm}(x \mid z, \theta)
 #'     + \log p^\mathrm{obs}(x \mid z, \theta)}_{\texttt{log\_lik}},}
-#' where \eqn{p(\theta)} is the parameter prior, \eqn{p^\mathrm{lat}} the
-#' latent-variable model, \eqn{p^\mathrm{transm}} the transmission likelihood
-#' and \eqn{p^\mathrm{obs}} the observation likelihood. The transmission term is
-#' the contract of the per-household `log_lik`: with no latent variable or
-#' observation node the remaining terms vanish and `log_lik` contracts to
-#' transmission alone.
+#' where \eqn{p(\theta)} is the parameter prior,
+#' \eqn{p^\mathrm{lat}} the latent-variable model,
+#' \eqn{p^\mathrm{transm}} the transmission likelihood
+#' and \eqn{p^\mathrm{obs}} the observation likelihood.
+#' The transmission term is the contract of the per-household `log_lik`:
+#' with no latent variable or observation node, the remaining terms vanish
+#' and `log_lik` contracts to transmission alone.
 #' @examples
 #' results <- flu_1918_frederick |>
 #'   new_housepi_model("final-size") |>
@@ -342,12 +343,9 @@ count_diagnostics_ <- function(blocks) {
 HousepiPosteriorDraws <- R6::R6Class(
   classname = "HousepiPosteriorDraws",
 
-  ############################################################################
-  ################################## PRIVATE #################################
-  ############################################################################
+  ####  Private  ####
 
   private = list(
-    # @field
     name_ = NA_character_,
     draws_ = list(),
     secs_ = NA_real_,
@@ -356,20 +354,17 @@ HousepiPosteriorDraws <- R6::R6Class(
     diagnostics_ = NULL
   ),
 
-  ############################################################################
-  ################################## ACTIVE ##################################
-  ############################################################################
+  ####  Active  ####
 
   active = list(
-    #' @field parameter_draws `posterior::draws_df`.
-    #' Draws of parameters.
+    #' @field parameter_draws `posterior::draws_df` Draws of parameters.
     parameter_draws = function(value) {
       assert_read_only_(value, "param_draws")
       if (is.null(private$draws_$param)) return(empty_draws_())
       private$draws_$param
     },
 
-    #' @field latent_draws `posterior::draws_df`.
+    #' @field latent_draws `posterior::draws_df`
     #' Draws of the selected individuals' latent variables.
     latent_draws = function(value) {
       assert_read_only_(value, "latent_draws")
@@ -377,11 +372,11 @@ HousepiPosteriorDraws <- R6::R6Class(
       private$draws_$latent
     },
 
-    #' @field log_lik_draws `posterior::draws_df`.
+    #' @field log_lik_draws `posterior::draws_df`
     #' Pointwise per-household log-likelihood
     #' \eqn{
-    #'   \log p^\mathrm{obs}(y \mid z, \theta) +
-    #'   \log p^\mathrm{transm}(y \mid z, \theta) +
+    #'   \log p^\mathrm{obs}(x \mid z, \theta) +
+    #'   \log p^\mathrm{transm}(x \mid z, \theta) +
     #'   \log p^\mathrm{lat}(z \mid \theta),
     #' }
     #' the observation, transmission, and latent model contributions.
@@ -391,9 +386,9 @@ HousepiPosteriorDraws <- R6::R6Class(
       private$draws_$point_log_lik
     },
 
-    #' @field lprior_draws `posterior::draws_df`.
-    #' Single column `lprior`: the parameter log-prior \eqn{\log p(\theta)}. The
-    #' latent-variable log-density enters the `log_lik` bundle, not `lprior`.
+    #' @field lprior_draws `posterior::draws_df`
+    #' Single column `lprior`, the parameter log-prior \eqn{\log p(\theta)}.
+    #' The latent-variable log-density enters `log_lik`, not `lprior`.
     #' `r rd_natural_log_`
     lprior_draws = function(value) {
       assert_read_only_(value, "lprior_draws")
@@ -401,19 +396,19 @@ HousepiPosteriorDraws <- R6::R6Class(
       private$draws_$lprior
     },
 
-    #' @field complete_draws `posterior::draws_df`.
+    #' @field complete_draws `posterior::draws_df`
     #' Parameters, pointwise `log_lik` and the joint `lprior`.
-    #' Note `log_lik`/`lprior` are evaluated over the joint (latent,
-    #' parameter) posterior (see `log_lik_draws` and `lprior_draws`).
+    #' `log_lik` and `lprior` are evaluated over the joint (latent, parameter)
+    #' posterior, see `log_lik_draws` and `lprior_draws`.
     #' `r rd_natural_log_`
     complete_draws = function(value) {
       assert_read_only_(value, "complete_draws")
-      # rename pointwise log-likelihood standard convention
+      # rename the pointwise log-likelihood after the standard convention
       aux <- private$draws_$point_log_lik
       n_vars <- posterior::nvariables(aux)
       names(aux)[1:n_vars] <- paste0("log_lik[", 1:n_vars, "]")
       # bind parameters, pointwise log_lik and the parameter-only lprior
-      # NOTE: bind_draws strips the tag, so re-stamp
+      # bind_draws strips the tag, re-stamped
       tag_as_housepi_draws(
         posterior::bind_draws(private$draws_$param, aux, private$draws_$lprior)
       )
@@ -422,33 +417,32 @@ HousepiPosteriorDraws <- R6::R6Class(
     #' @field warnings `data.frame`
     #' Convergence diagnostics the run flagged
     #' \describe{
-    #'   \item{message}{Line stating what was flagged}
-    #'   \item{count}{Times it was raised}
+    #'   \item{message}{Line stating what was flagged;}
+    #'   \item{count}{Times it was raised.}
     #' }
-    #' Recorded whether or not the run reported them. Per-variable R-hat and
-    #' Bulk ESS behind a flag are read from [summarise_draws()].
+    #' Recorded whether or not the run reported them.
+    #' Per-variable R-hat and Bulk ESS behind a flag
+    #' are read from [summarise_draws()].
     warnings = function(value) {
       assert_read_only_(value, "warnings")
       private$warnings_
     },
 
     #' @field inference_secs `numeric(1)`
-    #' Wall-clock of the sampling loop, leaving out the model build and the
-    #' conversion of the draws.
+    #' Wall-clock of the sampling loop,
+    #' leaving out the model build and the conversion of the draws.
     inference_secs = function(value) {
       assert_read_only_(value, "inference_secs")
       private$secs_
     }
   ),
 
-  ############################################################################
-  ################################## PUBLIC ##################################
-  ############################################################################
+  ####  Public  ####
 
   public = list(
     #' @description
-    #' Internal: [run_inference()] builds this object,
-    #' don't call `$new()` directly.
+    #' Create the posterior draws object.
+    #' Use [run_inference()] instead of calling `$new()`.
     #' @param name Model name.
     #' @param ptr Internal engine handle.
     #' @param secs Wall-clock the engine timed the sampling loop at.
@@ -479,7 +473,7 @@ HousepiPosteriorDraws <- R6::R6Class(
       invisible()
     },
 
-    #' @description Override the default printing behavior.
+    #' @description Print a summary of the run.
     print = function() {
       niter <- posterior::niterations(private$draws_$point_log_lik)
       nchains <- posterior::nchains(private$draws_$point_log_lik)
@@ -503,13 +497,12 @@ HousepiPosteriorDraws <- R6::R6Class(
   )
 )
 
-############################################################################
-############################################################################
-############################################################################
+########  Getters  ########
 
-# Keep the requested variables, all of them when none is named. A name selects
-# itself and its indexed elements `name[i]`; `prefix` is a regex the column may
-# start with, `(.+_)?` selecting the `<id>_<latent>` traces of a latent name.
+# Keep the requested variables, all of them when none is named.
+# * name -> itself and its indexed elements `name[i]`;
+# * `prefix` -> regex the column may start with, `(.+_)?` selecting
+#   the `<id>_<latent>` traces of a latent name.
 subset_draws_ <- function(out, variable, prefix = "") {
   if (is.null(variable)) return(out)
   vars <- posterior::variables(out)
@@ -525,7 +518,7 @@ subset_draws_ <- function(out, variable, prefix = "") {
   )
 }
 
-# Ensure object of class HousepiPosteriorDraws.
+# Assert the object is a `HousepiPosteriorDraws`.
 stopifnotdraws <- function(hhdraws) {
   if (!inherits(hhdraws, "HousepiPosteriorDraws")) stop_h(
     "{.arg hhdraws} must be of class {.cls HousepiPosteriorDraws}.",
@@ -534,18 +527,19 @@ stopifnotdraws <- function(hhdraws) {
 }
 
 #' @title Get posterior draws of respective variables
-#' @description Return a posterior draws dataframe with the MCMC samples.
-#' `get_parameter_draws()` and `get_latent_draws()` warn and return an empty
-#' draws object when no such draws were stored.
-#' @param hhdraws `HousepiPosteriorDraws` object.
-#' Generated by `HousepiModel` inference.
-#' @param variable `character()`. Variables to return, all of them when `NULL`.
-#' A name also returns its indexed elements, as `log_lik` returns `log_lik[1]`,
-#' `log_lik[2]`, ... from `get_complete_draws()`. `get_log_lik_draws()` names
-#' its columns by `hh_id`: a household id returns that household's draws.
-#' Latent draws are named `<id>_<latent>`: a latent name
-#' returns its draws for every stored individual, a full name only that
-#' individual's. For finer selections use [posterior::subset_draws()].
+#' @description Return a posterior draws data frame with the MCMC samples.
+#' `get_parameter_draws()` and `get_latent_draws()`
+#' warn and return an empty draws object when no such draws were stored.
+#' @param hhdraws `HousepiPosteriorDraws` Object returned by [run_inference()].
+#' @param variable `character()` Variables to return, all of them when `NULL`.
+#' A name also returns its indexed elements,
+#' e.g. `log_lik[1]`, `log_lik[2]`, ... for `log_lik` in `get_complete_draws()`.
+#' `get_log_lik_draws()` names its columns by `hh_id`,
+#' so a household id returns that household's draws.
+#' Latent draws are named `<id>_<latent>`,
+#' so a latent name returns its draws for every stored individual,
+#' and a full name only that individual's.
+#' For finer selections use [posterior::subset_draws()].
 #' @return `posterior::draws_df`
 #' For `log_lik`/`lprior` columns: `r rd_natural_log_`
 #' @examples

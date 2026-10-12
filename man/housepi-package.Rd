@@ -11,17 +11,18 @@
 Statistical analysis and modelling of infectious disease transmission within households. Household transmission models are specified declaratively, fitted to data with Bayesian MCMC. It enables data augmentation, infectivity profiles, individual group and contact risks. Validation is supported through posterior predictive checks and parameter recovery checks.
 }
 \details{
-To create a model call \code{\link[=new_housepi_model]{new_housepi_model()}}
-from one of the templated transmission models or a custom model.
+To create a model, call \code{\link[=new_housepi_model]{new_housepi_model()}}
+with one of the templated transmission models or a custom model.
 Provide household data at construction or later with \code{\link[=add_data_wide]{add_data_wide()}}.
 Specify the model features with the decorators \code{\link[=add_parameter]{add_parameter()}},
 \code{\link[=add_group_risk]{add_group_risk()}}, \code{\link[=add_contact_risk]{add_contact_risk()}}, \code{\link[=add_infectivity_profile]{add_infectivity_profile()}},
 \code{\link[=add_latent]{add_latent()}} and \code{\link[=add_observation]{add_observation()}}.
-Run the inference with \code{\link[=run_inference]{run_inference()}}, extract draws with
-\code{\link[=get_parameter_draws]{get_parameter_draws()}} and summarise them with \code{\link[=summarise_draws]{summarise_draws()}}.
+Run the inference with \code{\link[=run_inference]{run_inference()}},
+extract draws with \code{\link[=get_parameter_draws]{get_parameter_draws()}}
+and summarise them with \code{\link[=summarise_draws]{summarise_draws()}}.
 Run simulations with \code{\link[=run_simulation]{run_simulation()}},
-predictive checks with \code{\link[=check_predictive]{check_predictive()}}.
-Explore available building blocks using \code{\link[=browse_templates]{browse_templates()}},
+and predictive checks with \code{\link[=check_predictive]{check_predictive()}}.
+Explore the building blocks with \code{\link[=browse_templates]{browse_templates()}},
 \code{\link[=browse_distributions]{browse_distributions()}}, \code{\link[=browse_functions]{browse_functions()}}
 and \code{\link[=browse_infectivity_profiles]{browse_infectivity_profiles()}}.
 }

@@ -9,18 +9,16 @@ evaluate_log_lik(hh_model, hh_id = NA_character_)
 \arguments{
 \item{hh_model}{\code{HousepiModel} object.}
 
-\item{hh_id}{\code{character(1)} ID of the household of interest.
-If \code{NA} (default) it computes for the whole data.}
+\item{hh_id}{\code{character(1)} ID of the household of interest. If \code{NA}, the whole data.}
 }
 \value{
-\code{numeric(1)}. The complete-data log-likelihood.
+\code{numeric(1)} The complete-data log-likelihood.
 Logarithms are natural (base \eqn{e}).
 }
 \description{
-Compute the complete-data log-likelihood of a \code{HousepiModel}:
+Compute the complete-data log-likelihood of a \code{HousepiModel},
 transmission plus observation.
-For models with latent variables
-this is conditioned on current latent values.
+With latent variables, it is conditioned on their current values.
 }
 \examples{
 flu_1918_frederick |>

@@ -7,21 +7,21 @@
 browse_templates(name = NA_character_, path = NA_character_, replace = FALSE)
 }
 \arguments{
-\item{name}{A \code{character(1)} with the name of template model.
-If \code{NA} print the list of available templates (default).}
+\item{name}{\code{character(1)} Template name.
+If \code{NA}, print the list of available templates.}
 
-\item{path}{A \code{character(1)} with the path to where to copy the template scripts.
-If \code{NA} and name is not, open the template help page.}
+\item{path}{\code{character(1)} Path to copy the template scripts to.
+If \code{NA} and \code{name} is not, open the template help page.}
 
-\item{replace}{\code{logical(1)} to replace previous content of the path.}
+\item{replace}{\code{logical(1)} Whether to replace the content of \code{path}.}
 }
 \value{
-Invisibly returns \code{NULL}; called for printing the templates,
-showing a description or copying the template files.
+\code{NULL}, invisibly.
+The function prints the templates, opens a description or copies the files.
 }
 \description{
 Print the list of available templates,
-get their descriptions or copy source code to custom path.
+get their descriptions or copy their source code to a custom path.
 }
 \examples{
 # list all available templates

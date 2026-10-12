@@ -29,7 +29,7 @@ namespace housepi
         {
         public:
             /// Intern `name`, returning its index.
-            /// - index 0: empty name, NA.
+            /// * index 0 -> empty name, NA.
             NameIndex intern(std::string_view name)
             {
                 auto it = lut_.find(name); // heterogeneous lookup: no std::string built
@@ -407,7 +407,7 @@ namespace housepi
     //////////////////////////////  Function  //////////////////////////////
 
     /// Name the standard arguments, register the canonical parametrization, close the given bounds.
-    /// - arguments come as name-value pairs, to be accessed by index.
+    /// * arguments come as name-value pairs, to be accessed by index.
     /// @todo Construction is the only place setting the domain bounds.
     /// @todo Check control over a pointer argument leaving the domain.
     Function::Function(const Function::default_args &args,
@@ -1148,8 +1148,8 @@ namespace housepi
         protected:
             /// Whether the fold always skips operand `attr`.
             ///
-            /// - structurally absent, or a literal NA: skipped;
-            /// - pointer: never skipped, even reading NA before initialization: it answers for its target.
+            /// * structurally absent, or a literal NA -> skipped;
+            /// * pointer -> never skipped, even reading NA before initialization: it answers for its target.
             static bool is_skipped_(const Attribute &attr) noexcept
             {
                 return attr.is_empty() || (attr.is_numeric() && attr.is_na());
@@ -1158,8 +1158,8 @@ namespace housepi
             Attribute &find_arg_(std::string_view key) override final { return append_arg_(key); }
 
             /// Fold over `x` and every argument.
-            /// - fold mode: NA skipped;
-            /// - otherwise: any NA operand makes it NA.
+            /// * fold mode -> NA skipped;
+            /// * otherwise -> any NA operand makes it NA.
             template <class Op>
             double reduce_(double x, Op op) const
             {
@@ -1182,7 +1182,7 @@ namespace housepi
             }
 
             /// Fold over `x` and every argument, NA skipped.
-            /// - no operand left: NA.
+            /// * no operand left -> NA.
             template <class Op>
             double reduce_na_rm_(double x, Op op) const
             {
@@ -1200,7 +1200,7 @@ namespace housepi
             }
 
             /// Fold codomain() over `x` and every argument, NA skipped.
-            /// - no operand folded: unbounded codomain, where the runtime fold returns NA.
+            /// * no operand folded -> unbounded codomain, where the runtime fold returns NA.
             template <class Op>
             Codomain reduce_codomain_(Op op) const
             {
@@ -1217,7 +1217,7 @@ namespace housepi
             }
 
             /// Fold every constant argument into the first constant one.
-            /// - constant NA argument: skipped in fold mode, else the call stays unfolded to return NA.
+            /// * constant NA argument -> skipped in fold mode, else the call stays unfolded to return NA.
             template <class Op>
             void reduce_const_(Op op)
             {

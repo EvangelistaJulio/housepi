@@ -20,19 +20,19 @@ Contacts averaged 3 tests during follow-up.
 }
 \details{
 \describe{
-\item{id}{Individual identifier}
-\item{hh_id}{Household identifier}
-\item{status}{Follow-up outcome: 0 escaped, 1 symptomatic, 2 asymptomatic}
-\item{age}{Age class, adult or child}
-\item{sex}{Sex}
-\item{start_date}{Follow-up start: household's first positive PCR}
-\item{end_date}{Follow-up end: 21 days after \code{start_date}}
-\item{test_date}{Date of the first positive test within the follow-up}
-\item{vacc_status}{Vaccination status at the follow-up start}
-\item{recovered}{Whether previously recovered from infection}
-\item{isolated}{Whether isolated}
-\item{asymptomatic}{Whether asymptomatic}
-\item{index_case}{1 for the member positive on the household's first test day, 0 otherwise}
+\item{id}{Individual identifier;}
+\item{hh_id}{Household identifier;}
+\item{status}{Follow-up outcome: 0 escaped, 1 symptomatic, 2 asymptomatic;}
+\item{age}{Age class, adult or child;}
+\item{sex}{Sex;}
+\item{start_date}{Follow-up start: household's first positive PCR;}
+\item{end_date}{Follow-up end: 21 days after \code{start_date};}
+\item{test_date}{Date of the first positive test within the follow-up;}
+\item{vacc_status}{Vaccination status at the follow-up start;}
+\item{recovered}{Whether previously recovered from infection;}
+\item{isolated}{Whether isolated;}
+\item{asymptomatic}{Whether asymptomatic;}
+\item{index_case}{1 for the member positive on the household's first test day, 0 otherwise.}
 }
 
 Each household is followed for 21 days from its first positive SARS-CoV-2 PCR test

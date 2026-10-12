@@ -10,18 +10,18 @@ inspect_augmented_data(hh_model)
 \item{hh_model}{\code{HousepiModel} object.}
 }
 \value{
-\code{data.frame}, the dataset with its latent variables.
+\code{data.frame} The dataset with its latent variables.
 }
 \description{
 Read the dataset of a \code{HousepiModel} with its latent variables.
-The values a \code{HousepiModel} holds are left by the last
-call that ran it:
+The values a \code{HousepiModel} holds
+are left by the last call that ran it:
 \describe{
 \item{\code{\link[=evaluate_log_lik]{evaluate_log_lik()}}}{the evaluated parameters and latent variables,
-with their log-likelihood contributions.}
-\item{\code{\link[=run_inference]{run_inference()}}}{the final iteration of the last chain.}
-\item{\code{\link[=run_simulation]{run_simulation()}}}{the observed data, the parameters of the last
-replicate.}
+with their log-likelihood contributions;}
+\item{\code{\link[=run_inference]{run_inference()}}}{the final iteration of the last chain;}
+\item{\code{\link[=run_simulation]{run_simulation()}}}{the observed data,
+the parameters of the last replicate.}
 }
 }
 \examples{

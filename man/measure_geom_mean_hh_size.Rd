@@ -7,16 +7,14 @@
 measure_geom_mean_hh_size(data_wide, escaped = "escaped")
 }
 \arguments{
-\item{data_wide}{\code{data.frame} Household data used for analysis (wide format).
-Optional at construction; if omitted, attach it later with
-\link[=add_data_wide]{add_data_wide()}.}
+\item{data_wide}{\code{data.frame} Household data used for analysis (wide format).}
 
-\item{escaped}{\code{character(1)} Label for status code \code{0} (individuals not
-among the declared infected statuses) when the \code{status} column is
-character/factor.}
+\item{escaped}{\code{character(1)} Label of status code \code{0},
+members outside the declared infected statuses,
+when the \code{status} column is character or factor.}
 }
 \value{
-\code{numeric(1)}, \code{NA} if no household has more than one case.
+\code{numeric(1)} The measure, \code{NA} if no household has two cases or more.
 }
 \description{
 Retrieve the geometric mean of household size from household data,

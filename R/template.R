@@ -5,7 +5,7 @@
 
 #' @importFrom Rcpp Module
 
-# Associate dynamic library extension to name
+# Name with the dynamic library extension.
 dll_file_ext <- function(name) {
   paste0(name, .Platform$dynlib.ext)
 }
@@ -20,7 +20,7 @@ template_name <- function(path) {
   gsub("[^A-Za-z0-9_]", "_", basename(path))
 }
 
-# Add random string to templated name
+# Append a random string to a templated name.
 random_name <- function(path) {
   # generate a random string
   str_len <- 8
@@ -29,43 +29,35 @@ random_name <- function(path) {
   paste0(template_name(path), str_name)
 }
 
-# DLL file with templated name convention
+# DLL file name, by the templated name convention.
 template_dll_file <- function(path) {
   file.path(path, dll_file_ext(template_name(path)))
 }
 
-# Returns the directory to all housepi template models.
+# Directory of all housepi template models.
 template_models_dir <- function() {
   system.file("models", package = "housepi")
 }
 
-# Get template name from DLL file
+# Template name of a DLL file.
 get_template_from_dll <- function(dll) {
   if (is.null(dll) || is.na(dll)) NA_character_
   else tools::file_path_sans_ext(basename(dll))
 }
 
-# Check if the same DLL is already loaded.
+# Whether the DLL is already loaded.
 is_dll_loaded <- function(dll) {
   any(vapply(getLoadedDLLs(), \(x) x[["path"]] == dll, FALSE))
 }
 
-# Load model DLL if not already loaded.
-# NOTE: auto-registration in the DLL's static init populates the model registry.
+# Load the model DLL unless already loaded.
+# Its static init registers the model in the model registry.
 load_model_dll_ <- function(dll) {
   if (!is.null(dll) && !is.na(dll) && !is_dll_loaded(dll)) dyn.load(dll)
 }
 
-#' @title
-#' Get template model directory
-#' @description
-#' Return the directory of chosen housepi template model.
-#'
-#' @param x
-#' A `character(1)` with the choice of the template.
-#'
-#' @return `character(1)`
-#' @keywords internal
+#' Directory of template model `x`.
+#' @param x `character(1)` Template name.
 #' @noRd
 get_template_dir <- function(x) {
   flat_choice <- spaced_choice(x)
@@ -77,33 +69,19 @@ get_template_dir <- function(x) {
   NA_character_
 }
 
-#' @title
-#' Suggest the closest matching template name
-#' @description
-#' Return a "did you mean" hint for a mistyped template name.
-#'
-#' @param x
-#' A `character(1)` with the choice of the template.
-#'
-#' @return `character(1)`
-#' @keywords internal
+#' Suggest the closest template name to a mistyped `x`, as "did you mean".
 #' @noRd
 find_closest_template_name <- function(x) {
   flat_choice <- spaced_choice(x)
   options <- list.files(template_models_dir(), full.names = FALSE)
   flat_options <- spaced_choice(options)
-  # NOTE: avoid to attempt a suggestion for silly mistakes
+  # no suggestion for trivial mistakes
   sms <- find_closest_match(flat_choice, flat_options)
   if (endsWith(sms, "?") && nchar(flat_choice) > 3) return(sms)
   c("Show available templates calling {.fn browse_templates}.")
 }
 
-#' @title
-#' Show available template model names
-#' @description
-#' Show list of all available template model names.
-#'
-#' @keywords internal
+#' Show the names of the available template models.
 #' @noRd
 show_model_names <- function() {
   model_names <- list.files(template_models_dir())
@@ -116,18 +94,7 @@ show_model_names <- function() {
                     paste(cli::symbol$bullet, links)))
 }
 
-#' @title
-#' Copy Template to Path
-#' @description
-#' Copy a default model to a given directory.
-#'
-#' @param name
-#' A `character(1)` with the name of template model.
-#' If `NA` returns list of available templates.
-#' @param path
-#' A `character(1)` with the path to where to copy the template scripts.
-#'
-#' @keywords internal
+#' Copy template model `name` to directory `path`.
 #' @noRd
 copy_template_to_path <- function(name, path) {
   # avoid current directory
@@ -152,14 +119,7 @@ copy_template_to_path <- function(name, path) {
   }
 }
 
-#' @title
-#' Open Model Description
-#' @description
-#' Show the help page of a template model.
-#'
-#' @param name
-#' A `character(1)` with the canonical template name.
-#'
+#' Open the help page of template model `name`.
 #' @noRd
 open_model_helper_ <- function(name) {
   print(utils::help(paste0("template_", name), package = "housepi"))
@@ -168,17 +128,14 @@ open_model_helper_ <- function(name) {
 
 #' @title Navigate through household model templates
 #' @description Print the list of available templates,
-#' get their descriptions or copy source code to custom path.
-#' @param name
-#' A `character(1)` with the name of template model.
-#' If `NA` print the list of available templates (default).
-#' @param path
-#' A `character(1)` with the path to where to copy the template scripts.
-#' If `NA` and name is not, open the template help page.
-#' @param replace
-#' `logical(1)` to replace previous content of the path.
-#' @return Invisibly returns `NULL`; called for printing the templates,
-#' showing a description or copying the template files.
+#' get their descriptions or copy their source code to a custom path.
+#' @param name `character(1)` Template name.
+#' If `NA`, print the list of available templates.
+#' @param path `character(1)` Path to copy the template scripts to.
+#' If `NA` and `name` is not, open the template help page.
+#' @param replace `logical(1)` Whether to replace the content of `path`.
+#' @return `NULL`, invisibly.
+#' The function prints the templates, opens a description or copies the files.
 #' @examples
 #' # list all available templates
 #' browse_templates()
@@ -204,22 +161,16 @@ browse_templates <- function(name = NA_character_,
   invisible()
 }
 
-############################################################################
-############################################################################
-############################################################################
+########  Missing definitions  ########
 
-# Associate same name to all elements of a vector
+# Name every element of a vector alike.
 set_source_name_ <- function(x, name = NA_character_) {
   if (isTRUE(nzchar(name, keepNA = TRUE)) && length(x))
     names(x) <- rep(name, length(x))
   x
 }
 
-#' Compare required definitions to current definitions and find missing ones.
-#' @param required `character()` Required definitions.
-#' @param defined `character()` Current definitions.
-#' @return `character()`
-#' @keywords internal
+#' Required definitions missing from `defined`.
 #' @noRd
 template_missing_find <- function(required, defined) {
   if (!length(required)) NULL
@@ -227,14 +178,11 @@ template_missing_find <- function(required, defined) {
   else sort(setdiff(unlist(required), unlist(defined)))
 }
 
-#' Stop if missing definitions are found
-#' @param required `character()` Required definitions.
-#' @param defined `character()` Current definitions.
+#' Messages on the required definitions missing from `defined`.
 #' @param holder `character(1)` Name of the definition holder.
 #' @param noun `character(1)` Word naming the missing entries.
 #' @param style `character(1)` cli markup class wrapping each entry.
-#' @return `character()`
-#' @keywords internal
+#' @return `character()` | `NULL` Messages, `NULL` when none is missing.
 #' @noRd
 template_missing_stop <- function(required, defined, holder,
                                   noun = "definition", style = "val") {
@@ -250,10 +198,9 @@ template_missing_stop <- function(required, defined, holder,
     inline_cli_("Required by {sources}."))
 }
 
-#' Warn about overwritten definitions if missing definitions are found.
+#' Warn on the definitions `all_rmv` overwrote.
 #' @param all_rmv `character()` Removed definitions.
 #' @param holder `character(1)` Name of the definition holder.
-#' @keywords internal
 #' @noRd
 template_overwrite_warn <- function(all_rmv, holder) {
   len_rmv <- length(all_rmv)
@@ -267,22 +214,15 @@ template_overwrite_warn <- function(all_rmv, holder) {
 #' @param self Definition holder with `family` and `store_warn_over`.
 #' @param rmv_name `character()` Removed definitions.
 #' @param warn `logical(1)` Warn now instead of caching.
-#' @keywords internal
 #' @noRd
 warn_or_store_overwrite_ <- function(self, rmv_name, warn) {
   if (warn) template_overwrite_warn(rmv_name, self$family)
   else self$store_warn_over <- c(self$store_warn_over, rmv_name)
 }
 
-############################################################################
-############################################################################
-############################################################################
+########  Unused definitions  ########
 
-#' Compare required definitions to current definitions and find unused ones.
-#' @param required `character()` Required definitions.
-#' @param defined `character()` Current definitions.
-#' @return `character()`
-#' @keywords internal
+#' Definitions in `defined` that are not required.
 #' @noRd
 template_not_used_find <- function(required, defined) {
   if (!length(required)) sort(unlist(defined))
@@ -290,12 +230,8 @@ template_not_used_find <- function(required, defined) {
   else sort(setdiff(unlist(defined), unlist(required)))
 }
 
-#' Raise a warning if unused definitions are found.
-#' @param required `character()` Required definitions.
-#' @param defined `character()` Current definitions.
+#' Warn on the definitions in `defined` that are not required.
 #' @param holder `character(1)` Name of the definition holder.
-#' @return `character()`
-#' @keywords internal
 #' @noRd
 template_not_used_warn <- function(required, defined, holder) {
   notused <- template_not_used_find(required, defined)
@@ -307,15 +243,12 @@ template_not_used_warn <- function(required, defined, holder) {
   invisible()
 }
 
-#' Format an assert usage definition message as a `cli::cli_bullets()` block.
-#'
-#' Returns a named character vector following the `cli::cli_bullets()` glyph
-#' convention: the headline is named after its severity (`x` error, `!` minor,
-#' `v` satisfied) and continuation lines are named `" "` to indent under it.
+#' Format an assertion message as a `cli::cli_bullets()` block.
+#' * headline -> named after its severity: `x` error, `!` minor, `v` satisfied;
+#' * continuation line -> named `" "`, indented under it.
 #' @param section `character(1)` Section name.
 #' @param sms `character()` Messages to format.
 #' @param minor `logical(1)` Whether to format as minor message.
-#' @keywords internal
 #' @noRd
 fmt_assert_cli <- function(section, sms, minor = FALSE) {
   sms <- gsub(sms, pattern = " were ", replacement = " are ")

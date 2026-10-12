@@ -207,7 +207,7 @@ test_that("A func definition is deterministic", {
   # nor a value alongside the function
   mk_latent$model |>
     add_latent("hidden", value = 2, func = "log", x = 1) |>
-    expect_error("[Oo]nly one between .value. and .func.")
+    expect_error("[Oo]nly one of .value. and .func.")
 })
 
 test_that("A name is resolved, not guessed", {

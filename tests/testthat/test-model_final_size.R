@@ -213,7 +213,7 @@ test_that("Chain binomial guards against misusage", {
   flu_1918_frederick |>
     new_housepi_model("final-size") |>
     add_infectivity_profile(import = "template") |>
-    expect_error("not supported.*dropped")
+    expect_error("not supported.*Choose a model")
 })
 
 test_that("A household above 15 risk partitions is refused", {

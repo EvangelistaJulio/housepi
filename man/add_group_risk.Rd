@@ -27,49 +27,54 @@ add_group_risk(
 
 \item{name}{\code{character(1)} Name used by internal calls.}
 
-\item{by}{\code{list} Covariates associated to group risk as data headers.
-Corresponding data columns have to be categorical.}
+\item{by}{\code{list} Data columns of the covariates the group risk stratifies on.
+The columns must be categorical.}
 
-\item{...}{named arguments for the prior distribution.
-Advanced Monte Carlo options may also be passed through \code{...}, each prefixed
-\code{proposal_}. For a random walk, \code{proposal_scale} sets the step scale: if
-omitted it is adapted during inference when \code{adapt > 0}; if a positive numeric
-it is fixed and never adapted. For independence sampling from a named
-distribution, the distribution parameters are supplied the same way (e.g.
-\code{proposal_mean}, \code{proposal_sd}).}
+\item{...}{Named arguments for the prior distribution.
+Advanced Monte Carlo options may also be passed through \code{...},
+each prefixed \code{proposal_}.
+For a random walk, \code{proposal_scale} sets the step scale.
+If omitted, it is adapted during inference when \code{adapt > 0}.
+If a positive number, it is fixed and never adapted.
+For independence sampling from a named distribution,
+the distribution parameters are passed the same way,
+e.g. \code{proposal_mean} and \code{proposal_sd}.}
 
-\item{reference}{named \code{list} Covariates associated to the reference group,
+\item{reference}{\code{list} Named covariates of the reference group,
 whose risk becomes the unit that every other parameter multiplies.
 Pass \code{".auto"} to take the group with the largest sample size.
-Left empty, each stratum carries its own absolute risk; a covariate the
-reference does not name leaves the whole risk absolute.}
+Left empty, each stratum carries its own absolute risk.
+A covariate the reference does not name leaves the whole risk absolute.}
 
-\item{joint}{\code{logical(1)} Treat covariates as joint.
-If \code{FALSE}, covariates are independent (default).}
+\item{joint}{\code{logical(1)} Whether covariates are joint.
+If \code{FALSE}, they are independent.}
 
 \item{strata}{\code{data.frame} Individual covariates and relative \code{param_name}.
-Each row defines one stratum. If \code{NA}, then match any value.
+Each row defines one stratum.
+A covariate left \code{NA} matches any value.
 Every member, or ordered pair of members for contact risks, must match a row,
 and every row must be the best match of at least one of them,
-else the definition is refused. So is a table setting no covariate value,
+else the definition is refused.
+So is a table setting no covariate value,
 which treats every member alike as the baseline does.
 The table is used as written.
-A risk read on infected members is checked at every infected status a member
-may take, whether or not the data records it.
+A risk read on infected members is checked at every infected status
+a member may take, whether or not the data records it.
 Rows keyed on different covariates form separate rule groups,
 whose risks multiply.
-Use \code{.reference} in \code{param_name} to designate the reference group;
-a rule group without it leaves the risk absolute.
+Use \code{.reference} in \code{param_name} to designate the reference group.
+A rule group without it leaves the risk absolute.
 The reserved column \code{value} pins a stratum to that value in simulation,
 while it keeps its prior and is sampled in inference.
 The reserved column \code{const} fixes a pinned stratum in inference too,
-so that it carries no prior. The reference stratum takes neither.
+so that it carries no prior.
+The reference stratum takes neither.
 Mutually exclusive with \code{by}.}
 
-\item{params}{named \code{list} Per-parameter MCMC setups as in \code{param_name}.
+\item{params}{\code{list} Per-parameter MCMC setups, named as in \code{param_name}.
 Overrides shared prior/args for parameters specified in the list.
 A stratum pinned through the \code{strata} table takes no entry here.
-Ignored if automatic definition.}
+Ignored in automatic mode.}
 
 \item{prior}{\code{character(1)} Prior distribution.}
 
@@ -80,40 +85,40 @@ Relative to the location argument \code{loc}, when one is given.}
 Relative to the location argument \code{loc}, when one is given.}
 
 \item{proposal}{\code{character(1)} Proposal used in the Monte Carlo.
-Random walks changes current value:
+Random walks update the current value:
 \describe{
-\item{\code{"rw"}}{normal increments (default);}
-\item{\code{"rw_log"}}{lognormal log-increments (positive, non-discrete
-values only);}
-\item{\code{"rw_unif"}}{uniform increments (bounded).}
+\item{\code{"rw"}}{normal increments;}
+\item{\code{"rw_log"}}{lognormal log-increments,
+positive non-discrete values only;}
+\item{\code{"rw_unif"}}{uniform increments, bounded values only.}
 }
 Independence samplers draw a fresh value from a distribution:
 \describe{
-\item{\code{"forward"}}{drawn from the variable's own defining distribution
-(its prior for a parameter, its model for a latent variable);}
-\item{a distribution name}{drawn from that distribution, e.g.
-\code{proposal = "normal"} with \code{proposal_mean}/\code{proposal_sd}.}
+\item{\code{"forward"}}{drawn from the variable's own defining distribution,
+its prior for a parameter, its model for a latent variable;}
+\item{a distribution name}{drawn from that distribution,
+e.g. \code{proposal = "normal"} with \code{proposal_mean} and \code{proposal_sd}.}
 }
-\code{NA} defaults to \code{"rw"}.}
+If \code{NA}, \code{"rw"} is used.}
 
-\item{prefix}{\code{character(1)} Prefix to names of associated parameters. If \code{NA} uses the first 3 letters of risk name (default).}
+\item{prefix}{\code{character(1)} Prefix to names of associated parameters. If \code{NA}, the first 3 letters of the risk name.}
 
 \item{import}{Named \code{list} of pre-built definitions to import.
-Cannot be combined with single and/or multiple definitions.}
+Cannot be combined with single or multiple definitions.}
 
-\item{append}{\code{logical(1)} Append to current definitions.
-If \code{FALSE} drop all pre-existing definitions.}
+\item{append}{\code{logical(1)} Whether to append to the current definitions.
+If \code{FALSE}, the previous definitions are dropped.}
 }
 \value{
 \code{HousepiModel} object. Deep clone of input with new definitions.
 }
 \description{
 Add definitions of a group risk by given data covariate(s).
-Each stratum carries its own absolute risk, unless a reference is chosen:
-then every parameter multiplies the baseline risk of the reference stratum.
-If no MCMC options are provided, absolute risks are assumed
-\eqn{\mathrm{uniform}} over their support, and relative ones
-\eqn{\mathrm{lognormal}[\mu=0, \sigma=3]}.
+Each stratum carries its own absolute risk, unless a reference is chosen.
+Then every parameter multiplies the baseline risk of the reference stratum.
+If no MCMC options are provided,
+absolute risks are \eqn{\mathrm{uniform}} over their support,
+and relative ones \eqn{\mathrm{lognormal}[\mu=0, \sigma=3]}.
 Bypass automatic generation by providing a custom pre-built logic table.
 There are three mutually exclusive definition modes:
 \describe{

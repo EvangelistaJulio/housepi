@@ -75,16 +75,16 @@ namespace housepi
 		/// Return log-density or log-mass at `x`, minus infinity outside the domain.
 		double guarded_log_pdf(double x) const { return is_valid(x) ? log_pdf(x) : -inf::DOUBLE; }
 		/// Return log-ratio of densities or masses from `xo` to `xn`.
-		/// - null move: 0, whatever the density at that point.
+		/// * null move -> 0, whatever the density at that point.
 		double log_ratio(double xo, double xn) const
 		{
 			return xo == xn ? 0. : log_ratio_(delocate_(xo), delocate_(xn));
 		}
 		/// Return log-ratio of densities or masses from `xo` to `xn`, validity checked first.
 		///
-		/// - only `xn` valid: infinity;
-		/// - only `xo` valid: minus infinity;
-		/// - neither: NA.
+		/// * only `xn` valid -> infinity;
+		/// * only `xo` valid -> minus infinity;
+		/// * neither -> NA.
 		double guarded_log_ratio(double xo, double xn) const
 		{
 			switch (is_valid(xo) + 2 * is_valid(xn))
@@ -117,8 +117,8 @@ namespace housepi
 
 		/// Values returned by evaluate().
 		///
-		/// - pdf() and cdf() return zero off the domain;
-		/// - a density is unbounded above, a mass and a cumulative are not.
+		/// * pdf() and cdf() return zero off the domain;
+		/// * a density is unbounded above, a mass and a cumulative are not.
 		Codomain codomain() const noexcept override
 		{
 			Codomain c;
@@ -140,8 +140,8 @@ namespace housepi
 		virtual double raw_cdf_(double /*x*/) const = 0;
 		/// Raw complementary cumulative distribution, 1 - cdf.
 		///
-		/// - continuous distribution: a tail-accurate closed form, read by Center and Left discretization;
-		/// - any other: undefined.
+		/// * continuous distribution -> a tail-accurate closed form, read by Center and Left discretization;
+		/// * any other -> undefined.
 		virtual double raw_ccdf_(double /*x*/) const { raise_undefined_call_err_("ccdf"); }
 		/// Raw quantile at cumulative probability `p`.
 		virtual double raw_quantile_(double /*p*/) const = 0;
@@ -221,7 +221,7 @@ namespace housepi
 		//////  Getter  //////
 
 		/// Lattice of the draws.
-		/// - location off the integers: the support moves off with it.
+		/// * location off the integers -> the support moves off with it.
 		Lattice lattice_() const noexcept
 		{
 			if (discr_mode_ == Discrete::None)
@@ -252,8 +252,8 @@ namespace housepi
 
 		/// Draw from the truncated distribution.
 		///
-		/// - window above MIN_REJECT_WINDOW: rejection sampling;
-		/// - otherwise, or after MAX_REJECT_DRAWS rejections: inverse sampling.
+		/// * window above MIN_REJECT_WINDOW -> rejection sampling;
+		/// * otherwise, or after MAX_REJECT_DRAWS rejections -> inverse sampling.
 		double truncated_rand_(rnd_gen &prng) const
 		{
 			const double cdf_at_min = trunc_mode_ == Trunc::Max ? 0. : cdf_min_();
@@ -396,8 +396,8 @@ namespace housepi
 		double discr_dist_left_(double x) const { return discr_bin_(std::floor(x)); }
 		/// Mass of the unit bin starting at `a`.
 		///
-		/// - default: difference of cumulatives;
-		/// - bin above the median with mass below `tail_mass_`: difference of complementary cumulatives.
+		/// * default -> difference of cumulatives;
+		/// * bin above the median with mass below `tail_mass_` -> difference of complementary cumulatives.
 		double discr_bin_(double a) const
 		{
 			const double hi = raw_cdf_(a + 1.), lo = raw_cdf_(a), p = hi - lo;
@@ -409,8 +409,8 @@ namespace housepi
 
 	/// Point `x0` carrying no density: the model of a variable pinned to `x0`.
 	///
-	/// - log-density and log-ratio: 0, the variable never moves;
-	/// - draws: `x0`.
+	/// * log-density and log-ratio -> 0, the variable never moves;
+	/// * draws -> `x0`.
 	/// @note Unregistered: built in place of a collapsed model, never named by the user.
 	class NullDistribution final : public Cloneable<NullDistribution, Distribution>
 	{

@@ -3,8 +3,7 @@
 ## SPDX-License-Identifier: GPL-3.0-or-later
 ##
 
-# @description
-# Helper to extract balanced [something] blocks at the top level.
+# Extract balanced [...] blocks at the top level.
 helper_extract_defin_blocks <- function(s) {
   blocks <- list()
   depth <- 0
@@ -25,10 +24,9 @@ helper_extract_defin_blocks <- function(s) {
   blocks
 }
 
-# @description
-# Recursive helper function to evaluate blocks.
+# Evaluate blocks, recursing on nested ones.
 helper_evaluate_defin_block <- function(block, type) {
-  # Remove square brackets
+  # remove square brackets
   block <- sub("^\\[", "", block)
   block <- sub("\\]$", "", block)
 
@@ -36,7 +34,7 @@ helper_evaluate_defin_block <- function(block, type) {
   conditions <- unlist(strsplit(block, ":"))
   output <- c()
 
-  # Evaluate each condition
+  # evaluate each condition
   for (cond in conditions) {
     if (grepl("\\[", cond)) {
       # recurse on nested blocks
@@ -50,10 +48,7 @@ helper_evaluate_defin_block <- function(block, type) {
 }
 
 #' Extract a typed argument from an encoded definition string.
-#' @param input `character(1)`. Encoded function string.
-#' @param type `character(1)`. Type to extract.
-#' @return `character()`
-#' @keywords internal
+#' @param type `character(1)` Type to extract.
 #' @noRd
 housepi_walk_definition <- function(input, type) {
   output <- c()
@@ -74,13 +69,9 @@ housepi_walk_definition <- function(input, type) {
 }
 
 #' Resolve unsettled sources in encoded definition strings.
-#' A `name|?` terminal takes the letter the dictionary holds for that name;
-#' a name the dictionary does not settle keeps the sentinel, for the assertion
-#' to report.
-#' @param input `character()`. Encoded definition strings.
-#' @param dict named `character()`. Declared name to source letter.
-#' @return `character()`
-#' @keywords internal
+#' * `name|?` terminal -> the letter the dictionary holds for that name;
+#' * name the dictionary does not settle -> keeps the sentinel, reported later.
+#' @param dict `character()` Source letter, named by declared name.
 #' @noRd
 housepi_resolve_definition <- function(input, dict) {
   hit <- !is.na(input) & grepl("|?", input, fixed = TRUE)
@@ -97,8 +88,7 @@ housepi_resolve_definition <- function(input, dict) {
   input
 }
 
-# @description
-# Definitions required by definitions according to the "source"
+# Names read by the definitions from source `src`, labelled with it.
 find_required_definitions <- function(defs, src, col_with_sources, family) {
   output <- c()
   if (length(defs)) {
@@ -112,7 +102,6 @@ find_required_definitions <- function(defs, src, col_with_sources, family) {
   set_source_name_(unique(output), family)
 }
 
-# @description
 # Catch the sibling defining-distribution keyword landing in the dots.
 assert_no_sibling_dist_arg <- function(args, family, name = NULL) {
   dcol <- family2model_col(family)
@@ -125,12 +114,11 @@ assert_no_sibling_dist_arg <- function(args, family, name = NULL) {
   )
 }
 
-# @description
 # Parse implicit function/value.
 helper_variable_core <- function(opts, family, value, func) {
   if (is.null(value) && is.null(func)) return(opts)
 
-  # NOTE: ensured just one between the 2 is not NULL
+  # at most one of the two is not NULL, asserted upstream
   x <- if (is.null(value)) func else value
   if (is.numeric(showcaser_extract_numeric(x))) {
     # implicit numeric definition, whichever argument carried it
@@ -146,12 +134,10 @@ helper_variable_core <- function(opts, family, value, func) {
   y <- housepi_combine_to_call(func_name = x,
                                func_args = character(),
                                is_func = is.null(value))
-  # a value= given alongside a model/prior, or alongside the proposal of a
-  # latent sampled without a model, is a simulation-only override and
-  # always lands in opts$value, whatever its shape; otherwise (including the
-  # bulk `name = <expr>` shorthand, which is also passed in as `value`) the
-  # shape alone decides, as a bare name/leaf and a compound call are handled
-  # the same regardless of which argument carried it
+  # * value= beside a model/prior, or beside the proposal of a latent sampled
+  #   without a model -> simulation-only override, always in opts$value;
+  # * otherwise, the bulk `name = <expr>` shorthand included -> the shape
+  #   decides, whichever argument carried it.
   has_law <- !is.na(opts[[family2model_col(family)]]) ||
     (identical(opts$kind, "latent") && !is.na(opts$proposal))
   if ((!is.null(value) && has_law) || housepi_is_sourced_value(y)) {
@@ -160,12 +146,11 @@ helper_variable_core <- function(opts, family, value, func) {
     opts$func <- y
   }
 
-  # note: a priori a function is not constant
+  # a function is not constant a priori
   if (is.na(opts$const)) opts$const <- FALSE
   opts
 }
 
-# @description
 # Attach the spare arguments to the object that takes them: the distribution
 # sampling the variable, or the function computing it.
 helper_variable_args <- function(opts, family, args, func) {
@@ -178,7 +163,7 @@ helper_variable_args <- function(opts, family, args, func) {
   if (is.null(col) && is.null(func)) stop_h(
     headline, "Provide the {.arg {dcol}} or the {.arg func} they belong to."
   )
-  # a func folded into a constant carries no call to attach them to
+  # func folded into a constant -> no call to attach them to
   if (is.null(col)) col <- "func"
   if (is.na(opts[[col]]) || housepi_is_call(opts[[col]])) stop_h(
     headline, "The {.arg {col}} expression already carries its arguments."
@@ -187,9 +172,9 @@ helper_variable_args <- function(opts, family, args, func) {
   opts
 }
 
-# Random-walk proposal kernels (the marked family). All other proposal names
-# are independence samplers: `"forward"` draws from the variable's own defining
-# distribution, a distribution name draws from that distribution.
+# Random-walk proposal kernels. Any other proposal is an independence sampler:
+# * "forward" -> draws from the variable's own defining distribution;
+# * distribution name -> draws from that distribution.
 .random_walk_proposals <- c("rw", "rw_log", "rw_unif")
 
 # Flatten dots holding a single quosures list (from `enquos()`).
@@ -198,11 +183,10 @@ flatten_definition_dots <- function(dots) {
   else dots
 }
 
-# @description
-# Extract arguments carried by the dots of definition `name` of `family`.
-# Fold any advanced `proposal_*` option into the proposal call, routing
-# `proposal_scale` to random walks and distribution arguments to independence
-# samplers.
+# Extract the arguments in the dots of definition `name` of `family`.
+# Advanced `proposal_*` options fold into the proposal call:
+# * `proposal_scale` -> random walks;
+# * distribution arguments -> independence samplers.
 helper_definition_args <- function(proposal, dots, family, name = NULL) {
   args <- housepi_extractor(!!!flatten_definition_dots(dots))
   nms <- names(args)
@@ -247,7 +231,6 @@ helper_definition_args <- function(proposal, dots, family, name = NULL) {
   list(args = args[!mask_prop], proposal = proposal)
 }
 
-# @description
 # Interpret user choice for Monte Carlo move.
 helper_variable_move <- function(opts, family) {
   # prior for parameters/risks, model for latent/observations
@@ -275,8 +258,8 @@ helper_variable_move <- function(opts, family) {
   headline <- paste("No {.arg {dist_word}} to sample from",
                     "for {family} {.val {opts$name}}.")
 
-  # a latent with neither model nor function is sampled flat within its bounds:
-  # with a proposal, with bounds alone, or with a number declared not constant
+  # latent with neither model nor function -> sampled flat within its bounds,
+  # given a proposal, bounds alone, or a number declared not constant
   is_num <- is.numeric(showcaser_extract_numeric(opts$value))
   if (identical(opts$kind, "latent") && is.na(opts[[dist_word]]) &&
         is.na(opts$func) &&
@@ -303,7 +286,7 @@ helper_variable_move <- function(opts, family) {
         opts$const <- TRUE
       }
     } else {
-      # otherwise default proposal: adaptive random walk
+      # otherwise -> adaptive random walk
       opts$proposal <- "rw"
     }
   } else {
@@ -320,8 +303,7 @@ helper_variable_move <- function(opts, family) {
 # Reduction functions: folding a per-member column yields one household value.
 .reduction_functions <- c("sum", "prod", "min", "max")
 
-# @description
-# Settle the level a deterministic observation is read at
+# Settle the level a deterministic observation is read at.
 helper_variable_level <- function(opts, defs) {
   if (!identical(opts$kind, "member") ||
         !is.na(opts[["model"]]) ||
@@ -334,8 +316,7 @@ helper_variable_level <- function(opts, defs) {
   folded <- showcaser_extract_func(opts$func)
   if (!folded %in% .reduction_functions) return(opts)
 
-  # a fold over a single per-member operand returns that operand: what the
-  # definition asks for is the household reduction over its column
+  # fold over a single per-member operand -> household reduction of its column
   operands <- showcase_extract_args(opts$func)[[1]]
   if (length(operands) != 1) return(opts)
   operand <- strsplit(as.character(operands[[1]]), "\\|")[[1]]
@@ -359,12 +340,10 @@ helper_variable_level <- function(opts, defs) {
   opts
 }
 
-# @description
-# Cast to the household level a deterministic member-level observation that
-# reads household values only: parameters and household observations give
-# every member the same value, one per household. A constant stays put.
-# @param defs `data.frame()`. Definitions with sources resolved.
-# @return `data.frame()`
+# Cast to the household level a deterministic member-level observation reading
+# household values only, parameters and household observations.
+# * constant -> stays put.
+# @param defs `data.frame()` Definitions with sources resolved.
 helper_cast_house_level <- function(defs) {
   if (is.null(defs)) return(defs)
   reads <- function(r, src) {

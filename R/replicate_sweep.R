@@ -3,31 +3,33 @@
 ## SPDX-License-Identifier: GPL-3.0-or-later
 ##
 
-## Replicate sweep shared by the checks that simulate surveys and fit them
-## back: one simulation call per household count, one fit per replicate,
-## each fit reduced to one row per parameter.
+# Replicate sweep of the checks that simulate surveys and fit them back:
+# one simulation call per household count, one fit per replicate,
+# each fit reduced to one row per parameter.
 
-## Roxygen text shared by the checks, read at the use site as `r <name>`.
+# Roxygen text shared by the checks, read at the use site as `r <name>`.
 
-rd_sweep_nrep_ <- "`integer(1)` Number of surveys simulated and fitted back
-at each household count."
-rd_sweep_sampler_ <- "`function` Sampler of the household structure the surveys
-are generated on, called as `structure_sampler(data_wide, houses)`.
-`NULL` reuses the attached structure verbatim and ignores `houses`."
-rd_sweep_seed_ <- "Replicates are independent draws: call `set.seed()` before
-the check to replay a whole sweep, at any `threads` up to `nrep`."
+rd_sweep_nrep_ <- "`integer(1)`
+Number of surveys simulated and fitted back at each household count."
+rd_sweep_sampler_ <- "`function`
+Sampler of the household structure the surveys are generated on,
+called as `structure_sampler(data_wide, houses)`.
+If `NULL`, the attached structure is reused verbatim and `houses` ignored."
+rd_sweep_seed_ <- "Replicates are independent draws.
+Call `set.seed()` before the check to replay a whole sweep,
+at any `threads` up to `nrep`."
 rd_sweep_reporting_ <- "Each survey goes through the `wide` reporting process
 of the model before it is fitted back, see [add_reporting_process()].
-Inference does not model it: one losing information makes the check measure
-the resulting misspecification."
-rd_sweep_threads_ <- "`integer(1)` Number of threads. Up to `threads`
-replicates are fitted at once. Beyond `nrep`, the households of each fit
-share the threads left over."
+Inference does not model it,
+so a process losing information makes the check measure the misspecification."
+rd_sweep_threads_ <- "`integer(1)` Number of threads.
+Up to `threads` replicates are fitted at once.
+Beyond `nrep`, the households of each fit share the threads left over."
 
-#' Columns the surveys are generated on: the attached data without the
-#' observations and latent variables, which simulation regenerates and a
-#' definition reading one of them must not see observed.
-#' Status is kept as simulation receives it: a transmission model draws it anew.
+#' Columns the surveys are generated on: the attached data without
+#' the observations and latent variables, which simulation regenerates,
+#' and which a definition reading one of them must not see observed.
+#' Status is kept as simulation receives it, drawn anew by transmission.
 #' @noRd
 sweep_base_structure_ <- function(hh_model) {
   data <- hh_model$data_wide
@@ -47,8 +49,9 @@ sweep_pins_ <- function(hh_model) {
   stats::setNames(defs[["value"]], defs[["name"]])
 }
 
-#' Simulation table: the parameters of `pins` holding a value, one row per
-#' replicate. A parameter without a column is drawn from its prior.
+#' Simulation table: the parameters of `pins` holding a value,
+#' one row per replicate.
+#' * parameter without a column -> drawn from its prior.
 #' @noRd
 sweep_param_table_ <- function(pins, nrep) {
   pins <- pins[!is.na(pins)]
@@ -57,8 +60,7 @@ sweep_param_table_ <- function(pins, nrep) {
   table
 }
 
-#' The parameters a check is about: estimated, hence carrying a prior and
-#' free.
+#' Parameters a check is about: the estimated ones, with a prior and free.
 #' @noRd
 sweep_estimated_ <- function(hh_model) {
   defs <- get_parameters(hh_model)
@@ -71,8 +73,7 @@ sweep_estimated_ <- function(hh_model) {
   estimated
 }
 
-#' Diagnostics and verdict the fit reached, one row per parameter of
-#' `variables`.
+#' Diagnostics and verdict of the fit, one row per parameter of `variables`.
 #' @noRd
 sweep_diagnostics_ <- function(draws, variables) {
   diag <- draws$.__enclos_env__$private$diagnostics_
@@ -149,8 +150,8 @@ sweep_warning_counts_ <- function(raised) {
              row.names = NULL, stringsAsFactors = FALSE)
 }
 
-#' One warning per distinct message, with the count of replicates that
-#' raised it. Foreign text carries no markup.
+#' One warning per distinct message, with the count of replicates raising it.
+#' Foreign text carries no markup.
 #' @param what `character(1)` Name of the check, heading the warning.
 #' @noRd
 sweep_report_warnings_ <- function(warnings, what) {
@@ -164,19 +165,20 @@ sweep_report_warnings_ <- function(warnings, what) {
   emit_cli_condition(c(list(header), as.list(bullets)), "warn")
 }
 
-#' Workers of a sweep: `outer` replicates fitted at once, each fit's
-#' households sharing `inner` threads.
+#' Workers of a sweep: `outer` replicates fitted at once,
+#' each fit's households sharing `inner` threads.
 #' @noRd
 sweep_split_ <- function(nrep, threads) {
   threads <- assert_count_(threads, "Number of threads")
-  # UPDATE: threads idle on the remainder of `threads %/% outer`, and through
-  # a last wave holding fewer than `outer` replicates
+  # @todo threads idle on the remainder of `threads %/% outer`,
+  # and through a last wave holding fewer than `outer` replicates
   outer <- min(nrep, threads)
   list(outer = outer, inner = threads %/% outer)
 }
 
-#' Value of `expr`, or an error naming replicate `rep` at `houses` households,
-#' followed by the lines of the error `expr` raised.
+#' Value of `expr`.
+#' * `expr` fails -> error naming replicate `rep` at `houses` households,
+#'   followed by the lines of the error raised.
 #' @noRd
 sweep_guard_ <- function(expr, rep, houses) {
   tryCatch(expr, error = function(e) {
@@ -187,19 +189,21 @@ sweep_guard_ <- function(expr, rep, houses) {
   })
 }
 
-#' The sweep: one simulation call per household count, then one fit per
-#' replicate, reduced by `reducer(draws, truth)` to one row per parameter
-#' carrying `ess_bulk` and `flagged`. The fitted model is built from the given
-#' model and never from the one that simulated, which holds the truth of the
-#' last replicate. Fits run in waves of replicates sampled at once, each wave
-#' reduced before the next one runs. Sampler settings are asserted before any
-#' survey is simulated, and the first replicate that fails stops the sweep.
-#' @param pins `numeric` Simulation value of the parameters, `NA` drawn from
-#' the prior.
+#' Run the sweep: one simulation call per household count,
+#' then one fit per replicate, reduced by `reducer(draws, truth)`
+#' to one row per parameter carrying `ess_bulk` and `flagged`.
+#' The fitted model is built from the given model,
+#' never from the simulating one, holding the truth of the last replicate.
+#' Fits run in waves of replicates sampled at once,
+#' each wave reduced before the next one runs.
+#' Sampler settings are asserted before any survey is simulated,
+#' and the first replicate that fails stops the sweep.
+#' @param pins `numeric()` Simulation value of the parameters,
+#' `NA` drawn from the prior.
 #' @param fit_args `list` Sampler settings of each fit.
 #' @param threads `integer(1)` Threads shared by the fits of a wave.
-#' @param dots `list` Advanced setup of the check, split between the
-#' simulation and the fits.
+#' @param dots `list` Advanced setup of the check,
+#' split between the simulation and the fits.
 #' @param label `character(1)` Label of the progress bar.
 #' @noRd
 sweep_run_ <- function(hh_model, structure, sampler, houses, nrep, pins,
@@ -208,8 +212,8 @@ sweep_run_ <- function(hh_model, structure, sampler, houses, nrep, pins,
   do.call(resolve_setup_, c(fit_args, adapt))
   # fits read the wide survey only
   hh_model <- add_reporting_process(hh_model, long = NULL)
-  # one simulation call per household count yields the whole cell: the pins
-  # are repeated, one row per replicate
+  # one simulation call per household count yields the whole cell,
+  # the pins repeated one row per replicate
   sim_args <- c(list(param_table = sweep_param_table_(pins, nrep)),
                 dots[names(dots) == "time_step"])
   workers <- sweep_split_(nrep, threads)
@@ -243,12 +247,12 @@ sweep_run_ <- function(hh_model, structure, sampler, houses, nrep, pins,
        secs = proc.time()[["elapsed"]] - start)
 }
 
-#' One wave: the surveys of `wides` built in order and sampled `outer` at a
-#' time, with housepi warnings held back. The first survey that fails stops
-#' every fit of the wave.
-#' @param reps `integer` Replicate of each survey.
+#' Run one wave: the surveys of `wides` built in order,
+#' sampled `outer` at a time, housepi warnings held back.
+#' * first survey failing -> stops every fit of the wave.
+#' @param reps `integer()` Replicate of each survey.
 #' @param houses `integer(1)` Household count of the surveys.
-#' @param seeds `integer` Engine seed of each survey.
+#' @param seeds `integer()` Engine seed of each survey.
 #' @param bar Progress bar each fit fills by one unit, `NULL` for none.
 #' @return Posterior draws of each survey.
 #' @noRd
@@ -273,7 +277,7 @@ sweep_prepare_one_ <- function(simulated, seed, hh_model, fit_args) {
   list(model = model, ptr = ptr)
 }
 
-#' One replicate: the fit reduced against `truth`.
+#' Fit one replicate, reduced against `truth`.
 #' @noRd
 sweep_reduce_one_ <- function(draws, truth, rep, seed, houses, reducer) {
   estimates <- cbind(houses = houses, rep = rep, reducer(draws, truth))

@@ -93,10 +93,10 @@ test_that("A func definition is deterministic", {
 test_that("A parameter takes a single defining argument", {
   mk_param$model |>
     add_parameter("rho", func = "log", x = 2, prior = "uniform") |>
-    expect_error("[Oo]nly one between .func. and .prior.")
+    expect_error("[Oo]nly one of .func. and .prior.")
   mk_param$model |>
     add_parameter("rho", value = 2, func = "log", x = 1) |>
-    expect_error("[Oo]nly one between .value. and .func.")
+    expect_error("[Oo]nly one of .value. and .func.")
 })
 
 test_that("Spare arguments reach the function they belong to", {

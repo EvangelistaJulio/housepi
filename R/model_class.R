@@ -3,11 +3,7 @@
 ## SPDX-License-Identifier: GPL-3.0-or-later
 ##
 
-############################################################################
-############################################################################
-############################## Household Model #############################
-############################################################################
-############################################################################
+########  HousepiModel  ########
 
 # auxiliary environment
 .housepi_env <- new.env(parent = emptyenv())
@@ -16,8 +12,8 @@
 #' @title
 #' R6 class for compiling and running a household transmission model
 #' @description
-#' Compile the household transmission model, manage your data, associate
-#' definitions, run inference and simulations from a single class.
+#' Compile the household transmission model, manage its data and definitions,
+#' run inference and simulations, from a single class.
 #' @examples
 #' # created and modified through new_housepi_model() and the add_*() verbs
 #' hh_model <- flu_1918_frederick |>
@@ -31,9 +27,7 @@ HousepiModel <- R6::R6Class(
   cloneable = FALSE,
   lock_class = TRUE,
 
-  ############################################################################
-  ################################## PRIVATE #################################
-  ############################################################################
+  ####  Private  ####
 
   private = list(
     gen_ = NULL,
@@ -46,17 +40,14 @@ HousepiModel <- R6::R6Class(
     reporting_process_ = NULL,
     collapse_seen_ = character(),
 
-    ############################################################################
-    ############################################################################
-    ############################################################################
+    ####  Requirements  ####
 
-    # @description
-    # Names of one source the latent declaration reads: latent, observation
-    # and infectivity profile definitions. Read from the resolved tables, so a
-    # reference counts under the kind it resolves to. Each
-    # name is labelled with the family of the definition reading it, member-
-    # and household-level observations alike.
-    # @param type `character(1)`. Source letter.
+    # Names of one source the latent declaration reads,
+    # across latent, observation and infectivity profile definitions.
+    # * read from the resolved tables -> a reference counts under its kind;
+    # * each name -> labelled with the family of the definition reading it,
+    #   member- and household-level observations alike.
+    # @param type `character(1)` Source letter.
     required_of_declaration_ = function(type) {
       defs <- private$resolved_latent_()
       family <- vapply(sub("^house$", "member", defs[["kind"]]), kind2family,
@@ -71,15 +62,13 @@ HousepiModel <- R6::R6Class(
                                   private$infec_profile_$family))
     },
 
-    # @description
-    # Latent variables required by implementation file and other definitions.
+    # Latent variables required by the model and by other definitions.
     get_required_latent_ = function() {
       c(private$gen_$latent_required,      # by the model
         private$required_of_declaration_("A"))   # by the latent declaration
     },
 
-    # @description
-    # Dataset headers required by implementation file and other definitions.
+    # Data columns required by the model and by other definitions.
     get_required_data_wide_ = function() {
       c(private$gen_$data_required,        # by the model
         private$group_risks_$data_required,      # by group risks
@@ -87,15 +76,13 @@ HousepiModel <- R6::R6Class(
         private$required_of_declaration_("D"))   # by the latent declaration
     },
 
-    # @description
-    # Group risks required by implementation file and other definitions.
+    # Group risks required by the model and by other definitions.
     get_required_group_risks_ = function() {
       c(private$gen_$group_risks_required, # by the model
         private$required_of_declaration_("G"))   # by the latent declaration
     },
 
-    # @description
-    # Parameters required by implementation file and other definitions.
+    # Parameters required by the model and by other definitions.
     get_required_parameters_ = function() {
       c(private$gen_$param_required,       # by the model
         find_required_definitions(private$resolved_param_(), "P",
@@ -106,19 +93,15 @@ HousepiModel <- R6::R6Class(
         private$required_of_declaration_("P"))   # by the latent declaration
     },
 
-    ############################################################################
-    ############################################################################
-    ############################################################################
+    ####  Assertions  ####
 
-    # @description
     # Whether household data is attached.
     has_data_wide_ = function() {
       length(private$gen_$cols_data_wide) > 0
     },
 
-    # @description
-    # Assert if latent definitions match the required.
-    # @param wall `logical(1)` to raise error.
+    # Assert the required latents are defined.
+    # * `wall` -> error, else the messages are returned.
     assert_latent_ = function(wall = TRUE, warn_unused = TRUE) {
       private$augm_$assert(
         private$get_required_latent_(),
@@ -127,18 +110,18 @@ HousepiModel <- R6::R6Class(
       )
     },
 
-    # @description
-    # Assert if data_wide headers match implementation file.
-    # @param wall `logical(1)` to raise error.
+    # Assert data_wide holds the columns required by the model and definitions.
+    # * `wall` -> error, else the messages are returned;
+    # * `simulating` -> generated observations are not required.
     assert_data_wide_ = function(wall = TRUE, simulating = FALSE) {
-      # no data attached at all: capital error at the wall
+      # no data attached -> error at the wall
       if (isTRUE(wall) && !private$has_data_wide_()) stop_h(
         "No household data attached.",
         "Attach it with {.fn add_data_wide}."
       )
       required <- private$get_required_data_wide_()
 
-      # observations are generated during simulation: not required
+      # simulating -> observations are generated, not required
       if (isTRUE(simulating)) {
         required <- setdiff(required, private$augm_$observation_names)
       }
@@ -153,30 +136,25 @@ HousepiModel <- R6::R6Class(
       wall_or_return_(sms, wall)
     },
 
-    # @description
-    # Assert group risk definitions from the model implementation script.
+    # Assert the model reads every group risk defined.
     assert_group_risks_ = function() {
       private$group_risks_$assert(private$get_required_group_risks_())
     },
 
-    # @description
-    # Assert the model supports a feature; definitions of it would be dropped.
-    # @param supported `logical(1)` whether the model supports it.
-    # @param label `character(1)` plural feature name.
+    # Assert the model supports a feature.
+    # @param label `character(1)` Feature name, plural: "Contact risks".
     assert_feature_supported_ = function(supported, label) {
       if (supported) return(invisible(self))
       stop_h(
         "{label} are not supported for model {.val {self$name}}.",
-        `!` = "Definitions will be dropped."
+        "Choose a model that supports them."
       )
     },
 
-    # @description
-    # Baselines an absolute risk anchors, keyed by parameter name: an absolute
-    # risk leaves no scale for its baseline, which is held at the reference
-    # value whether or not the parameter was declared. Each entry names the
-    # risks that absorbed it.
-    # @return `list` of `character()`
+    # Pin baselines to the reference value, keyed by parameter name.
+    # * absolute risk -> baseline held at the reference value, declared or not;
+    # * baseline defined as a function -> not pinned, user's own scale.
+    # @return `list` of `character()` Risks pinning each baseline.
     baseline_pins_ = function() {
       anchors <- private$gen_$risk_anchors
       defs <- private$param_$defs
@@ -197,9 +175,8 @@ HousepiModel <- R6::R6Class(
       pins
     },
 
-    # @description
-    # Declared parameters, with every baseline an absolute risk anchors held
-    # at the reference value.
+    # Declared parameters, with the baselines absolute risks anchor
+    # held at the reference value.
     # @return `HousepiParameter`
     effective_param_ = function() {
       pins <- names(private$baseline_pins_())
@@ -215,11 +192,9 @@ HousepiModel <- R6::R6Class(
       param
     },
 
-    # @description
-    # What a baseline was declared as, `NA` when it was not declared or
-    # already is the reference value.
-    # @param name `character(1)`. Baseline parameter name.
-    # @return `character(1)` fingerprint of the whole definition row.
+    # Fingerprint of the definition row a baseline was declared with.
+    # * not declared, or already the reference value -> `NA`.
+    # @param name `character(1)` Baseline parameter name.
     declared_scale_ = function(name) {
       defs <- private$param_$defs
       row <- match(name, defs[["name"]])
@@ -231,10 +206,10 @@ HousepiModel <- R6::R6Class(
       else paste(unlist(defs[row, ]), collapse = "|")
     },
 
-    # @description
     # Warn once per declaration for each baseline an absolute risk absorbed,
-    # discarding what its declaration asked for. `collapse_seen_` holds what
-    # was last reported: a baseline released by its risks is forgotten.
+    # discarding what its declaration asked for.
+    # * `collapse_seen_` -> what was last reported;
+    # * baseline released by its risks -> forgotten.
     warn_baseline_collapse_ = function() {
       pins <- private$baseline_pins_()
       defs <- private$param_$defs
@@ -257,13 +232,12 @@ HousepiModel <- R6::R6Class(
       invisible(self)
     },
 
-    # @description
-    # Read a table of parameter values a run supplies, refusing a value for a
-    # baseline an absolute risk holds at the reference.
-    # @param table `data.frame` or path. Values keyed by parameter name.
-    # @param nrep `integer(1)`. Rows kept at most, evenly spaced, all if `NA`.
-    # @param thin_ess `logical(1)`. Thin by effective sample size.
-    # @param arg `character(1)`. Argument the table came from.
+    # Read a table of parameter values a run supplies.
+    # * value for a baseline an absolute risk holds at the reference -> error.
+    # @param table `data.frame` | path Values keyed by parameter name.
+    # @param nrep `integer(1)` Rows kept at most, evenly spaced, all if `NA`.
+    # @param thin_ess `logical(1)` Whether to thin by effective sample size.
+    # @param arg `character(1)` Argument the table came from.
     read_param_table_ = function(table,
                                  nrep = NA_integer_,
                                  thin_ess = TRUE,
@@ -273,11 +247,11 @@ HousepiModel <- R6::R6Class(
       helper_thin_even_(table, nrep)
     },
 
-    # @description
-    # Refuse a value a run supplies for a baseline an absolute risk holds at
-    # the reference. `NA` cells pass: they supply nothing.
-    # @param given `list` or `data.frame`. Values keyed by parameter name.
-    # @param arg `character(1)`. Argument the values came from.
+    # Assert no value a run supplies targets a baseline an absolute risk holds
+    # at the reference.
+    # * `NA` cell -> passes, it supplies nothing.
+    # @param given `list` | `data.frame` Values keyed by parameter name.
+    # @param arg `character(1)` Argument the values came from.
     assert_no_baseline_value_ = function(given, arg) {
       named <- intersect(names(given), names(private$baseline_pins_()))
       held <- named[!vapply(given[named], \(v) all(v[!is.na(v)] == 1),
@@ -291,10 +265,9 @@ HousepiModel <- R6::R6Class(
       )
     },
 
-    # @description
-    # Assert if parameter definitions match required.
-    # @param wall `logical(1)` to raise error.
-    # @param warn_unused `logical(1)` warn if unused.
+    # Assert the required parameters are defined.
+    # * `wall` -> error, else the messages are returned;
+    # * `warn_unused` -> warning on unused ones.
     assert_param_ = function(wall = TRUE, warn_unused = TRUE) {
       private$effective_param_()$assert(
         private$get_required_parameters_(),
@@ -303,11 +276,10 @@ HousepiModel <- R6::R6Class(
       )
     },
 
-    # @description
-    # Assert every reference names one declared definition. Scans the resolved
-    # tables for terminals the dictionary left unsettled: a name two holders
-    # claim, or a name nothing declares.
-    # @param wall `logical(1)` to raise error.
+    # Assert every reference names one declared definition, scanning the
+    # resolved tables for terminals the dictionary left unsettled:
+    # * name two holders claim, or nothing declares -> error;
+    # * `wall` -> error, else the messages are returned.
     assert_sources_ = function(wall = TRUE) {
       # the full source-bearing column set, not the narrower requirement one:
       # a distribution or proposal argument carries references too
@@ -340,13 +312,8 @@ HousepiModel <- R6::R6Class(
       wall_or_return_(sms, wall)
     },
 
-    ############################################################################
-    ############################################################################
-    ############################################################################
-
-    # @description
     # Assert an infectivity profile is defined when the model needs one.
-    # @param wall `logical(1)` to raise error.
+    # * `wall` -> error, else the messages are returned.
     assert_infec_profile_ = function(wall = TRUE) {
       if (!private$gen_$has_infec_profile ||
             length(private$infec_profile_$defs)) return(character())
@@ -355,15 +322,12 @@ HousepiModel <- R6::R6Class(
       wall_or_return_(sms, wall)
     },
 
-    ############################################################################
-    ############################################################################
-    ############################################################################
+    ####  Build  ####
 
-    # @description
-    # Reject a risk keyed on an observation column, at either level.
-    # A risk feeds the transmission model the observation is generated from, so
-    # its strata would depend on the order the definitions were declared in.
-    # @param module `R6`. Group or contact risk holder.
+    # Assert no risk is keyed on an observation column, at either level.
+    # A risk feeds the transmission model the observation is generated from,
+    # so its strata would depend on the order of declaration.
+    # @param module `R6` Group or contact risk holder.
     assert_no_obs_risk_collision_ = function(module) {
       obs <- union(private$augm_$observation_names,
                    private$augm_$surrogate_names)
@@ -377,9 +341,8 @@ HousepiModel <- R6::R6Class(
       invisible(self)
     },
 
-    # @description
-    # Helper to assert and re-build group and contact risks.
-    # `...` carries the stratification axes only the group risks know about.
+    # Assert and rebuild group or contact risks.
+    # @param ... Stratification axes only the group risks know about.
     helper_build_risks_ = function(module, ...) {
       # proceed only if definitions exist
       if (!length(module$defs)) return(invisible(self))
@@ -401,7 +364,6 @@ HousepiModel <- R6::R6Class(
       invisible(self)
     },
 
-    # @description
     # Assert and pre-build group risks.
     build_group_risks_ = function(wall = FALSE) {
       status_codes <- private$status_codes_()
@@ -412,16 +374,13 @@ HousepiModel <- R6::R6Class(
       )
     },
 
-    # @description
     # Pre-build contact risks.
     build_contact_risks_ = function() {
       private$helper_build_risks_(private$contact_risks_)
     },
 
-    # @description
-    # Factorize and push wide-format data to the C++ engine.
-    # Data is assumed validated (non-null data.frame).
-    # Definitions are (re)built by the caller via `rebuild_()`.
+    # Factorize and push wide-format data to the engine.
+    # The data is validated, and the caller rebuilds definitions via rebuild_().
     set_data_wide_ = function(data) {
       data_factorized <- private$gen_$factorize_data_wide(data)
       # soft check: data may be intentionally incomplete
@@ -431,10 +390,8 @@ HousepiModel <- R6::R6Class(
       invisible(self)
     },
 
-    # @description
-    # Drop current risk-derived parameters so data change re-derives them.
-    # NOTE: reads the pre-change logic tables.
-    # NOTE: must run before the next `rebuild_()` risks re-implementation.
+    # Drop the risk-derived parameters, re-derived after a data change.
+    # Reads the pre-change logic tables, so it runs before the next rebuild_().
     drop_stale_risk_params_ = function() {
       stale <- c(names(private$group_risks_$parameters),
                  names(private$contact_risks_$parameters))
@@ -442,7 +399,6 @@ HousepiModel <- R6::R6Class(
       invisible(self)
     },
 
-    # @description
     # Reset every definition holder to an empty object.
     reset_definitions_ = function() {
       private$param_ <- HousepiParameter$new()
@@ -456,7 +412,6 @@ HousepiModel <- R6::R6Class(
       invisible(self)
     },
 
-    # @description
     # Drop parameter definitions.
     drop_parameters_ = function() {
       private$param_ <- HousepiParameter$new()
@@ -464,7 +419,6 @@ HousepiModel <- R6::R6Class(
       invisible(self)
     },
 
-    # @description
     # Drop group risks definitions, removing any associated parameters.
     drop_group_risks_ = function() {
       if (!is.null(private$group_risks_)) {
@@ -480,10 +434,10 @@ HousepiModel <- R6::R6Class(
       invisible(self)
     },
 
-    # @description
-    # Single, model-owned ordered infected-status dictionary. Data labels win
-    # (the data is already coded), else the status process order, else literal
-    # character labels declared on latent definitions.
+    # Ordered infected-status dictionary of the model, in order of precedence:
+    # * data labels, the data being already coded;
+    # * status process order;
+    # * character labels declared on latent definitions.
     status_dictionary_ = function() {
       data_lab <- private$gen_$status_data_labels
       if (length(data_lab)) return(data_lab)
@@ -491,11 +445,10 @@ HousepiModel <- R6::R6Class(
       private$augm_$status_labels
     },
 
-    # @description
     # Engine infected-status codes, named after the labels a risk may key on.
-    # Labels win when the model knows any; purely integer-coded statuses are
-    # their own dictionary, the codes the data carries and the ones the status
-    # process draws, and the codes stand for themselves.
+    # * model knows labels -> labels win;
+    # * integer-coded statuses -> their own dictionary, the codes the data
+    #   carries and the status process draws, each standing for itself.
     status_codes_ = function() {
       dict <- private$status_dictionary_()
       if (length(dict)) return(stats::setNames(seq_along(dict), dict))
@@ -504,7 +457,6 @@ HousepiModel <- R6::R6Class(
       stats::setNames(codes, as.character(codes))
     },
 
-    # @description
     # Declared names under each source, keyed by its source letter.
     source_sets_ = function() {
       gen <- private$gen_
@@ -532,8 +484,8 @@ HousepiModel <- R6::R6Class(
         P = c(private$param_$defs[["name"]], needs("param_required")),
         A = c(latent, needs("latent_required"))
       )
-      # a latent shadows the like-named column, as a simulated output fed
-      # back as data: the latent is not an ambiguity
+      # latent shadowing the like-named column -> no ambiguity,
+      # as a simulated output fed back as data
       sets$D <- setdiff(sets$D, sets$A)
       lapply(sets, function(nms) {
         nms <- unique(nms)
@@ -541,9 +493,8 @@ HousepiModel <- R6::R6Class(
       })
     },
 
-    # @description
-    # Source letter a reference resolves to, for every name the model
-    # declares. A name two holders claim maps to `""`: no reference settles it.
+    # Source letter a reference resolves to, for every name the model declares.
+    # * name two holders claim -> `""`, no reference settles it.
     source_dictionary_ = function() {
       sets <- private$source_sets_()
       dict <- character()
@@ -555,7 +506,6 @@ HousepiModel <- R6::R6Class(
       dict
     },
 
-    # @description
     # Parameter definitions with sources and `discr` resolved on demand.
     resolved_param_ = function() {
       resolve_discr_flags_(
@@ -566,11 +516,10 @@ HousepiModel <- R6::R6Class(
       )
     },
 
-    # @description
     # Latent definitions with sources and `discr` resolved on demand.
-    # Sources come first: a bare read of a data column inherits its
-    # discreteness only once it carries the `D` letter, and a member-level
-    # observation reads household values only once its sources are known.
+    # Sources come first:
+    # * bare read of a data column -> inherits its discreteness from `D`;
+    # * member-level observation -> household values read once sources known.
     resolved_latent_ = function() {
       resolve_discr_flags_(
         helper_cast_house_level(
@@ -583,20 +532,17 @@ HousepiModel <- R6::R6Class(
       )
     },
 
-    # @description
     # Infectivity profile definitions with sources resolved on demand.
     resolved_profile_ = function() {
       resolve_source_types_(private$infec_profile_$defs,
                             private$source_dictionary_())
     },
 
-    # @description
-    # Whether the latent declaration can be built as it stands. Producers
-    # land in the engine on their own decorator, and a status block needs a
-    # definition to fill it; either gap waits for the next decorator.
-    # NOTE: what the model requires stays out, being supplied by its own
-    # decorator too (see `rebuild_`).
-    # @param defs `data.frame()`. Declarations with status codes resolved.
+    # Whether the latent declaration can be built as it stands.
+    # * producer not landed yet -> waits for its own decorator;
+    # * status block without a definition -> waits for the next decorator.
+    # What the model requires stays out, supplied by its own decorator too.
+    # @param defs `data.frame()` Declarations with status codes resolved.
     latent_declaration_complete_ = function(defs) {
       # the infectivity profile folds into the latent build
       need_latent <- private$required_of_declaration_("A")
@@ -606,28 +552,26 @@ HousepiModel <- R6::R6Class(
         private$augm_$covers_statuses(defs, private$carried_statuses_())
     },
 
-    # @description
-    # Soft re-push of R-side definitions to the C++ engine, then report the
-    # baselines the risks absorbed.
-    # NOTE: Hard validation lives in `build_full_`.
-    # @param wall `logical(1)` Whether to raise error.
+    # Re-push the R-side definitions to the engine, without hard validation,
+    # then report the baselines the risks absorbed.
+    # Hard validation runs in build_full_().
+    # @param wall `logical(1)` Whether to raise an error.
     rebuild_ = function(wall = FALSE) {
       private$push_definitions_(wall)
       private$warn_baseline_collapse_()
       invisible(self)
     },
 
-    # @description
-    # Derive the risks from the data and push every definition the engine can
-    # already take.
-    # @param wall `logical(1)` Whether to raise error.
+    # Derive the risks from the data,
+    # then push every definition the engine can already take.
+    # @param wall `logical(1)` Whether to raise an error.
     # @param derive `logical(1)` Whether to re-derive the risk tables.
     push_definitions_ = function(wall = FALSE, derive = TRUE) {
-      # risks stratify on data: nothing to derive while none is attached
+      # no data attached -> no risk to derive
       if (!length(private$gen_$cols_data_wide)) return(invisible(self))
 
-      # the status dictionary keys the risks that stratify on it, and the
-      # latent status codes below: it must be settled before either reads it
+      # settle the status dictionary first, read by the risks stratifying on it
+      # and by the latent status codes below
       status_dict <- private$status_dictionary_()
       if (private$gen_$escaped %in% status_dict) stop_h(
         paste("Infected status {.val {private$gen_$escaped}} collides",
@@ -647,8 +591,8 @@ HousepiModel <- R6::R6Class(
       if (length(private$assert_data_wide_(FALSE, simulating = TRUE)) > 0)
         return(invisible(self))
 
-      # a forward reference waits for the decorator that declares it, rather
-      # than pushing an unsettled source into the engine
+      # forward reference -> waits for the decorator that declares it,
+      # never pushing an unsettled source
       if (!wall && length(private$assert_sources_(FALSE)) > 0)
         return(invisible(self))
 
@@ -679,7 +623,7 @@ HousepiModel <- R6::R6Class(
       # latent
       latent_defs <- resolve_status_codes_(private$resolved_latent_(),
                                            status_dict)
-      # NOTE: unresolved definitions wait for completeness or for the wall
+      # unresolved definitions wait for completeness or for the wall
       if (wall || private$latent_declaration_complete_(latent_defs))
         .engine$import_latent(mcmc_ptr, latent_defs)
 
@@ -689,9 +633,9 @@ HousepiModel <- R6::R6Class(
       invisible(self)
     },
 
-    # @description
-    # Check the status-process table against the data and push it coded.
-    # Labelled statuses read the model dictionary, codes stand for themselves.
+    # Check the status-process table against the data, then push it coded.
+    # * labelled statuses -> read the model dictionary;
+    # * codes -> stand for themselves.
     # @param derive `logical(1)` Whether to check the table against the data.
     push_status_process_ = function(derive = TRUE) {
       if (!private$status_$is_defined) return(invisible(self))
@@ -706,29 +650,28 @@ HousepiModel <- R6::R6Class(
       invisible(self)
     },
 
-    # @description
-    # Infected levels a member may draw: the model dictionary when the status
-    # process is labelled, else its integer statuses.
+    # Infected levels a member may draw:
+    # * labelled status process -> the model dictionary;
+    # * otherwise -> its integer statuses.
     status_draw_levels_ = function() {
       private$status_$draw_levels(private$status_codes_())
     },
 
-    # @description
-    # Infected status codes a member can carry: every level a status process
-    # draws, whatever the data carries, else the ones observed in the data.
+    # Infected status codes a member can carry:
+    # * status process -> every level it draws, whatever the data carries;
+    # * otherwise -> the ones observed in the data.
     carried_statuses_ = function() {
       if (!private$status_$is_defined) return(private$gen_$infec_status_set)
       seq_along(private$status_draw_levels_())
     },
 
-    # @description
-    # Full model build. Refresh runtime setup, enforce hard validation,
+    # Build the model: refresh the run setup, enforce hard validation,
     # then push the final state to the engine.
     build_full_ = function(steps = 0L, adapt = 0L, burn = 0L,
                            thin = 1L, chains = 1L, threads = 1L,
                            id_draws = NULL, simulating = FALSE,
                            seed = draw_seed_(), ...) {
-      # only run_inference resolves a selection; other builds store nothing
+      # only run_inference resolves a selection, other builds store nothing
       if (!is.list(id_draws))
         id_draws <- list(id = character(), hh_id = character())
 
@@ -760,8 +703,8 @@ HousepiModel <- R6::R6Class(
       invisible(self)
     },
 
-    # Helper with simulation build.
-    # FIXME: If there's a param table, build should change
+    # Build the model for simulation.
+    # @todo build differently given a param table
     helper_simulation_build_ = function(param_table = NULL,
                                         nrep = NA_integer_,
                                         thin_ess = TRUE,
@@ -790,12 +733,12 @@ HousepiModel <- R6::R6Class(
       # internal build function
       private$build_full_(steps = nrep, simulating = TRUE, ...)
 
-      # NOTE: there might be not parameters at all
+      # there may be no parameters at all
       if (!nrow(self$parameters)) return(nrep)
 
       if (is.null(param_table)) {
-        # replicates the single row nrep times; unpinned parameters (NA value)
-        # carry no column, so a prior-only parameter is sampled instead
+        # single row replicated nrep times, unpinned parameters (NA value)
+        # carrying no column, so a prior-only parameter is sampled
         pinned <- !is.na(self$parameters$value)
         param_table <- as.data.frame(stats::setNames(
           as.list(self$parameters$value[pinned]), self$parameters$name[pinned]
@@ -809,8 +752,8 @@ HousepiModel <- R6::R6Class(
       nrep
     },
 
-    # Set reporting process `slot` ("wide" or "long") to `func`, `NULL`
-    # removing it.
+    # Set reporting process `slot`, "wide" or "long", to `func`.
+    # * `func` NULL -> removes it.
     set_reporting_process_ = function(slot, func) {
       if (!is.null(func) && !is.function(func)) stop_h(
         "Reporting process {.arg {slot}} must be a function or {.code NULL}.",
@@ -820,12 +763,11 @@ HousepiModel <- R6::R6Class(
       invisible(self)
     },
 
-    # Function relabelling each simulated `data_wide` and applying the wide
-    # reporting process.
-    # UPDATE: I shall drop necessity for refactoring with variant data.
-    # `labelled = FALSE` hands the simulated frames over engine-coded when no
-    # reporting process reads them, which only suits consumers reading `hh_id`
-    # and `status`.
+    # Build the function relabelling each simulated `data_wide`,
+    # then applying the wide reporting process.
+    # * not `labelled`, no reporting process -> frames stay engine-coded,
+    #   for consumers reading `hh_id` and `status` only.
+    # @todo drop the relabelling of variant data
     helper_reporting_wide_ = function(labelled = TRUE) {
       gen <- private$gen_
       wide <- private$reporting_process_$wide
@@ -833,9 +775,8 @@ HousepiModel <- R6::R6Class(
       else if (labelled) \(x) gen$refactor_data_wide(x)
     },
 
-    # @description
-    # Run measure function on posterior simulations.
-    # UPDATE: this has to be improved with loops in C++
+    # Run a measure function on posterior simulations.
+    # @todo loop in C++
     run_measure_ = function(param_table,
                             apply_wide,
                             apply_long = NULL,
@@ -864,13 +805,10 @@ HousepiModel <- R6::R6Class(
     }
   ),
 
-  ############################################################################
-  ################################## ACTIVE ##################################
-  ############################################################################
+  ####  Active  ####
 
   active = list(
-    #' @field name `character(1)`
-    #'  Model name.
+    #' @field name `character(1)` Model name.
     name = function(value) {
       assert_read_only_(value, "name")
       private$gen_$name
@@ -883,16 +821,14 @@ HousepiModel <- R6::R6Class(
       private$gen_$escaped
     },
 
-    #' @field setup `list`
-    #' Last setup used by the build process.
+    #' @field setup `list` Last setup used by the build process.
     setup = function(value) {
       assert_read_only_(value, "setup")
       .engine$export_setup(private$gen_$mcmc_ptr)
     },
 
     #' @field data_wide `data.frame`
-    #' Individual level data.
-    #' One row per individual index by corresponding ID.
+    #' Individual-level data, one row per individual, indexed by ID.
     data_wide = function(value) {
       assert_read_only_(value, "data_wide")
       # no data attached yet (deferred until add_data_wide() or the wall)
@@ -909,8 +845,7 @@ HousepiModel <- R6::R6Class(
         private$gen_$refactor_data_long()
     },
 
-    #' @field parameters `data.frame`
-    #' Parameter definitions.
+    #' @field parameters `data.frame` Parameter definitions.
     parameters = function(value) {
       assert_read_only_(value, "parameters")
       private$resolved_param_() |>
@@ -918,8 +853,7 @@ HousepiModel <- R6::R6Class(
         sort_definitions_()
     },
 
-    #' @field group_risks `data.frame`
-    #' Group risk definitions.
+    #' @field group_risks `data.frame` Group risk definitions.
     group_risks = function(value) {
       assert_read_only_(value, "group_risks")
       private$group_risks_ |>
@@ -928,8 +862,7 @@ HousepiModel <- R6::R6Class(
         sort_definitions_("group_risk", by_status = FALSE)
     },
 
-    #' @field contact_risks `data.frame`
-    #' Contact risk definitions.
+    #' @field contact_risks `data.frame` Contact risk definitions.
     contact_risks = function(value) {
       assert_read_only_(value, "contact_risks")
       private$contact_risks_ |>
@@ -938,8 +871,7 @@ HousepiModel <- R6::R6Class(
         sort_definitions_("param_name", by_status = FALSE)
     },
 
-    #' @field latent `data.frame`
-    #' Latent definitions.
+    #' @field latent `data.frame` Latent definitions.
     latent = function(value) {
       assert_read_only_(value, "latent")
       private$resolved_latent_() |>
@@ -964,8 +896,8 @@ HousepiModel <- R6::R6Class(
     },
 
     #' @field status_process `data.frame`
-    #' Status process: one row per rule, with its status, weight, the members
-    #' it applies to, its rule group and covariates.
+    #' Status process, one row per rule: its status, weight,
+    #' the members it applies to, its rule group and covariates.
     status_process = function(value) {
       assert_read_only_(value, "status_process")
       data_wide <- self$data_wide
@@ -973,8 +905,7 @@ HousepiModel <- R6::R6Class(
       private$status_$tidy_table(data_wide, levels)
     },
 
-    #' @field infectivity_profiles `data.frame`
-    #' Infectivity profile definitions.
+    #' @field infectivity_profiles `data.frame` Infectivity profile definitions.
     infectivity_profiles = function(value) {
       assert_read_only_(value, "infectivity_profiles")
       private$resolved_profile_() |>
@@ -990,15 +921,13 @@ HousepiModel <- R6::R6Class(
     }
   ),
 
-  ############################################################################
-  ################################## PUBLIC ##################################
-  ############################################################################
+  ####  Public  ####
 
   public = list(
     #' @description
-    #' Create a new object of class 'HousepiModel'
-    #' used to run inference and simulation routines.
+    #' Create a `HousepiModel`, the object inference and simulation run on.
     #' @param data `r rd_add_wide_`
+    #' If omitted, attach it later with [add_data_wide()].
     #' @param model `r rd_mdl_choice_`
     #' @param as_template `r rd_mdl_astmpl_`
     #' @param force `r rd_mdl_force_`
@@ -1009,11 +938,10 @@ HousepiModel <- R6::R6Class(
                           as_template = FALSE,
                           force = FALSE, quiet = FALSE,
                           escaped = "escaped", ...) {
-      # helper construction option fort copying
+      # construction option for copying
       if (isTRUE(.housepi_env$hollow)) return(invisible(self))
 
-      # check data and enable dummy_household behavior
-      # NOTE: NULL data is allowed; attach later with add_data_wide()
+      # check the data, NULL allowed and attached later with add_data_wide()
       data <- assert_household_data(data, model)
 
       # initialize internal fields
@@ -1057,20 +985,19 @@ HousepiModel <- R6::R6Class(
       new_gen$init_pointers()
       obj_priv$gen_ <- new_gen
 
-      # @note setup is run-scoped, fully resupplied by build_full_ at every
-      # run/evaluate, so it is intentionally not carried across a copy.
-      # share data store (just copy-on-write)
+      # setup is not copied, build_full_() resupplies it at every run
+      # share the data store, copy-on-write
       .engine$share_data_store(new_gen$mcmc_ptr, private$gen_$mcmc_ptr)
 
       # fresh pointer needs definitions pushed to the engine
-      # @note cloned risk tables were derived on shared data so not re-derived
+      # cloned risk tables derive from the shared data, not re-derived
       obj_priv$push_definitions_(derive = FALSE)
 
       obj
     },
 
     #' @description
-    #' Override the default printing behavior.
+    #' Print the model and the state of its definitions.
     print = function() {
       header <- "Household transmission model {.val {self$name}}"
 
@@ -1081,7 +1008,7 @@ HousepiModel <- R6::R6Class(
         )
       header <- c(i = paste0(header, "."))
 
-      # UPDATE: to be rationalize in the future if more options are included
+      # @todo rationalize if more options are added
       if (private$gen_$is_discrete_time)
         header <- c(header, "Model is set to {.emph discrete time} mode.")
 
@@ -1182,15 +1109,8 @@ HousepiModel <- R6::R6Class(
 )
 
 # nocov start
-#' @title Export to Cpp standalone (developer)
-#' @description
-#' Export definitions in standalone folder in order to run debuggin in Cpp.
-#' Used for development.
-#' @param hh_model `r rd_model_in_`
-#' @details
-#' This could be designed to be more helpful, e. g.
-#' by creating a standalone folder somewhere with correct links to headers
-#' @keywords internal
+# @todo create a standalone folder with the correct links to the headers
+#' Export the definitions to the standalone folder, to debug the engine in C++.
 #' @noRd
 export_to_cpp_standalone <- function(hh_model, outpath = "inst/standalone/") {
   stopifnothousepi(hh_model)

@@ -20,7 +20,7 @@
 namespace housepi
 {
     /// Format `secs` in whole seconds, showing large time scales only when relevant.
-    /// - e.g. `12s`, `3m05s`, `1h02m`, `2d03h`.
+    /// * e.g. `12s`, `3m05s`, `1h02m`, `2d03h`.
     inline std::string format_secs(double secs)
     {
         const long t = static_cast<long>(secs);
@@ -41,10 +41,10 @@ namespace housepi
     /// Display the progress of a sequence of runs, with elapsed and remaining time.
     /// Based on @cite hammouchi_fancy_2024
     ///
-    /// - one thread prints, the threads running engines only count their iterations;
-    /// - each run fills one unit per engine, after the units of past runs;
-    /// - open line: `text |###   | 50% 3s<3s`, closing line: `text |######| 6s`;
-    /// - closed with no line printed: prints nothing.
+    /// * one thread prints, the threads running engines only count their iterations;
+    /// * each run fills one unit per engine, after the units of past runs;
+    /// * open line -> `text |###   | 50% 3s<3s`, closing line -> `text |######| 6s`;
+    /// * closed with no line printed -> prints nothing.
     class ProgressBar
     {
         using Clock = std::chrono::steady_clock;
@@ -74,7 +74,7 @@ namespace housepi
         void advance(double units) { offset_ += units; }
 
         /// Print `done` units of the current run, every `thintime` seconds from opening.
-        /// - prints missed by a busy thread: skipped.
+        /// * prints missed by a busy thread -> skipped.
         void update(double done)
         {
             const double secs = secs_();
@@ -94,7 +94,7 @@ namespace housepi
         }
 
         /// End the line of a bar left open by an error, once.
-        /// - non-interactive: no-op, every print ends its line.
+        /// * non-interactive -> no-op, every print ends its line.
         void crash()
         {
             if (has_bar_print_ && interactive_)
@@ -136,7 +136,7 @@ namespace housepi
         double secs_() const { return std::chrono::duration<double>(Clock::now() - start_).count(); }
 
         /// Write into `os` the text and the bar filled at progress `prog`.
-        /// - interactive: led by a carriage return, bar in green.
+        /// * interactive -> led by a carriage return, bar in green.
         void line_(std::ostream &os, double prog) const
         {
             const unsigned where = prog * barwidth_;

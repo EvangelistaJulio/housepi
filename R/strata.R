@@ -4,14 +4,16 @@
 ##
 
 # Strata tables shared by group risks, contact risks and the status process:
-# a rule keys on covariates, NA cells match any value, the most specific
-# matching rule of each rule group applies.
+# * a rule keys on covariates;
+# * an NA cell matches any value;
+# * the most specific matching rule of each rule group applies.
 
 # Columns of strata table `tbl` a rule keys on: every one but the `reserved`.
 strata_cov_cols_ <- function(tbl, reserved) setdiff(colnames(tbl), reserved)
 
-# Stop unless rule table `tbl` is a data.frame with rows and the `required`
-# columns. `label` opens the message, `hint` follows a missing column.
+# Assert rule table `tbl` is a data.frame with rows and the `required` columns.
+# @param label `character(1)` Opening of the message.
+# @param hint `character(1)` Hint following a missing column.
 assert_strata_shape_ <- function(tbl, required, label, hint) {
   if (!is.data.frame(tbl) || !nrow(tbl)) stop_h(
     "{label} must be a data.frame with at least one row.",
@@ -23,10 +25,8 @@ assert_strata_shape_ <- function(tbl, required, label, hint) {
   )
 }
 
-#' Assert that no covariate takes a reserved name.
-#' @param covariates `character()` Covariates, as data column names.
+#' Assert no covariate takes a reserved name.
 #' @param reserved `character()` Names no covariate may take.
-#' @keywords internal
 #' @noRd
 assert_valid_covariates <- function(covariates, reserved) {
   forbidden <- reserved[reserved %in% covariates]
@@ -38,10 +38,9 @@ assert_valid_covariates <- function(covariates, reserved) {
   )
 }
 
-#' Assert that covariates are present in data.
-#' @param covariates Covariates as list of data column names.
-#' @param headers All column names of the data.
-#' @keywords internal
+#' Assert the covariates are data columns.
+#' @param covariates `list` Covariate data column names.
+#' @param headers `character()` Data column names.
 #' @noRd
 assert_data_covariates <- function(covariates, headers) {
   missing <- setdiff(covariates, headers)
@@ -52,17 +51,15 @@ assert_data_covariates <- function(covariates, headers) {
 }
 
 #' Find the rules naming a value the data never carries.
-#' @param tbl `data.frame` logic table.
 #' @param known `list` Values the data carries, named after its columns.
-#' @param cols `character()` Data column every column of `tbl` reads, named
-#' after the columns of `tbl`.
+#' @param cols `character()` Data column each column of `tbl` reads,
+#' named after the columns of `tbl`.
 #' @return `logical()` One flag per row of `tbl`.
-#' @keywords internal
 #' @noRd
 unknown_strata_rows <- function(tbl, known, cols) {
   unknown <- rep(FALSE, nrow(tbl))
   for (col in intersect(names(cols), colnames(tbl))) {
-    # a catch-all cell keys on nothing: it names no value to be unknown
+    # catch-all cell -> keys on nothing, names no unknown value
     vals <- as.character(tbl[[col]])
     unknown <- unknown |
       (!is.na(vals) & !vals %in% as.character(known[[cols[[col]]]]))
@@ -70,16 +67,13 @@ unknown_strata_rows <- function(tbl, known, cols) {
   unknown
 }
 
-#' @title Assign rule_group to each rule of logic table.
-#' @description Rules belong to specificity groups.
-#' A group is identified by the unique `maximal` non-NA covariates.
-#' Rules with the same maximal pattern share a group.
-#' Rules that are subset of multiple groups are ambiguous.
-#' @param tbl `data.frame` logic table.
+#' Assign a `rule_group` to each rule of a logic table.
+#' A group is identified by a maximal pattern of non-NA covariates.
+#' * rules with the same maximal pattern -> one group;
+#' * rule fitting several equally specific groups -> ambiguous, error.
 #' @param cov_cols `character()` Columns a rule keys on.
 #' @param value_col `character(1)` Column holding what a rule applies.
-#' @return `data.frame` with integer `rule_group` column appended.
-#' @keywords internal
+#' @return `data.frame` Input with an integer `rule_group` column.
 #' @noRd
 compute_rule_groups <- function(tbl, cov_cols, value_col) {
   if (!nrow(tbl)) {
@@ -137,17 +131,15 @@ compute_rule_groups <- function(tbl, cov_cols, value_col) {
 }
 
 #' Build the member cells a strata table is checked against.
-#' @description Members holding the same covariate values resolve alike, so
-#' each distinct combination stands once, weighted by the members holding it.
-#' A table read on infected members only is checked at every infected status
-#' a member may take, whatever the data records.
-#' @param data_wide `data.frame` Data the members come from.
+#' Members holding the same covariate values resolve alike,
+#' so each distinct combination stands once, weighted by its members.
+#' * table read on infected members only -> checked at every infected status
+#'   a member may take, whatever the data records.
 #' @param covs `character()` Data columns the rules read, status excluded.
-#' @param status_levels `character()` Infected-status labels, empty for a
-#' table that does not read the status.
-#' @return `data.frame` with columns `covs`, `status` when stratified, the
+#' @param status_levels `character()` Infected-status labels,
+#' empty for a table that does not read the status.
+#' @return `data.frame` Columns `covs`, `status` when stratified,
 #' `.weight` and the `.combo` index of each distinct combination.
-#' @keywords internal
 #' @noRd
 member_cells_ <- function(data_wide, covs, status_levels = character()) {
   if (!length(covs)) {
@@ -167,14 +159,12 @@ member_cells_ <- function(data_wide, covs, status_levels = character()) {
 }
 
 #' Match every observed cell against every rule of a logic table.
-#' @param tbl `data.frame` logic table.
-#' @param cells `data.frame` observed cells, columns named as the rule columns.
-#' @return `logical` matrix, one row per cell and one column per rule.
-#' @keywords internal
+#' @param cells `data.frame` Observed cells, columns named as the rule columns.
+#' @return `matrix` Logical, one row per cell and one column per rule.
 #' @noRd
 rule_hits_ <- function(tbl, cells) {
-  # a catch-all rule cell constrains nothing; a missing data cell matches
-  # nothing but a catch-all
+  # * catch-all rule cell -> constrains nothing;
+  # * missing data cell -> matches a catch-all only.
   Reduce(`&`, lapply(names(cells), function(col) {
     outer(as.character(cells[[col]]), as.character(tbl[[col]]),
           \(d, r) is.na(r) | (!is.na(d) & d == r))
@@ -182,11 +172,9 @@ rule_hits_ <- function(tbl, cells) {
 }
 
 #' Find the observed cells some rule group of a logic table leaves unmatched.
-#' @param tbl `data.frame` logic table.
-#' @param cells `data.frame` observed cells, columns named as the rule columns.
+#' @param cells `data.frame` Observed cells, columns named as the rule columns.
 #' @param gid `integer()` Rule group of every rule.
 #' @return `logical()` One flag per row of `cells`.
-#' @keywords internal
 #' @noRd
 unmatched_cells_ <- function(tbl, cells, gid) {
   # a table without rules matches no cell
@@ -198,13 +186,12 @@ unmatched_cells_ <- function(tbl, cells, gid) {
 }
 
 #' Resolve every cell against the rules of a logic table.
-#' @description Within each rule group, a cell goes to the most specific rule
-#' it matches, as in the engine. Rules tied at that specificity all win it.
-#' @param tbl `data.frame` logic table.
-#' @param cells `data.frame` observed cells, columns named as the rule columns.
+#' Within each rule group, a cell goes to the most specific rule it matches,
+#' as in the engine.
+#' * rules tied at that specificity -> all win it.
+#' @param cells `data.frame` Observed cells, columns named as the rule columns.
 #' @param gid `integer()` Rule group of every rule.
-#' @return `logical` matrix, one row per cell and one column per rule.
-#' @keywords internal
+#' @return `matrix` Logical, one row per cell and one column per rule.
 #' @noRd
 rule_winners_ <- function(tbl, cells, gid) {
   hit <- rule_hits_(tbl, cells)
@@ -222,15 +209,15 @@ rule_winners_ <- function(tbl, cells, gid) {
 }
 
 #' Count the units every rule of a logic table is resolved to.
-#' @description A unit counts once per rule, at whichever levels of its
-#' covariate combination the rule wins. Rules tied at the top specificity
-#' share the cell.
-#' @param tbl `data.frame` logic table with its `rule_group` column.
-#' @param cells `data.frame` observed cells, with the `.weight` units each
-#' holds and the `.combo` index of its covariate combination.
+#' A unit counts once per rule,
+#' at whichever levels of its covariate combination the rule wins.
+#' * rules tied at the top specificity -> share the cell.
+#' @param tbl `data.frame` Logic table with its `rule_group` column.
+#' @param cells `data.frame` Observed cells,
+#' with the `.weight` units each holds
+#' and the `.combo` index of its covariate combination.
 #' @param reserved `character()` Columns of `tbl` no rule keys on.
 #' @return `integer()` One count per rule.
-#' @keywords internal
 #' @noRd
 rule_counts_ <- function(tbl, cells, reserved) {
   cols <- strata_cov_cols_(tbl, reserved)
@@ -261,8 +248,8 @@ rule_phrase_ <- function(i, tbl, cov_cols, value_col) {
   )
 }
 
-# Stop when a strata table leaves `n` units unmatched. `hint`, rendered text,
-# replaces the advice to add a covering rule.
+# Stop when a strata table leaves `n` units unmatched.
+# @param hint `character(1)` Rendered advice replacing the covering-rule one.
 stop_unmatched_ <- function(n, label, unit, hint = NULL) {
   if (n == 0) return(invisible())
   if (is.null(hint)) hint <- cli::format_inline(
@@ -275,14 +262,12 @@ stop_unmatched_ <- function(n, label, unit, hint = NULL) {
 }
 
 #' Stop on the rules of a logic table that no unit resolves to.
-#' @param tbl `data.frame` logic table.
 #' @param dead `logical()` One flag per row of `tbl`.
 #' @param cov_cols `character()` Columns a rule keys on.
 #' @param value_col `character(1)` Column holding what a rule applies.
 #' @param label `character(1)` The process, as it opens the message.
 #' @param unit `character(1)` What a rule resolves: member or ordered pair.
-#' @return `data.frame` the input, invisibly.
-#' @keywords internal
+#' @return `data.frame` Input, invisibly.
 #' @noRd
 assert_no_dead_rules <- function(tbl, dead, cov_cols, value_col, label, unit) {
   if (!any(dead)) return(invisible(tbl))
@@ -296,21 +281,22 @@ assert_no_dead_rules <- function(tbl, dead, cov_cols, value_col, label, unit) {
   )
 }
 
-#' Stop on logic tables that do not resolve every unit to one rule per group.
-#' @description Checked over `cells`: every cell matches a rule of every rule
-#' group, every rule is the best match of some cell, and no two rules of one
-#' group tie at a cell.
+#' Stop on logic tables that do not resolve every unit to one rule per group,
+#' checked over `cells`:
+#' * every cell matches a rule of every rule group;
+#' * every rule is the best match of some cell;
+#' * no two rules of one group tie at a cell.
 #' @param tables `list` of logic tables, each with its `rule_group` column.
-#' @param cells `data.frame` observed cells, with the `.weight` units each
-#' holds and the `.combo` index of its covariate combination.
+#' @param cells `data.frame` Observed cells,
+#' with the `.weight` units each holds
+#' and the `.combo` index of its covariate combination.
 #' @param reserved `character()` Columns of the tables no rule keys on.
 #' @param value_col `character(1)` Column holding what a rule applies.
 #' @param label `character(1)` The process, as it opens the message.
 #' @param unit `character(1)` What a rule resolves: member or ordered pair.
-#' @param hint `character(1)` Rendered advice on unmatched units, `NULL` for
-#' the one to add a covering rule.
-#' @return `list` of winner matrices from `rule_winners_()`, invisibly.
-#' @keywords internal
+#' @param hint `character(1)` Rendered advice on unmatched units,
+#' `NULL` for the one to add a covering rule.
+#' @return `list` Winner matrices from rule_winners_(), invisibly.
 #' @noRd
 assert_strata_fit_ <- function(tables, cells, reserved, value_col,
                                label, unit, hint = NULL) {
@@ -348,11 +334,12 @@ assert_strata_fit_ <- function(tables, cells, reserved, value_col,
   invisible(wins)
 }
 
-# Code rule columns as integers over the factor levels held in `info`.
-# `key` maps a column to its `info` entry: a logical column codes FALSE to 0
-# and TRUE to 1, and columns without levels stay as they are. An NA rule cell
-# is a catch-all: it codes to NA, so the engine skips that covariate and it
-# counts for no specificity.
+# Code rule columns as integers over the factor levels held in `info`,
+# `key` mapping a column to its `info` entry.
+# * logical column -> FALSE to 0, TRUE to 1;
+# * column without levels -> as is;
+# * NA rule cell -> catch-all, coded NA: the engine skips that covariate,
+#   and it counts for no specificity.
 encode_strata_levels_ <- function(defs, info, cols, key = identity) {
   for (col in cols) {
     entry <- info[[key(col)]]

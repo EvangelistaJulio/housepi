@@ -207,8 +207,8 @@ namespace housepi
                                   attr);
         };
         // within a household, an operand carrying no value:
-        // - drops out of a fold;
-        // - leaves any other call undefined.
+        // * drops out of a fold;
+        // * leaves any other call undefined.
         const auto is_valueless = [&](const Attribute &attr)
         { return house_ptr && attr.is_constant() && attr.is_na(); };
 

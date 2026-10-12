@@ -51,11 +51,11 @@ A \code{draws_summary} \code{data.frame}.
 }
 \description{
 S3 method on \code{\link[posterior:summarise_draws]{posterior::summarise_draws()}} for objects tagged
-\code{"housepi_draws"} (returned by housepi getters and active fields on
-\code{\link{HousepiPosteriorDraws}}). When no summary functions are passed via
-\code{...}, the housepi defaults are used and the quantile pair tracks
-\code{\link[=set_housepi_summary]{set_housepi_summary()}}. Otherwise dispatch falls through to
-\code{\link[posterior:summarise_draws]{posterior::summarise_draws()}} behaviour.
+\code{"housepi_draws"}, returned by housepi getters and by the active fields
+of \code{\link{HousepiPosteriorDraws}}.
+Without summary functions in \code{...}, the housepi defaults are used,
+and the quantile pair tracks \code{\link[=set_housepi_summary]{set_housepi_summary()}}.
+Otherwise the call falls through to \code{\link[posterior:summarise_draws]{posterior::summarise_draws()}}.
 }
 \examples{
 results <- flu_1918_frederick |>

@@ -26,8 +26,8 @@ using no_promote_policy = boost::math::policies::policy<
 
 /// Discrete quantile policy of R: min{k : P(X <= k) >= p}.
 ///
-/// - boost's default `integer_round_outwards` rounds toward the tails, unlike R for p < 0.5;
-/// - `integer_round_up` matches R exactly.
+/// * boost's default `integer_round_outwards` rounds toward the tails, unlike R for p < 0.5;
+/// * `integer_round_up` matches R exactly.
 using discrete_up_policy = boost::math::policies::policy<
     boost::math::policies::promote_float<false>,
     boost::math::policies::promote_double<false>,
@@ -278,8 +278,8 @@ namespace housepi
         public:
             static constexpr const char *NAME = "lognormal";
             /// Build with parametrizations:
-            /// - 0: meanlog-sdlog;
-            /// - 1: mean-sd.
+            /// * 0 -> meanlog-sdlog;
+            /// * 1 -> mean-sd.
             Lognormal_() : Cloneable({{"meanlog", 0.}, {"sdlog", 1.}}, 0.)
             {
                 alts_[0].name = "meanlog-sdlog";
@@ -435,8 +435,8 @@ namespace housepi
         public:
             static constexpr const char *NAME = "gamma";
             /// Build with parametrizations:
-            /// - 0: shape-scale;
-            /// - 1: mean-sd.
+            /// * 0 -> shape-scale;
+            /// * 1 -> mean-sd.
             Gamma_() : Cloneable({{"shape", na::DOUBLE}, {"scale", 1.}}, 0.)
             {
                 alts_[0].name = "shape-scale";
@@ -966,16 +966,16 @@ namespace housepi
         /// Infectivity profile as the distribution of the time from symptom onset to transmission.
         /// Based on @cite ferretti_timing_2020
         ///
-        /// - `t_ost`: time of infection of the infectee minus time of onset of the infector;
-        /// - `t_ost` negative: pre-symptomatic transmission;
-        /// - skew-logistic distribution, generalized logistic type I;
-        /// - pre-symptomatic values rescaled according to the incubation periods.
+        /// * `t_ost`: time of infection of the infectee minus time of onset of the infector;
+        /// * `t_ost` negative -> pre-symptomatic transmission;
+        /// * skew-logistic distribution, generalized logistic type I;
+        /// * pre-symptomatic values rescaled according to the incubation periods.
         ///
         /// Arguments, in order:
-        /// - `shape`, `scale`;
-        /// - `c_loc`: custom location;
-        /// - `mean_incub`: mean incubation period;
-        /// - `incub_period`: individual incubation period.
+        /// * `shape`, `scale`;
+        /// * `c_loc`: custom location;
+        /// * `mean_incub`: mean incubation period;
+        /// * `incub_period`: individual incubation period.
         class Ferretti20_ final : public Cloneable<Ferretti20_, Distribution>
         {
         public:

@@ -3,130 +3,131 @@
 ## SPDX-License-Identifier: GPL-3.0-or-later
 ##
 
-##########################################################################
-############################# DOCUMENTATION ##############################
-##########################################################################
+########  Documentation  ########
 
 # nocov start
 
-## Model surface ##
+####  Model surface  ####
 
 rd_model_in_ <- "`HousepiModel` object."
 rd_model_out_ <- paste(
   rd_model_in_,
   "Deep clone of input with new definitions."
 )
-rd_add_wide_ <- "`data.frame` Household data used for analysis (wide format).
-Optional at construction; if omitted, attach it later with
-[add_data_wide()][housepi::add_data_wide]."
+rd_add_wide_ <- "`data.frame` Household data used for analysis (wide format)."
 rd_hh_id_ <- "`character(1)` ID of the household of interest."
-rd_mdl_choice_ <- "`character(1)` Choice for the model.
-One between:
+rd_mdl_choice_ <- "`character(1)` Model to use, one of:
 \\describe{
   \\item{`<template>`}{a built-in template name;}
   \\item{`path/to/source`}{folder with implementation file `\"model.cpp\"`;}
   \\item{`path/to/compiled`}{folder with a previously compiled model;}
   \\item{`\"test\"`}{template name for test model;}
-  \\item{`NA`}{fall back to `\"test\"` (default).}
+  \\item{`NA`}{same as `\"test\"`.}
 }"
-rd_mdl_astmpl_ <- "`logical(1)` Store dynamic library as a local template.
-If `FALSE` recompile the model at every new session (default)."
-rd_mdl_force_ <- "`logical(1)` Compile even if cached model already exists."
-rd_mdl_quiet_ <- "`logical(1)` If `TRUE` hide compilation commands."
-rd_mdl_escaped_ <- "`character(1)` Label for status code `0` (individuals not
-among the declared infected statuses) when the `status` column is
-character/factor."
+rd_mdl_astmpl_ <- "`logical(1)`
+Whether to store the compiled model as a local template.
+If `FALSE`, the model is recompiled in every new session."
+rd_mdl_force_ <- "`logical(1)`
+Whether to compile even when a cached model exists."
+rd_mdl_quiet_ <- "`logical(1)` Whether to hide compilation commands."
+rd_mdl_escaped_ <- "`character(1)` Label of status code `0`,
+members outside the declared infected statuses,
+when the `status` column is character or factor."
 rd_mdl_flags_ <- "Named arguments. Additional compilation options:
 \\describe{
-  \\item{`discr`}{`logical(1)` If `TRUE` compile to discrete time.}
+  \\item{`discr`}{`logical(1)` Whether to compile to discrete time.}
   \\item{`flags`}{`character()` Compilation flags.}
   \\item{`libs`}{`character()` Links to libraries.}
   \\item{`paths`}{`character()` Include paths.}
 }"
 
-## Definition vocabulary ##
+####  Definition vocabulary  ####
 
 rd_var_name_ <- "`character(1)` Name used by internal calls."
-rd_var_const_ <- "`logical(1)` Treat definition as constant.
-If `TRUE`, additional Monte Carlo details are ignored."
+rd_var_const_ <- "`logical(1)` Whether the definition is constant.
+If `TRUE`, Monte Carlo settings are ignored."
 rd_var_discr_ <- function(what, from) {
-  sprintf("`logical(1)` Treat %s definition as discrete, if applicable.
-          Inferred from %s if `NA` (default).", what, from)
+  sprintf("`logical(1)` Whether the %s definition is discrete, if applicable.
+          If `NA`, inferred from %s.", what, from)
 }
 rd_obs_discr_from_ <- "the observed data column, or the model requirements"
 rd_var_prior_ <- "`character(1)` Prior distribution."
 rd_var_val_ <- function(what) {
-  sprintf("Value the definition is pinned to in simulations. In inference, it
-          pins a constant or deterministic definition, and is ignored when a
-          `%s` is given.", what)
+  sprintf("Value the definition is pinned to in simulations.
+          In inference, it pins a constant or deterministic definition,
+          and is ignored when a `%s` is given.", what)
 }
 rd_var_args_ <- function(what, proposal = FALSE, func = FALSE) {
   sink <- if (func) ", or for `func` when the definition is deterministic."
   else "."
-  paste0(sprintf("named arguments for the %s distribution", what), sink,
+  paste0(sprintf("Named arguments for the %s distribution", what), sink,
          if (proposal) rd_proposal_opts_)
 }
 rd_var_min_ <- "`numeric(1)` Truncate to a minimum value.
 Relative to the location argument `loc`, when one is given."
 rd_var_max_ <- "`numeric(1)` Truncate to a maximum value.
 Relative to the location argument `loc`, when one is given."
-rd_var_func_ <- "One between:
-- `character(1)` Name of latent function;
-- rlang expression."
+rd_var_func_ <- "One of:
+* `character(1)` Name of a latent function;
+* an rlang expression."
 rd_var_proposal_ <- "`character(1)` Proposal used in the Monte Carlo.
-Random walks changes current value:
+Random walks update the current value:
 \\describe{
-  \\item{`\"rw\"`}{normal increments (default);}
-  \\item{`\"rw_log\"`}{lognormal log-increments (positive, non-discrete
-    values only);}
-  \\item{`\"rw_unif\"`}{uniform increments (bounded).}
+  \\item{`\"rw\"`}{normal increments;}
+  \\item{`\"rw_log\"`}{lognormal log-increments,
+    positive non-discrete values only;}
+  \\item{`\"rw_unif\"`}{uniform increments, bounded values only.}
 }
 Independence samplers draw a fresh value from a distribution:
 \\describe{
-  \\item{`\"forward\"`}{drawn from the variable's own defining distribution
-    (its prior for a parameter, its model for a latent variable);}
-  \\item{a distribution name}{drawn from that distribution, e.g.
-    `proposal = \"normal\"` with `proposal_mean`/`proposal_sd`.}
+  \\item{`\"forward\"`}{drawn from the variable's own defining distribution,
+    its prior for a parameter, its model for a latent variable;}
+  \\item{a distribution name}{drawn from that distribution,
+    e.g. `proposal = \"normal\"` with `proposal_mean` and `proposal_sd`.}
 }
-`NA` defaults to `\"rw\"`.
+If `NA`, `\"rw\"` is used.
 "
 rd_proposal_opts_ <- "
-Advanced Monte Carlo options may also be passed through `...`, each prefixed
-`proposal_`. For a random walk, `proposal_scale` sets the step scale: if
-omitted it is adapted during inference when `adapt > 0`; if a positive numeric
-it is fixed and never adapted. For independence sampling from a named
-distribution, the distribution parameters are supplied the same way (e.g.
-`proposal_mean`, `proposal_sd`)."
+Advanced Monte Carlo options may also be passed through `...`,
+each prefixed `proposal_`.
+For a random walk, `proposal_scale` sets the step scale.
+If omitted, it is adapted during inference when `adapt > 0`.
+If a positive number, it is fixed and never adapted.
+For independence sampling from a named distribution,
+the distribution parameters are passed the same way,
+e.g. `proposal_mean` and `proposal_sd`."
 rd_sources_ <- "Either a plain value, the name of another definition,
-or an arithmetic expression combining them. A name is looked up among the
-latent variables, data columns, observations, group risks and parameters the
-model carries: two of them sharing a name cannot be read."
-rd_aug_status_ <- "`integer(1)` Individual positive status.
-Used to specify status-specific definitions.
-If `NA`, associate definition to all infectious individuals (default)."
-rd_aug_val_ <- paste("`numeric(1)` | `character(1)` Value the definition is
-pinned to in simulations. In inference, it pins a constant or deterministic
-definition, and is ignored when the latent is sampled, with a `model` or a
-`proposal`.", rd_sources_)
-rd_obs_val_ <- paste("`numeric(1)` | `character(1)` Definition of the
-observation, depending on `level`:
+or an arithmetic expression combining them.
+A name is looked up among the latent variables, data columns, observations,
+group risks and parameters the model carries.
+Two of them sharing a name cannot be read."
+rd_aug_status_ <- "`integer(1)` Infected status the definition is specific to.
+If `NA`, the definition applies to every infected member."
+rd_aug_val_ <- paste("`numeric(1)` | `character(1)`
+Value the definition is pinned to in simulations.
+In inference, it pins a constant or deterministic definition,
+and is ignored when the latent is sampled, with a `model` or a `proposal`.",
+                     rd_sources_)
+rd_obs_val_ <- paste("`numeric(1)` | `character(1)`
+Definition of the observation, depending on `level`:
 \\describe{
-  \\item{`\"member\"`}{without a `model`, the value computed for every member;
-  with a `model`, the datum the model is evaluated at, the like-named data
-  column when omitted;}
-  \\item{`\"house\"`}{one value for the whole household. The reductions
-  `min()`, `max()`, `sum()` and `prod()` fold a per-member value (data column,
-  latent or group risk) over the members: their argument is computed for each
-  member, and members with no value are left out, e.g. `min(onset_date) + 21`
-  or `max(test_date - onset_date)`. A per-member value read outside a
-  reduction is an error.}
+  \\item{`\"member\"`}{without a `model`, the value computed for every member.
+  With a `model`, the datum the model is evaluated at,
+  the like-named data column when omitted;}
+  \\item{`\"house\"`}{one value for the whole household.
+  The reductions `min()`, `max()`, `sum()` and `prod()` fold over the members
+  a per-member value: a data column, a latent or a group risk.
+  Their argument is computed for each member, members with no value left out,
+  e.g. `min(onset_date) + 21` or `max(test_date - onset_date)`.
+  A per-member value read outside a reduction is an error.}
 }", rd_sources_)
 rd_aug_min_ <- paste(rd_var_min_, rd_sources_)
 rd_aug_max_ <- paste(rd_var_max_, rd_sources_)
-rd_lat_flat_bound_ <- "Without a `model`, the bound the latent is sampled within
-in inference, reading only data, observations and constant parameters."
+rd_lat_flat_bound_ <- "Without a `model`,
+the bound the latent is sampled within in inference,
+reading only data, observations and constant parameters."
 
-## Definition modes ##
+####  Definition modes  ####
 
 rd_add_modes_ <- "There are three mutually exclusive definition modes:
 \\describe{
@@ -141,125 +142,127 @@ rd_add_modes_ <- "There are three mutually exclusive definition modes:
   }
 }"
 rd_import_ <- "Named `list` of pre-built definitions to import.
-Cannot be combined with single and/or multiple definitions."
+Cannot be combined with single or multiple definitions."
 rd_tmpl_import_ <- "Named `list` of pre-built definitions to import,
 or `\"template\"` for the definitions shipped with the model.
-The template is R code evaluated from the model folder, so use it only with
-model folders you trust.
-Cannot be combined with single and/or multiple definitions."
-rd_list_append_ <- "`logical(1)` Append to current definitions.
-If `FALSE` drop all pre-existing definitions."
+The template is R code evaluated from the model folder,
+so use it only with model folders you trust.
+Cannot be combined with single or multiple definitions."
+rd_list_append_ <- "`logical(1)` Whether to append to the current definitions.
+If `FALSE`, the previous definitions are dropped."
 
-## Risks ##
+####  Risks  ####
 
 rd_risk_desc_ <- function(kind) {
   sprintf("Add definitions of a %s risk by given data covariate(s).
-Each stratum carries its own absolute risk, unless a reference is chosen:
-then every parameter multiplies the baseline risk of the reference stratum.
-If no MCMC options are provided, absolute risks are assumed
-\\eqn{\\mathrm{uniform}} over their support, and relative ones
-\\eqn{\\mathrm{lognormal}[\\mu=0, \\sigma=3]}.
+Each stratum carries its own absolute risk, unless a reference is chosen.
+Then every parameter multiplies the baseline risk of the reference stratum.
+If no MCMC options are provided,
+absolute risks are \\eqn{\\mathrm{uniform}} over their support,
+and relative ones \\eqn{\\mathrm{lognormal}[\\mu=0, \\sigma=3]}.
 Bypass automatic generation by providing a custom pre-built logic table.",
           kind)
 }
 rd_risk_prefix_ <- "`character(1)` Prefix to names of associated parameters."
 rd_grr_prefix_ <- paste(
   rd_risk_prefix_,
-  "If `NA` uses the first 3 letters of risk name (default)."
+  "If `NA`, the first 3 letters of the risk name."
 )
-rd_risk_joint_ <- "`logical(1)` Treat covariates as joint.
-If `FALSE`, covariates are independent (default)."
+rd_risk_joint_ <- "`logical(1)` Whether covariates are joint.
+If `FALSE`, they are independent."
 rd_risk_strata_ <-
   "`data.frame` Individual covariates and relative `param_name`.
-Each row defines one stratum. If `NA`, then match any value.
+Each row defines one stratum.
+A covariate left `NA` matches any value.
 Every member, or ordered pair of members for contact risks, must match a row,
 and every row must be the best match of at least one of them,
-else the definition is refused. So is a table setting no covariate value,
+else the definition is refused.
+So is a table setting no covariate value,
 which treats every member alike as the baseline does.
 The table is used as written.
-A risk read on infected members is checked at every infected status a member
-may take, whether or not the data records it.
+A risk read on infected members is checked at every infected status
+a member may take, whether or not the data records it.
 Rows keyed on different covariates form separate rule groups,
 whose risks multiply.
-Use `.reference` in `param_name` to designate the reference group;
-a rule group without it leaves the risk absolute.
+Use `.reference` in `param_name` to designate the reference group.
+A rule group without it leaves the risk absolute.
 The reserved column `value` pins a stratum to that value in simulation,
 while it keeps its prior and is sampled in inference.
 The reserved column `const` fixes a pinned stratum in inference too,
-so that it carries no prior. The reference stratum takes neither.
+so that it carries no prior.
+The reference stratum takes neither.
 Mutually exclusive with `by`."
-rd_risk_params_ <- "named `list` Per-parameter MCMC setups as in `param_name`.
+rd_risk_params_ <- "`list` Per-parameter MCMC setups, named as in `param_name`.
 Overrides shared prior/args for parameters specified in the list.
 A stratum pinned through the `strata` table takes no entry here.
-Ignored if automatic definition."
+Ignored in automatic mode."
 rd_risk_reference_ <- function(cell) {
-  sprintf("named `list` Covariates associated to the reference %s,
+  sprintf("`list` Named covariates of the reference %s,
 whose risk becomes the unit that every other parameter multiplies.
 Pass `\".auto\"` to take the %s with the largest sample size.
-Left empty, each stratum carries its own absolute risk; a covariate the
-reference does not name leaves the whole risk absolute.", cell, cell)
+Left empty, each stratum carries its own absolute risk.
+A covariate the reference does not name leaves the whole risk absolute.",
+          cell, cell)
 }
 
-## Run-time knobs.
+####  Run-time knobs  ####
 
 rd_smpl_steps_ <- "`integer(1)` Number of MCMC iterations per chain."
-rd_smpl_burn_ <- "`integer(1)` Number of iterations per chain discarded before
-`steps`. Run after adaptation."
+rd_smpl_burn_ <- "`integer(1)`
+Number of iterations per chain discarded before `steps`.
+Run after adaptation."
 rd_smpl_thin_ <- "`integer(1)` Keep one iteration every `thin` of `steps`."
 rd_smpl_adapt_ <- "`integer(1)` Number of iterations to adapt proposal scales.
 Run first and not stored as draws.
-If no proposal is adaptable, dropped or run as burn-in when `burn = 0`."
+If no proposal is adaptable, run as burn-in when `burn = 0`, else dropped."
 rd_smpl_chain_ <- "`integer(1)` Number of independent MCMC chains to run."
 rd_thread_ <- "`integer(1)` Number of threads for parallel household runs."
-rd_progress_ <- "`integer(1)` | `logical(1)` Control the progress bar.
-One between:
+rd_progress_ <- "`integer(1)` | `logical(1)` Control the progress bar,
+one of:
 \\describe{
-  \\item{`integer`}{seconds between prints. A shorter run does not print.}
+  \\item{`integer`}{seconds between prints, a shorter run printing nothing;}
   \\item{`TRUE`}{one print per second;}
   \\item{`FALSE` or `0`}{no progress bar.}
 }
 The bar prints as messages, which [suppressMessages()] silences."
 rd_dots_config_ <- "Advanced configuration."
-rd_param_table_ <- "One between
-- `data.frame`;
-- `posterior::draws`;
-- [HousepiPosteriorDraws][housepi::HousepiPosteriorDraws].
+rd_param_table_ <- "One of:
+* `data.frame`;
+* `posterior::draws`;
+* [HousepiPosteriorDraws].
 "
 rd_nrep_ <- "`integer(1)` Maximum number of `param_table` rows simulated.
 Posterior draws are thinned to their ESS when `thin_ess` is `TRUE`.
-Then `nrep` evenly spaced rows are kept (all of them when fewer remain).
-If `NA`, every row is simulated (default)."
-rd_thin_ess_ <- "`logical(1)` Whether to thin `param_table` to its
-bulk effective sample size (ESS).
+Then `nrep` evenly spaced rows are kept, all of them when fewer remain.
+If `NA`, every row is simulated."
+rd_thin_ess_ <- "`logical(1)`
+Whether to thin `param_table` to its bulk effective sample size (ESS).
 Ignored if `param_table` has no posterior draws."
 rd_natural_log_ <- "Logarithms are natural (base \\eqn{e})."
-rd_global_summary_ <- "Results are summarised at the point estimate and the
-credible level held by the global options;
-see [set_housepi_summary()]."
+rd_global_summary_ <- "Results are summarised at the point estimate
+and credible level of the global options, see [set_housepi_summary()]."
 
-## State inspection ##
+####  State inspection  ####
 
-rd_inspect_state_ <- "The values a `HousepiModel` holds are left by the last
-call that ran it:
+rd_inspect_state_ <- "The values a `HousepiModel` holds
+are left by the last call that ran it:
 \\describe{
   \\item{[evaluate_log_lik()]}{the evaluated parameters and latent variables,
-  with their log-likelihood contributions.}
-  \\item{[run_inference()]}{the final iteration of the last chain.}
-  \\item{[run_simulation()]}{the observed data, the parameters of the last
-  replicate.}
+  with their log-likelihood contributions;}
+  \\item{[run_inference()]}{the final iteration of the last chain;}
+  \\item{[run_simulation()]}{the observed data,
+  the parameters of the last replicate.}
 }"
 
 # nocov end
 
-############################################################################
-############################################################################
-############################################################################
+########  Construction  ########
 
 #' @title Create a new household-transmission model instance
 #' @description
-#' Create a new object of class 'HousepiModel'
-#' used to run inference and simulation routines.
+#' Create a `HousepiModel`, the object inference and simulation run on.
 #' @param data `r rd_add_wide_`
+#' If omitted, attach it later with [add_data_wide()].
 #' @param model `r rd_mdl_choice_`
 #' @param as_template `r rd_mdl_astmpl_`
 #' @param force `r rd_mdl_force_`
@@ -284,11 +287,9 @@ new_housepi_model <- function(data = NULL, model = NA_character_,
                    force = force, quiet = quiet, escaped = escaped, ...)
 }
 
-############################################################################
-############################################################################
-############################################################################
+########  Data  ########
 
-# Ensure object of class HousepiModel.
+# Assert the object is a `HousepiModel`.
 stopifnothousepi <- function(hh_model) {
   if (!inherits(hh_model, "HousepiModel")) stop_h(
     "{.arg hh_model} must be of class {.cls HousepiModel}.",
@@ -300,8 +301,8 @@ stopifnothousepi <- function(hh_model) {
 #' @description
 #' Make an internal copy of the provided household data in wide format,
 #' (re)building any definitions that depend on it.
-#' An empty cell of a categorical column is missing data, not a category of
-#' its own: recode it to a label of your choice to stratify on it.
+#' An empty cell of a categorical column is missing data, not a category.
+#' To stratify on it, recode it to a label of your choice.
 #' @param hh_model `r rd_model_in_`
 #' @param data `r rd_add_wide_`
 #' @return `r rd_model_out_`
@@ -349,16 +350,16 @@ add_data_long <- function(hh_model, data_long) {
 
 #' @title Summarise observed cases in the loaded household data
 #' @description
-#' Summarise cases as given from the statuses in the loaded household data.
-#' The row `classes`, counts the equivalence classes:
-#' households indistinguishable by the model (same size, statuses, risk, etc.).
+#' Summarise cases from the statuses in the loaded household data.
+#' The row `classes` counts the equivalence classes,
+#' households the model cannot tell apart, e.g. same size, statuses and risks.
 #' @param hh_model `r rd_model_in_`
-#' @return `data.frame`, one row per metric:
+#' @return `data.frame` One row per metric:
 #' \describe{
-#'   \item{level}{`individual` or `household`}
-#'   \item{metric}{quantity counted in the row}
-#'   \item{count}{absolute count}
-#'   \item{percent}{percentage of the relevant total, `NA` for `classes`}
+#'   \item{level}{`individual` or `household`;}
+#'   \item{metric}{quantity counted in the row;}
+#'   \item{count}{absolute count;}
+#'   \item{percent}{percentage of the relevant total, `NA` for `classes`.}
 #' }
 #' @examples
 #' hh_model <- new_housepi_model(flu_1918_frederick, "final_size")
@@ -374,12 +375,10 @@ summarise_house_cases <- function(hh_model) {
 #' @export
 summarize_house_cases <- summarise_house_cases
 
-############################################################################
-############################################################################
-############################################################################
+########  Getters  ########
 
 # Keep the definitions whose column `col` matches one of `name`.
-# All of them when `name` is `NA`.
+# * `name` NA -> all of them.
 subset_definitions_ <- function(defs, name, col = "name") {
   if (length(name) == 1L && is.na(name)) return(defs)
   stopifnot(is.character(name), !anyNA(name))
@@ -396,23 +395,25 @@ subset_definitions_ <- function(defs, name, col = "name") {
 #' @title Retrieve currently loaded data and definitions from a housepi model
 #' @description
 #' Return the definitions currently stored in the housepi model.
-#' Each variant returns one category (data, parameters, latent variables,
-#' observations, status process, group risks, contact risks, infectivity
-#' profile, reporting process).
+#' Each variant returns one category: data, parameters, latent variables,
+#' observations, status process, group risks, contact risks,
+#' infectivity profile or reporting process.
 #' @details
-#' `get_data_wide()` returns the individual-level data the model reads: a column
-#' a deterministic observation stands in for carries the derived value, not the
-#' imported one. A column an observation produces without standing in for data
+#' `get_data_wide()` returns the individual-level data the model reads.
+#' A column a deterministic observation stands in for
+#' carries the derived value, not the imported one.
+#' A column an observation produces without standing in for data
 #' is not part of the dataset, and is reported by [get_observations()].
 #' @param hh_model `r rd_model_in_`
-#' @param name `character()`. Names of the definitions to return.
+#' @param name `character()` Names of the definitions to return.
 #' `get_group_risks()` matches the name of the group risk.
-#' All of them when `NA` (default).
-#' @return `data.frame`. `get_status_process()` returns one row per rule of
-#' the status process: its `status` and `weight`, the `n` members it applies
-#' to, its `rule_group` and its covariates.
-#' `get_reporting_process()` returns `list(wide = , long = )`, see
-#' [add_reporting_process()].
+#' If `NA`, all of them.
+#' @return `data.frame`
+#' `get_status_process()` returns one row per rule of the status process:
+#' its `status` and `weight`, the `n` members it applies to,
+#' its `rule_group` and its covariates.
+#' `get_reporting_process()` returns `list(wide = , long = )`,
+#' see [add_reporting_process()].
 #' @examples
 #' hh_model <- new_housepi_model(flu_1918_frederick, "final_size") |>
 #'   add_parameter(import = "template")
@@ -424,7 +425,7 @@ subset_definitions_ <- function(defs, name, col = "name") {
 #' @export
 get_data_wide <- function(hh_model) {
   stopifnothousepi(hh_model)
-  # UPDATE: drop active getter fields and move logic here
+  # @todo drop the active getter fields and move their logic here
   hh_model$data_wide
 }
 
@@ -491,9 +492,7 @@ get_reporting_process <- function(hh_model) {
   hh_model$reporting_process
 }
 
-############################################################################
-############################################################################
-############################################################################
+########  Definitions  ########
 
 definition_helper_ <- c(
   "Supply a {.arg name} for a single definition.",
@@ -516,8 +515,8 @@ assert_bulk_defs_ <- function(family, dots, has_template = FALSE) {
 }
 
 # Name the formals given in an `add_*` call that only single mode reads.
-# `listed` are the formals the list-like modes read besides `...`, `import`
-# and `append`.
+# @param listed `character()` Formals the list-like modes read,
+# besides `...`, `import` and `append`.
 single_args_ <- function(call, listed) {
   setdiff(names(call)[-1], c("hh_model", "...", "import", "append", listed))
 }
@@ -546,8 +545,8 @@ defs_to_quos_ <- function(import, key, dots, singles, env) {
   convert_list_to_quosures(import, env)
 }
 
-# Recognise the `import` sentinel selecting the definitions shipped with the
-# model. Any other character value names a source that does not exist.
+# Whether `import` is the sentinel selecting the definitions the model ships.
+# * any other character value -> error, it names no existing source.
 is_template_import_ <- function(import) {
   if (!is.character(import)) return(FALSE)
   if (!identical(import, "template")) stop_h(
@@ -558,7 +557,7 @@ is_template_import_ <- function(import) {
 }
 
 # Read the templated definitions shipped with the model.
-# `NULL`, with a warning, for the test model, which ships none.
+# * test model -> `NULL` with a warning, it ships none.
 template_defs_ <- function(generator, family) {
   if (generator$is_test_model()) {
     warn_h("No template {family} definitions available for test model.")
@@ -567,8 +566,8 @@ template_defs_ <- function(generator, family) {
   get_template_def_list(generator$source_dir, family)
 }
 
-# Load default templated definitions shipped with the package.
-# Reject the sentinel combined with single-mode or inline `...` pairs.
+# Load the templated definitions shipped with the package.
+# * sentinel with single-mode or inline `...` pairs -> error.
 add_template_defs_ <- function(holder, generator, family, append, key, dots,
                                singles) {
   assert_no_def_mixing_(key, dots, singles)
@@ -577,13 +576,15 @@ add_template_defs_ <- function(holder, generator, family, append, key, dots,
     holder$add_quo_list(convert_list_to_quosures(defs), append = isTRUE(append))
 }
 
-# Add the definitions of the list-like `add_*` modes: `import = "template"`,
-# an `import` list, or the inline `...` pairs of the multiple mode.
-# Returns `FALSE` in single mode (`key` given), left to the caller as it
-# captures its own arguments; `...` goes to `$add_quo_list()`.
-# `call` is the caller's `match.call(expand.dots = FALSE)`, and `listed` the
-# formals these modes read on top of `...`, `import` and `append`: any other
-# formal the call sets belongs to single mode.
+# Add the definitions of the list-like `add_*` modes.
+# * `import = "template"`, an `import` list, inline `...` pairs -> added
+#   through `$add_quo_list()`;
+# * single mode, `key` given -> `FALSE`, left to the caller,
+#   which captures its own arguments.
+# @param call Caller's `match.call(expand.dots = FALSE)`.
+# @param listed `character()` Formals these modes read,
+# besides `...`, `import` and `append`.
+# Any other formal the call sets belongs to single mode.
 add_listed_defs_ <- function(holder, generator, family, key, import, append,
                              dots, env, call, listed,
                              has_template = FALSE, ...) {
@@ -605,8 +606,8 @@ add_listed_defs_ <- function(holder, generator, family, key, import, append,
 
 #' @title Add or overwrite parameter definitions
 #' @description
-#' Add parameter(s) to a housepi model.
-#' If a parameter with the same name exists, the former gets overwritten.
+#' Add parameters to a housepi model.
+#' A parameter with the same name as an existing one overwrites it.
 #' `r rd_add_modes_`
 #' @param hh_model `r rd_model_in_`
 #' @param name `r rd_var_name_`
@@ -676,23 +677,21 @@ add_parameter <- function(hh_model,
   new_obj
 }
 
-############################################################################
-############################################################################
-############################################################################
+########  Augmented  ########
 
 #' @title Add or update latent variable definitions
 #' @description
-#' Add latent variables/functions to housepi model.
-#' If a latent definitions with the same name and status exists,
-#' the former gets overwritten.
+#' Add latent variables to a housepi model.
+#' A latent with the same name and status as an existing one overwrites it.
 #' `r rd_add_modes_`
 #' @details
 #' A latent with a `model` is sampled from it.
-#' A latent the transmission model generates, such as the infection times of
-#' [template_case_ascertained], takes no `model`: transmission gives its
-#' probability, and inference samples it flat within `min` and `max`.
-#' In simulation, transmission sets it, except where it does not, such as the
-#' first infection of a household, which takes `value`.
+#' A latent the transmission model generates takes no `model`,
+#' such as the infection times of [template_case_ascertained].
+#' Transmission gives its probability,
+#' and inference samples it flat within `min` and `max`.
+#' In simulation, transmission sets it, except where it does not,
+#' such as the first infection of a household, which takes `value`.
 #' @param hh_model `r rd_model_in_`
 #' @param name `r rd_var_name_`
 #' @param value `r rd_aug_val_`
@@ -704,10 +703,8 @@ add_parameter <- function(hh_model,
 #' Omitted for a latent the transmission model generates (see Details).
 #' @param ... `r rd_var_args_("model", proposal = TRUE, func = TRUE)`
 #' In mode 'multiple', the `name = value` definitions.
-#' @param min `r rd_aug_min_`
-#' `r rd_lat_flat_bound_`
-#' @param max `r rd_aug_max_`
-#' `r rd_lat_flat_bound_`
+#' @param min `r rd_aug_min_` `r rd_lat_flat_bound_`
+#' @param max `r rd_aug_max_` `r rd_lat_flat_bound_`
 #' @param proposal `r rd_var_proposal_`
 #' @param import `r rd_tmpl_import_`
 #' @param append `r rd_list_append_`
@@ -751,18 +748,19 @@ add_latent <- function(hh_model,
 
 #' @title Add an observation
 #' @description
-#' Add observation associated to data \eqn{x}, at the level set by `level`.
+#' Add an observation of data \eqn{x}, at the level set by `level`.
 #'
 #' At member level, the observation is attached to every infected individual.
-#' If `model` is provided, adds to household likelihood during evaluations,
-#' and \eqn{x} is sampled from it during simulations.
-#' An individual whose datum is missing is left out of that likelihood, with a
-#' warning: there is nothing to condition on, and the observation constrains
-#' neither the individual latent variables nor the parameters. A column holding
-#' no value at all is an error.
+#' If `model` is provided, it adds to the household likelihood in evaluations,
+#' and \eqn{x} is drawn from it in simulations.
+#' An individual whose datum is missing is left out of that likelihood,
+#' with a warning.
+#' Nothing conditions on it, so the observation constrains neither
+#' the individual latent variables nor the parameters.
+#' A column holding no value at all is an error.
 #'
 #' At household level, the observation is a reduction across all members,
-#' it's shared by the whole household, and must reduce to a constant value.
+#' shared by the whole household, and must reduce to a constant value.
 #'
 #' An observation carrying no `model` produces its own data column:
 #' it is evaluated for every member, and overwrites data of the same name.
@@ -770,13 +768,15 @@ add_latent <- function(hh_model,
 #' `r rd_add_modes_`
 #' @param hh_model `r rd_model_in_`
 #' @param name `r rd_var_name_`
-#' @param model `character(1)` Choice for the observation model distribution.
+#' @param model `character(1)` Observation model distribution.
 #' Reserved to member-level observations.
 #' @param ... `r rd_var_args_("observation")`
 #' In mode 'multiple', the `name = value` definitions.
-#' @param level `character(1)` Level the datum is observed at.
-#' One between `"member"`, one value per positive status individual, and
-#' `"house"`, one value per household reduced over all its members.
+#' @param level `character(1)` Level the datum is observed at, one of:
+#' \describe{
+#'   \item{`"member"`}{one value per infected member;}
+#'   \item{`"house"`}{one value per household, reduced over its members.}
+#' }
 #' In mode 'multiple', applies to every entry not setting its own.
 #' @param value `r rd_obs_val_`
 #' @param func `r rd_var_func_`
@@ -836,32 +836,34 @@ add_observation <- function(hh_model, name = NULL,
 
 #' @title Add a status process
 #' @description
-#' Declare how an infected member's status is drawn during simulation, as a
-#' categorical distribution over infected statuses.
-#' The probabilities apply to every member when given in `...`, or depend on
-#' member covariates when given as a `strata` table.
-#' Inference holds the observed status fixed and does not estimate the
-#' probabilities.
+#' Declare how an infected member's status is drawn during simulation,
+#' as a categorical distribution over infected statuses.
+#' The probabilities apply to every member when given in `...`,
+#' or depend on member covariates when given as a `strata` table.
+#' Inference holds the observed status fixed,
+#' and does not estimate the probabilities.
 #' @param hh_model `r rd_model_in_`
-#' @param ... Probabilities of the infected statuses, in order. When named, the
-#' names label the statuses: name all of them or none. Unnamed probabilities
-#' draw the integer statuses 1, 2, and so on.
-#' @param strata `data.frame` One row per rule: the infected status in column
-#' `status`, its non-negative `weight`, and a column per covariate.
-#' An `NA` cell matches any value, and a member reads the most specific rule it
-#' matches.
-#' Rows keyed on different covariates form separate rule groups, whose weights
-#' multiply. Every rule group must key on `status`.
-#' At every status, each member must match a rule of every rule group, and
-#' every rule must apply to some member, else the table is refused.
-#' The weights of a member are normalized over the statuses, so they need not
-#' sum to 1.
+#' @param ... Probabilities of the infected statuses, in order.
+#' When named, the names label the statuses: name all of them or none.
+#' Unnamed probabilities draw the integer statuses 1, 2, and so on.
+#' @param strata `data.frame` One row per rule:
+#' the infected status in column `status`, its non-negative `weight`,
+#' and a column per covariate.
+#' An `NA` cell matches any value,
+#' and a member reads the most specific rule it matches.
+#' Rows keyed on different covariates form separate rule groups,
+#' whose weights multiply.
+#' Every rule group must key on `status`.
+#' At every status, each member must match a rule of every rule group,
+#' and every rule must apply to some member, else the table is refused.
+#' The weights of a member are normalized over the statuses,
+#' so they need not sum to 1.
 #' `status` holds labels, or integer statuses from 1.
 #' Cannot be combined with `...`.
-#' @param import Named `list` of arguments, read as `...` or as a `strata`
-#' entry, or `"template"` for the status process shipped with the model.
-#' The template is R code evaluated from the model folder, so use it only with
-#' model folders you trust.
+#' @param import Named `list` of arguments, read as `...` or a `strata` entry,
+#' or `"template"` for the status process shipped with the model.
+#' The template is R code evaluated from the model folder,
+#' so use it only with model folders you trust.
 #' Cannot be combined with `...` or `strata`.
 #' @return `r rd_model_out_`
 #' @examples
@@ -922,17 +924,15 @@ add_status_process <- function(hh_model, ..., strata = NULL, import = NULL) {
   new_obj
 }
 
-############################################################################
-############################################################################
-############################################################################
+########  Risks  ########
 
 #' @title Add a stratified group risk definition
 #' @description `r rd_risk_desc_("group")`
 #' `r rd_add_modes_`
 #' @param hh_model `r rd_model_in_`
 #' @param name `r rd_var_name_`
-#' @param by `list` Covariates associated to group risk as data headers.
-#' Corresponding data columns have to be categorical.
+#' @param by `list` Data columns of the covariates the group risk stratifies on.
+#' The columns must be categorical.
 #' @param reference `r rd_risk_reference_("group")`
 #' @param joint `r rd_risk_joint_`
 #' @param strata `r rd_risk_strata_`
@@ -998,22 +998,17 @@ add_group_risk <-  function(hh_model,
   new_obj
 }
 
-############################################################################
-############################################################################
-############################################################################
-
 #' @title Add a pairwise contact risk definition
 #' @description `r rd_risk_desc_("contact")`
 #' @param hh_model `r rd_model_in_`
-#' @param by `character()` Covariates for from/to matching as data headers.
-#' Corresponding data columns have to be categorical.
+#' @param by `character()` Data columns of the covariates pairs are matched on.
+#' The columns must be categorical.
 #' @param reference `r rd_risk_reference_("pair")`
-#' Names can use `from_`/`to_` prefixes matching `by`,
-#' or un-prefixed names (applied to both from and to).
+#' Names can carry `from_`/`to_` prefixes matching `by`,
+#' or no prefix, applying to both ends.
 #' @param joint `r rd_risk_joint_`
-#' @param symmetric `logical(1)` Treat contact as symmetric.
-#' If `TRUE`, contact pairs infector-infectee are treated as equivalent
-#' (default).
+#' @param symmetric `logical(1)` Whether contact is symmetric.
+#' If `TRUE`, infector-infectee and infectee-infector pairs are equivalent.
 #' @param strata `r rd_risk_strata_`
 #' @param params `r rd_risk_params_`
 #' @param prior `r rd_var_prior_`
@@ -1055,8 +1050,7 @@ add_contact_risk <- function(hh_model, by = NA_character_, ...,
   # the definition is replaced: its parameters are re-derived by `rebuild_()`
   pvt$drop_stale_risk_params_()
 
-  # contact risk holds a single definition:
-  # import a named arg list, or the explicit arguments
+  # single definition, from an imported named list or the explicit arguments
   if (!length(import)) import <- list(
     by = by, reference = reference, joint = joint,
     symmetric = symmetric, strata = strata, params = params,
@@ -1069,13 +1063,11 @@ add_contact_risk <- function(hh_model, by = NA_character_, ...,
   new_obj
 }
 
-############################################################################
-############################################################################
-############################################################################
+########  Processes  ########
 
 #' @title Add an infectivity profile definition
 #' @description
-#' Add definitions for the infectivity profiles.
+#' Add infectivity profile definitions to a housepi model.
 #' `r rd_add_modes_`
 #' @param hh_model `r rd_model_in_`
 #' @param func `r rd_var_name_`
@@ -1105,7 +1097,7 @@ add_infectivity_profile <- function(hh_model,
   pvt <- new_obj$.__enclos_env__$private
   pvt$assert_feature_supported_(pvt$gen_$has_infec_profile,
                                 "Infectivity profiles")
-  # impose discrete-time if it's a model choice
+  # discrete-time model -> discrete profile
   pvt$infec_profile_$discr_model <- pvt$gen_$is_discrete_time
 
   #> template, import and multiple modes
@@ -1133,10 +1125,12 @@ add_infectivity_profile <- function(hh_model,
 #' Inference does not model the reporting process,
 #' which introduces a misspecification.
 #' @param hh_model `r rd_model_in_`
-#' @param wide `function` | `NULL`. Turns a simulated `data_wide` into the
-#' reported `data_wide`. `NULL` removes it.
-#' @param long `function` | `NULL`. Turns the reported `data_wide` into a
-#' `data_long`, which [run_simulation()] returns along with it.
+#' @param wide `function` | `NULL`
+#' Turns a simulated `data_wide` into the reported `data_wide`.
+#' `NULL` removes it.
+#' @param long `function` | `NULL`
+#' Turns the reported `data_wide` into a `data_long`,
+#' which [run_simulation()] returns along with it.
 #' `NULL` removes it.
 #' @return `r rd_model_out_`
 #' @examples
@@ -1166,20 +1160,16 @@ add_reporting_process <- function(hh_model, wide, long) {
   new_obj
 }
 
-############################################################################
-############################################################################
-############################################################################
+########  Evaluation  ########
 
 #' @title Evaluate the log-likelihood of a housepi model at current values
 #' @description
-#' Compute the complete-data log-likelihood of a `HousepiModel`:
+#' Compute the complete-data log-likelihood of a `HousepiModel`,
 #' transmission plus observation.
-#' For models with latent variables
-#' this is conditioned on current latent values.
+#' With latent variables, it is conditioned on their current values.
 #' @param hh_model `r rd_model_in_`
-#' @param hh_id `r rd_hh_id_`
-#' If `NA` (default) it computes for the whole data.
-#' @return `numeric(1)`. The complete-data log-likelihood.
+#' @param hh_id `r rd_hh_id_` If `NA`, the whole data.
+#' @return `numeric(1)` The complete-data log-likelihood.
 #' `r rd_natural_log_`
 #' @examples
 #' flu_1918_frederick |>
@@ -1199,7 +1189,7 @@ evaluate_log_lik <- function(hh_model, hh_id = NA_character_) {
 #' Read the dataset of a `HousepiModel` with its latent variables.
 #' `r rd_inspect_state_`
 #' @param hh_model `r rd_model_in_`
-#' @return `data.frame`, the dataset with its latent variables.
+#' @return `data.frame` The dataset with its latent variables.
 #' @seealso [inspect_house_state()]
 #' @examples
 #' hh_model <- flu_1918_frederick |>
@@ -1221,15 +1211,15 @@ inspect_augmented_data <- function(hh_model) {
 #' `r rd_inspect_state_`
 #' @param hh_model `r rd_model_in_`
 #' @param hh_id `r rd_hh_id_`
-#' @return `list`, all variables of the household.
-#' Entries are named after the homonymous active fields, followed by the
-#' latent, observation and transmission log-likelihood contributions,
-#' and by `model_quantities`, the named quantities the model exports
-#' (see its `template_<model>` help page).
+#' @return `list` All variables of the household.
+#' Entries are named after the homonymous active fields.
+#' Then come the latent, observation and transmission log-likelihoods,
+#' and `model_quantities`, the named quantities the model exports,
+#' see its `template_<model>` help page.
 #' An empty definition is dropped unless the model requires it.
-#' Until [evaluate_log_lik()] on every household, or [run_inference()],
-#' evaluates the current definitions, the transmission log-likelihood is `NA`
-#' and `model_quantities` is absent.
+#' The transmission log-likelihood is `NA` and `model_quantities` absent
+#' until the current definitions are evaluated,
+#' by [evaluate_log_lik()] on every household or by [run_inference()].
 #' @seealso [inspect_augmented_data()]
 #' @examples
 #' hh_model <- flu_1918_frederick |>
@@ -1243,19 +1233,19 @@ inspect_house_state <- function(hh_model, hh_id) {
   gen <- hh_model$.__enclos_env__$private$gen_
   out <- .engine$export_house_snapshot(gen$mcmc_ptr, as.character(hh_id))
   out$data_wide <- gen$refactor_data_wide(out$data_wide)
-  ## data long
+  # data long
   if (all(dim(out$data_long) == 0)) out$data_long <- NULL
   else out$data_long <- gen$refactor_data_long(out$data_long)
-  ## parameters
+  # parameters
   if (!length(gen$param_required) &&
         all(dim(out$parameters) == 0)) out$parameters <- NULL
-  ## group risks
+  # group risks
   if (!length(gen$group_risks_required) &&
         all(dim(out$group_risks) == 0)) out$group_risks <- NULL
-  ## contact risks
+  # contact risks
   if (!gen$has_contact_risk &&
         all(dim(out$contact_risks) == 0)) out$contact_risks <- NULL
-  ## infectivity profiles
+  # infectivity profiles
   if (!gen$has_infec_profile && !length(out$infectivity_profiles)) {
     out$infectivity_profiles <- NULL
   } else {
@@ -1265,15 +1255,15 @@ inspect_house_state <- function(hh_model, hh_id) {
     df$func_args <- lst$func_args
     out$infectivity_profiles <- df
   }
-  ## model quantities
+  # model quantities
   if (!length(out$model_quantities)) out$model_quantities <- NULL
   out
 }
 
 #' @title Run Bayesian MCMC inference on a housepi model
 #' @description
-#' Run inference with Bayesian Markov Chain Monte Carlo, by the
-#' component-wise Metropolis-Hastings algorithm
+#' Run inference with Bayesian Markov Chain Monte Carlo,
+#' by the component-wise Metropolis-Hastings algorithm
 #' \insertCite{metropolis_equation_1953,hastings_monte_1970}{housepi}.
 #' @param hh_model `r rd_model_in_`
 #' @param steps `r rd_smpl_steps_`
@@ -1282,16 +1272,17 @@ inspect_house_state <- function(hh_model, hh_id) {
 #' @param adapt `r rd_smpl_adapt_`
 #' @param chains `r rd_smpl_chain_`
 #' @param threads `r rd_thread_`
-#' @param id_draws Infected members whose public latent draws are stored.
-#' Either a `character()` of individual identifiers,
-#' or a `list` with entries `id` (individual identifiers)
-#' and/or `hh_id` (whole household infected members are stored).
-#' If `NA`, one random eligible household is followed (default).
-#' Pass `".none"` to store nothing.
+#' @param id_draws `character()` | `list`
+#' Infected members whose public latent draws are stored.
+#' A `character()` lists individual identifiers.
+#' A `list` takes entries `id`, individual identifiers, and `hh_id`,
+#' households whose infected members are all stored.
+#' If `NA`, one random eligible household is followed.
+#' If `".none"`, nothing is stored.
 #' @param progress `r rd_progress_`
 #' @param warn `logical(1)` Whether to report the warnings the run raises.
-#' A quiet run still records the convergence diagnostics it flagged, read back
-#' from the `warnings` field of the returned object.
+#' A quiet run still records the convergence diagnostics it flagged,
+#' read back from the `warnings` field of the returned object.
 #' @param ... `r rd_dots_config_`
 #' @return An object of class `HousepiPosteriorDraws`.
 #' @details
@@ -1346,19 +1337,19 @@ prepare_inference_ <- function(hh_model, steps, burn, thin, adapt, chains,
   pvt$gen_$mcmc_ptr
 }
 
-#' Stop when `n_sample` posterior draws of `hh_model` would not fit under R's
-#' vector memory limit, in the room the memory in use leaves. No limit, no
-#' check: R raises no error then.
+#' Stop when `n_sample` posterior draws of `hh_model` would not fit
+#' in the room the memory in use leaves under R's vector memory limit.
+#' * no limit -> no check, R raises no error.
 #' @noRd
 assert_posterior_memory_ <- function(hh_model, n_sample, id_draws) {
   max_bytes <- mem.maxVSize() * 2^20 # limit in bytes
   if (!is.finite(max_bytes)) return(invisible())
   pvt <- hh_model$.__enclos_env__$private
-  # UPDATE: n. of latent/parameters might be smaller if functions/private
+  # @todo fewer latents and parameters when functions or private
   n_param_cols <- 2L * NROW(pvt$param_$defs)
   n_latent_defs <- NROW(pvt$augm_$defs)
-  # structural upper bound: every named/default household counts as its
-  # largest possible size (status filtering happens in the engine)
+  # structural upper bound: each named or default household at its largest
+  # size, status filtering left to the engine
   hh_id <- hh_model$data_wide$hh_id
   max_hh_size <- if (!length(hh_id)) 1L else max(table(hh_id))
   n_members_upper <- length(unique(id_draws$id)) +
@@ -1367,8 +1358,9 @@ assert_posterior_memory_ <- function(hh_model, n_sample, id_draws) {
     length(unique(hh_id)) + 1L
   # the column-by-sample product exceeds the 32-bit range on large runs
   needed <- 8 * as.double(n_sample) * as.double(total_cols)
-  # a minor collection overstates the memory in use: room under it holds, and
-  # only a shortfall pays for a full collection
+  # minor collection overstates the memory in use:
+  # * room under it -> holds;
+  # * shortfall -> full collection.
   room <- max_bytes - gc(full = FALSE)["Vcells", "used"] * 8
   if (needed <= room) return(invisible())
   room <- max_bytes - gc()["Vcells", "used"] * 8
@@ -1383,8 +1375,8 @@ assert_posterior_memory_ <- function(hh_model, n_sample, id_draws) {
   )
 }
 
-#' Posterior draws of the engine of `hh_model`, entry `i` of the engine run
-#' `ran`, or the error that stopped the run, rendered as any engine error.
+#' Read the posterior draws of entry `i` of engine run `ran` for `hh_model`.
+#' * run stopped by an error -> that error, rendered as any engine error.
 #' @noRd
 wrap_inference_ <- function(hh_model, ran, i = 1L) {
   if (!is.null(ran$error)) with_cpp_conditions(stop(ran$error))
@@ -1394,20 +1386,20 @@ wrap_inference_ <- function(hh_model, ran, i = 1L) {
 
 #' @title Simulate a household survey from a housepi model
 #' @description
-#' Run simulation to generate a household survey.
-#' It assumes the same community structure of the loaded data.
-#' Eventually, generated data goes through the reporting process
-#' (see  [add_reporting_process()]).
+#' Simulate a household survey on the households of the loaded data.
+#' With a reporting process, the generated data go through it,
+#' see [add_reporting_process()].
 #' @param hh_model `r rd_model_in_`
 #' @param param_table `r rd_param_table_`
 #' @param nrep `r rd_nrep_`
-#' @param thin_ess `r rd_thin_ess_`
-#' Without `param_table`, the number of replicates, which share the pinned
-#' parameters and draw the others from their prior. If `NA`, one replicate.
+#' Without `param_table`, the number of replicates,
+#' which share the pinned parameters and draw the others from their prior.
+#' If `NA`, one replicate.
 #' Once set, even to 1, the replicates are returned as a list.
+#' @param thin_ess `r rd_thin_ess_`
 #' @param ... `r rd_dots_config_`
-#' @return A `data.frame` for a single replicate, when `nrep` is `NA` and
-#' `param_table` is `NULL` or a one-row `data.frame`.
+#' @return A `data.frame` for a single replicate,
+#' when `nrep` is `NA` and `param_table` is `NULL` or a one-row `data.frame`.
 #' Otherwise a `list` with one `data.frame` per replicate.
 #' With a `long` reporting process, a `list(wide = , long = )` of either.
 #' @examples
@@ -1435,11 +1427,9 @@ run_simulation <- function(hh_model,
   if (length(output) == 1) output[[1]] else output
 }
 
-#' Simulate from `hh_model` as [run_simulation()] does, returning the lists of
-#' `wide` and `long` surveys, one frame per replicate, and `parameters`: the
-#' values each replicate is simulated at, pinned or drawn from the prior, one
-#' row per replicate.
-#' @keywords internal
+#' Simulate from `hh_model` as [run_simulation()] does.
+#' @return `list` Entries `wide` and `long`, one survey per replicate,
+#' and `parameters`, one row per replicate, pinned or drawn from the prior.
 #' @noRd
 simulate_with_parameters_ <- function(hh_model,
                                       param_table = NULL,

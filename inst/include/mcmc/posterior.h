@@ -30,7 +30,7 @@ namespace housepi
         using headers = std::vector<std::string>;
 
         /// Draw columns of one table, shaped at initialization.
-        /// - table column `k` reads stored column `source[k]`, or `k` when `source` is empty.
+        /// * table column `k` reads stored column `source[k]`, or `k` when `source` is empty.
         struct Draws
         {
             matrix cols;                /// Draws per stored column.
@@ -49,7 +49,7 @@ namespace housepi
         Draws param_priors;  /// Log-prior of each sampled parameter.
         Draws latent_values; /// Latent values of tracked members, member by member.
         /// Pointwise log-likelihood: observation + transmission + latent model.
-        /// - one stored column per equivalence household head class.
+        /// * one stored column per equivalence household head class.
         Draws house_log_lik;
         std::vector<const Individual *> tracked_indivs; /// Members to track.
 

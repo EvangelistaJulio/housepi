@@ -64,8 +64,8 @@ namespace housepi::augm
         DefRow(const str_table &input, size_t r);
 
         /// Whether inference samples the row.
-        /// - with a model or a proposal;
-        /// - never when constant or a function.
+        /// * with a model or a proposal;
+        /// * never when constant or a function.
         bool is_sampled() const noexcept { return !is_const && !has_func && (has_model || has_proposal); }
         /// Whether the row is sampled flat within its bounds, with no model.
         /// Transmission generates it in simulation, else its value pins it.
@@ -79,12 +79,12 @@ namespace housepi::augm
             return {&value, &model, &func, &min, &max};
         }
         /// List the columns a run reads sources from.
-        /// - inference: every column, except the value of a sampled row;
-        /// - simulation: value and function of an override or a flat row, every column otherwise.
+        /// * inference -> every column, except the value of a sampled row;
+        /// * simulation -> value and function of an override or a flat row, every column otherwise.
         std::vector<const parse::Definition *> source_cols(bool simulation) const;
         /// Select the column the definition resolves through in simulation.
-        /// - with a value, an override included: the value;
-        /// - otherwise: the function.
+        /// * with a value, an override included -> the value;
+        /// * otherwise -> the function.
         const parse::Definition &sim_source() const noexcept { return has_value ? value : func; }
     };
 

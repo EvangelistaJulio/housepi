@@ -177,8 +177,8 @@ public:
 	}
 
 	/// Export community and person-to-person infection rates of `house`, by member.
-	/// - `community_rate`: one per member;
-	/// - `p2p_rate`: infector by row, infectee by column, diagonal 0, scaling the infector's profile.
+	/// * `community_rate`: one per member;
+	/// * `p2p_rate`: infector by row, infectee by column, diagonal 0, scaling the infector's profile.
 	void export_house_quantities(const Household &house, HouseQuantities &out) override final
 	{
 		const MemberIdx house_size = house.size();

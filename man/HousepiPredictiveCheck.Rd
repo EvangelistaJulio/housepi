@@ -5,7 +5,7 @@
 \alias{HousepiPredictiveCheck}
 \title{Posterior predictive check container for user-defined measures}
 \description{
-Class to extract posterior predictive checks over measures on simulations.
+Posterior predictive checks of measures on simulated surveys.
 }
 \examples{
 hh_model <- flu_1918_frederick |>
@@ -24,18 +24,18 @@ ppc$overall
 \section{Active bindings}{
   \if{html}{\out{<div class="r6-active-bindings">}}
   \describe{
-    \item{\code{point_estimate}}{\code{character(1)}. Summary statistic name.}
+    \item{\code{point_estimate}}{\code{character(1)} Summary statistic name.}
 
-    \item{\code{cri_level}}{\code{numeric(1)}. Credible interval level.}
+    \item{\code{cri_level}}{\code{numeric(1)} Credible interval level.}
 
-    \item{\code{nrep}}{\code{integer(1)}. Number of replicates used for the predictions.}
+    \item{\code{nrep}}{\code{integer(1)} Number of replicates used for the predictions.}
 
-    \item{\code{thin_ess}}{\code{logical(1)}. Whether thinning to ESS was applied.}
+    \item{\code{thin_ess}}{\code{logical(1)} Whether thinning to ESS was applied.}
 
-    \item{\code{is_posterior}}{\code{logical(1)}.
+    \item{\code{is_posterior}}{\code{logical(1)}
 Whether the predictions are posterior predictions.}
 
-    \item{\code{model_name}}{\code{character(1)}. Name of the underlying model.}
+    \item{\code{model_name}}{\code{character(1)} Name of the underlying model.}
   }
   \if{html}{\out{</div>}}
 }
@@ -51,8 +51,8 @@ Whether the predictions are posterior predictions.}
 \if{html}{\out{<a id="method-HousepiPredictiveCheck-initialize"></a>}}
 \if{latex}{\out{\hypertarget{method-HousepiPredictiveCheck-initialize}{}}}
 \subsection{\code{HousepiPredictiveCheck$new()}}{
-  Given a model and a posterior sample of parameters,
-performs simulation and compute predicted values of a set of measures.
+  Simulate from a model and a table of parameters,
+then compute the predicted values of a set of measures.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{HousepiPredictiveCheck$new(
@@ -71,29 +71,29 @@ performs simulation and compute predicted values of a set of measures.
     \if{html}{\out{<div class="arguments">}}
     \describe{
       \item{\code{hh_model}}{\code{HousepiModel} object.}
-      \item{\code{param_table}}{One between
+      \item{\code{param_table}}{One of:
 \itemize{
 \item \code{data.frame};
 \item \code{posterior::draws};
 \item \link{HousepiPosteriorDraws}.
 }}
-      \item{\code{...}}{Named arguments. \code{function}s to compute measures from data.
-Each function should return one between \code{numeric()}, \code{list} or \code{data.frame}.
+      \item{\code{...}}{Named \code{function}s computing measures from data.
+Each returns a \code{numeric()}, a \code{list} or a \code{data.frame}.
 Names must be unique and cannot match a member of the returned object.}
-      \item{\code{measures_long}}{\code{function} | \code{list} of \code{function}s.
-Applied to \code{data_long} (derived by the \code{long} reporting process).}
+      \item{\code{measures_long}}{\code{function} | \code{list} of \code{function}s
+Applied to \code{data_long}, derived by the \code{long} reporting process.}
       \item{\code{nrep}}{\code{integer(1)} Maximum number of \code{param_table} rows simulated.
 Posterior draws are thinned to their ESS when \code{thin_ess} is \code{TRUE}.
-Then \code{nrep} evenly spaced rows are kept (all of them when fewer remain).
-If \code{NA}, every row is simulated (default).}
-      \item{\code{thin_ess}}{\code{logical(1)} Whether to thin \code{param_table} to its
-bulk effective sample size (ESS).
+Then \code{nrep} evenly spaced rows are kept, all of them when fewer remain.
+If \code{NA}, every row is simulated.}
+      \item{\code{thin_ess}}{\code{logical(1)}
+Whether to thin \code{param_table} to its bulk effective sample size (ESS).
 Ignored if \code{param_table} has no posterior draws.}
       \item{\code{threads}}{\code{integer(1)} Number of threads for parallel household runs.}
-      \item{\code{progress}}{\code{integer(1)} | \code{logical(1)} Control the progress bar.
-One between:
+      \item{\code{progress}}{\code{integer(1)} | \code{logical(1)} Control the progress bar,
+one of:
 \describe{
-\item{\code{integer}}{seconds between prints. A shorter run does not print.}
+\item{\code{integer}}{seconds between prints, a shorter run printing nothing;}
 \item{\code{TRUE}}{one print per second;}
 \item{\code{FALSE} or \code{0}}{no progress bar.}
 }
@@ -107,7 +107,7 @@ The bar prints as messages, which \code{\link[=suppressMessages]{suppressMessage
 \if{html}{\out{<a id="method-HousepiPredictiveCheck-print"></a>}}
 \if{latex}{\out{\hypertarget{method-HousepiPredictiveCheck-print}{}}}
 \subsection{\code{HousepiPredictiveCheck$print()}}{
-  Override the default printing behavior.
+  Print the measures, observed against predicted.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{HousepiPredictiveCheck$print()}

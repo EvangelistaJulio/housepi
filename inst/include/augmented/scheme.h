@@ -41,9 +41,9 @@ namespace housepi::augm
 
     /// Sampling scheme of one status.
     ///
-    /// - evaluation order;
-    /// - what a sweep samples, adapts and draws;
-    /// - densities a move recomputes.
+    /// * evaluation order;
+    /// * what a sweep samples, adapts and draws;
+    /// * densities a move recomputes.
     struct StatusScheme
     {
         std::vector<size_t> order = {};     /// Definition rows, producer before consumer, in inference.
@@ -78,9 +78,9 @@ namespace housepi::augm
         /// Status scheme at index `i`.
         const StatusScheme &at(size_t i) const noexcept { return status_schemes_[i]; }
         /// Find the index of the status scheme governing status `s`.
-        /// - own scheme, if any;
-        /// - else the generic one;
-        /// - else na::INDEX.
+        /// * own scheme, if any;
+        /// * else the generic one;
+        /// * else na::INDEX.
         size_t index_of(StatusLvl s) const noexcept;
 
         /// Whether any latent is sampled.
@@ -130,7 +130,7 @@ namespace housepi::augm
             : scheme_(scheme), def_(def), keys_(keys) {}
 
         /// Route member definition rows by status.
-        /// - household observation: skipped, it needs neither key nor status.
+        /// * household observation -> skipped, it needs neither key nor status.
         void register_rows();
 
         /// Order the definitions of every status, producer before consumer.
@@ -150,7 +150,7 @@ namespace housepi::augm
         /// List observation nodes and, per key, the observations consuming it.
         void init_observations();
         /// Mark, per status, the keys that transmission names `transm` consume.
-        /// - empty `transm`: no key marked.
+        /// * empty `transm` -> no key marked.
         void init_transm(const std::vector<std::string> &transm);
 
         /// List latent models and, per key, the models it can shift.

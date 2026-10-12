@@ -3,13 +3,9 @@
 ## SPDX-License-Identifier: GPL-3.0-or-later
 ##
 
-#' @description Augmented definitions of a single kind.
-#' Column 'kind' is dropped.
-#' @param defs `data.frame()` Definitions to filter.
+#' Select augmented definitions of one kind, column `kind` dropped.
 #' @param kind `character(1)` One of "latent", "member", "house".
-#' @details Used to read a resolved copy of the declarations.
-#' @return `data.frame()` or `NULL` when no definition of that kind exists.
-#' @keywords internal
+#' @return `data.frame()` Definitions of that kind, `NULL` when none.
 #' @noRd
 augm_defs_of_kind <- function(defs, kind = definition_kinds_) {
   kind <- match.arg(kind)
@@ -20,48 +16,39 @@ augm_defs_of_kind <- function(defs, kind = definition_kinds_) {
   out
 }
 
-#' @title Internal R6 holder for housepi latent definitions
-#' @description
-#' Helper class managing latent definitions of the model object.
-#' @keywords internal
+#' Hold the latent and observation definitions of a model.
 #' @noRd
 HousepiAugmented <- R6::R6Class(
   classname = "HousepiAugmented",
   cloneable = TRUE,
 
-  ############################################################################
-  ################################# PRIVATE ##################################
-  ############################################################################
+  ####  Private  ####
 
   private = list(
     deep_clone = function(name, value) helper_clone(value),
 
-    # Kind of definitions currently being managed. Used for display.
-    # One between:
-    # "latent": latent variables;
-    # "member": member-level observation;
-    # "house": household-level observations.
+    # Kind of definitions managed, for display:
+    # * "latent": latent variables;
+    # * "member": member-level observations;
+    # * "house": household-level observations.
     kind_ = "latent"
   ),
 
-  ############################################################################
-  ################################## ACTIVE ##################################
-  ############################################################################
+  ####  Active  ####
 
   active = list(
-    #' @field family `character(1)`. Holder family currently being managed.
+    # `character(1)` Family of the managed kind.
     family = function(value) kind2family(private$kind_),
 
-    #' @field observation_names `character()`.
-    #' Names of member-level observations.
+    # `character()` Names of member-level observations.
     observation_names = function(value) {
       if (is.null(self$defs)) return(character())
       self$defs[["name"]][self$defs[["kind"]] == "member"]
     },
 
-    #' @field surrogate_names `character()`.
-    #' Names of deterministic observations producing a data column:
-    #' member- and household-level observations, carrying no model.
+    # `character()` Observations producing a data column:
+    # * household level -> always;
+    # * member level -> when carrying no model.
     surrogate_names = function(value) {
       if (is.null(self$defs)) return(character())
       mask <- self$defs[["kind"]] == "house" |
@@ -69,9 +56,8 @@ HousepiAugmented <- R6::R6Class(
       self$defs[["name"]][mask]
     },
 
-    #' @field status_labels `character()`.
-    #' Literal character `status =` labels declared across the latent
-    #' definitions, in order of first appearance.
+    # `character()` Character `status =` labels across latent definitions,
+    # in order of first appearance.
     status_labels = function(value) {
       if (is.null(self$defs)) return(character())
       labels <- unlist(self$defs[["status"]], use.names = FALSE)
@@ -82,31 +68,26 @@ HousepiAugmented <- R6::R6Class(
     }
   ),
 
-  ############################################################################
-  ################################## PUBLIC ##################################
-  ############################################################################
+  ####  Public  ####
 
   public = list(
-    #' @field store_warn_over `character()`. Cached overwritten names.
+    # `character()` Cached overwritten names.
     store_warn_over = character(),
-    #' @field defs `data.frame`. Formatted latent definitions.
+    # `data.frame` Formatted latent definitions.
     defs = NULL,
 
-    #' @description
-    #' New object of class
-    #' [HousepiAugmented][housepi::HousepiAugmented].
+    # Create an empty holder.
     initialize = function() {
       self$defs <- NULL
       invisible(self)
     },
 
-    #' @description Remove a given latent definition.
-    #' @param name `character(1)`. Latent definitions to remove.
-    #' @param status `integer(1)`. Associated status of definition.
+    # Remove the definition matching `name` and `status`.
+    # @return `character(1)` | `NULL` Name removed, `NULL` when none matched.
     remove = function(name, status) {
       mask <- self$defs[["name"]] == name
       if (any(mask)) {
-        # check if same name and status (raw: integer code or character label)
+        # same name and status, raw status an integer code or a label
         mask <- mask & vapply(self$defs[["status"]], function(x) {
           identical(as.character(x), as.character(status))
         }, logical(1))
@@ -119,13 +100,12 @@ HousepiAugmented <- R6::R6Class(
       c()
     },
 
-    #' @description Whether every infected status lands on a definition block.
-    #' A generic (unstatused) definition covers them all, otherwise each status
-    #' the model can carry needs one of its own: every dictionary entry when a
-    #' status process draws them, the observed ones when data supplies them.
-    #' @param defs `data.frame()`. Definitions with status codes resolved.
-    #' @param required `integer()`. Infected statuses the model can carry.
-    #' @return `logical(1)`
+    # Whether each infected status in `required` has a definition block.
+    # * generic definition, without status -> covers them all;
+    # * household observation -> needs no block.
+    # @param defs `data.frame()` Definitions with status codes resolved.
+    # @param required `integer()` Infected statuses the model can carry:
+    # every dictionary entry with a status process, else the observed ones.
     covers_statuses = function(defs, required) {
       if (is.null(defs)) return(TRUE)
 
@@ -139,7 +119,7 @@ HousepiAugmented <- R6::R6Class(
       length(required) && all(required %in% as.integer(declared))
     },
 
-    #' @inherit add_latent
+    # Add one definition, arguments as in add_latent() and add_observation().
     add_quo = function(name, ...,
                        value = NULL, status = NA_integer_,
                        const = NA, discr = NA,
@@ -186,7 +166,7 @@ HousepiAugmented <- R6::R6Class(
         .kind <- match.arg(level, c("member", "house"))
       }
 
-      # a household value is one per household: no status block selects it
+      # status on a household observation -> error, one value per household
       if (identical(.kind, "house") && !all(is.na(status))) stop_h(
         "Household observation {.val {name}} cannot be status specific.",
         "Drop {.arg status} or declare {.val {name}} at member level."
@@ -198,8 +178,7 @@ HousepiAugmented <- R6::R6Class(
           "Household observation {.val {name}} cannot be sampled.",
           "Provide {.arg value} instead of {.arg model}."
         )
-        # an observation is evaluated at its datum, never sampled:
-        # sampling options are dropped, those landing in the dots included
+        # observation, never sampled -> sampling options dropped, dots included
         in_dots <- intersect(c("const", "proposal"), names(args))
         if (length(in_dots)) args <- args[!names(args) %in% in_dots]
         ignored <- c("const", "proposal")[!is.na(c(const, proposal))]
@@ -218,21 +197,21 @@ HousepiAugmented <- R6::R6Class(
         }
       }
 
-      # NOTE: single source of truth for currently managed kind
+      # managed kind read from private$kind_, restored on exit
       old_kind <- private$kind_
       on.exit(private$kind_ <- old_kind, add = TRUE)
       private$kind_ <- .kind
 
       assert_valid_definition_name(name, self$family)
-      # control valid status
+      # check status
       assert_valid_status(status)
-      # control meaningful definition
+      # check the definition is meaningful
       assert_no_sibling_dist_arg(args, self$family, name)
       # a latent without a model is sampled within its bounds
       is_bounded <- identical(.kind, "latent") && !all(is.null(c(min, max)))
       if (all(is.null(c(value, func)), is.na(model), !is_bounded)) stop_h(
         "Incomplete definition for latent {.val {name}}.",
-        "Provide at least one between {.arg {c('value', 'model', 'func')}}."
+        "Provide at least one of {.arg {c('value', 'model', 'func')}}."
       )
       if (is_bounded && !is.null(value) && is.na(model) &&
             is.na(proposal) && is.na(const)) stop_h(
@@ -241,11 +220,11 @@ HousepiAugmented <- R6::R6Class(
       )
       if (!is.null(func) && !is.na(model)) stop_h(
         "Wrong definition for latent {.val {name}}.",
-        "Provide only one between {.arg {c('func', 'model')}}."
+        "Provide only one of {.arg {c('func', 'model')}}."
       )
       if (!is.null(value) && !is.null(func)) stop_h(
         "Wrong definition for latent {.val {name}}.",
-        "Provide only one between {.arg {c('value', 'func')}}."
+        "Provide only one of {.arg {c('value', 'func')}}."
       )
 
       # auxiliary typed options for Rcpp build method
@@ -255,7 +234,7 @@ HousepiAugmented <- R6::R6Class(
                    const = as.logical(const),
                    discr = as.logical(discr),
                    func = NA_character_,
-                   fcumul = FALSE, # UPDATE: can I make this an option?
+                   fcumul = FALSE, # @todo expose as an option
                    model = as.character(model),
                    kind = as.character(.kind),
                    min = if (is.null(min)) NA_real_ else min,
@@ -283,19 +262,20 @@ HousepiAugmented <- R6::R6Class(
       invisible(self)
     },
 
-    #' @inherit add_latent
+    # Add definitions from a list of quosures.
+    # * not `append` -> previous definitions of the managed kind dropped.
     add_quo_list = function(xquos, append = FALSE, status = NA_integer_,
                             .kind = definition_kinds_) {
       managed <- match.arg(.kind)
 
-      # NOTE: single source of truth for currently managed kind
+      # managed kind read from private$kind_, restored on exit
       old_kind <- private$kind_
       on.exit(private$kind_ <- old_kind, add = TRUE)
       private$kind_ <- managed
 
       if (isFALSE(append)) {
-        # NOTE: kinds share one store, but are treated as independent;
-        # observations are a single family, so both levels reset together
+        # kinds share one store and reset independently:
+        # * observation levels -> one family, reset together.
         drop <- if (managed %in% c("member", "house")) c("member", "house")
         else managed
         if (is.null(self$defs)) self$initialize()
@@ -310,21 +290,18 @@ HousepiAugmented <- R6::R6Class(
       invisible(self)
     },
 
-    #' @description
-    #' Assert latent definitions from the model implementation script.
-    #' @param required `character()`. Required definitions.
-    #' @param wall `logical(1)`. Whether to raise error.
-    #' @param warn_unused `logical(1)`. Warn if unused are found.
+    # Assert the latents the model requires are defined.
+    # * `wall` -> error on missing ones, else their messages returned;
+    # * `warn_unused` -> warning on latents the model never reads.
     assert = function(required, wall, warn_unused) {
       defined <- self$defs[["name"]]
 
-      # point out latent variables that are not used
-      # NOTE: observations are never model-required, so excluded from check
+      # unused latents -> warning, observations excluded as never required
       if (isTRUE(warn_unused)) {
         non_obs <- defined[self$defs[["kind"]] == "latent"]
         template_not_used_warn(required, non_obs, self$family)
       }
-      # stop if latent variables are missing
+      # missing latents -> error, or messages returned
       sms <- template_missing_stop(required, defined, self$family)
       wall_or_return_(sms, wall)
     }

@@ -45,9 +45,8 @@ family2function_col <- function(family) {
   else "prior"
 }
 
-# Select which candidate exposure error to surface, keeping its full
-# (multi-line header + hints) text so the cli emitter can split it. Selection
-# keys on the salient last line (the cause), not the "Exposing ..." header.
+# Select the exposure error to surface, keyed on its last line, the cause.
+# The text is kept whole, header and hints, for the cli emitter to split.
 helper_format_error <- function(err) {
   if (length(err) == 1) return(err[[1]])
   last <- vapply(err, \(x) utils::tail(strsplit(x, "\n")[[1]], 1),
@@ -58,18 +57,19 @@ helper_format_error <- function(err) {
   else err[[1]]
 }
 
-# Probe a C++ exposer through the raw Rcpp module, bypassing the `.engine`
-# re-styling proxy. A failure then yields the plain C++ text (glue markup, but
-# no cli bullets) that `helper_format_error` classifies on; success returns
-# the exposer.
+# Probe a C++ exposer through the raw Rcpp module, bypassing `.engine`.
+# * failure -> plain C++ text, glue markup without cli bullets,
+#   which helper_format_error() classifies;
+# * success -> the exposer.
 probe_exposer_ <- function(fn, name, args, min = NA_real_, max = NA_real_) {
   member <- cpp_member_(.subset2(.engine, "module"), fn)
   tryCatch(member(name, unlist(args), min, max, FALSE),
            error = \(e) conditionMessage(e))
 }
 
-# Value a readable definition entry is probed at: a constant at its own value,
-# anything sourced or computed (an encoding carrying '|') at `placeholder`.
+# Value a readable definition entry is probed at:
+# * constant -> its own value;
+# * sourced or computed, an encoding carrying '|' -> `placeholder`.
 probe_value_ <- function(x, placeholder) {
   x <- as.character(x)
   out <- suppressWarnings(as.numeric(x))
@@ -78,11 +78,11 @@ probe_value_ <- function(x, placeholder) {
 }
 
 # Build the definition in every registry the engine queries for this column
-# and family, and raise the C++ error when none accepts it. Return the exposer
-# when a single registry accepts it, NULL otherwise.
-# Constant arguments and bounds are probed at their value, so that a value the
-# engine rejects errors at definition. Other arguments are probed at `1`; the
-# bounds are left out unless all given ones are constant.
+# and family, raising the C++ error when none accepts it.
+# * one registry accepts it -> the exposer, else NULL;
+# * constant argument or bound -> probed at its value, rejected at definition;
+# * other argument -> probed at `1`;
+# * bounds -> left out unless every given one is constant.
 probe_definition_ <- function(func_name, args, def_name, family, model_col,
                               min = NA_real_, max = NA_real_) {
   # a definition without arguments reads back as an unnamed NA
@@ -105,7 +105,7 @@ probe_definition_ <- function(func_name, args, def_name, family, model_col,
   })
   err <- Filter(is.character, out)
 
-  # every registry refused the name: the definition has no reading
+  # every registry refused the name -> the definition has no reading
   if (length(err) == length(probed)) stop_h(
     if (is.na(def_name)) "Wrong definition found for {family}."
     else "Wrong definition found for {.val {def_name}}.",
@@ -124,10 +124,10 @@ append_call_args_ <- function(call, args) {
           paste(sprintf("[%s]", vals), collapse = ":"))
 }
 
-# Write into row `r` of the definitions the defaults the user left out: the
-# arguments of the parametrization in use, and the bounds that hold a value of
-# their own. A bound reading an argument is left out, as passing it would
-# detach the bound from that argument.
+# Write into row `r` the defaults the user left out:
+# * arguments of the parametrization in use;
+# * bounds holding a value of their own, not those reading an argument,
+#   which passing would detach from it.
 fill_defaults_ <- function(gear, r, col, obj, user_args) {
   args <- cpp_member_(obj, "args")()
   args <- args[!is.na(args) & !names(args) %in% user_args]
@@ -143,17 +143,17 @@ fill_defaults_ <- function(gear, r, col, obj, user_args) {
   }
 }
 
-# Assert that arguments provided to model are legitimate, and write the
-# defaults the user left out into the definitions. `last` restricts both to
-# that many trailing rows, all rows when NA.
-# UPDATE: at the moment latent functions are not testable
-# because my registries are exposed separately
+# Assert the arguments given to a model are legitimate, and write the defaults
+# the user left out into the definitions.
+# * `last` -> only that many trailing rows;
+# * `last` NA -> every row.
+# @todo latent functions are not testable, their registries are exposed apart
 housepi_assert_args <- function(gear, last = NA_integer_) {
   rows <- seq_len(NROW(gear$defs))
   if (!is.na(last)) rows <- utils::tail(rows, last)
   family <- gear$family
 
-  # load requested faimily definitions
+  # load the definitions of the requested family
   for (col in family2function_col(family)) {
     col_args <- if (col == "func") "func_args" else "args"
 
@@ -189,9 +189,8 @@ assert_unique_arg_names <- function(nms, family, name = NULL) {
   invisible()
 }
 
-# Assert a name carries no declaration of another kind:
-# latent variables and observations share one definition store,
-# and each name stands for a single quantity of the model.
+# Assert a name carries no declaration of another kind.
+# Latents and observations share one store, where a name is one quantity.
 assert_no_kind_clash <- function(defs, name, kind) {
   if (is.null(defs)) return(invisible())
   other <- defs[["kind"]][defs[["name"]] == name & defs[["kind"]] != kind]
@@ -202,8 +201,8 @@ assert_no_kind_clash <- function(defs, name, kind) {
   invisible()
 }
 
-# Assert that a string argument respects the naming convention, `what` naming
-# it in the message.
+# Assert a string argument respects the naming convention.
+# @param what `character(1)` Argument name in the message.
 assert_valid_character <- function(x, what) {
   if (!nzchar(x)) stop_h("{what} must be a non-empty string.")
   else if (!grepl("^[A-Za-z0-9_.]+$", x)) stop_h(
@@ -213,14 +212,14 @@ assert_valid_character <- function(x, what) {
   invisible()
 }
 
-# Assert a given law name respects the naming convention.
+# Assert a distribution name respects the naming convention.
 assert_valid_law_name <- function(x, what) {
   if (is.character(x) && length(x) == 1 && !is.na(x))
     assert_valid_character(x, what)
   invisible()
 }
 
-# Assert that x can be treated as a covariate value.
+# Assert `x` can be a covariate value.
 assert_valid_covariate <- function(x, family) {
   arg_name <- "Covariate value"
   if (length(x) != 1 || is.na(x)) {
@@ -234,8 +233,8 @@ assert_valid_covariate <- function(x, family) {
   invisible()
 }
 
-# Assert that given definition name is valid.
-# A leading dot is reserved to the definitions the engine generates itself.
+# Assert a definition name is valid.
+# * leading dot -> reserved to definitions the engine generates.
 assert_valid_definition_name <- function(x, family) {
   if (length(x) != 1 || is.na(x) || !is.character(x)) {
     stop_h("Name of {family} must be a non-empty string.",
@@ -254,8 +253,7 @@ assert_valid_definition_name <- function(x, family) {
 }
 
 # Assert data columns have valid names and can be sourced by definitions.
-# Eventually warn about columns similar to missing reserved columns.
-# The engine reads reserved columns by exact name: lookalike stays a covariate.
+# * column resembling a missing reserved one -> warning, it stays a covariate.
 assert_valid_data_columns <- function(cols, targets = data_reserved_cols) {
   forbidden <- cols[!grepl("^[A-Za-z0-9_.]+$", cols)]
   if (length(forbidden)) stop_h(
@@ -284,9 +282,9 @@ assert_valid_data_columns <- function(cols, targets = data_reserved_cols) {
 # StatusLevel is an unsigned 8-bit integer (see inst/include/data/status.h).
 max_status_level <- 254L
 
-# Assert that given status(es) name is(are) valid.
-# Numeric statuses must be positive integers; character labels are allowed and
-# resolved to integer codes against the status dictionary at build time.
+# Assert statuses are valid.
+# * numeric -> positive integers, at most `max_status_level`;
+# * character -> labels, resolved to codes at build time.
 assert_valid_status <- function(status) {
   status <- status[!is.na(status)]
   if (!length(status)) return(invisible())

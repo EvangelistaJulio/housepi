@@ -9,11 +9,13 @@ add_reporting_process(hh_model, wide, long)
 \arguments{
 \item{hh_model}{\code{HousepiModel} object.}
 
-\item{wide}{\code{function} | \code{NULL}. Turns a simulated \code{data_wide} into the
-reported \code{data_wide}. \code{NULL} removes it.}
+\item{wide}{\code{function} | \code{NULL}
+Turns a simulated \code{data_wide} into the reported \code{data_wide}.
+\code{NULL} removes it.}
 
-\item{long}{\code{function} | \code{NULL}. Turns the reported \code{data_wide} into a
-\code{data_long}, which \code{\link[=run_simulation]{run_simulation()}} returns along with it.
+\item{long}{\code{function} | \code{NULL}
+Turns the reported \code{data_wide} into a \code{data_long},
+which \code{\link[=run_simulation]{run_simulation()}} returns along with it.
 \code{NULL} removes it.}
 }
 \value{

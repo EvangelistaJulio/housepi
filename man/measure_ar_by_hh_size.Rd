@@ -7,13 +7,11 @@
 measure_ar_by_hh_size(data_wide, escaped = "escaped")
 }
 \arguments{
-\item{data_wide}{\code{data.frame} Household data used for analysis (wide format).
-Optional at construction; if omitted, attach it later with
-\link[=add_data_wide]{add_data_wide()}.}
+\item{data_wide}{\code{data.frame} Household data used for analysis (wide format).}
 
-\item{escaped}{\code{character(1)} Label for status code \code{0} (individuals not
-among the declared infected statuses) when the \code{status} column is
-character/factor.}
+\item{escaped}{\code{character(1)} Label of status code \code{0},
+members outside the declared infected statuses,
+when the \code{status} column is character or factor.}
 }
 \value{
 \code{data.frame}

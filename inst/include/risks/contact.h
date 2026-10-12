@@ -33,7 +33,7 @@ namespace housepi::risks
         //////  Setter  //////
 
         /// Build contact risks from rule table `input`.
-        /// - contact risks are not symmetric a priori.
+        /// * contact risks are not symmetric a priori.
         void build(data::Wide &data_wide,
                    const Parameter &param,
                    const str_table &input);
@@ -41,7 +41,7 @@ namespace housepi::risks
         //////  Getter  //////
 
         /// Whether members `i` and `j` of `house` have matching contact risks with every member.
-        /// - self-contacts and the contacts `i` to `j` and `j` to `i` must match too.
+        /// * self-contacts and the contacts `i` to `j` and `j` to `i` must match too.
         bool same_contacts(const Household &house,
                            MemberIdx i,
                            MemberIdx j) const noexcept
@@ -75,7 +75,7 @@ namespace housepi::risks
         }
 
         /// Contact-risk value within the partition of member `i` (self-contact attribute).
-        /// - no definition: 1.
+        /// * no definition -> 1.
         double intra_value(const Household &house,
                            MemberIdx i) const
         {
@@ -83,8 +83,8 @@ namespace housepi::risks
         }
 
         /// Contact-risk value from member `from` to member `to`.
-        /// - self-contact: 0;
-        /// - no definition: 1.
+        /// * self-contact -> 0;
+        /// * no definition -> 1.
         double value(const Household &house,
                      MemberIdx from,
                      MemberIdx to) const

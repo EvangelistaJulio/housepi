@@ -29,8 +29,8 @@ namespace housepi
 
     /// Group and contact risks of a run.
     ///
-    /// - rules, resolved once per build into flat stores;
-    /// - identifiability anchors, declared by the model.
+    /// * rules, resolved once per build into flat stores;
+    /// * identifiability anchors, declared by the model.
     struct Risks
     {
         //////  Constructor  //////
@@ -78,8 +78,8 @@ namespace housepi
         const std::vector<risks::Anchor> &anchors() const noexcept { return anchors_; }
 
         /// Whether members `i` and `j` of `house` are equivalent according to risks.
-        /// - group risks match;
-        /// - each contact risk of one matches its counterpart for the other, outgoing and incoming.
+        /// * group risks match;
+        /// * each contact risk of one matches its counterpart for the other, outgoing and incoming.
         bool same_partition(const Household &house, MemberIdx i, MemberIdx j) const;
 
         /// Throw if more than one scale is free among a baseline and the risks scaling it.

@@ -20,9 +20,9 @@ Original observational study from Uchida et al. (2017).
 }
 \details{
 \describe{
-\item{hh_id}{Household identifier}
-\item{member}{Family member}
-\item{status}{Symptoms reported}
+\item{hh_id}{Household identifier;}
+\item{member}{Family member;}
+\item{status}{Symptoms reported.}
 }
 
 To reproduce the data processing, see the script at:

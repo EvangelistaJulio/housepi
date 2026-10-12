@@ -25,9 +25,9 @@ namespace housepi::rules
 
     /// View over a rule table, with rule group, specificity and cells precomputed per row.
     ///
-    /// - conflicts resolve by specificity: 'generalia specialibus non derogant';
-    /// - specificity of a row: number of non-NA cells among the specificity columns;
-    /// - what a row applies is read by the caller, from its own column.
+    /// * conflicts resolve by specificity: 'generalia specialibus non derogant';
+    /// * specificity of a row: number of non-NA cells among the specificity columns;
+    /// * what a row applies is read by the caller, from its own column.
     struct Table
     {
         const str_table &input;                 /// User tidy definition table.
@@ -61,8 +61,8 @@ namespace housepi::rules
         }
 
         /// Whether row `r` matches `probe`, one value per specificity column.
-        /// - catch-all cell: matches any value;
-        /// - NA probe value: matches a catch-all only.
+        /// * catch-all cell -> matches any value;
+        /// * NA probe value -> matches a catch-all only.
         bool matches(std::size_t r, const std::vector<double> &probe) const noexcept
         {
             for (std::size_t c = 0; c < cells.size(); ++c)
@@ -72,7 +72,7 @@ namespace housepi::rules
         }
 
         /// Pick the most specific row matching `probe`, per key.
-        /// - tie at the top specificity: lowest row.
+        /// * tie at the top specificity -> lowest row.
         /// @param key_of Key of row `r`.
         /// @note Ties are asserted R-side.
         template <class Key, class KeyFn>
@@ -92,8 +92,8 @@ namespace housepi::rules
 
     /// Rules read against the covariates of one member.
     ///
-    /// - status: carried by the member, set per probe;
-    /// - every other covariate: carried by the data.
+    /// * status -> carried by the member, set per probe;
+    /// * every other covariate -> carried by the data.
     struct Member
     {
         std::vector<std::string> data; /// Covariates carried by the data.
@@ -124,8 +124,8 @@ namespace housepi::rules
 
     /// Members classed by the covariates a rule reads.
     ///
-    /// - members with equal covariates resolve alike;
-    /// - a class resolves once for every member repeating it.
+    /// * members with equal covariates resolve alike;
+    /// * a class resolves once for every member repeating it.
     struct CovariateClasses
     {
         std::vector<size_t> of_indiv; /// Class of every member.
@@ -151,7 +151,7 @@ namespace housepi::rules
 
     private:
         /// Order covariate vectors of equal length.
-        /// - missing cell: a class of its own, it matches no rule value.
+        /// * missing cell -> a class of its own, it matches no rule value.
         struct Comparator_
         {
             bool operator()(const std::vector<double> &a,

@@ -95,7 +95,7 @@ namespace housepi
         void bind_augm(const Augmented *augm) noexcept { paugm_ = augm; }
 
         /// Finalize the generic distribution, resolving its read-surface, before use.
-        /// - evaluation only: the latent profile is finalized with its variable.
+        /// * evaluation only -> the latent profile is finalized with its variable.
         void finalize()
         {
             if (generic)
@@ -103,7 +103,7 @@ namespace housepi
         }
 
         /// Store the values of a lookup-table profile.
-        /// - day 0: infectivity 0.
+        /// * day 0 -> infectivity 0.
         void update_cache()
         {
             switch (mode_)

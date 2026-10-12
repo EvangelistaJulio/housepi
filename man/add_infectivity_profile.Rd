@@ -21,42 +21,43 @@ add_infectivity_profile(
 
 \item{func}{\code{character(1)} Name used by internal calls.}
 
-\item{...}{named arguments for the profile distribution.
+\item{...}{Named arguments for the profile distribution.
 In mode 'multiple', the \code{func} definitions.}
 
-\item{status}{\code{integer(1)} Individual positive status.
-Used to specify status-specific definitions.
-If \code{NA}, associate definition to all infectious individuals (default).}
+\item{status}{\code{integer(1)} Infected status the definition is specific to.
+If \code{NA}, the definition applies to every infected member.}
 
-\item{discr}{\code{logical(1)} Treat profile definition as discrete, if applicable.
-Inferred from the model time discretization if \code{NA} (default).}
+\item{discr}{\code{logical(1)} Whether the profile definition is discrete, if applicable.
+If \code{NA}, inferred from the model time discretization.}
 
 \item{min}{\code{numeric(1)} Truncate to a minimum value.
 Relative to the location argument \code{loc}, when one is given. Either a plain value, the name of another definition,
-or an arithmetic expression combining them. A name is looked up among the
-latent variables, data columns, observations, group risks and parameters the
-model carries: two of them sharing a name cannot be read.}
+or an arithmetic expression combining them.
+A name is looked up among the latent variables, data columns, observations,
+group risks and parameters the model carries.
+Two of them sharing a name cannot be read.}
 
 \item{max}{\code{numeric(1)} Truncate to a maximum value.
 Relative to the location argument \code{loc}, when one is given. Either a plain value, the name of another definition,
-or an arithmetic expression combining them. A name is looked up among the
-latent variables, data columns, observations, group risks and parameters the
-model carries: two of them sharing a name cannot be read.}
+or an arithmetic expression combining them.
+A name is looked up among the latent variables, data columns, observations,
+group risks and parameters the model carries.
+Two of them sharing a name cannot be read.}
 
 \item{import}{Named \code{list} of pre-built definitions to import,
 or \code{"template"} for the definitions shipped with the model.
-The template is R code evaluated from the model folder, so use it only with
-model folders you trust.
-Cannot be combined with single and/or multiple definitions.}
+The template is R code evaluated from the model folder,
+so use it only with model folders you trust.
+Cannot be combined with single or multiple definitions.}
 
-\item{append}{\code{logical(1)} Append to current definitions.
-If \code{FALSE} drop all pre-existing definitions.}
+\item{append}{\code{logical(1)} Whether to append to the current definitions.
+If \code{FALSE}, the previous definitions are dropped.}
 }
 \value{
 \code{HousepiModel} object. Deep clone of input with new definitions.
 }
 \description{
-Add definitions for the infectivity profiles.
+Add infectivity profile definitions to a housepi model.
 There are three mutually exclusive definition modes:
 \describe{
 \item{single}{

@@ -3,53 +3,40 @@
 ## SPDX-License-Identifier: GPL-3.0-or-later
 ##
 
-############################################################################
-############################################################################
-########################### Housepi Infec Profile ##########################
-############################################################################
-############################################################################
+########  HousepiInfecProfile  ########
 
-#' @title Internal R6 holder for housepi infectivity-profile definitions
-#' @description
-#' Helper class managing infectivity-profile definitions of the model.
-#' @keywords internal
+#' Hold the infectivity-profile definitions of a model.
 #' @noRd
 HousepiInfecProfile <- R6::R6Class(
   classname = "HousepiInfecProfile",
   cloneable = TRUE,
 
-  ############################################################################
-  ################################## PRIVATE #################################
-  ############################################################################
+  ####  Private  ####
 
   private = list(
     deep_clone = function(name, value) helper_clone(value)
   ),
 
-  ############################################################################
-  ################################## PUBLIC ##################################
-  ############################################################################
+  ####  Public  ####
 
   public = list(
-    #' @field family `character(1)` Holder family.
+    # `character(1)` Holder family.
     family = "infectivity profile",
-    #' @field discr_model `logicla()` Whether model is discrete-time.
+    # `logical(1)` Whether the model is discrete-time.
     discr_model = FALSE,
-    #' @field store_warn_over `character()` Cached overwritten names.
+    # `character()` Cached overwritten names.
     store_warn_over = character(),
-    #' @field defs `data.frame` Formatted infectivity profile definitions.
+    # `data.frame` Formatted infectivity profile definitions.
     defs = NULL,
 
-    #' @description
-    #' New object of class
-    #' [HousepiInfecProfile][housepi::HousepiInfecProfile].
+    # Create an empty holder.
     initialize = function() {
       self$defs <- NULL
       invisible(self)
     },
 
-    #' @description Remove a given infectivity profile definition.
-    #' @param status `integer(1)`. Associated status of the definition.
+    # Remove the definition specific to `status`.
+    # @return `integer(1)` | `NULL` Status removed, `NULL` when none matched.
     remove = function(status) {
       mask <- vapply(self$defs[["status"]], function(x) {
         identical(x, as.integer(status))
@@ -59,7 +46,7 @@ HousepiInfecProfile <- R6::R6Class(
       return(status)
     },
 
-    #' @inherit add_infectivity_profile
+    # Add one definition, arguments as in add_infectivity_profile().
     add_quo = function(func, ...,
                        status = NA_integer_, discr = NA,
                        min = NULL, max = NULL,
@@ -93,9 +80,9 @@ HousepiInfecProfile <- R6::R6Class(
       )
       if (is.na(discr)) discr <- self$discr_model
 
-      # NOTE: if arg 'min' not provided
-      # impose min = 1 for discrete-time, min = 0 for continuous time
-      # NOTE: 'loc' already places the origin, no further shift is stacked on it
+      # `min` not provided:
+      # * discrete time, no `loc` -> 1;
+      # * otherwise -> 0, `loc` already placing the origin.
       if (is.null(min))
         min <- if (discr && !"loc" %in% names(func_args)) "1|N" else "0|N"
       if (is.null(max)) max <- NA_character_
@@ -112,17 +99,17 @@ HousepiInfecProfile <- R6::R6Class(
       invisible(self)
     },
 
-    #' @inherit add_infectivity_profile
+    # Add definitions from a list of quosures.
+    # * not `append` -> previous definitions dropped.
     add_quo_list = function(xquos, append = FALSE) {
       housepi_load_defin_quos(self, "func", xquos, append)
       housepi_assert_args(self)
       invisible(self)
     },
 
-    #' @description
-    #' Returns a readable definition object.
-    #' @param defs `data.frame()`. Definitions to read, the stored ones by
-    #' default. The model passes the table with its sources resolved.
+    # Read the definitions in a readable form.
+    # @param defs `data.frame()` Definitions to read,
+    # the model passing the table with its sources resolved.
     showcase = function(defs = self$defs) {
       if (!length(defs)) return(NULL)
       output <- housepi_defin_showcaser(defs)

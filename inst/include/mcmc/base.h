@@ -54,11 +54,11 @@ namespace housepi
 		//////  Data  //////
 
 		/// Initialize equivalence-class compression.
-		/// - latent definitions required, not imported yet: one class per household.
+		/// * latent definitions required, not imported yet -> one class per household.
 		void init_equivalence_class_compression();
 
 		/// Throw if the generic profile transmits at generation time 0.
-		/// - status-specific profile: checked per member, with its variable.
+		/// * status-specific profile -> checked per member, with its variable.
 		void assert_valid_infectivity_profile() const;
 
 		//////  Getter  //////

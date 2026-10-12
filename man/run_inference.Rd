@@ -23,38 +23,40 @@ run_inference(
 
 \item{steps}{\code{integer(1)} Number of MCMC iterations per chain.}
 
-\item{burn}{\code{integer(1)} Number of iterations per chain discarded before
-\code{steps}. Run after adaptation.}
+\item{burn}{\code{integer(1)}
+Number of iterations per chain discarded before \code{steps}.
+Run after adaptation.}
 
 \item{thin}{\code{integer(1)} Keep one iteration every \code{thin} of \code{steps}.}
 
 \item{adapt}{\code{integer(1)} Number of iterations to adapt proposal scales.
 Run first and not stored as draws.
-If no proposal is adaptable, dropped or run as burn-in when \code{burn = 0}.}
+If no proposal is adaptable, run as burn-in when \code{burn = 0}, else dropped.}
 
 \item{chains}{\code{integer(1)} Number of independent MCMC chains to run.}
 
 \item{threads}{\code{integer(1)} Number of threads for parallel household runs.}
 
-\item{id_draws}{Infected members whose public latent draws are stored.
-Either a \code{character()} of individual identifiers,
-or a \code{list} with entries \code{id} (individual identifiers)
-and/or \code{hh_id} (whole household infected members are stored).
-If \code{NA}, one random eligible household is followed (default).
-Pass \code{".none"} to store nothing.}
+\item{id_draws}{\code{character()} | \code{list}
+Infected members whose public latent draws are stored.
+A \code{character()} lists individual identifiers.
+A \code{list} takes entries \code{id}, individual identifiers, and \code{hh_id},
+households whose infected members are all stored.
+If \code{NA}, one random eligible household is followed.
+If \code{".none"}, nothing is stored.}
 
-\item{progress}{\code{integer(1)} | \code{logical(1)} Control the progress bar.
-One between:
+\item{progress}{\code{integer(1)} | \code{logical(1)} Control the progress bar,
+one of:
 \describe{
-\item{\code{integer}}{seconds between prints. A shorter run does not print.}
+\item{\code{integer}}{seconds between prints, a shorter run printing nothing;}
 \item{\code{TRUE}}{one print per second;}
 \item{\code{FALSE} or \code{0}}{no progress bar.}
 }
 The bar prints as messages, which \code{\link[=suppressMessages]{suppressMessages()}} silences.}
 
 \item{warn}{\code{logical(1)} Whether to report the warnings the run raises.
-A quiet run still records the convergence diagnostics it flagged, read back
-from the \code{warnings} field of the returned object.}
+A quiet run still records the convergence diagnostics it flagged,
+read back from the \code{warnings} field of the returned object.}
 
 \item{...}{Advanced configuration.}
 }
@@ -62,8 +64,8 @@ from the \code{warnings} field of the returned object.}
 An object of class \code{HousepiPosteriorDraws}.
 }
 \description{
-Run inference with Bayesian Markov Chain Monte Carlo, by the
-component-wise Metropolis-Hastings algorithm
+Run inference with Bayesian Markov Chain Monte Carlo,
+by the component-wise Metropolis-Hastings algorithm
 \insertCite{metropolis_equation_1953,hastings_monte_1970}{housepi}.
 }
 \details{

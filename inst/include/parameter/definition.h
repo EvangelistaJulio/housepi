@@ -27,7 +27,7 @@ namespace housepi::param
         bool is_discr = false;
 
         /// Parse row `r` of definition table `input`.
-        /// - function reading a latent or a data column: error.
+        /// * function reading a latent or a data column -> error.
         DefRow(const str_table &input, size_t r);
     };
 
@@ -41,7 +41,7 @@ namespace housepi::param
         void build(const str_table &input);
 
         /// List rows producer before consumer, through `func`, `min` and `max`.
-        /// - no function parameter: row order.
+        /// * no function parameter -> row order.
         std::vector<size_t> order() const;
     };
 }

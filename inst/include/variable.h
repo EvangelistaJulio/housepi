@@ -33,7 +33,7 @@ namespace housepi
         Variable();                          /// Constructor.
         ~Variable() override;                /// Destructor.
         /// Copy constructor.
-        /// - proposal: not copied, the copy binds its own.
+        /// * proposal -> not copied, the copy binds its own.
         /// @note Copy only before proposals are bound, as State allocation does.
         Variable(const Variable &other);
         Variable(Variable &&) noexcept;      /// Move constructor.
@@ -64,8 +64,8 @@ namespace housepi
         void reshape_distribution(bool discr);
         /// Initialize proposal `proposal` with arguments `args`.
         ///
-        /// - random-walk kernels (rw, rw_log, rw_unif): read a `scale` argument;
-        /// - independence samplers: draw from an owned distribution.
+        /// * random-walk kernels (rw, rw_log, rw_unif) -> read a `scale` argument;
+        /// * independence samplers -> draw from an owned distribution.
         /// @note Call after the model is initialized.
         void init_proposal(const std::string &proposal, const dict<Attribute> &args);
 
@@ -76,7 +76,7 @@ namespace housepi
         /// Draw the initial value from the distribution, if any.
         void restart(rnd_gen &prng);
         /// Draw the value from the distribution, the constant flag ignored.
-        /// - pinned by the simulation-only override: skipped.
+        /// * pinned by the simulation-only override -> skipped.
         void draw_value(rnd_gen &prng)
         {
             // a variable pinned by the simulation holds no distribution
@@ -91,8 +91,8 @@ namespace housepi
         //////  Flags  //////
 
         /// Values the variable takes, in the absolute frame.
-        /// - constant: its value, whatever the distribution;
-        /// - otherwise: the support of the distribution.
+        /// * constant -> its value, whatever the distribution;
+        /// * otherwise -> the support of the distribution.
         Codomain codomain() const noexcept override final
         {
             return !pDistr_ || is_constant() ? Attribute::codomain() : pDistr_->support();

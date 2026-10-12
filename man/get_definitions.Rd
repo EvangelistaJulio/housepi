@@ -36,27 +36,29 @@ get_reporting_process(hh_model)
 \arguments{
 \item{hh_model}{\code{HousepiModel} object.}
 
-\item{name}{\code{character()}. Names of the definitions to return.
+\item{name}{\code{character()} Names of the definitions to return.
 \code{get_group_risks()} matches the name of the group risk.
-All of them when \code{NA} (default).}
+If \code{NA}, all of them.}
 }
 \value{
-\code{data.frame}. \code{get_status_process()} returns one row per rule of
-the status process: its \code{status} and \code{weight}, the \code{n} members it applies
-to, its \code{rule_group} and its covariates.
-\code{get_reporting_process()} returns \code{list(wide = , long = )}, see
-\code{\link[=add_reporting_process]{add_reporting_process()}}.
+\code{data.frame}
+\code{get_status_process()} returns one row per rule of the status process:
+its \code{status} and \code{weight}, the \code{n} members it applies to,
+its \code{rule_group} and its covariates.
+\code{get_reporting_process()} returns \code{list(wide = , long = )},
+see \code{\link[=add_reporting_process]{add_reporting_process()}}.
 }
 \description{
 Return the definitions currently stored in the housepi model.
-Each variant returns one category (data, parameters, latent variables,
-observations, status process, group risks, contact risks, infectivity
-profile, reporting process).
+Each variant returns one category: data, parameters, latent variables,
+observations, status process, group risks, contact risks,
+infectivity profile or reporting process.
 }
 \details{
-\code{get_data_wide()} returns the individual-level data the model reads: a column
-a deterministic observation stands in for carries the derived value, not the
-imported one. A column an observation produces without standing in for data
+\code{get_data_wide()} returns the individual-level data the model reads.
+A column a deterministic observation stands in for
+carries the derived value, not the imported one.
+A column an observation produces without standing in for data
 is not part of the dataset, and is reported by \code{\link[=get_observations]{get_observations()}}.
 }
 \examples{

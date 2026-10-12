@@ -5,9 +5,9 @@
 \alias{HousepiCalibrationCheck}
 \title{Simulation calibration check of a housepi model}
 \description{
-Container for the sweep run by \code{\link[=check_calibration]{check_calibration()}}: surveys simulated at
-parameter values drawn from the prior and fitted back, each value ranked
-among the posterior draws of its fit.
+Container for the sweep run by \code{\link[=check_calibration]{check_calibration()}}:
+surveys simulated at parameter values drawn from the prior and fitted back,
+each value ranked among the posterior draws of its fit.
 }
 \examples{
 calibration <- flu_1918_frederick |>
@@ -23,61 +23,59 @@ calibration$summary
     \item{\code{estimates}}{\code{data.frame}
 One row per replicate and parameter
 \describe{
-\item{truth}{Value drawn from the prior the survey was simulated at}
-\item{rank}{Number of ranked posterior draws below the truth, ties
-split at random}
-\item{rhat, ess_bulk}{Convergence diagnostics of the fit}
+\item{truth}{Value drawn from the prior the survey was simulated at;}
+\item{rank}{Number of ranked posterior draws below the truth,
+ties split at random;}
+\item{rhat, ess_bulk}{Convergence diagnostics of the fit;}
 \item{flagged}{\code{TRUE} when the diagnostics flagged the parameter:
-Total sample size was below 400; R-hat > 1.05; Bulk Effective Sample Size (ESS) below 100 or 1\% of the draws; or when its bulk
-effective sample size is below \code{rank_draws}}
+Total sample size was below 400; R-hat > 1.05; Bulk Effective Sample Size (ESS) below 100 or 1\% of the draws,
+or when its bulk effective sample size is below \code{rank_draws}.}
 }}
 
     \item{\code{replicates}}{\code{data.frame}
 One row per replicate
 \describe{
-\item{seed}{Seed of the fit's random number generators}
-\item{inference_secs}{Wall-clock of the sampling loop}
-\item{min_ess_bulk}{Smallest bulk effective sample size over the
-parameters of the fit}
-\item{flagged}{Whether any parameter of the fit was flagged}
+\item{seed}{Seed of the fit's random number generators;}
+\item{inference_secs}{Wall-clock of the sampling loop;}
+\item{min_ess_bulk}{Smallest bulk effective sample size
+over the parameters of the fit;}
+\item{flagged}{Whether any parameter of the fit was flagged.}
 }}
 
     \item{\code{ecdf}}{\code{data.frame}
 Empirical CDF of the fractional ranks \code{(rank + 1) / (rank_draws + 1)}
 per parameter, with its simultaneous band
 \describe{
-\item{z}{Point the ECDF is evaluated at}
-\item{ecdf}{Share of the ranks at or below \code{z}}
-\item{lower, upper}{Band the ECDF of uniform ranks stays inside, at
-every \code{z} at once, with probability at least 0.95}
+\item{z}{Point the ECDF is evaluated at;}
+\item{ecdf}{Share of the ranks at or below \code{z};}
+\item{lower, upper}{Band the ECDF of uniform ranks stays inside,
+at every \code{z} at once, with probability at least 0.95.}
 }}
 
     \item{\code{summary}}{\code{data.frame}
 Uniformity of the ranks per parameter
 \describe{
-\item{nrep, n_flagged}{Replicates ranked, and those flagged}
-\item{log_gamma}{Logarithm of the uniformity statistic: twice the
-smallest binomial tail probability of the ECDF}
-\item{log_gamma_threshold}{Value below which \code{log_gamma} rejects
-uniformity at level 0.05}
-\item{uniform}{Whether the ranks pass the test}
+\item{nrep, n_flagged}{Replicates ranked, and those flagged;}
+\item{log_gamma}{Logarithm of the uniformity statistic,
+twice the smallest binomial tail probability of the ECDF;}
+\item{log_gamma_threshold}{Value of \code{log_gamma} below which
+uniformity is rejected, at level 0.05;}
+\item{uniform}{Whether the ranks pass the test.}
 }}
 
     \item{\code{overview}}{\code{data.frame}
 Sweep cost, averaged over the replicates
 \describe{
-\item{nrep, n_flagged}{Replicates run, and those flagged}
-\item{mean_inference_secs}{Mean wall-clock of a sampling loop}
-\item{secs_per_ess}{Seconds of sampling per effective draw of the
-worst-mixing parameter, pooled over the replicates: a cost of this
-run on this machine and thread count, not of the model}
+\item{nrep, n_flagged}{Replicates run, and those flagged;}
+\item{mean_inference_secs}{Mean wall-clock of a sampling loop;}
+\item{secs_per_ess}{Seconds of sampling per effective draw
+of the worst-mixing parameter, pooled over the replicates:
+a cost of this run, machine and thread count, not of the model.}
 }}
 
-    \item{\code{houses}}{\code{integer(1)}
-Household count of the surveys.}
+    \item{\code{houses}}{\code{integer(1)} Household count of the surveys.}
 
-    \item{\code{nrep}}{\code{integer(1)}
-Replicates run.}
+    \item{\code{nrep}}{\code{integer(1)} Replicates run.}
 
     \item{\code{rank_draws}}{\code{integer(1)}
 Posterior draws each simulating value is ranked among.}
@@ -99,8 +97,8 @@ Distinct warnings raised over the sweep, with their counts.}
 \if{html}{\out{<a id="method-HousepiCalibrationCheck-initialize"></a>}}
 \if{latex}{\out{\hypertarget{method-HousepiCalibrationCheck-initialize}{}}}
 \subsection{\code{HousepiCalibrationCheck$new()}}{
-  Internal: \code{\link[=check_calibration]{check_calibration()}} builds this object, don't call \verb{$new()}
-directly.
+  Create the calibration check object.
+Use \code{\link[=check_calibration]{check_calibration()}} instead of calling \verb{$new()}.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{HousepiCalibrationCheck$new(
@@ -124,30 +122,33 @@ directly.
     \if{html}{\out{<div class="arguments">}}
     \describe{
       \item{\code{hh_model}}{\code{HousepiModel} object.}
-      \item{\code{nrep}}{\code{integer(1)} Number of surveys simulated and fitted back
-at each household count.}
+      \item{\code{nrep}}{\code{integer(1)}
+Number of surveys simulated and fitted back at each household count.}
       \item{\code{houses}}{\code{integer(1)} Household count of the surveys.
-\code{NA} targets the number of households carried by the attached data.}
-      \item{\code{structure_sampler}}{\code{function} Sampler of the household structure the surveys
-are generated on, called as \code{structure_sampler(data_wide, houses)}.
-\code{NULL} reuses the attached structure verbatim and ignores \code{houses}.}
-      \item{\code{rank_draws}}{\code{integer(1)} Number of posterior draws each simulating
-value is ranked among, thinned evenly from the stored draws of all chains.}
+If \code{NA}, the number of households carried by the attached data.}
+      \item{\code{structure_sampler}}{\code{function}
+Sampler of the household structure the surveys are generated on,
+called as \code{structure_sampler(data_wide, houses)}.
+If \code{NULL}, the attached structure is reused verbatim and \code{houses} ignored.}
+      \item{\code{rank_draws}}{\code{integer(1)}
+Number of posterior draws each simulating value is ranked among,
+thinned evenly from the stored draws of all chains.}
       \item{\code{steps}}{\code{integer(1)} Number of MCMC iterations per chain.}
-      \item{\code{burn}}{\code{integer(1)} Number of iterations per chain discarded before
-\code{steps}. Run after adaptation.}
+      \item{\code{burn}}{\code{integer(1)}
+Number of iterations per chain discarded before \code{steps}.
+Run after adaptation.}
       \item{\code{thin}}{\code{integer(1)} Keep one iteration every \code{thin} of \code{steps}.}
       \item{\code{adapt}}{\code{integer(1)} Number of iterations to adapt proposal scales.
 Run first and not stored as draws.
-If no proposal is adaptable, dropped or run as burn-in when \code{burn = 0}.}
+If no proposal is adaptable, run as burn-in when \code{burn = 0}, else dropped.}
       \item{\code{chains}}{\code{integer(1)} Number of independent MCMC chains to run.}
-      \item{\code{threads}}{\code{integer(1)} Number of threads. Up to \code{threads}
-replicates are fitted at once. Beyond \code{nrep}, the households of each fit
-share the threads left over.}
-      \item{\code{progress}}{\code{integer(1)} | \code{logical(1)} Control the progress bar.
-One between:
+      \item{\code{threads}}{\code{integer(1)} Number of threads.
+Up to \code{threads} replicates are fitted at once.
+Beyond \code{nrep}, the households of each fit share the threads left over.}
+      \item{\code{progress}}{\code{integer(1)} | \code{logical(1)} Control the progress bar,
+one of:
 \describe{
-\item{\code{integer}}{seconds between prints. A shorter run does not print.}
+\item{\code{integer}}{seconds between prints, a shorter run printing nothing;}
 \item{\code{TRUE}}{one print per second;}
 \item{\code{FALSE} or \code{0}}{no progress bar.}
 }
@@ -162,7 +163,7 @@ The bar prints as messages, which \code{\link[=suppressMessages]{suppressMessage
 \if{html}{\out{<a id="method-HousepiCalibrationCheck-print"></a>}}
 \if{latex}{\out{\hypertarget{method-HousepiCalibrationCheck-print}{}}}
 \subsection{\code{HousepiCalibrationCheck$print()}}{
-  Override the default printing behavior.
+  Print a summary of the sweep.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{HousepiCalibrationCheck$print()}

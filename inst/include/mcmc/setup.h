@@ -26,8 +26,8 @@ namespace housepi
 
     /// Configure an MCMC run.
     ///
-    /// - holds user, advanced and derived options;
-    /// - owns the random number generators and the iteration count of a run.
+    /// * holds user, advanced and derived options;
+    /// * owns the random number generators and the iteration count of a run.
     struct Setup
     {
         //////  User config  //////
@@ -71,7 +71,7 @@ namespace housepi
         /// Build setup from input table.
         void build(const housepi::str_table &input);
         /// Derive the sample size, then settle the adaptation steps.
-        /// - nothing adaptive: adaptation steps turn into burn-in when `burn` is 0, else are dropped.
+        /// * nothing adaptive -> adaptation steps turn into burn-in when `burn` is 0, else are dropped.
         /// @note Counts are asserted R-side, `steps` extended to a multiple of `thin`.
         void init_mcmc_configuration(bool is_adaptive);
 
@@ -79,8 +79,8 @@ namespace housepi
 
         /// Seed one generator per thread.
         ///
-        /// - thread 0 takes `seed`;
-        /// - each next thread jumps 2^128 steps ahead of the previous one.
+        /// * thread 0 takes `seed`;
+        /// * each next thread jumps 2^128 steps ahead of the previous one.
         void set_prng_seed();
         /// Return generator of the calling thread.
         housepi::rnd_gen &prng() const;
@@ -93,7 +93,7 @@ namespace housepi
         //////  Progress  //////
 
         /// Count one iteration.
-        /// - stop flag raised: throws parallel::Cancelled.
+        /// * stop flag raised -> throws parallel::Cancelled.
         void count_iter();
         /// Return fraction of the run's iterations counted, from 0 to 1.
         double fraction_iter() const;

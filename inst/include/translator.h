@@ -33,7 +33,7 @@ namespace housepi
     struct Translator
     {
         /// Bind the modules sources are read from.
-        /// - `data`, `group_risk`: read by member-specific sources.
+        /// * `data`, `group_risk`: read by member-specific sources.
         Translator(Parameter &param,
                    Augmented &augm,
                    const Data &data,
@@ -44,7 +44,7 @@ namespace housepi
               group_risk_(group_risk) {}
 
         /// Translate definition node `node` into an attribute.
-        /// - within household `house_ptr`, no member bound: a data cell is read through a fold only.
+        /// * within household `house_ptr`, no member bound -> a data cell is read through a fold only.
         const Attribute &to_attribute(const parse::Entry &node,
                                       const Individual *indiv_ptr = nullptr,
                                       const Household *house_ptr = nullptr) const;
@@ -60,8 +60,8 @@ namespace housepi
         dict<Attribute> to_numeric_args(const parse::Entry &node,
                                         const Individual *indiv_ptr = nullptr) const;
         /// Bind the arguments of distribution `model` and the bounds `min`, `max` into `var`, then reshape it.
-        /// - `numeric`: every argument a numeric constant;
-        /// - otherwise: arguments live, read on `indiv_ptr`.
+        /// * `numeric` -> every argument a numeric constant;
+        /// * otherwise -> arguments live, read on `indiv_ptr`.
         /// @note Call after Variable::init_distr().
         void bind_distr(Variable &var,
                         const parse::Entry &model,
@@ -78,8 +78,8 @@ namespace housepi
         bool is_house_fold(const parse::Entry &node,
                            const Household *house_ptr) const;
         /// Bind the arguments of function `node` into `parent`.
-        /// - household fold: each operand reading a member cell binds once per member, empty ones skipped.
-        /// - defined call: every operand outside a fold carries a value, each fold holds at least one.
+        /// * household fold -> each operand reading a member cell binds once per member, empty ones skipped.
+        /// * defined call: every operand outside a fold carries a value, each fold holds at least one.
         /// @return Whether the call is defined within the household.
         bool bind_arguments(Attribute &parent,
                             const parse::Entry &node,

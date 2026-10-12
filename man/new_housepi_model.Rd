@@ -16,33 +16,33 @@ new_housepi_model(
 }
 \arguments{
 \item{data}{\code{data.frame} Household data used for analysis (wide format).
-Optional at construction; if omitted, attach it later with
-\link[=add_data_wide]{add_data_wide()}.}
+If omitted, attach it later with \code{\link[=add_data_wide]{add_data_wide()}}.}
 
-\item{model}{\code{character(1)} Choice for the model.
-One between:
+\item{model}{\code{character(1)} Model to use, one of:
 \describe{
 \item{\verb{<template>}}{a built-in template name;}
 \item{\code{path/to/source}}{folder with implementation file \code{"model.cpp"};}
 \item{\code{path/to/compiled}}{folder with a previously compiled model;}
 \item{\code{"test"}}{template name for test model;}
-\item{\code{NA}}{fall back to \code{"test"} (default).}
+\item{\code{NA}}{same as \code{"test"}.}
 }}
 
-\item{as_template}{\code{logical(1)} Store dynamic library as a local template.
-If \code{FALSE} recompile the model at every new session (default).}
+\item{as_template}{\code{logical(1)}
+Whether to store the compiled model as a local template.
+If \code{FALSE}, the model is recompiled in every new session.}
 
-\item{force}{\code{logical(1)} Compile even if cached model already exists.}
+\item{force}{\code{logical(1)}
+Whether to compile even when a cached model exists.}
 
-\item{quiet}{\code{logical(1)} If \code{TRUE} hide compilation commands.}
+\item{quiet}{\code{logical(1)} Whether to hide compilation commands.}
 
-\item{escaped}{\code{character(1)} Label for status code \code{0} (individuals not
-among the declared infected statuses) when the \code{status} column is
-character/factor.}
+\item{escaped}{\code{character(1)} Label of status code \code{0},
+members outside the declared infected statuses,
+when the \code{status} column is character or factor.}
 
 \item{...}{Named arguments. Additional compilation options:
 \describe{
-\item{\code{discr}}{\code{logical(1)} If \code{TRUE} compile to discrete time.}
+\item{\code{discr}}{\code{logical(1)} Whether to compile to discrete time.}
 \item{\code{flags}}{\code{character()} Compilation flags.}
 \item{\code{libs}}{\code{character()} Links to libraries.}
 \item{\code{paths}}{\code{character()} Include paths.}
@@ -52,8 +52,7 @@ character/factor.}
 \code{HousepiModel} object.
 }
 \description{
-Create a new object of class 'HousepiModel'
-used to run inference and simulation routines.
+Create a \code{HousepiModel}, the object inference and simulation run on.
 }
 \examples{
 # build a model from a template using a built-in dataset

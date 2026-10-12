@@ -31,8 +31,8 @@ namespace housepi::risks
     constexpr double VALUE_REFERENCE = 1.0; /// Risk value of the reference.
 
     /// Read the scale anchoring of every rule group.
-    /// - a rule naming the reference: anchors its group;
-    /// - any other rule: a risk its group applies.
+    /// * a rule naming the reference -> anchors its group;
+    /// * any other rule -> a risk its group applies.
     /// @param row_param Parameter key per rule, NA for the reference.
     /// @param key_of Rule-group key of row `r`.
     template <class Key, class KeyFn>
@@ -58,7 +58,7 @@ namespace housepi::risks
 
     /// Group-risk rules, read against member covariates.
     ///
-    /// - status cell: rewritten to the slot of its level.
+    /// * status cell -> rewritten to the slot of its level.
     struct GroupDefinitions : rules::Member
     {
         std::vector<size_t> row_param = {}; /// Parameter key per rule, NA for the reference.
@@ -84,7 +84,7 @@ namespace housepi::risks
         }
 
         /// Resolve the most specific matching rule per risk name and rule group.
-        /// - covariates of `indiv` read at status slot `slot`.
+        /// * covariates of `indiv` read at status slot `slot`.
         std::map<GroupKey, size_t> resolve(const data::Wide &data_wide,
                                            const Individual &indiv,
                                            StatusSlot slot) const
@@ -100,8 +100,8 @@ namespace housepi::risks
 
     /// Contact-risk rules, read against the covariates of an ordered member pair.
     ///
-    /// - `from_` columns: covariates of the member transmitting;
-    /// - `to_` columns: covariates of the member receiving, in the same order.
+    /// * `from_` columns: covariates of the member transmitting;
+    /// * `to_` columns: covariates of the member receiving, in the same order.
     struct ContactDefinitions
     {
         std::vector<std::string> data; /// Covariates, prefix dropped.
@@ -120,8 +120,8 @@ namespace housepi::risks
               row_param(param.find(input.at("param_name"))) {}
 
         /// Resolve the risks the pair `indiv_from` to `indiv_to` multiplies.
-        /// - per rule group: the most specific matching rule;
-        /// - across groups: the product, the reference left out.
+        /// * per rule group -> the most specific matching rule;
+        /// * across groups -> the product, the reference left out.
         std::vector<const Attribute *> associate_param_ptrs(const data::Wide &data_wide,
                                                             const Parameter &param,
                                                             const Individual &indiv_from,

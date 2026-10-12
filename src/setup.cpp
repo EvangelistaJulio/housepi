@@ -142,8 +142,8 @@ namespace housepi
         c_sample_size = n_steps / n_thin;
 
         // if nothing to adapt, adaptation steps are:
-        // - converted in burn-in steps when burn is 0;
-        // - dropped otherwise.
+        // * converted in burn-in steps when burn is 0;
+        // * dropped otherwise.
         if (!is_adaptive)
         {
             if (n_burn == 0)

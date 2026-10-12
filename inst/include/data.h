@@ -22,8 +22,8 @@ namespace housepi
 
     /// Data of a run.
     ///
-    /// - imported tables, shared copy-on-write across engines;
-    /// - run state, owned by one engine.
+    /// * imported tables, shared copy-on-write across engines;
+    /// * run state, owned by one engine.
     struct Data
     {
         data::State state; /// Values written by inference and simulation.
@@ -51,7 +51,7 @@ namespace housepi
         void build_long(const str_table &input) { long_format().build(wide(), input); }
 
         /// Point every read-cell back at its imported value.
-        /// - `produced_cols`: data columns produced by observations, declared alongside.
+        /// * `produced_cols`: data columns produced by observations, declared alongside.
         /// @note Call before rebuilding Variables: wired cells would point at stale ones.
         void reset_readcells(const std::vector<std::string> &produced_cols = {})
         {

@@ -12,8 +12,9 @@ print_bullets <- function(x, .envir = parent.frame()) {
                 collapse = "\n"))
 }
 
-# Render `header` as an info line, then one indented `Label: value` line per
-# element of `rows`, its name the label and its value cli markup.
+# Render `header` as an info line,
+# then one indented `Label: value` line per element of `rows`,
+# its name the label and its value cli markup.
 print_rows_ <- function(header, rows = character(), .envir = parent.frame()) {
   lines <- paste0(names(rows), ": ", rows)
   print_bullets(c(i = header, stats::setNames(lines, rep(" ", length(lines)))),
@@ -23,9 +24,10 @@ print_rows_ <- function(header, rows = character(), .envir = parent.frame()) {
 # Duration of `secs` seconds, as the progress bar prints it.
 format_secs_ <- function(secs) .engine$format_secs(secs)
 
-# Flatten `...`/vectors into one line per element, splitting on newlines.
-# Names are preserved; segments produced by a split inherit an empty name,
-# unless they open with `bullet_tag_`, whose following character names them.
+# Flatten `...` and vectors into one line per element, splitting on newlines.
+# Names are kept.
+# * segment produced by a split -> empty name,
+#   unless it opens with `bullet_tag_`, whose next character names it.
 flatten_cli_parts_ <- function(dots) {
   parts <- unlist(dots, use.names = TRUE)
   nms <- names(parts)
@@ -48,12 +50,14 @@ flatten_cli_parts_ <- function(dots) {
 quiet_warnings_ <- new.env(parent = emptyenv())
 quiet_warnings_$on <- FALSE
 
-#' Value of `code(bar)`, `bar` a progress bar over `total` units printed every
-#' `progress` seconds, `NULL` for `FALSE` or 0. `TRUE` prints every second.
+#' Value of `code(bar)`, `bar` a progress bar over `total` units
+#' printed every `progress` seconds.
+#' * `progress` FALSE or 0 -> `bar` is `NULL`;
+#' * `progress` TRUE -> one print per second.
 #' Leaving `code` closes the bar:
-#' - returned: with its closing line;
-#' - failed: its line ended, before the error prints;
-#' - interrupted: as left, R ends the line.
+#' * returned -> with its closing line;
+#' * failed -> its line ended, before the error prints;
+#' * interrupted -> as left, R ends the line.
 #' @param label `character(1)` Name heading the bar.
 #' @param code `function(bar)` Code filling the bar.
 #' @noRd
@@ -72,7 +76,7 @@ with_progress_ <- function(progress, label, total, code) {
 }
 
 #' Hold back housepi warnings for the rest of the calling frame.
-#' @param quiet `logical(1)` Whether to hold the switch; `FALSE` does nothing.
+#' @param quiet `logical(1)` Whether to hold the switch, `FALSE` doing nothing.
 #' @param .envir `environment` Frame the switch is released at the end of.
 #' @noRd
 local_quiet_warnings_ <- function(quiet, .envir = parent.frame()) {
@@ -84,13 +88,12 @@ local_quiet_warnings_ <- function(quiet, .envir = parent.frame()) {
 }
 
 #' Emit a harmonized cli error or warning condition.
-#' @description
-#' First element becomes the header (`x` for errors, unnamed for warnings).
-#' Every other element without an explicit bullet name becomes a hint.
+#' * first element -> header, `x` for errors, unnamed for warnings;
+#' * other element without a bullet name -> hint.
 #' @param parts `character()` Message lines, optionally named with bullet keys.
 #' @param level `character(1)` Either `"stop"` or `"warn"`.
-#' @param trusted `logical(1)` When `FALSE`, braces are escaped so foreign text
-#'   cannot trip cli glue.
+#' @param trusted `logical(1)` Whether the text is trusted.
+#' If `FALSE`, braces are escaped so foreign text cannot trip cli glue.
 #' @param .envir `environment` Frame used to resolve `{ }` interpolations.
 #' @noRd
 emit_cli_condition <- function(parts, level = c("stop", "warn"),
@@ -113,34 +116,30 @@ emit_cli_condition <- function(parts, level = c("stop", "warn"),
   if (level == "stop") cli::cli_abort(bullets, call = NULL, .envir = .envir)
   # skip warnings if disabled
   else if (quiet_warnings_$on) invisible()
-  # display at emission time, so warning are not deferred past the errors
+  # display at emission time, so warnings are not deferred past the errors
   else withr::with_options(list(warn = 1), cli::cli_warn(
     bullets, call = NULL, .envir = .envir
   ))
 }
 
 #' Stop execution with a harmonized, cli-rendered error.
-#' @param ... Message lines.
-#' First is the header; further lines become `i`, unless specified otherwise.
+#' @param ... Message lines: the header, then hints `i` unless named otherwise.
 #' @noRd
 stop_h <- function(...) {
   emit_cli_condition(list(...), "stop", .envir = parent.frame())
 }
 
 #' Emit a harmonized, cli-rendered warning.
-#' @param ... Message lines.default.
-#' Following the same bullet convention as `stop_h()`.
+#' @param ... Message lines, with the bullet convention of stop_h().
 #' @noRd
 warn_h <- function(...) {
   emit_cli_condition(list(...), "warn", .envir = parent.frame())
 }
 
-#' Restyle any condition raised beneath `expr` through the cli emitter.
-#' @description
-#' Condition raised are split on newlines into a header plus hints.
-#' C++ conditions are recognised by class and rendered as cli markup.
-#' Foreign conditions are shown literally.
-#' @param expr Expression to evaluate.
+#' Restyle any condition raised beneath `expr` through the cli emitter,
+#' split on newlines into a header and hints.
+#' * C++ condition -> recognised by class, rendered as cli markup;
+#' * foreign condition -> shown literally.
 #' @noRd
 with_cpp_conditions <- function(expr) {
   reemit <- function(cnd, level, trusted) {
@@ -158,7 +157,7 @@ with_cpp_conditions <- function(expr) {
   )
 }
 
-#' Error when a value is assigned to a read-only active field.
+#' Stop when a value is assigned to a read-only active field.
 #' @param value The `value` argument of the active binding, missing on read.
 #' @param active `character(1)` Name of the active method.
 #' @noRd
@@ -171,8 +170,6 @@ assert_read_only_ <- function(value, active) {
 key_sep_ <- "\x1F"
 
 #' Hash the `cols` of each row of `x` into one key.
-#' @param x `data.frame`.
-#' @param cols `character()` Columns to hash.
 #' @noRd
 row_keys_ <- function(x, cols) {
   # no column: every row shares one key
@@ -181,16 +178,15 @@ row_keys_ <- function(x, cols) {
 }
 
 #' Stop on a non-empty message when `wall` is set, else return it.
-#' @param sms `character()` Message lines.
-#' @param wall `logical(1)` Raise the error.
 #' @noRd
 wall_or_return_ <- function(sms, wall) {
   if (isTRUE(wall) && length(sms)) stop_h(sms) else sms
 }
 
-#' Thin draws to `n` evenly spaced elements, or rows of a `data.frame`, first
-#' and last kept. Spacing them out keeps autocorrelated draws as far apart as
-#' they can be. Returns `x` unchanged when `n` is `NA` or `n >= NROW(x)`.
+#' Thin draws to `n` evenly spaced elements, or rows of a `data.frame`,
+#' first and last kept.
+#' Spacing them out keeps autocorrelated draws as far apart as they can be.
+#' * `n` NA or at least `NROW(x)` -> `x` unchanged.
 #' @param x Vector or `data.frame` of draws.
 #' @param n `integer(1)` Number of draws kept.
 #' @noRd
@@ -220,8 +216,7 @@ assert_count_ <- function(x, what, allow_na = FALSE) {
 }
 
 #' Read a parameter table from draws or a data.frame, thinned to the ESS.
-#' @param ptab Table with parameter values.
-#' @param thin_ess `logical(1)`
+#' @param thin_ess `logical(1)` Whether to thin to the ESS.
 #' @noRd
 helper_read_param_table_ <- function(ptab, thin_ess = TRUE) {
   # extract parameter draws from table
@@ -252,9 +247,9 @@ helper_read_param_table_ <- function(ptab, thin_ess = TRUE) {
   )
 }
 
-#' Normalise the `id_draws` selection into individual and household
-#' identifiers plus the default-follow signal. Status filtering and the
-#' default household pick are left to the engine.
+#' Split the `id_draws` selection into individual and household identifiers,
+#' plus the default-follow signal.
+#' Status filtering and the default household pick are left to the engine.
 #' @param id_draws Selection given to [run_inference()].
 #' @noRd
 resolve_id_draws_ <- function(id_draws) {
@@ -286,7 +281,6 @@ resolve_id_draws_ <- function(id_draws) {
 
 #' Double the braces of plain text, so a cli pass prints it verbatim.
 #' @param x `character()` Text carrying no markup.
-#' @return `character()`
 #' @noRd
 escape_cli_ <- function(x) {
   gsub("}", "}}", gsub("{", "{{", x, fixed = TRUE), fixed = TRUE)
@@ -307,14 +301,9 @@ spaced_choice <- function(x) {
   trimws(tolower(gsub("\\s+", " ", gsub("[-_. ]", " ", x))))
 }
 
-#' Find closest match across list of options.
-#' Return a string with helpful comments.
-#' @param input `character(1)` String to be inspected.
-#' @param options `character()` Options.
+#' Suggest the option closest to `input`, as a hint.
 #' @param min_dist `integer(1)` Threshold for minimal distance.
 #' @param list_options `logical(1)` List the options when none is close.
-#' @return `character()`
-#' @keywords internal
 #' @noRd
 find_closest_match <- function(input, options, min_dist = 3,
                                list_options = TRUE) {
@@ -338,7 +327,7 @@ find_closest_match <- function(input, options, min_dist = 3,
   output
 }
 
-# Helper to format invalid type errors.
+# Format an invalid-type error.
 format_type_error <- function(x) {
   inline_cli_("Got an object of class {.cls {rev(class(x))}} instead.")
 }
@@ -348,31 +337,25 @@ raise_permissions_error <- function() {
          "Check your user permissions.")
 }
 
-# wrapper to file.copy with overwrite option
+# file.copy() with an overwrite option.
 overwrite <- function(from, to, ...) {
   if (from == to) return(invisible())
-  # user permission error (tipically)
+  # user permission error, typically
   if (!suppressWarnings(file.copy(from, to, overwrite = TRUE, ...))) {
     raise_permissions_error()
   }
 }
 
-############################################################################
-############################################################################
-############################################################################
+########  Files  ########
 
-# return time of modification truncated
+# Modification time, truncated.
 trunc_mtime <- function(path) {
   max(trunc(file.info(path)$mtime))
 }
 
-#' @title Detect untracked changes in template source files
-#' @description
-#' Whether source files have been modified or a more recent installation exists.
+#' Whether `dll` is older than the model source or the housepi installation.
 #' @param source_dir `character(1)` Path to source directory.
 #' @param dll `character(1)` Expected dynamic library file name.
-#' @return `bool`
-#' @keywords internal
 #' @noRd
 untracked_changes <- function(source_dir, dll) {
   last_mod <- trunc_mtime(file.path(source_dir, "model.cpp"))
@@ -391,7 +374,7 @@ template_def_files <- c(parameter = "param.R",
                         `infectivity profile` = "infecprof.R",
                         `status process` = "status.R")
 
-# helper function to deep clone R6 objects
+# Deep clone R6 objects.
 helper_clone <- function(x) {
   if (is.data.frame(x)) x[TRUE, , drop = FALSE]
   else if (is.list(x)) lapply(x, helper_clone)
@@ -399,22 +382,19 @@ helper_clone <- function(x) {
   else x
 }
 
-############################################################################
-############################################################################
-############################################################################
+########  Setup  ########
 
 #' Assert undocumented advanced setup overrides from `...`.
-#' @param allowed `character()` accepted argument names.
-#' @param ... `r rd_dots_config_`
+#' @param allowed `character()` Accepted argument names.
+#' @param ... Advanced setup overrides.
 #' @return `list` Non-null overrides keyed by engine setup key.
-#' @keywords internal
 #' @noRd
 assert_advanced_setup_ <- function(allowed, ...) {
   dots <- list(...)
   for (nm in names(dots)) {
     if (!nm %in% allowed) stop_h(
       "Unexpected argument {.arg {nm}} passed through {.code ...}.",
-      # NOTE: do not print all advanced options, just suggest
+      # suggest, without printing every advanced option
       find_closest_match(nm, setdiff(allowed, names(dots)),
                          list_options = FALSE)
     )
@@ -422,10 +402,7 @@ assert_advanced_setup_ <- function(allowed, ...) {
   invisible()
 }
 
-#' Format elements of a list to pass to import_setup Rcpp method.
-#' @param defs `list` Setup options.
-#' @return `character()`
-#' @keywords internal
+#' Format setup options for the import_setup Rcpp method.
 #' @noRd
 char_setup_input_ <- function(defs) {
   # change scientific notation locally
@@ -439,8 +416,9 @@ char_setup_input_ <- function(defs) {
   data.frame(lapply(defs, as.character))
 }
 
-#' Sampler setup of an inference run, asserted then resolved: `steps` extended
-#' to store the last thinned draw, and the sample size per chain and in total.
+#' Assert, then resolve the sampler setup of an inference run:
+#' * `steps` -> extended to store the last thinned draw;
+#' * sample size -> per chain and in total.
 #' Counts are whole numbers, `thin` up to `steps`.
 #' @param adapt_window `integer(1)` Adaptation window, `NULL` for the default.
 #' @noRd
@@ -467,26 +445,22 @@ resolve_setup_ <- function(steps, burn, thin, adapt, chains,
   list(steps = chain * thin, chain = chain, total = as.double(chain) * chains)
 }
 
-#' Format elements of data (wide or long) to pass to import Rcpp method.
-#' Column names cross verbatim: they are the keys the engine registers, and
-#' the definitions that source them are written against the user's spelling.
-#' @param df `data.frame` Definition table or list.
-#' @return `character()`
-#' @keywords internal
+#' Format data, wide or long, for the import Rcpp method.
+#' Column names cross verbatim: they are the keys the engine registers,
+#' and the definitions sourcing them are written against the user's spelling.
 #' @noRd
 char_data_input_ <- function(df) {
   if (is.null(df)) NULL
   else data.frame(lapply(df, as.character), check.names = FALSE)
 }
 
-#' Resolve character `status =` labels in a latent defs frame to integer
-#' codes (1..K) against the model status dictionary. Integer codes pass through.
-#' Guards against mixing integer and character status declarations and against
-#' labels absent from the dictionary.
-#' @param defs `data.frame` or `NULL`. Latent definitions.
-#' @param dictionary `character()`. Ordered infected-status labels.
-#' @return `data.frame` with an integer-coded `status` column.
-#' @keywords internal
+#' Resolve the character `status =` labels of latent definitions
+#' to codes 1..K against the model status dictionary.
+#' * integer code -> passes through;
+#' * integer and character declarations mixed -> error;
+#' * label absent from the dictionary -> error.
+#' @param dictionary `character()` Ordered infected-status labels.
+#' @return `data.frame` | `NULL` Definitions, `status` coded as integers.
 #' @noRd
 resolve_status_codes_ <- function(defs, dictionary) {
   if (is.null(defs)) return(defs)
@@ -513,12 +487,9 @@ resolve_status_codes_ <- function(defs, dictionary) {
 }
 
 #' Resolve unsettled sources against the model's own declarations.
-#' The distribution and proposal columns carry encoded arguments too, so they
-#' are rewritten alongside the value-bearing ones.
-#' @param defs `data.frame` Definitions table.
-#' @param dict named `character()` Declared name to source letter.
-#' @return `data.frame`
-#' @keywords internal
+#' The distribution and proposal columns carry encoded arguments too,
+#' so they are rewritten alongside the value-bearing ones.
+#' @param dict `character()` Source letter, named by declared name.
 #' @noRd
 resolve_source_types_ <- function(defs, dict) {
   if (!length(defs)) return(defs)
@@ -531,14 +502,12 @@ resolve_source_types_ <- function(defs, dict) {
 }
 
 #' Resolve unspecified `discr` declarations against model and data.
-#' A definition neither carrying a model/prior nor sampled keeps discr = FALSE.
-#' @param defs `data.frame` Definitions table.
+#' * definition neither carrying a model/prior nor sampled -> `discr` FALSE.
 #' @param discr_req_defs `character()` Definitions the model requires discrete.
-#' @param discr_col_types named `logical()` Storage type per data column.
+#' @param discr_col_types `logical()` Storage type per data column, by name.
 #' @param discr_req_cols `character()` Data columns the model requires discrete.
 #' @param is_prior `logical(1)` Whether prior, otherwise model.
-#' @return `data.frame` with a logical `discr` column.
-#' @keywords internal
+#' @return `data.frame` Definitions with a logical `discr` column.
 #' @noRd
 resolve_discr_flags_ <- function(defs, discr_req_defs,
                                  discr_col_types = NULL,
@@ -574,15 +543,13 @@ resolve_discr_flags_ <- function(defs, discr_req_defs,
   defs
 }
 
-#' Code a character/factor status column into engine status codes.
-#'
-#' The escaped label maps to `0` and every other label to `1..K` in
-#' level/appearance order, so a simulated factor round-trips to the same codes.
-#' An unmatched escaped label leaves every individual counted as infected.
-#' @param x `character()` | `factor()` Status column.
-#' @param escaped `character(1)` Label for status code 0.
-#' @return `list` with `codes` (`integer()`) and `labels` (`character()`).
-#' @keywords internal
+#' Code a character or factor status column into engine status codes.
+#' * escaped label -> `0`;
+#' * every other label -> `1..K` in level or appearance order,
+#'   so a simulated factor round-trips to the same codes;
+#' * escaped label unmatched -> every individual counted as infected.
+#' @param escaped `character(1)` Label of status code 0.
+#' @return `list` Entries `codes`, `integer()`, and `labels`, `character()`.
 #' @noRd
 status_to_codes_ <- function(x, escaped = "escaped") {
   lv <- if (is.factor(x)) levels(x) else unique(as.character(x))
@@ -604,12 +571,9 @@ status_to_codes_ <- function(x, escaped = "escaped") {
   list(codes = unname(code[as.character(x)]), labels = labels)
 }
 
-#' Factorize dates and non-numerical quantities from data to pass to C++.
-#' @param df `data.frame` Dataset.
-#' @param escaped `character(1)` Label for status code 0 in character/factor
-#' `status` columns.
-#' @return `list`
-#' @keywords internal
+#' Factorize the dates and non-numeric columns of `df` for the engine.
+#' @param escaped `character(1)` Label of status code 0,
+#' in a character or factor `status` column.
 #' @noRd
 cpp_data_factorize <- function(df, escaped = "escaped") {
   skip <- c("id", "hh_id", "status")
@@ -658,14 +622,11 @@ cpp_data_factorize <- function(df, escaped = "escaped") {
        status = status, status_labels = status_labels)
 }
 
-#' Restore factored quantities on data returned from the C++ implementation.
-#' @param data `data.frame` Output of the Rcpp model object.
-#' @param info `list` of `list`s. Info about class and levels of data columns.
+#' Restore the factor columns of data returned by the engine.
+#' @param info `list` of `list`s Class and levels of the data columns.
 #' @param headers `character()` Header columns.
 #' @param status_levels `character()` Status levels.
-#' @param escaped `character(1)` Label for status code 0.
-#' @return `data.frame`
-#' @keywords internal
+#' @param escaped `character(1)` Label of status code 0.
 #' @noRd
 cpp_data_refactor <- function(data, info, headers,
                               status_levels = character(),
@@ -698,18 +659,20 @@ cpp_data_refactor <- function(data, info, headers,
       data[["status"]] <- s
     }
   }
-  # re-order data and append eventual extra columns
+  # re-order data and append any extra columns
   data[c(headers, setdiff(colnames(data), headers))]
 }
 
 #' @title Set a warm default theme for housepi visualizations
-#' @param base_size Base font size (pts). Default `11`.
-#' @param base_family Base font family. Default `""` (device default).
-#' @param transparent `logical(1)` Leave the plot background transparent.
+#' @param base_size `numeric(1)` Base font size, in points.
+#' @param base_family `character(1)` Base font family, `""` for the device's.
+#' @param transparent `logical(1)`
+#' Whether to leave the plot background transparent.
 #' @description
-#' If suggested packages are installed, sets corresponding `ggplot2`,
-#' `bayesplot` and `flextable` themes as used in housepi vignettes.
-#' @return Invisibly returns `NULL`; called for setting the themes.
+#' Set the housepi vignette themes of `ggplot2`, `bayesplot` and `flextable`,
+#' for each package installed.
+#' @return `NULL`, invisibly.
+#' The function sets the themes.
 #' @examples
 #' \donttest{
 #' # apply housepi defaults to ggplot2, bayesplot and flextable

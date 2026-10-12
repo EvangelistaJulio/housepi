@@ -6,26 +6,30 @@
 \title{Posterior draws from housepi model inference}
 \description{
 Posterior draws returned by \code{\link[=run_inference]{run_inference()}} on a household model.
-This class stores posterior draws of model parameters, the joint log-prior
-(\code{lprior}) and the pointwise per-household log-likelihood (\code{log_lik}).
+This class stores posterior draws of model parameters,
+the joint log-prior (\code{lprior})
+and the pointwise per-household log-likelihood (\code{log_lik}).
 If requested during inference, it also stores latent variables.
 
-For models with latent variables the chain targets the joint
-(latent, parameter) posterior. Write \eqn{x} for a single household's
-data, \eqn{\theta} for the parameter vector and \eqn{z} for that household's
-latent variables. The unnormalised joint log-density splits into the two
-bundles this class exposes,
+For models with latent variables,
+the chain targets the joint (latent, parameter) posterior.
+Write \eqn{x} for a single household's data,
+\eqn{\theta} for the parameter vector
+and \eqn{z} for that household's latent variables.
+The unnormalised joint log-density splits into the two bundles
+this class exposes,
 \deqn{\log p(\theta, z, x) =
   \underbrace{\log p(\theta)}_{\texttt{lprior}}
   + \underbrace{\log p^\mathrm{lat}(z \mid \theta)
     + \log p^\mathrm{transm}(x \mid z, \theta)
     + \log p^\mathrm{obs}(x \mid z, \theta)}_{\texttt{log\_lik}},}
-where \eqn{p(\theta)} is the parameter prior, \eqn{p^\mathrm{lat}} the
-latent-variable model, \eqn{p^\mathrm{transm}} the transmission likelihood
-and \eqn{p^\mathrm{obs}} the observation likelihood. The transmission term is
-the contract of the per-household \code{log_lik}: with no latent variable or
-observation node the remaining terms vanish and \code{log_lik} contracts to
-transmission alone.
+where \eqn{p(\theta)} is the parameter prior,
+\eqn{p^\mathrm{lat}} the latent-variable model,
+\eqn{p^\mathrm{transm}} the transmission likelihood
+and \eqn{p^\mathrm{obs}} the observation likelihood.
+The transmission term is the contract of the per-household \code{log_lik}:
+with no latent variable or observation node, the remaining terms vanish
+and \code{log_lik} contracts to transmission alone.
 }
 \examples{
 results <- flu_1918_frederick |>
@@ -38,45 +42,45 @@ results$parameter_draws
 \section{Active bindings}{
   \if{html}{\out{<div class="r6-active-bindings">}}
   \describe{
-    \item{\code{parameter_draws}}{\code{posterior::draws_df}.
-Draws of parameters.}
+    \item{\code{parameter_draws}}{\code{posterior::draws_df} Draws of parameters.}
 
-    \item{\code{latent_draws}}{\code{posterior::draws_df}.
+    \item{\code{latent_draws}}{\code{posterior::draws_df}
 Draws of the selected individuals' latent variables.}
 
-    \item{\code{log_lik_draws}}{\code{posterior::draws_df}.
+    \item{\code{log_lik_draws}}{\code{posterior::draws_df}
 Pointwise per-household log-likelihood
 \eqn{
-  \log p^\mathrm{obs}(y \mid z, \theta) +
-  \log p^\mathrm{transm}(y \mid z, \theta) +
+  \log p^\mathrm{obs}(x \mid z, \theta) +
+  \log p^\mathrm{transm}(x \mid z, \theta) +
   \log p^\mathrm{lat}(z \mid \theta),
 }
 the observation, transmission, and latent model contributions.
 Logarithms are natural (base \eqn{e}).}
 
-    \item{\code{lprior_draws}}{\code{posterior::draws_df}.
-Single column \code{lprior}: the parameter log-prior \eqn{\log p(\theta)}. The
-latent-variable log-density enters the \code{log_lik} bundle, not \code{lprior}.
+    \item{\code{lprior_draws}}{\code{posterior::draws_df}
+Single column \code{lprior}, the parameter log-prior \eqn{\log p(\theta)}.
+The latent-variable log-density enters \code{log_lik}, not \code{lprior}.
 Logarithms are natural (base \eqn{e}).}
 
-    \item{\code{complete_draws}}{\code{posterior::draws_df}.
+    \item{\code{complete_draws}}{\code{posterior::draws_df}
 Parameters, pointwise \code{log_lik} and the joint \code{lprior}.
-Note \code{log_lik}/\code{lprior} are evaluated over the joint (latent,
-parameter) posterior (see \code{log_lik_draws} and \code{lprior_draws}).
+\code{log_lik} and \code{lprior} are evaluated over the joint (latent, parameter)
+posterior, see \code{log_lik_draws} and \code{lprior_draws}.
 Logarithms are natural (base \eqn{e}).}
 
     \item{\code{warnings}}{\code{data.frame}
 Convergence diagnostics the run flagged
 \describe{
-\item{message}{Line stating what was flagged}
-\item{count}{Times it was raised}
+\item{message}{Line stating what was flagged;}
+\item{count}{Times it was raised.}
 }
-Recorded whether or not the run reported them. Per-variable R-hat and
-Bulk ESS behind a flag are read from \code{\link[=summarise_draws]{summarise_draws()}}.}
+Recorded whether or not the run reported them.
+Per-variable R-hat and Bulk ESS behind a flag
+are read from \code{\link[=summarise_draws]{summarise_draws()}}.}
 
     \item{\code{inference_secs}}{\code{numeric(1)}
-Wall-clock of the sampling loop, leaving out the model build and the
-conversion of the draws.}
+Wall-clock of the sampling loop,
+leaving out the model build and the conversion of the draws.}
   }
   \if{html}{\out{</div>}}
 }
@@ -92,8 +96,8 @@ conversion of the draws.}
 \if{html}{\out{<a id="method-HousepiPosteriorDraws-initialize"></a>}}
 \if{latex}{\out{\hypertarget{method-HousepiPosteriorDraws-initialize}{}}}
 \subsection{\code{HousepiPosteriorDraws$new()}}{
-  Internal: \code{\link[=run_inference]{run_inference()}} builds this object,
-don't call \verb{$new()} directly.
+  Create the posterior draws object.
+Use \code{\link[=run_inference]{run_inference()}} instead of calling \verb{$new()}.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{HousepiPosteriorDraws$new(name, ptr, secs = NA_real_)}
@@ -114,7 +118,7 @@ don't call \verb{$new()} directly.
 \if{html}{\out{<a id="method-HousepiPosteriorDraws-print"></a>}}
 \if{latex}{\out{\hypertarget{method-HousepiPosteriorDraws-print}{}}}
 \subsection{\code{HousepiPosteriorDraws$print()}}{
-  Override the default printing behavior.
+  Print a summary of the run.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{HousepiPosteriorDraws$print()}

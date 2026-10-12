@@ -12,26 +12,26 @@ inspect_house_state(hh_model, hh_id)
 \item{hh_id}{\code{character(1)} ID of the household of interest.}
 }
 \value{
-\code{list}, all variables of the household.
-Entries are named after the homonymous active fields, followed by the
-latent, observation and transmission log-likelihood contributions,
-and by \code{model_quantities}, the named quantities the model exports
-(see its \verb{template_<model>} help page).
+\code{list} All variables of the household.
+Entries are named after the homonymous active fields.
+Then come the latent, observation and transmission log-likelihoods,
+and \code{model_quantities}, the named quantities the model exports,
+see its \verb{template_<model>} help page.
 An empty definition is dropped unless the model requires it.
-Until \code{\link[=evaluate_log_lik]{evaluate_log_lik()}} on every household, or \code{\link[=run_inference]{run_inference()}},
-evaluates the current definitions, the transmission log-likelihood is \code{NA}
-and \code{model_quantities} is absent.
+The transmission log-likelihood is \code{NA} and \code{model_quantities} absent
+until the current definitions are evaluated,
+by \code{\link[=evaluate_log_lik]{evaluate_log_lik()}} on every household or by \code{\link[=run_inference]{run_inference()}}.
 }
 \description{
 Read all the variables a \code{HousepiModel} holds for one household.
-The values a \code{HousepiModel} holds are left by the last
-call that ran it:
+The values a \code{HousepiModel} holds
+are left by the last call that ran it:
 \describe{
 \item{\code{\link[=evaluate_log_lik]{evaluate_log_lik()}}}{the evaluated parameters and latent variables,
-with their log-likelihood contributions.}
-\item{\code{\link[=run_inference]{run_inference()}}}{the final iteration of the last chain.}
-\item{\code{\link[=run_simulation]{run_simulation()}}}{the observed data, the parameters of the last
-replicate.}
+with their log-likelihood contributions;}
+\item{\code{\link[=run_inference]{run_inference()}}}{the final iteration of the last chain;}
+\item{\code{\link[=run_simulation]{run_simulation()}}}{the observed data,
+the parameters of the last replicate.}
 }
 }
 \examples{

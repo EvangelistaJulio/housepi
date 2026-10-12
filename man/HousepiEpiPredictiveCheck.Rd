@@ -5,9 +5,9 @@
 \alias{HousepiEpiPredictiveCheck}
 \title{Standard epidemiological posterior predictive check}
 \description{
-Posterior predictive check on standard epidemiological measures by
-household size: cases, attack rate and secondary attack rate, comparing
-observed and predicted values.
+Posterior predictive check of standard epidemiological measures
+by household size: cases, attack rate and secondary attack rate,
+observed against predicted.
 }
 \examples{
 hh_model <- flu_1918_frederick |>
@@ -24,15 +24,15 @@ ppc$formatted_attack_rate
 \section{Active bindings}{
   \if{html}{\out{<div class="r6-active-bindings">}}
   \describe{
-    \item{\code{formatted_attack_rate}}{\code{data.frame}.
+    \item{\code{formatted_attack_rate}}{\code{data.frame}
 Observed and predicted attack rates by household size.
 Sizes outside the set household size bounds are not returned.}
 
-    \item{\code{formatted_sec_attack_rate}}{\code{data.frame}.
+    \item{\code{formatted_sec_attack_rate}}{\code{data.frame}
 Observed and predicted secondary attack rates by household size.
 Sizes outside the set household size bounds are not returned.}
 
-    \item{\code{formatted_cases_count}}{\code{data.frame}.
+    \item{\code{formatted_cases_count}}{\code{data.frame}
 Formatted observed and predicted cases by household size.
 Sizes outside the set household size bounds are not returned.}
   }
@@ -77,32 +77,32 @@ Sizes outside the set household size bounds are not returned.}
     \if{html}{\out{<div class="arguments">}}
     \describe{
       \item{\code{hh_model}}{\code{HousepiModel} object.}
-      \item{\code{param_table}}{One between
+      \item{\code{param_table}}{One of:
 \itemize{
 \item \code{data.frame};
 \item \code{posterior::draws};
 \item \link{HousepiPosteriorDraws}.
 }}
-      \item{\code{...}}{Named arguments. \code{function}s to compute measures from data.
-Each function should return one between \code{numeric()}, \code{list} or \code{data.frame}.
+      \item{\code{...}}{Named \code{function}s computing measures from data.
+Each returns a \code{numeric()}, a \code{list} or a \code{data.frame}.
 Names must be unique and cannot match a member of the returned object.
 They are checked alongside standard epidemiological measures.}
       \item{\code{nrep}}{\code{integer(1)} Maximum number of \code{param_table} rows simulated.
 Posterior draws are thinned to their ESS when \code{thin_ess} is \code{TRUE}.
-Then \code{nrep} evenly spaced rows are kept (all of them when fewer remain).
-If \code{NA}, every row is simulated (default).}
-      \item{\code{thin_ess}}{\code{logical(1)} Whether to thin \code{param_table} to its
-bulk effective sample size (ESS).
+Then \code{nrep} evenly spaced rows are kept, all of them when fewer remain.
+If \code{NA}, every row is simulated.}
+      \item{\code{thin_ess}}{\code{logical(1)}
+Whether to thin \code{param_table} to its bulk effective sample size (ESS).
 Ignored if \code{param_table} has no posterior draws.}
       \item{\code{min_hh_size}}{\code{integer(1)} Minimum household size retained in the outputs.
 If \code{NA}, no lower bound is applied.}
       \item{\code{max_hh_size}}{\code{integer(1)} Maximum household size retained in the outputs.
 If \code{NA}, no upper bound is applied.}
       \item{\code{threads}}{\code{integer(1)} Number of threads for parallel household runs.}
-      \item{\code{progress}}{\code{integer(1)} | \code{logical(1)} Control the progress bar.
-One between:
+      \item{\code{progress}}{\code{integer(1)} | \code{logical(1)} Control the progress bar,
+one of:
 \describe{
-\item{\code{integer}}{seconds between prints. A shorter run does not print.}
+\item{\code{integer}}{seconds between prints, a shorter run printing nothing;}
 \item{\code{TRUE}}{one print per second;}
 \item{\code{FALSE} or \code{0}}{no progress bar.}
 }
@@ -125,7 +125,7 @@ The bar prints as messages, which \code{\link[=suppressMessages]{suppressMessage
   \subsection{Arguments}{
     \if{html}{\out{<div class="arguments">}}
     \describe{
-      \item{\code{n}}{\code{integer(1)}. Minimum household size to consider.
+      \item{\code{n}}{\code{integer(1)} Minimum household size to consider.
 If \code{NA}, restore observed minimum.}
     }
     \if{html}{\out{</div>}}
@@ -157,7 +157,7 @@ If \code{NA}, restore observed minimum.}
   \subsection{Arguments}{
     \if{html}{\out{<div class="arguments">}}
     \describe{
-      \item{\code{n}}{\code{integer(1)}. Maximum household size to consider.
+      \item{\code{n}}{\code{integer(1)} Maximum household size to consider.
 If \code{NA}, restore observed maximum.}
     }
     \if{html}{\out{</div>}}

@@ -36,7 +36,7 @@ namespace housepi::parallel
         using Range = tbb::blocked_range<std::size_t>;
 
         /// Run `f()` on the calling thread, in slot 0 of a new arena of `n_slots` slots.
-        /// - at most one slot: `f()` in the current arena.
+        /// * at most one slot -> `f()` in the current arena.
         /// @return Value of `f()`.
         template <class F>
         inline auto in_arena(std::size_t n_slots, F &&f)
@@ -48,8 +48,8 @@ namespace housepi::parallel
         }
 
         /// Run `f()` in an arena of slots.
-        /// - current arena has `n_slots` slots: `f()` in place;
-        /// - otherwise: `f()` in a new arena.
+        /// * current arena has `n_slots` slots -> `f()` in place;
+        /// * otherwise -> `f()` in a new arena.
         /// @return Value of `f()`.
         template <class F>
         inline auto in_arena_of(std::size_t n_slots, F &&f)
@@ -77,7 +77,7 @@ namespace housepi::parallel
     }
 
     /// Run `body(i)` for i in [0, n) across `workers` TBB workers.
-    /// - at most one worker: serial loop on the calling thread.
+    /// * at most one worker -> serial loop on the calling thread.
     template <class F>
     inline void for_each(std::size_t n, F &&body, std::size_t workers)
     {
@@ -95,7 +95,7 @@ namespace housepi::parallel
     }
 
     /// Run `body(i)` for i in [0, n) across `workers` TBB workers, reducing into `T` via `operator+=`.
-    /// - at most one worker: serial loop on the calling thread.
+    /// * at most one worker -> serial loop on the calling thread.
     /// @note `T` value-initializes to the identity.
     template <class T, class F>
     inline T for_reduce(std::size_t n, F &&body, std::size_t workers)
@@ -121,10 +121,10 @@ namespace housepi::parallel
 
     /// Run `body(i)` for i in [0, n) across `workers`, each unit in its own arena of `inner` slots.
     ///
-    /// - unit thread: slot 0 of its arena, so current_thread_index() stays below `inner`;
-    /// - at most one worker: units in order on the calling thread;
-    /// - first unit to throw: raises `stop_flag`, a unit not yet started skips its body;
-    /// - unit throwing Cancelled: not recorded.
+    /// * unit thread -> slot 0 of its arena, so current_thread_index() stays below `inner`;
+    /// * at most one worker -> units in order on the calling thread;
+    /// * first unit to throw -> raises `stop_flag`, a unit not yet started skips its body;
+    /// * unit throwing Cancelled -> not recorded.
     /// @return Exception of the first unit to throw, with its index.
     template <class F>
     inline Failure for_units(std::size_t n,
@@ -158,8 +158,8 @@ namespace housepi::parallel
 
     /// Run `work()` on a new thread, calling `monitor()` on the calling thread every 250 ms.
     ///
-    /// - `monitor()` throws: raises `stop_flag`, waits for `work()`, then rethrows;
-    /// - `work()` throws: rethrown on the calling thread.
+    /// * `monitor()` throws -> raises `stop_flag`, waits for `work()`, then rethrows;
+    /// * `work()` throws -> rethrown on the calling thread.
     /// @return Value of `work()`.
     template <class F, class M>
     inline auto monitored(F &&work,

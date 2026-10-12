@@ -7,15 +7,13 @@ rd_min_hh_size_ <- "`integer(1)` Minimum household size retained in the outputs.
 If `NA`, no lower bound is applied."
 rd_max_hh_size_ <- "`integer(1)` Maximum household size retained in the outputs.
 If `NA`, no upper bound is applied."
-rd_measure_dots_ <- "Named arguments. `function`s to compute measures from data.
-Each function should return one between `numeric()`, `list` or `data.frame`.
+rd_measure_dots_ <- "Named `function`s computing measures from data.
+Each returns a `numeric()`, a `list` or a `data.frame`.
 Names must be unique and cannot match a member of the returned object."
 
-############################################################################
-############################################################################
-############################################################################
+########  Measures  ########
 
-# UPDATE: is this still necessary?
+# @todo check whether .data is still needed
 #' @importFrom rlang .data
 NULL
 
@@ -96,7 +94,7 @@ measure_cases_by_hh_size <- function(data_wide, escaped = "escaped") {
 #' of the built-in models.
 #' @param data_wide `r rd_add_wide_`
 #' @param escaped `r rd_mdl_escaped_`
-#' @return `numeric(1)`, `NA` if no household has more than one case.
+#' @return `numeric(1)` The measure, `NA` if no household has two cases or more.
 #' @details
 #' For households \eqn{h} of size \eqn{n_h} with \eqn{n_h^{+}} cases,
 #' the measure is
@@ -110,20 +108,13 @@ measure_geom_mean_hh_size <- function(data_wide, escaped = "escaped") {
   .engine$measure_geom_mean_hh_size(df)
 }
 
-############################################################################
-############################################################################
-######################### Housepi Posterior Prediction #####################
-############################################################################
-############################################################################
+########  HousepiPredictiveCheck  ########
 
-#' Apply function `func` to corresponding elements
-#' across a list of data.frame that share the same dimensions.
-#' @param frame_list `list` of `data.frame`s. Homogeneous dataframes.
-#' @param func `function`. To be applied to corresponding data elements.
-#' @return A `data.frame` of the same dimensions as the input dataframes.
-#' Columns and rownames of the first data.frame in the list.
+#' Apply `func` to corresponding elements of same-shaped data.frames.
+#' @param frame_list `list` of `data.frame`s Same-shaped data.frames.
+#' @param func `function` Applied to corresponding elements.
 #' @param name `character(1)` Measure name.
-#' @keywords internal
+#' @return `data.frame` Same shape, with the columns and row names of the first.
 #' @noRd
 ppc_frame_apply <- function(frame_list, func, name = NA_character_) {
   # ensure all elements share the same dimensions
@@ -144,7 +135,7 @@ ppc_frame_apply <- function(frame_list, func, name = NA_character_) {
 
   } else {
     # matrix or data.frame
-    # NOTE: I need operations to be column-wise for eventual mixed types
+    # column-wise, for possibly mixed types
     nr <- nrow(elem_n1)
 
     output <- as.data.frame(stats::setNames(
@@ -160,15 +151,13 @@ ppc_frame_apply <- function(frame_list, func, name = NA_character_) {
   output
 }
 
-#' Apply a numeric statistic across corresponding elements of dataframes.
-#' Falls back to NA when all values are NA, and to the unique value when
-#' the inputs are non-numeric but all identical.
-#' @param frame_list `list` of `data.frame`s. Homogeneous dataframes.
-#' @param stat_fn `function`. Numeric statistic applied to each element.
-#' @param label `character(1)`. Statistic name used in error messages.
+#' Apply a numeric statistic across corresponding elements of data.frames.
+#' * every value NA -> NA;
+#' * non-numeric, all identical -> that value.
+#' @param frame_list `list` of `data.frame`s Same-shaped data.frames.
+#' @param stat_fn `function` Numeric statistic applied to each element.
+#' @param label `character(1)` Statistic name used in error messages.
 #' @param name `character(1)` Measure name.
-#' @return `data.frame`
-#' @keywords internal
 #' @noRd
 ppc_frame_apply_stat <- function(frame_list, stat_fn, label,
                                  name = NA_character_) {
@@ -184,12 +173,9 @@ ppc_frame_apply_stat <- function(frame_list, stat_fn, label,
   }, name = name)
 }
 
-#' Compute a summary statistic across different dataframes.
-#' @param frame_list `list` of `data.frame`s.
-#' @param point_estimate `character(1)`. Either `"mean"` or `"median"`.
+#' Point estimate across same-shaped data.frames.
+#' @param point_estimate `character(1)` Either `"mean"` or `"median"`.
 #' @param name `character(1)` Measure name.
-#' @return `data.frame`
-#' @keywords internal
 #' @noRd
 ppc_frame_apply_summary <- function(frame_list,
                                     point_estimate = "median",
@@ -201,15 +187,10 @@ ppc_frame_apply_summary <- function(frame_list,
   ppc_frame_apply_stat(frame_list, fn, label = point_estimate, name = name)
 }
 
-#' Compute the credible interval across different dataframes.
-#' @param frame_list `list` of `data.frame`s. Homogeneous dataframes.
-#' @param cri_level `numeric(1)` Level for credible interval.
-#' It must be a value in (0.5, 1.0).
-#' @param upper `logical(1)` Compute the upper credible interval.
-#' If `FALSE`, compute the lower.
+#' Credible interval bound across same-shaped data.frames.
+#' @param cri_level `numeric(1)` Credible level, between 0.5 and 1.
+#' @param upper `logical(1)` Whether to compute the upper bound, else the lower.
 #' @param name `character(1)` Measure name.
-#' @return `data.frame`
-#' @keywords internal
 #' @noRd
 ppc_frame_apply_cri <- function(frame_list, cri_level = 0.9,
                                 upper = TRUE, name = NA_character_) {
@@ -221,7 +202,7 @@ ppc_frame_apply_cri <- function(frame_list, cri_level = 0.9,
 }
 
 # Element-wise mask of observed values that fall outside [cri_lower, cri_upper].
-# Non-numeric or NA elements are reported as FALSE (not a mismatch).
+# * non-numeric or NA element -> FALSE, not a mismatch.
 ppc_observed_outside_cri <- function(x) {
   .vec_outside <- function(obs, low, up) {
     if (!is.numeric(obs) || !is.numeric(low) || !is.numeric(up))
@@ -233,7 +214,7 @@ ppc_observed_outside_cri <- function(x) {
   as.data.frame(Map(.vec_outside, x$observed, x$cri_lower, x$cri_upper))
 }
 
-# extract predicted quantities from cases-by-house-size table list
+# Extract predicted quantities from a list of cases-by-size tables.
 ppc_extract_predicted_results <- function(x, point_estimate = "median", cri,
                                           name = NULL) {
   list(predicted = ppc_frame_apply_summary(x, point_estimate, name = name),
@@ -241,8 +222,8 @@ ppc_extract_predicted_results <- function(x, point_estimate = "median", cri,
        cri_upper = ppc_frame_apply_cri(x, cri, upper = TRUE, name = name))
 }
 
-# Assert measure names are given, unique and free of the members of `self`:
-# each measure becomes a read-only field of the check object.
+# Assert measure names are given, unique and free of the members of `self`,
+# as each measure becomes a read-only field of the check object.
 assert_measure_names_ <- function(nms, taken = character()) {
   if (is.null(nms) || anyNA(nms) || !all(nzchar(nms))) stop_h(
     "Every measure in {.arg ...} must be named."
@@ -261,7 +242,7 @@ assert_measure_names_ <- function(nms, taken = character()) {
 
 #' @title Posterior predictive check container for user-defined measures
 #' @description
-#' Class to extract posterior predictive checks over measures on simulations.
+#' Posterior predictive checks of measures on simulated surveys.
 #' @examples
 #' hh_model <- flu_1918_frederick |>
 #'   new_housepi_model("final-size") |>
@@ -281,9 +262,7 @@ HousepiPredictiveCheck <- R6::R6Class(
   cloneable = TRUE,
   lock_objects = FALSE,
 
-  ############################################################################
-  ################################## PRIVATE #################################
-  ############################################################################
+  ####  Private  ####
 
   private = list(
     deep_clone = function(name, value) helper_clone(value),
@@ -299,13 +278,12 @@ HousepiPredictiveCheck <- R6::R6Class(
     measure_topics_ = character(0),
     measures_ = list(),
     # whether the simulated frames reach the measures with their labels
-    # restored; user-supplied measures always do
+    # restored, as user-supplied measures always do
     labelled_ = TRUE,
 
-    # Compare observed values against the credible interval of each measure.
-    # Collapses all mismatches into a single warning: one finding line per
-    # measure that has observed entries outside its [cri_lower, cri_upper]
-    # bounds, followed by one closing hint.
+    # Compare observed values against the credible interval of each measure,
+    # in a single warning: one finding line per measure with observed entries
+    # outside its [cri_lower, cri_upper] bounds, then one closing hint.
     check_observed_in_cri_ = function() {
       cri_pct <- round(100 * private$cri_level_)
       findings <- c()
@@ -329,59 +307,55 @@ HousepiPredictiveCheck <- R6::R6Class(
     }
   ),
 
-  ############################################################################
-  ################################## ACTIVE ##################################
-  ############################################################################
+  ####  Active  ####
 
   active = list(
-    #' @field point_estimate `character(1)`. Summary statistic name.
+    #' @field point_estimate `character(1)` Summary statistic name.
     point_estimate = function(value) {
       assert_read_only_(value, "point_estimate")
       private$point_estimate_
     },
-    #' @field cri_level `numeric(1)`. Credible interval level.
+    #' @field cri_level `numeric(1)` Credible interval level.
     cri_level = function(value) {
       assert_read_only_(value, "cri_level")
       private$cri_level_
     },
-    #' @field nrep `integer(1)`. Number of replicates used for the predictions.
+    #' @field nrep `integer(1)` Number of replicates used for the predictions.
     nrep = function(value) {
       assert_read_only_(value, "nrep")
       private$nrep_
     },
-    #' @field thin_ess `logical(1)`. Whether thinning to ESS was applied.
+    #' @field thin_ess `logical(1)` Whether thinning to ESS was applied.
     thin_ess = function(value) {
       assert_read_only_(value, "thin_ess")
       private$thin_ess_
     },
-    #' @field is_posterior `logical(1)`.
+    #' @field is_posterior `logical(1)`
     #' Whether the predictions are posterior predictions.
     is_posterior = function(value) {
       assert_read_only_(value, "is_posterior")
       private$is_posterior_
     },
-    #' @field model_name `character(1)`. Name of the underlying model.
+    #' @field model_name `character(1)` Name of the underlying model.
     model_name = function(value) {
       assert_read_only_(value, "model_name")
       private$model_name_
     }
   ),
 
-  ############################################################################
-  ################################### PUBLIC #################################
-  ############################################################################
+  ####  Public  ####
 
   public = list(
     #' @description
-    #' Given a model and a posterior sample of parameters,
-    #' performs simulation and compute predicted values of a set of measures.
+    #' Simulate from a model and a table of parameters,
+    #' then compute the predicted values of a set of measures.
     #' @param hh_model `r rd_model_in_`
     #' @param param_table `r rd_param_table_`
     #' @param ... `r rd_measure_dots_`
     #' @param nrep `r rd_nrep_`
     #' @param thin_ess `r rd_thin_ess_`
-    #' @param measures_long `function` | `list` of `function`s.
-    #' Applied to `data_long` (derived by the `long` reporting process).
+    #' @param measures_long `function` | `list` of `function`s
+    #' Applied to `data_long`, derived by the `long` reporting process.
     #' @param threads `r rd_thread_`
     #' @param progress `r rd_progress_`
     initialize = function(hh_model,
@@ -402,7 +376,7 @@ HousepiPredictiveCheck <- R6::R6Class(
       m_wide <- list(...)
       if (length(m_wide))
         assert_measure_names_(names(m_wide), ls(self, all.names = TRUE))
-      # FIXME this breaks if it's already list
+      # @todo a list of functions breaks here
       m_long <- list()
       if (!is.null(measures_long)) m_long <- list(measures_long)
 
@@ -501,7 +475,7 @@ HousepiPredictiveCheck <- R6::R6Class(
     },
 
     #' @description
-    #' Override the default printing behavior.
+    #' Print the measures, observed against predicted.
     print = function() {
       kind <- if (private$is_posterior_) "Posterior predictions" else
         "Predictions"
@@ -526,25 +500,15 @@ HousepiPredictiveCheck <- R6::R6Class(
   )
 )
 
-############################################################################
-############################################################################
-############################ Predicted Cases By Size #######################
-############################################################################
-############################################################################
+########  HousepiEpiPredictiveCheck  ########
 
-# @description
 # Total households and households with at least one case, per household size.
-#
-# @return `data.frame`
 helper_house_counts <- function(data_wide, escaped = "escaped") {
   df <- helper_process_data(data_wide, escaped)
   .engine$count_houses_by_hh_size(df)
 }
 
-# @description
-# Return a list with all filtered case tables.
-#
-# @return `list`
+# List every case table, filtered.
 helper_filter_tables <- function(cases_count,
                                  min_hh_size = NA,
                                  max_hh_size = NA) {
@@ -577,13 +541,9 @@ helper_filter_tables <- function(cases_count,
   )
 }
 
-# @description
-# Function to combine cases table.
-#
-# @param obsdf A `data.frame` with observed cases.
-# @param preddf A `data.frame` with predicted cases.
-#
-# @return `data.frame`
+# Bind the observed and predicted case tables.
+# @param obsdf `data.frame` Observed cases.
+# @param preddf `data.frame` Predicted cases.
 helper_combine_obs_pred <- function(obsdf, preddf) {
   # 1. curate observed dataframe
   obsdf$distr <- "observed"
@@ -613,9 +573,9 @@ helper_combine_obs_pred <- function(obsdf, preddf) {
 
 #' @title Standard epidemiological posterior predictive check
 #' @description
-#' Posterior predictive check on standard epidemiological measures by
-#' household size: cases, attack rate and secondary attack rate, comparing
-#' observed and predicted values.
+#' Posterior predictive check of standard epidemiological measures
+#' by household size: cases, attack rate and secondary attack rate,
+#' observed against predicted.
 #' @examples
 #' hh_model <- flu_1918_frederick |>
 #'   new_housepi_model("final-size") |>
@@ -631,9 +591,7 @@ HousepiEpiPredictiveCheck <- R6::R6Class(
   cloneable = TRUE,
   lock_objects = FALSE,
 
-  ############################################################################
-  ################################## PRIVATE #################################
-  ############################################################################
+  ####  Private  ####
 
   private = list(
     deep_clone = function(name, value) helper_clone(value),
@@ -654,12 +612,10 @@ HousepiEpiPredictiveCheck <- R6::R6Class(
     }
   ),
 
-  ############################################################################
-  ################################## ACTIVE ##################################
-  ############################################################################
+  ####  Active  ####
 
   active = list(
-    #' @field formatted_attack_rate `data.frame`.
+    #' @field formatted_attack_rate `data.frame`
     #' Observed and predicted attack rates by household size.
     #' Sizes outside the set household size bounds are not returned.
     formatted_attack_rate = function(value) {
@@ -680,7 +636,7 @@ HousepiEpiPredictiveCheck <- R6::R6Class(
       private$filter_hh_size_(output)
     },
 
-    #' @field formatted_sec_attack_rate `data.frame`.
+    #' @field formatted_sec_attack_rate `data.frame`
     #' Observed and predicted secondary attack rates by household size.
     #' Sizes outside the set household size bounds are not returned.
     formatted_sec_attack_rate = function(value) {
@@ -701,7 +657,7 @@ HousepiEpiPredictiveCheck <- R6::R6Class(
       private$filter_hh_size_(output)
     },
 
-    #' @field formatted_cases_count `data.frame`.
+    #' @field formatted_cases_count `data.frame`
     #' Formatted observed and predicted cases by household size.
     #' Sizes outside the set household size bounds are not returned.
     formatted_cases_count = function(value) {
@@ -723,9 +679,7 @@ HousepiEpiPredictiveCheck <- R6::R6Class(
     }
   ),
 
-  ############################################################################
-  ################################## PUBLIC ##################################
-  ############################################################################
+  ####  Public  ####
 
   public = list(
     #' @param hh_model `r rd_model_in_`
@@ -753,9 +707,9 @@ HousepiEpiPredictiveCheck <- R6::R6Class(
               "by a standard epidemiological measure."),
         "Rename the measure or set {.code epi = FALSE}."
       )
-      # the built-in measures read only hh_id and status, so without a wide
-      # reporting process or a custom measure the simulated frames stay
-      # engine-coded: the relabelling round trip is skipped once per replicate
+      # built-in measures read only hh_id and status:
+      # * no wide reporting process, no custom measure -> frames stay
+      #   engine-coded, the relabelling skipped once per replicate.
       esc <- hh_model$escaped
       private$labelled_ <- !is.null(hh_model$reporting_process$wide) ||
         length(list(...))
@@ -778,7 +732,7 @@ HousepiEpiPredictiveCheck <- R6::R6Class(
     },
 
     #' @description Set minimum household size to consider in result outputs.
-    #' @param n `integer(1)`. Minimum household size to consider.
+    #' @param n `integer(1)` Minimum household size to consider.
     #' If `NA`, restore observed minimum.
     set_min_hh_size = function(n) {
       private$min_hh_size_ <- n
@@ -792,7 +746,7 @@ HousepiEpiPredictiveCheck <- R6::R6Class(
     },
 
     #' @description Set maximum household size to consider in result outputs.
-    #' @param n `integer(1)`. Maximum household size to consider.
+    #' @param n `integer(1)` Maximum household size to consider.
     #' If `NA`, restore observed maximum.
     set_max_hh_size = function(n) {
       private$max_hh_size_ <- n
@@ -820,21 +774,20 @@ HousepiEpiPredictiveCheck <- R6::R6Class(
 #' }
 #' Named measure functions in `...` are checked alongside them,
 #' under names that differ from these.
-#' Each replicate goes through the reporting process of the model, see
-#' [add_reporting_process()].
+#' Each replicate goes through the reporting process of the model,
+#' see [add_reporting_process()].
 #' @param hh_model `r rd_model_in_`
 #' @param param_table `r rd_param_table_`
 #' @param ... `r rd_measure_dots_`
 #' @param nrep `r rd_nrep_`
 #' @param thin_ess `r rd_thin_ess_`
-#' @param epi `logical(1)` Whether to check standard epidemiological
-#' measures. If `FALSE`, only the measures in `...` are checked, and
-#' the formatted outputs and household size bounds of
+#' @param epi `logical(1)`
+#' Whether to check standard epidemiological measures.
+#' If `FALSE`, only the measures in `...` are checked,
+#' and the formatted outputs and household size bounds of
 #' [HousepiEpiPredictiveCheck] are unavailable.
-#' @param min_hh_size `r rd_min_hh_size_`
-#' Only with `epi = TRUE`.
-#' @param max_hh_size `r rd_max_hh_size_`
-#' Only with `epi = TRUE`.
+#' @param min_hh_size `r rd_min_hh_size_` Only with `epi = TRUE`.
+#' @param max_hh_size `r rd_max_hh_size_` Only with `epi = TRUE`.
 #' @param threads `r rd_thread_`
 #' @param progress `r rd_progress_`
 #' @return
@@ -906,14 +859,13 @@ check_predictive <- function(hh_model,
 #' Format element-wise estimate and credible-interval into a string.
 #' The function is vectorised over its arguments
 #' and returns a character vector of the same length as the inputs.
-#' @param point_estimate `numeric()`. Point estimate values.
-#' @param cri_lower `numeric()`. Lower bounds of the credible interval.
-#' @param cri_upper `numeric()`. Upper bounds of the credible interval.
-#' @param fmt `character(1)`.
-#' Sprintf-style format with 3 '%s' placeholders.
-#' Default is `"point_estimate [cri_lower, cri_upper]"`.
-#' @param as_integer `logical(1)`. Whether values are formatted as integers.
-#' Default is `FALSE`.
+#' @param point_estimate `numeric()` Point estimate values.
+#' @param cri_lower `numeric()` Lower bounds of the credible interval.
+#' @param cri_upper `numeric()` Upper bounds of the credible interval.
+#' @param fmt `character(1)`
+#' Sprintf-style format with 3 `%s` placeholders,
+#' filled with the point estimate, then the lower and upper bounds.
+#' @param as_integer `logical(1)` Whether values are formatted as integers.
 #' @return `character()`
 #' @examples
 #' pe <- c(9.9, 7.69e-02, 1.13)

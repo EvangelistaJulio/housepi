@@ -49,9 +49,9 @@ namespace housepi::msg
 
     /// Store the warnings raised by the running thread.
     ///
-    /// - each distinct warning: raised once, by flush();
-    /// - nested scopes: the innermost holds;
-    /// - scope left without flush(), on an error: warnings dropped.
+    /// * each distinct warning -> raised once, by flush();
+    /// * nested scopes -> the innermost holds;
+    /// * scope left without flush(), on an error -> warnings dropped.
     struct WarningBuffer
     {
         WarningBuffer() noexcept;

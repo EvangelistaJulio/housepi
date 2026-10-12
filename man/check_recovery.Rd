@@ -23,19 +23,21 @@ check_recovery(
 \arguments{
 \item{hh_model}{\code{HousepiModel} object.}
 
-\item{nrep}{\code{integer(1)} Number of surveys simulated and fitted back
-at each household count.}
+\item{nrep}{\code{integer(1)}
+Number of surveys simulated and fitted back at each household count.}
 
 \item{houses}{\code{integer()} One or more household counts to sweep.
-\code{NA} targets the number of households carried by the attached data.}
+If \code{NA}, the number of households carried by the attached data.}
 
-\item{structure_sampler}{\code{function} Sampler of the household structure the surveys
-are generated on, called as \code{structure_sampler(data_wide, houses)}.
-\code{NULL} reuses the attached structure verbatim and ignores \code{houses}.}
+\item{structure_sampler}{\code{function}
+Sampler of the household structure the surveys are generated on,
+called as \code{structure_sampler(data_wide, houses)}.
+If \code{NULL}, the attached structure is reused verbatim and \code{houses} ignored.}
 
-\item{truth}{Values the surveys are simulated at, overriding the
-parameter pins of the model. \code{NULL} reads the pins.
-One between
+\item{truth}{Values the surveys are simulated at,
+overriding the parameter pins of the model.
+If \code{NULL}, the pins.
+One of:
 \itemize{
 \item \code{data.frame};
 \item \code{posterior::draws};
@@ -46,25 +48,26 @@ Several rows are collapsed to their point estimate.}
 
 \item{steps}{\code{integer(1)} Number of MCMC iterations per chain.}
 
-\item{burn}{\code{integer(1)} Number of iterations per chain discarded before
-\code{steps}. Run after adaptation.}
+\item{burn}{\code{integer(1)}
+Number of iterations per chain discarded before \code{steps}.
+Run after adaptation.}
 
 \item{thin}{\code{integer(1)} Keep one iteration every \code{thin} of \code{steps}.}
 
 \item{adapt}{\code{integer(1)} Number of iterations to adapt proposal scales.
 Run first and not stored as draws.
-If no proposal is adaptable, dropped or run as burn-in when \code{burn = 0}.}
+If no proposal is adaptable, run as burn-in when \code{burn = 0}, else dropped.}
 
 \item{chains}{\code{integer(1)} Number of independent MCMC chains to run.}
 
-\item{threads}{\code{integer(1)} Number of threads. Up to \code{threads}
-replicates are fitted at once. Beyond \code{nrep}, the households of each fit
-share the threads left over.}
+\item{threads}{\code{integer(1)} Number of threads.
+Up to \code{threads} replicates are fitted at once.
+Beyond \code{nrep}, the households of each fit share the threads left over.}
 
-\item{progress}{\code{integer(1)} | \code{logical(1)} Control the progress bar.
-One between:
+\item{progress}{\code{integer(1)} | \code{logical(1)} Control the progress bar,
+one of:
 \describe{
-\item{\code{integer}}{seconds between prints. A shorter run does not print.}
+\item{\code{integer}}{seconds between prints, a shorter run printing nothing;}
 \item{\code{TRUE}}{one print per second;}
 \item{\code{FALSE} or \code{0}}{no progress bar.}
 }
@@ -78,25 +81,25 @@ An object of class \link{HousepiRecoveryCheck}.
 \description{
 Simulate surveys at known parameter values, fit each one back with the same
 model, and report how well the posterior recovers the values that generated
-it. The sweep is repeated at one or more household counts, which is what
-shows whether a bias shrinks with the size of the study.
+it.
+The sweep is repeated at one or more household counts,
+which shows whether a bias shrinks with the size of the study.
 
-The parameter pins of the model are the values the surveys are simulated
-at, and the priors of the very same model drive inference, so no separate
-simulation model is needed.
+The parameter pins of the model are the values the surveys are simulated at,
+and the priors of the same model drive inference,
+so no separate simulation model is needed.
 }
 \details{
-The first replicate that fails stops the check, with an error naming its
-household count and replicate.
+The first replicate that fails stops the check,
+with an error naming its household count and replicate.
 Each survey goes through the \code{wide} reporting process
 of the model before it is fitted back, see \code{\link[=add_reporting_process]{add_reporting_process()}}.
-Inference does not model it: one losing information makes the check measure
-the resulting misspecification.
-Results are summarised at the point estimate and the
-credible level held by the global options;
-see \code{\link[=set_housepi_summary]{set_housepi_summary()}}.
-Replicates are independent draws: call \code{set.seed()} before
-the check to replay a whole sweep, at any \code{threads} up to \code{nrep}.
+Inference does not model it,
+so a process losing information makes the check measure the misspecification.
+Results are summarised at the point estimate
+and credible level of the global options, see \code{\link[=set_housepi_summary]{set_housepi_summary()}}. Replicates are independent draws.
+Call \code{set.seed()} before the check to replay a whole sweep,
+at any \code{threads} up to \code{nrep}.
 }
 \examples{
 recovery <- flu_1918_frederick |>

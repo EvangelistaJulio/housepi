@@ -48,8 +48,8 @@ namespace housepi
 
         /// Map names to factories of Function objects.
         ///
-        /// - each function type registers a factory under its `NAME`;
-        /// - new types are added without touching core code.
+        /// * each function type registers a factory under its `NAME`;
+        /// * new types are added without touching core code.
         class RegFunctions
         {
         public:
@@ -96,12 +96,12 @@ namespace housepi
         RegFunctions &instance(Kind kind);
 
         /// Distribution registries in lookup order.
-        /// - name in both registries: the discrete one when `discr`.
+        /// * name in both registries -> the discrete one when `discr`.
         std::vector<Kind> distr_kinds(bool discr);
         /// Deterministic function registries in lookup order.
         std::vector<Kind> func_kinds();
         /// Function, distribution and infectivity-profile registries in lookup order.
-        /// - name in both distribution registries: the discrete one when `discr`.
+        /// * name in both distribution registries -> the discrete one when `discr`.
         std::vector<Kind> func_distr_kinds(bool discr);
 
         /// Create a function from the first registry carrying the name.
@@ -146,8 +146,8 @@ namespace housepi::registry
 {
     /// Map names to factories of ModelBase objects.
     ///
-    /// - model DLLs register their factory into this singleton at load time;
-    /// - the singleton lives in housepi.so: every model DLL shares one instance.
+    /// * model DLLs register their factory into this singleton at load time;
+    /// * the singleton lives in housepi.so: every model DLL shares one instance.
     class RegModels
     {
     public:
@@ -167,7 +167,7 @@ namespace housepi::registry
         }
 
         /// Create the model registered under `name`.
-        /// - unregistered name: error.
+        /// * unregistered name -> error.
         model_uptr create(std::string_view name) const;
 
     private:

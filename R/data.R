@@ -8,9 +8,9 @@
 #' Household data with a single household of 2 individuals.
 #'
 #' \describe{
-#'   \item{id}{Individual identifier}
-#'   \item{hh_id}{Household identifier}
-#'   \item{status}{Serological test result}
+#'   \item{id}{Individual identifier;}
+#'   \item{hh_id}{Household identifier;}
+#'   \item{status}{Serological test result.}
 #' }
 #'
 #' @docType data
@@ -28,8 +28,8 @@ NULL
 #' Reported cases of "Spanish" flu in Frederick (USA), in 1918.
 #'
 #' \describe{
-#'   \item{hh_id}{Household identifier}
-#'   \item{status}{Reported case}
+#'   \item{hh_id}{Household identifier;}
+#'   \item{status}{Reported case.}
 #' }
 #'
 #' @docType data
@@ -53,8 +53,8 @@ NULL
 #' Reported cases of "Spanish" flu in Baltimore (USA), in 1918.
 #'
 #' \describe{
-#'   \item{hh_id}{Household identifier}
-#'   \item{status}{Reported case}
+#'   \item{hh_id}{Household identifier;}
+#'   \item{status}{Reported case.}
 #' }
 #'
 #' @docType data
@@ -80,19 +80,19 @@ NULL
 #' Contacts averaged 3 tests during follow-up.
 #'
 #' \describe{
-#'   \item{id}{Individual identifier}
-#'   \item{hh_id}{Household identifier}
-#'   \item{status}{Follow-up outcome: 0 escaped, 1 symptomatic, 2 asymptomatic}
-#'   \item{age}{Age class, adult or child}
-#'   \item{sex}{Sex}
-#'   \item{start_date}{Follow-up start: household's first positive PCR}
-#'   \item{end_date}{Follow-up end: 21 days after \code{start_date}}
-#'   \item{test_date}{Date of the first positive test within the follow-up}
-#'   \item{vacc_status}{Vaccination status at the follow-up start}
-#'   \item{recovered}{Whether previously recovered from infection}
-#'   \item{isolated}{Whether isolated}
-#'   \item{asymptomatic}{Whether asymptomatic}
-#'   \item{index_case}{1 for the member positive on the household's first test day, 0 otherwise}
+#'   \item{id}{Individual identifier;}
+#'   \item{hh_id}{Household identifier;}
+#'   \item{status}{Follow-up outcome: 0 escaped, 1 symptomatic, 2 asymptomatic;}
+#'   \item{age}{Age class, adult or child;}
+#'   \item{sex}{Sex;}
+#'   \item{start_date}{Follow-up start: household's first positive PCR;}
+#'   \item{end_date}{Follow-up end: 21 days after \code{start_date};}
+#'   \item{test_date}{Date of the first positive test within the follow-up;}
+#'   \item{vacc_status}{Vaccination status at the follow-up start;}
+#'   \item{recovered}{Whether previously recovered from infection;}
+#'   \item{isolated}{Whether isolated;}
+#'   \item{asymptomatic}{Whether asymptomatic;}
+#'   \item{index_case}{1 for the member positive on the household's first test day, 0 otherwise.}
 #' }
 #'
 #' @docType data
@@ -129,9 +129,9 @@ NULL
 #' Original observational study from Uchida et al. (2017).
 #'
 #' \describe{
-#'   \item{hh_id}{Household identifier}
-#'   \item{member}{Family member}
-#'   \item{status}{Symptoms reported}
+#'   \item{hh_id}{Household identifier;}
+#'   \item{member}{Family member;}
+#'   \item{status}{Symptoms reported.}
 #' }
 #'
 #' @docType data

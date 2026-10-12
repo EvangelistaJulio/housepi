@@ -167,8 +167,8 @@ namespace housepi
         //////  Flags  //////
 
         /// Whether it holds no value.
-        /// - function: never missing, by convention;
-        /// - reduction function: may still return NA.
+        /// * function -> never missing, by convention;
+        /// * reduction function -> may still return NA.
         bool is_na() const noexcept;
         /// Whether it is constant.
         bool is_constant() const noexcept;
@@ -383,8 +383,8 @@ namespace housepi
 
         /// Values returned, composed from the operands.
         ///
-        /// - computed live, never stored: finalize() may fold the operands after reshape();
-        /// - defaulted, so an out-of-tree custom function still compiles.
+        /// * computed live, never stored: finalize() may fold the operands after reshape();
+        /// * defaulted, so an out-of-tree custom function still compiles.
         virtual Codomain codomain() const noexcept { return Codomain(); }
 
         /// Number of arguments in the *active* parametrization.
@@ -431,7 +431,7 @@ namespace housepi
             return is_valid(x) ? function_(delocate_(x)) : 0.;
         }
         /// Return cumulative distribution at `x`.
-        /// - above the domain: primitive at the maximum, which lives in the de-located frame.
+        /// * above the domain -> primitive at the maximum, which lives in the de-located frame.
         double cdf(double x) const
         {
             return is_below(x) ? 0 : primitive_(is_above(x) ? domain_.max.value() : delocate_(x));
@@ -440,7 +440,7 @@ namespace housepi
         //////  Flags  //////
 
         /// Whether the return value is constant.
-        /// - mutable domain: not constant.
+        /// * mutable domain -> not constant.
         bool is_constant() const noexcept
         {
             return x_arg_.is_constant() && has_constant_args_();
@@ -448,8 +448,8 @@ namespace housepi
 
         /// Whether discretize() put the value on a unit lattice, of unspecified offset.
         ///
-        /// - location off the integers: the lattice shifts with it;
-        /// - a discretized definition may return values off the integers.
+        /// * location off the integers -> the lattice shifts with it;
+        /// * a discretized definition may return values off the integers.
         /// @note For "the values are integers", ask codomain().on_integers().
         bool is_discretized() const noexcept { return discr_mode_ != Discrete::None; }
         /// Whether the return value is always strictly positive.
@@ -542,7 +542,7 @@ namespace housepi
         virtual Attribute &find_arg_(std::string_view arg_name);
 
         /// Append argument `key`, for variadic parametrizations.
-        /// - standard arguments `x`, `loc`, `min`, `max`: returned, not appended.
+        /// * standard arguments `x`, `loc`, `min`, `max` -> returned, not appended.
         /// @note Call once per key: repeated names are refused R-side.
         Attribute &append_arg_(std::string_view key);
 
@@ -648,9 +648,9 @@ namespace housepi
 
     /// Implement clone() and name() of a concrete function class `D` deriving from `B`.
     ///
-    /// - `D` derives from `Cloneable<D, B>` and inherits the constructors of `B`;
-    /// - `D` is `final`, so no subclass clones as `D`;
-    /// - `D` declares `static constexpr const char *NAME`, the name it registers under.
+    /// * `D` derives from `Cloneable<D, B>` and inherits the constructors of `B`;
+    /// * `D` is `final`, so no subclass clones as `D`;
+    /// * `D` declares `static constexpr const char *NAME`, the name it registers under.
     template <class D, class B>
     struct Cloneable : B
     {

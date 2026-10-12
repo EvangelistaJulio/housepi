@@ -24,10 +24,10 @@ namespace housepi::data
 
     /// Mutable per-run storage of data, written by inference and simulation.
     ///
-    /// - read-cells, per member and column;
-    /// - transmission log-likelihood, per equivalence class;
-    /// - model cache, current and last saved, per equivalence class;
-    /// - whether the last two hold an evaluation of every equivalence class.
+    /// * read-cells, per member and column;
+    /// * transmission log-likelihood, per equivalence class;
+    /// * model cache, current and last saved, per equivalence class;
+    /// * whether the last two hold an evaluation of every equivalence class.
     struct State
     {
         //////  Setter  //////
@@ -41,14 +41,14 @@ namespace housepi::data
             readcell_[Index::of(indiv)][d].init_pointer(p);
         }
         /// Finalize every Variable wired into a read-cell.
-        /// - evaluation only: simulation re-wires the cells live.
+        /// * evaluation only -> simulation re-wires the cells live.
         void finalize_readcells();
 
         /// Allocate transmission log-likelihoods, one per equivalence class of `wide`.
-        /// - clears the evaluated flag.
+        /// * clears the evaluated flag.
         void allocate_transm_log_lik(const Wide &wide);
         /// Allocate model caches, per equivalence class of `wide`, sized by household and cache keys.
-        /// - clears the evaluated flag.
+        /// * clears the evaluated flag.
         void allocate_cache(const Wide &wide);
         /// Flag whether transmission log-likelihoods and model caches hold an evaluation of every class.
         void set_evaluated(bool evaluated) noexcept { is_evaluated_ = evaluated; }

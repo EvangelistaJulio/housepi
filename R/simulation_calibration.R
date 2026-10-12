@@ -3,38 +3,40 @@
 ## SPDX-License-Identifier: GPL-3.0-or-later
 ##
 
-## Roxygen text shared by several blocks, read at the use site as `r <name>`.
+# Roxygen text shared by several blocks, read at the use site as `r <name>`.
 
 rd_calib_houses_ <- "`integer(1)` Household count of the surveys.
-`NA` targets the number of households carried by the attached data."
-rd_calib_rank_draws_ <- "`integer(1)` Number of posterior draws each simulating
-value is ranked among, thinned evenly from the stored draws of all chains."
+If `NA`, the number of households carried by the attached data."
+rd_calib_rank_draws_ <- "`integer(1)`
+Number of posterior draws each simulating value is ranked among,
+thinned evenly from the stored draws of all chains."
 
-############################################################################
-############################################################################
-############################################################################
+########  Calibration  ########
 
 #' Level of the uniformity test, simultaneous over the whole ECDF.
 #' @noRd
 calibration_alpha_ <- 0.05
 
-#' Rank of `truth` among `size` draws thinned evenly from `x`, ties broken
-#' uniformly at random: a calibrated sampler gives ranks uniform on `0..size`.
+#' Rank of `truth` among `size` draws thinned evenly from `x`,
+#' ties broken uniformly at random.
+#' A calibrated sampler gives ranks uniform on `0..size`.
 #' @noRd
 calibration_rank_ <- function(x, truth, size) {
   x <- helper_thin_even_(x, size)
   sum(x < truth) + sample.int(sum(x == truth) + 1L, 1L) - 1L
 }
 
-#' Ranks at or below each of `0..size - 1`: `n` times the ECDF of the
-#' fractional ranks `(rank + 1) / (size + 1)` at `z = k / (size + 1)`.
+#' Ranks at or below each of `0..size - 1`,
+#' `n` times the ECDF of the fractional ranks `(rank + 1) / (size + 1)`
+#' at `z = k / (size + 1)`.
 #' @noRd
 calibration_counts_ <- function(ranks, size) {
   cumsum(tabulate(ranks + 1L, nbins = size + 1L))[seq_len(size)]
 }
 
-#' Logarithm of the statistic of Säilynoja et al. (2022): twice the smallest
-#' binomial tail probability of the ECDF counts over the evaluation points.
+#' Logarithm of the statistic of Säilynoja et al. (2022),
+#' twice the smallest binomial tail probability of the ECDF counts
+#' over the evaluation points.
 #' @noRd
 calibration_log_gamma_ <- function(ranks, size) {
   n <- length(ranks)
@@ -45,8 +47,8 @@ calibration_log_gamma_ <- function(ranks, size) {
                              log.p = TRUE))
 }
 
-#' Bounds on the ECDF counts of `n` uniform ranks, each holding with
-#' probability `1 - gamma` on its own.
+#' Bounds on the ECDF counts of `n` uniform ranks,
+#' each holding with probability `1 - gamma` on its own.
 #' @noRd
 calibration_band_ <- function(n, size, gamma) {
   z <- seq_len(size) / (size + 1)
@@ -55,9 +57,9 @@ calibration_band_ <- function(n, size, gamma) {
 }
 
 #' Probability that the ECDF counts of `n` uniform ranks stay inside the band
-#' at every evaluation point (Säilynoja et al. 2022, Sec. 2.3). The counts
-#' form a Markov chain: of the ranks above `z[k - 1]`, each falls at or below
-#' `z[k]` with probability `1 / (size + 2 - k)`.
+#' at every evaluation point, Säilynoja et al. (2022), Sec. 2.3.
+#' The counts form a Markov chain: of the ranks above `z[k - 1]`,
+#' each falls at or below `z[k]` with probability `1 / (size + 2 - k)`.
 #' @noRd
 calibration_inside_ <- function(n, size, gamma) {
   band <- calibration_band_(n, size, gamma)
@@ -74,12 +76,13 @@ calibration_inside_ <- function(n, size, gamma) {
   sum(prob)
 }
 
-#' Logarithm of the `alpha` quantile of the statistic under uniform ranks
-#' (Modrák et al. 2025): the largest pointwise level whose band holds
-#' simultaneously with probability at least `1 - alpha`. Uniformity is
-#' rejected when the statistic falls below it, so with probability at most
-#' `alpha` for uniform ranks. The band probability steps down as the level
-#' rises: bisection keeps the lower end on the side where the band holds,
+#' Logarithm of the `alpha` quantile of the statistic under uniform ranks,
+#' Modrák et al. (2025): the largest pointwise level whose band holds
+#' simultaneously with probability at least `1 - alpha`.
+#' Uniformity is rejected when the statistic falls below it,
+#' so with probability at most `alpha` for uniform ranks.
+#' The band probability steps down as the level rises:
+#' bisection keeps the lower end on the side where the band holds,
 #' starting from the union bound.
 #' @noRd
 calibration_log_threshold_ <- function(n, size, alpha) {
@@ -109,8 +112,8 @@ calibration_summary_ <- function(estimates, size, threshold) {
   })
 }
 
-#' ECDF of the fractional ranks and its simultaneous band, per household
-#' count and parameter.
+#' ECDF of the fractional ranks and its simultaneous band,
+#' per household count and parameter.
 #' @param threshold `function` Log-threshold of a number of replicates.
 #' @noRd
 calibration_ecdf_ <- function(estimates, size, threshold) {
@@ -128,9 +131,9 @@ calibration_ecdf_ <- function(estimates, size, threshold) {
 
 #' @title Simulation calibration check of a housepi model
 #' @description
-#' Container for the sweep run by [check_calibration()]: surveys simulated at
-#' parameter values drawn from the prior and fitted back, each value ranked
-#' among the posterior draws of its fit.
+#' Container for the sweep run by [check_calibration()]:
+#' surveys simulated at parameter values drawn from the prior and fitted back,
+#' each value ranked among the posterior draws of its fit.
 #' @examples
 #' calibration <- flu_1918_frederick |>
 #'   new_housepi_model("final-size") |>
@@ -142,9 +145,7 @@ calibration_ecdf_ <- function(estimates, size, threshold) {
 HousepiCalibrationCheck <- R6::R6Class(
   classname = "HousepiCalibrationCheck",
 
-  ############################################################################
-  ################################## PRIVATE #################################
-  ############################################################################
+  ####  Private  ####
 
   private = list(
     name_ = NA_character_,
@@ -158,9 +159,9 @@ HousepiCalibrationCheck <- R6::R6Class(
     secs_ = NA_real_,
     thresholds_ = list(),
 
-    # Rank of the simulating value of every estimated parameter, and the
-    # convergence diagnostics of the fit. Draws too correlated to stand for
-    # `rank_draws` independent ones are flagged.
+    # Rank the simulating value of every estimated parameter,
+    # with the convergence diagnostics of the fit.
+    # * draws too correlated for `rank_draws` independent ones -> flagged.
     summarise_ranks_ = function(draws, truth) {
       pdraws <- get_parameter_draws(draws)
       size <- private$rank_draws_
@@ -187,21 +188,19 @@ HousepiCalibrationCheck <- R6::R6Class(
     }
   ),
 
-  ############################################################################
-  ################################## ACTIVE ##################################
-  ############################################################################
+  ####  Active  ####
 
   active = list(
     #' @field estimates `data.frame`
     #' One row per replicate and parameter
     #' \describe{
-    #'   \item{truth}{Value drawn from the prior the survey was simulated at}
-    #'   \item{rank}{Number of ranked posterior draws below the truth, ties
-    #'     split at random}
-    #'   \item{rhat, ess_bulk}{Convergence diagnostics of the fit}
+    #'   \item{truth}{Value drawn from the prior the survey was simulated at;}
+    #'   \item{rank}{Number of ranked posterior draws below the truth,
+    #'     ties split at random;}
+    #'   \item{rhat, ess_bulk}{Convergence diagnostics of the fit;}
     #'   \item{flagged}{`TRUE` when the diagnostics flagged the parameter:
-    #'     `r paste(diagnostic_flags_, collapse = "; ")`; or when its bulk
-    #'     effective sample size is below `rank_draws`}
+    #'     `r paste(diagnostic_flags_, collapse = "; ")`,
+    #'     or when its bulk effective sample size is below `rank_draws`.}
     #' }
     estimates = function(value) {
       assert_read_only_(value, "estimates")
@@ -211,11 +210,11 @@ HousepiCalibrationCheck <- R6::R6Class(
     #' @field replicates `data.frame`
     #' One row per replicate
     #' \describe{
-    #'   \item{seed}{Seed of the fit's random number generators}
-    #'   \item{inference_secs}{Wall-clock of the sampling loop}
-    #'   \item{min_ess_bulk}{Smallest bulk effective sample size over the
-    #'     parameters of the fit}
-    #'   \item{flagged}{Whether any parameter of the fit was flagged}
+    #'   \item{seed}{Seed of the fit's random number generators;}
+    #'   \item{inference_secs}{Wall-clock of the sampling loop;}
+    #'   \item{min_ess_bulk}{Smallest bulk effective sample size
+    #'     over the parameters of the fit;}
+    #'   \item{flagged}{Whether any parameter of the fit was flagged.}
     #' }
     replicates = function(value) {
       assert_read_only_(value, "replicates")
@@ -226,10 +225,10 @@ HousepiCalibrationCheck <- R6::R6Class(
     #' Empirical CDF of the fractional ranks `(rank + 1) / (rank_draws + 1)`
     #' per parameter, with its simultaneous band
     #' \describe{
-    #'   \item{z}{Point the ECDF is evaluated at}
-    #'   \item{ecdf}{Share of the ranks at or below `z`}
-    #'   \item{lower, upper}{Band the ECDF of uniform ranks stays inside, at
-    #'     every `z` at once, with probability at least 0.95}
+    #'   \item{z}{Point the ECDF is evaluated at;}
+    #'   \item{ecdf}{Share of the ranks at or below `z`;}
+    #'   \item{lower, upper}{Band the ECDF of uniform ranks stays inside,
+    #'     at every `z` at once, with probability at least 0.95.}
     #' }
     ecdf = function(value) {
       assert_read_only_(value, "ecdf")
@@ -240,12 +239,12 @@ HousepiCalibrationCheck <- R6::R6Class(
     #' @field summary `data.frame`
     #' Uniformity of the ranks per parameter
     #' \describe{
-    #'   \item{nrep, n_flagged}{Replicates ranked, and those flagged}
-    #'   \item{log_gamma}{Logarithm of the uniformity statistic: twice the
-    #'     smallest binomial tail probability of the ECDF}
-    #'   \item{log_gamma_threshold}{Value below which `log_gamma` rejects
-    #'     uniformity at level 0.05}
-    #'   \item{uniform}{Whether the ranks pass the test}
+    #'   \item{nrep, n_flagged}{Replicates ranked, and those flagged;}
+    #'   \item{log_gamma}{Logarithm of the uniformity statistic,
+    #'     twice the smallest binomial tail probability of the ECDF;}
+    #'   \item{log_gamma_threshold}{Value of `log_gamma` below which
+    #'     uniformity is rejected, at level 0.05;}
+    #'   \item{uniform}{Whether the ranks pass the test.}
     #' }
     summary = function(value) {
       assert_read_only_(value, "summary")
@@ -256,26 +255,24 @@ HousepiCalibrationCheck <- R6::R6Class(
     #' @field overview `data.frame`
     #' Sweep cost, averaged over the replicates
     #' \describe{
-    #'   \item{nrep, n_flagged}{Replicates run, and those flagged}
-    #'   \item{mean_inference_secs}{Mean wall-clock of a sampling loop}
-    #'   \item{secs_per_ess}{Seconds of sampling per effective draw of the
-    #'     worst-mixing parameter, pooled over the replicates: a cost of this
-    #'     run on this machine and thread count, not of the model}
+    #'   \item{nrep, n_flagged}{Replicates run, and those flagged;}
+    #'   \item{mean_inference_secs}{Mean wall-clock of a sampling loop;}
+    #'   \item{secs_per_ess}{Seconds of sampling per effective draw
+    #'     of the worst-mixing parameter, pooled over the replicates:
+    #'     a cost of this run, machine and thread count, not of the model.}
     #' }
     overview = function(value) {
       assert_read_only_(value, "overview")
       sweep_overview_(private$replicates_)
     },
 
-    #' @field houses `integer(1)`
-    #' Household count of the surveys.
+    #' @field houses `integer(1)` Household count of the surveys.
     houses = function(value) {
       assert_read_only_(value, "houses")
       private$houses_
     },
 
-    #' @field nrep `integer(1)`
-    #' Replicates run.
+    #' @field nrep `integer(1)` Replicates run.
     nrep = function(value) {
       assert_read_only_(value, "nrep")
       private$nrep_
@@ -296,14 +293,12 @@ HousepiCalibrationCheck <- R6::R6Class(
     }
   ),
 
-  ############################################################################
-  ################################## PUBLIC ##################################
-  ############################################################################
+  ####  Public  ####
 
   public = list(
     #' @description
-    #' Internal: [check_calibration()] builds this object, don't call `$new()`
-    #' directly.
+    #' Create the calibration check object.
+    #' Use [check_calibration()] instead of calling `$new()`.
     #' @param hh_model `r rd_model_in_`
     #' @param nrep `r rd_sweep_nrep_`
     #' @param houses `r rd_calib_houses_`
@@ -355,7 +350,7 @@ HousepiCalibrationCheck <- R6::R6Class(
       invisible(self)
     },
 
-    #' @description Override the default printing behavior.
+    #' @description Print a summary of the sweep.
     print = function() {
       model <- spaced_choice(private$name_)
       flagged <- sum(private$replicates_[["flagged"]])
@@ -376,15 +371,15 @@ HousepiCalibrationCheck <- R6::R6Class(
 #' @title Check that inference is calibrated against the prior
 #' @description
 #' Simulation-based calibration: draw parameter values from their prior,
-#' simulate a survey at each draw, fit it back with the same model, and rank
-#' the drawn value among the posterior draws of its fit. When inference is
-#' correct, the ranks are uniform over the replicates. Ranks piling at both
-#' ends point to a posterior too narrow, in the middle to one too wide, on one
-#' side to a biased one.
+#' simulate a survey at each draw, fit it back with the same model,
+#' and rank the drawn value among the posterior draws of its fit.
+#' When inference is correct, the ranks are uniform over the replicates.
+#' Ranks piling at both ends point to a posterior too narrow,
+#' in the middle to one too wide, on one side to a biased one.
 #'
-#' Every parameter carrying a prior and free to move is drawn anew for each
-#' replicate, and its `value` is ignored. Any other parameter is held at its
-#' value.
+#' Every parameter carrying a prior and free to move is drawn anew
+#' for each replicate, and its `value` is ignored.
+#' Any other parameter is held at its value.
 #' @param hh_model `r rd_model_in_`
 #' @param nrep `r rd_sweep_nrep_`
 #' @param houses `r rd_calib_houses_`
@@ -400,20 +395,21 @@ HousepiCalibrationCheck <- R6::R6Class(
 #' @param ... `r rd_dots_config_`
 #' @return An object of class [HousepiCalibrationCheck].
 #' @details
-#' Ranks follow \insertCite{modrak_simulation_2025;textual}{housepi}: the
-#' drawn value is ranked among `rank_draws` posterior draws thinned evenly
-#' from the fit, and ties are split at random. Correlated draws make the
-#' ranks pile at the ends even when inference is correct, so a parameter
-#' whose bulk effective sample size
+#' Ranks follow \insertCite{modrak_simulation_2025;textual}{housepi}:
+#' the drawn value is ranked among `rank_draws` posterior draws thinned evenly
+#' from the fit, and ties are split at random.
+#' Correlated draws make the ranks pile at the ends,
+#' even when inference is correct,
+#' so a parameter whose bulk effective sample size
 #' \insertCite{vehtari_rank_normalization_2021}{housepi} falls below
 #' `rank_draws` is flagged.
 #'
 #' Uniformity is tested on the empirical CDF of the ranks, with the
 #' simultaneous band and the statistic of
-#' \insertCite{sailynoja_graphical_2022;textual}{housepi}. Uniformity is
-#' rejected when the statistic falls below its 5th percentile under uniform
-#' ranks \insertCite{modrak_simulation_2025}{housepi}, so a calibrated
-#' sampler is rejected with probability at most 0.05.
+#' \insertCite{sailynoja_graphical_2022;textual}{housepi}.
+#' Uniformity is rejected when the statistic falls below its 5th percentile
+#' under uniform ranks \insertCite{modrak_simulation_2025}{housepi},
+#' so a calibrated sampler is rejected with probability at most 0.05.
 #' The check itself goes back to
 #' \insertCite{talts_validating_2020;textual}{housepi}.
 #'

@@ -33,9 +33,9 @@ namespace housepi::risks
 {
     /// Risk attributes of every unique definition, in one flat store.
     ///
-    /// - reading one crosses a single indirection;
-    /// - each owner maps to the offset its block starts at;
-    /// - owner: member for group risks, household for contact risks.
+    /// * reading one crosses a single indirection;
+    /// * each owner maps to the offset its block starts at;
+    /// * owner: member for group risks, household for contact risks.
     struct Store
     {
     public:

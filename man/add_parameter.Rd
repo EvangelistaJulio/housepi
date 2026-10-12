@@ -25,31 +25,33 @@ add_parameter(
 
 \item{name}{\code{character(1)} Name used by internal calls.}
 
-\item{value}{\code{numeric(1)} Value the definition is pinned to in simulations. In inference, it
-pins a constant or deterministic definition, and is ignored when a
-\code{prior} is given.}
+\item{value}{\code{numeric(1)} Value the definition is pinned to in simulations.
+In inference, it pins a constant or deterministic definition,
+and is ignored when a \code{prior} is given.}
 
-\item{...}{named arguments for the prior distribution, or for \code{func} when the definition is deterministic.
-Advanced Monte Carlo options may also be passed through \code{...}, each prefixed
-\code{proposal_}. For a random walk, \code{proposal_scale} sets the step scale: if
-omitted it is adapted during inference when \code{adapt > 0}; if a positive numeric
-it is fixed and never adapted. For independence sampling from a named
-distribution, the distribution parameters are supplied the same way (e.g.
-\code{proposal_mean}, \code{proposal_sd}).
+\item{...}{Named arguments for the prior distribution, or for \code{func} when the definition is deterministic.
+Advanced Monte Carlo options may also be passed through \code{...},
+each prefixed \code{proposal_}.
+For a random walk, \code{proposal_scale} sets the step scale.
+If omitted, it is adapted during inference when \code{adapt > 0}.
+If a positive number, it is fixed and never adapted.
+For independence sampling from a named distribution,
+the distribution parameters are passed the same way,
+e.g. \code{proposal_mean} and \code{proposal_sd}.
 In mode 'multiple', the \code{name = value} definitions.}
 
-\item{const}{\code{logical(1)} Treat definition as constant.
-If \code{TRUE}, additional Monte Carlo details are ignored.}
+\item{const}{\code{logical(1)} Whether the definition is constant.
+If \code{TRUE}, Monte Carlo settings are ignored.}
 
-\item{discr}{\code{logical(1)} Treat prior definition as discrete, if applicable.
-Inferred from the model requirements if \code{NA} (default).}
+\item{discr}{\code{logical(1)} Whether the prior definition is discrete, if applicable.
+If \code{NA}, inferred from the model requirements.}
 
 \item{prior}{\code{character(1)} Prior distribution.}
 
-\item{func}{One between:
+\item{func}{One of:
 \itemize{
-\item \code{character(1)} Name of latent function;
-\item rlang expression.
+\item \code{character(1)} Name of a latent function;
+\item an rlang expression.
 }}
 
 \item{min}{\code{numeric(1)} Truncate to a minimum value.
@@ -59,37 +61,37 @@ Relative to the location argument \code{loc}, when one is given.}
 Relative to the location argument \code{loc}, when one is given.}
 
 \item{proposal}{\code{character(1)} Proposal used in the Monte Carlo.
-Random walks changes current value:
+Random walks update the current value:
 \describe{
-\item{\code{"rw"}}{normal increments (default);}
-\item{\code{"rw_log"}}{lognormal log-increments (positive, non-discrete
-values only);}
-\item{\code{"rw_unif"}}{uniform increments (bounded).}
+\item{\code{"rw"}}{normal increments;}
+\item{\code{"rw_log"}}{lognormal log-increments,
+positive non-discrete values only;}
+\item{\code{"rw_unif"}}{uniform increments, bounded values only.}
 }
 Independence samplers draw a fresh value from a distribution:
 \describe{
-\item{\code{"forward"}}{drawn from the variable's own defining distribution
-(its prior for a parameter, its model for a latent variable);}
-\item{a distribution name}{drawn from that distribution, e.g.
-\code{proposal = "normal"} with \code{proposal_mean}/\code{proposal_sd}.}
+\item{\code{"forward"}}{drawn from the variable's own defining distribution,
+its prior for a parameter, its model for a latent variable;}
+\item{a distribution name}{drawn from that distribution,
+e.g. \code{proposal = "normal"} with \code{proposal_mean} and \code{proposal_sd}.}
 }
-\code{NA} defaults to \code{"rw"}.}
+If \code{NA}, \code{"rw"} is used.}
 
 \item{import}{Named \code{list} of pre-built definitions to import,
 or \code{"template"} for the definitions shipped with the model.
-The template is R code evaluated from the model folder, so use it only with
-model folders you trust.
-Cannot be combined with single and/or multiple definitions.}
+The template is R code evaluated from the model folder,
+so use it only with model folders you trust.
+Cannot be combined with single or multiple definitions.}
 
-\item{append}{\code{logical(1)} Append to current definitions.
-If \code{FALSE} drop all pre-existing definitions.}
+\item{append}{\code{logical(1)} Whether to append to the current definitions.
+If \code{FALSE}, the previous definitions are dropped.}
 }
 \value{
 \code{HousepiModel} object. Deep clone of input with new definitions.
 }
 \description{
-Add parameter(s) to a housepi model.
-If a parameter with the same name exists, the former gets overwritten.
+Add parameters to a housepi model.
+A parameter with the same name as an existing one overwrites it.
 There are three mutually exclusive definition modes:
 \describe{
 \item{single}{

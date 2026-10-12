@@ -40,8 +40,8 @@ namespace housepi::augm
         /// Bind definition row `k` to `anchor`.
         ///
         /// Where the operands come from depends on the row's level:
-        /// - household row: per-member cells, folded over the members of `house`;
-        /// - any other row: `anchor` alone.
+        /// * household row -> per-member cells, folded over the members of `house`;
+        /// * any other row -> `anchor` alone.
         /// @param house Household of a household row, nullptr for any other row.
         void bind_variable(Variable &var, size_t k,
                            const Individual &anchor,
@@ -50,13 +50,13 @@ namespace housepi::augm
         /// Initialize Variable `var` of definition row `k` for member `indiv`.
         ///
         /// Binds, in order:
-        /// - value or function;
-        /// - model;
-        /// - proposal, in inference only.
+        /// * value or function;
+        /// * model;
+        /// * proposal, in inference only.
         ///
         /// In simulation:
-        /// - a generated observation is a placeholder;
-        /// - the value of a sampled latent pins the Variable to it.
+        /// * a generated observation is a placeholder;
+        /// * the value of a sampled latent pins the Variable to it.
         /// @note In simulation, never call it on a flat latent with no value: transmission sets it.
         void bind_member(Variable &var, size_t k,
                          const Individual &indiv,
@@ -65,8 +65,8 @@ namespace housepi::augm
         /// Build Variables of surrogate column `surr` over `house`.
         ///
         /// Each Variable is wired to the data cells it stands in for:
-        /// - household level: one Variable, reduced over members;
-        /// - member level: one Variable per member.
+        /// * household level -> one Variable, reduced over members;
+        /// * member level -> one Variable per member.
         ///
         /// With `for_evaluation`, each Variable is checked against column requests, then fixed.
         /// @note Every surrogate column must be registered as a data key.
@@ -86,7 +86,7 @@ namespace housepi::augm
                          const Individual &indiv) const;
 
         /// Assert that `var` meets model requests of data column `d`.
-        /// - NA `var`: not checked.
+        /// * NA `var` -> not checked.
         /// @param context Entity named in the error message.
         void assert_datum_requests_(size_t d,
                                     const Variable &var,

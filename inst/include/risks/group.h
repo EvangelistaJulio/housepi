@@ -31,8 +31,8 @@ namespace housepi::risks
 {
     /// Group risks of every member, keyed by the model-declared group-risk keys.
     ///
-    /// - one block per unique definition, one slot per status a rule keys on;
-    /// - a member drawing a new status reads the matching slot, no storage rewritten.
+    /// * one block per unique definition, one slot per status a rule keys on;
+    /// * a member drawing a new status reads the matching slot, no storage rewritten.
     struct Group : public KeyHolder, public Store
     {
     public:
@@ -41,14 +41,14 @@ namespace housepi::risks
         //////  Setter  //////
 
         /// Build group risks from rule table `input`, one block per unique member definition.
-        /// - empty `input`: every declared risk reads the reference.
+        /// * empty `input` -> every declared risk reads the reference.
         /// @note Run it even on an empty `input`, so declared risks are initialized.
         void build(data::Wide &data_wide,
                    const Parameter &param,
                    const str_table &input);
 
         /// Declare the keys `vec` a rule may stratify by infected status.
-        /// - a risk read on a member without infected status is excluded.
+        /// * a risk read on a member without infected status is excluded.
         void request_status_stratified(std::vector<size_t> vec) { status_stratified_ = std::move(vec); }
 
         //////  Getter  //////
@@ -57,7 +57,7 @@ namespace housepi::risks
         const std::vector<size_t> &status_stratified() const noexcept { return status_stratified_; }
 
         /// Whether members `a` and `b` share a group-risk partition.
-        /// - members reading different status slots read different risks.
+        /// * members reading different status slots read different risks.
         bool same_group(const Individual &a,
                         const Individual &b) const noexcept
         {
@@ -66,7 +66,7 @@ namespace housepi::risks
         }
 
         /// Group-risk attribute `g` of member `indiv`.
-        /// - the status is folded into the address: a member drawing a new one reads the matching cell.
+        /// * the status is folded into the address: a member drawing a new one reads the matching cell.
         const Attribute &at(size_t g, const Individual &indiv) const noexcept
         {
             return cell_(Index::of(indiv), slot_base_[indiv.status()] + g);
@@ -87,7 +87,7 @@ namespace housepi::risks
         std::vector<size_t> status_stratified_ = {}; /// Keys stratifiable by status.
         size_t n_slots_ = 1;                         /// Status slots stored per group risk.
         /// Offset each status level's slot starts at, pre-multiplied: a read costs one load and an add.
-        /// - levels no rule distinguishes: 0.
+        /// * levels no rule distinguishes -> 0.
         StatusTable<SlotOffset> slot_base_ = {};
         std::vector<std::vector<ScaleAnchor>> scale_anchors_ = {}; /// Rule groups per group-risk key.
 

@@ -9,39 +9,41 @@ add_status_process(hh_model, ..., strata = NULL, import = NULL)
 \arguments{
 \item{hh_model}{\code{HousepiModel} object.}
 
-\item{...}{Probabilities of the infected statuses, in order. When named, the
-names label the statuses: name all of them or none. Unnamed probabilities
-draw the integer statuses 1, 2, and so on.}
+\item{...}{Probabilities of the infected statuses, in order.
+When named, the names label the statuses: name all of them or none.
+Unnamed probabilities draw the integer statuses 1, 2, and so on.}
 
-\item{strata}{\code{data.frame} One row per rule: the infected status in column
-\code{status}, its non-negative \code{weight}, and a column per covariate.
-An \code{NA} cell matches any value, and a member reads the most specific rule it
-matches.
-Rows keyed on different covariates form separate rule groups, whose weights
-multiply. Every rule group must key on \code{status}.
-At every status, each member must match a rule of every rule group, and
-every rule must apply to some member, else the table is refused.
-The weights of a member are normalized over the statuses, so they need not
-sum to 1.
+\item{strata}{\code{data.frame} One row per rule:
+the infected status in column \code{status}, its non-negative \code{weight},
+and a column per covariate.
+An \code{NA} cell matches any value,
+and a member reads the most specific rule it matches.
+Rows keyed on different covariates form separate rule groups,
+whose weights multiply.
+Every rule group must key on \code{status}.
+At every status, each member must match a rule of every rule group,
+and every rule must apply to some member, else the table is refused.
+The weights of a member are normalized over the statuses,
+so they need not sum to 1.
 \code{status} holds labels, or integer statuses from 1.
 Cannot be combined with \code{...}.}
 
-\item{import}{Named \code{list} of arguments, read as \code{...} or as a \code{strata}
-entry, or \code{"template"} for the status process shipped with the model.
-The template is R code evaluated from the model folder, so use it only with
-model folders you trust.
+\item{import}{Named \code{list} of arguments, read as \code{...} or a \code{strata} entry,
+or \code{"template"} for the status process shipped with the model.
+The template is R code evaluated from the model folder,
+so use it only with model folders you trust.
 Cannot be combined with \code{...} or \code{strata}.}
 }
 \value{
 \code{HousepiModel} object. Deep clone of input with new definitions.
 }
 \description{
-Declare how an infected member's status is drawn during simulation, as a
-categorical distribution over infected statuses.
-The probabilities apply to every member when given in \code{...}, or depend on
-member covariates when given as a \code{strata} table.
-Inference holds the observed status fixed and does not estimate the
-probabilities.
+Declare how an infected member's status is drawn during simulation,
+as a categorical distribution over infected statuses.
+The probabilities apply to every member when given in \code{...},
+or depend on member covariates when given as a \code{strata} table.
+Inference holds the observed status fixed,
+and does not estimate the probabilities.
 }
 \examples{
 # simulate infected members as symptomatic (70\%) or asymptomatic (30\%)

@@ -334,7 +334,7 @@ namespace housepi::data
     namespace
     {
         /// Whether member `a` sorts before `b`, by status then covariates `data_list`.
-        /// - missing cell: a class of its own, ordered last, so the equivalence stays transitive.
+        /// * missing cell -> a class of its own, ordered last, so the equivalence stays transitive.
         bool indiv_less_(const std::unordered_set<size_t> &data_list,
                          const State &state,
                          const Individual &a,

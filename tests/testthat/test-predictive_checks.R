@@ -187,7 +187,7 @@ test_that("Replicate summaries handle mean, median, NA and non-numeric", {
 
   # invalid summary stat
   ppc_frame_apply_summary(list(frame_1, frame_2), "mode") |>
-    expect_error("one between")
+    expect_error("one of")
 })
 
 test_that("Replicate credible intervals bound each other", {

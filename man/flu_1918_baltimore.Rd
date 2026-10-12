@@ -15,8 +15,8 @@ Reported cases of "Spanish" flu in Baltimore (USA), in 1918.
 }
 \details{
 \describe{
-\item{hh_id}{Household identifier}
-\item{status}{Reported case}
+\item{hh_id}{Household identifier;}
+\item{status}{Reported case.}
 }
 
 To reproduce the data processing, see the script at:

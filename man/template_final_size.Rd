@@ -13,19 +13,19 @@ The likelihood of a household sums over every transmission chain that ends in th
 \section{Parameters}{
 
 \itemize{
-\item \code{alpha} \eqn{\alpha}{alpha} : baseline community transmission risk
-\item \code{beta} \eqn{\beta}{beta} : baseline person-to-person transmission risk
-\item \code{gamma} \eqn{\gamma}{gamma} : household-size scaling of person-to-person risk
-\item \code{hh_size_ref} \eqn{n_\mathrm{ref}}{n_ref} : size of reference household
+\item \code{alpha} \eqn{\alpha}{alpha}: baseline community transmission risk
+\item \code{beta} \eqn{\beta}{beta}: baseline person-to-person transmission risk
+\item \code{gamma} \eqn{\gamma}{gamma}: household-size scaling of person-to-person risk
+\item \code{hh_size_ref} \eqn{n_\mathrm{ref}}{n_ref}: size of reference household
 }
 }
 
 \section{Group Risks}{
 
 \itemize{
-\item \code{community} \eqn{\mu^\mathrm{com}}{mu^com} : predisposition to infection from community relative to reference
-\item \code{susceptibility} \eqn{\mu^\mathrm{sus}}{mu^sus} : predisposition to infection relative to reference
-\item \code{infectivity} \eqn{\mu^\mathrm{inf}}{mu^inf} : predisposition to transmission relative to reference
+\item \code{community} \eqn{\mu^\mathrm{com}}{mu^com}: predisposition to infection from community relative to reference
+\item \code{susceptibility} \eqn{\mu^\mathrm{sus}}{mu^sus}: predisposition to infection relative to reference
+\item \code{infectivity} \eqn{\mu^\mathrm{inf}}{mu^inf}: predisposition to transmission relative to reference
 }
 }
 
@@ -36,22 +36,22 @@ The likelihood of a household sums over every transmission chain that ends in th
 for a household of size \eqn{n} where member \eqn{i} has status \eqn{s_i = 1}{s_i = 1} if infected, \eqn{s_i = 0}{s_i = 0} if escaped,
 and \eqn{n^{+}}{n^+} members are infected.
 \itemize{
-\item Escaped contribution :
+\item Escaped contribution:
 \eqn{p^\mathrm{esc} = \prod_{i:\,s_i = 0} q^\mathrm{com}_{i} \prod_{j:\,s_j = 1} q^\mathrm{pp}_{ji}}{p^esc = prod_{i: s_i = 0} q^com_i prod_{j: s_j = 1} q^pp_ji}
-\item Infected contribution \insertCite{longini_household_1982,addy_generalized_1991}{housepi} :
+\item Infected contribution \insertCite{longini_household_1982,addy_generalized_1991}{housepi}:
 \eqn{p^\mathrm{inf} = 1 - \sum_{m=0}^{n^{+}-1} P_m}{p^inf = 1 - sum_{m = 0}^{n^+ - 1} P_m}
-\item Chains of smaller final size :
+\item Chains of smaller final size:
 \eqn{P_m = \sum_{k=1}^{\binom{n^{+}}{m}} p^\mathrm{transm}\left(s^{(m,k)}\right)}{P_m = sum_{k = 1}^{choose(n^+, m)} p^transm(s^(m,k))},
 where \eqn{s^{(m,k)}}{s^(m,k)} keeps the \eqn{k}-th choice of \eqn{m} infected among the \eqn{n^{+}}{n^+} and sets the others to escaped
 }
 
 with escape probabilities
 \itemize{
-\item from the community :
+\item from the community:
 \eqn{q^\mathrm{com}_{i} = \exp\left(-\alpha \, \mu^\mathrm{com}_{i}\right)}{q^com_i = exp(-alpha mu^com_i)}
-\item from member \eqn{j} to member \eqn{i} :
+\item from member \eqn{j} to member \eqn{i}:
 \eqn{q^\mathrm{pp}_{ji} = \exp\left(-\beta \left(\tfrac{n_\mathrm{ref}}{n}\right)^{\gamma} \mu^\mathrm{inf}_{j} \, \mu^\mathrm{ctc}_{ji} \, \mu^\mathrm{sus}_{i}\right)}{q^pp_ji = exp(-beta (n_ref / n)^gamma mu^inf_j mu^ctc_ji mu^sus_i)}
-\item \eqn{\mu^\mathrm{ctc}_{ji}}{mu^ctc_ji} : contact risk from member \eqn{j} to member \eqn{i}, equal to 1 unless set by \code{\link[=add_contact_risk]{add_contact_risk()}}
+\item \eqn{\mu^\mathrm{ctc}_{ji}}{mu^ctc_ji}: contact risk from member \eqn{j} to member \eqn{i}, equal to 1 unless set by \code{\link[=add_contact_risk]{add_contact_risk()}}
 }
 }
 
@@ -59,8 +59,8 @@ with escape probabilities
 
 \code{\link[=inspect_house_state]{inspect_house_state()}} reports in \code{model_quantities}:
 \itemize{
-\item \code{community_escape} : \eqn{q^\mathrm{com}_{i}}{q^com_i}, per member
-\item \code{p2p_escape} : \eqn{q^\mathrm{pp}_{ji}}{q^pp_ji}, infector \eqn{j} by row and infectee \eqn{i} by column, 1 on the diagonal
+\item \code{community_escape}: \eqn{q^\mathrm{com}_{i}}{q^com_i}, per member
+\item \code{p2p_escape}: \eqn{q^\mathrm{pp}_{ji}}{q^pp_ji}, infector \eqn{j} by row and infectee \eqn{i} by column, 1 on the diagonal
 }
 }
 

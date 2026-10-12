@@ -35,8 +35,8 @@ namespace housepi::risks
         std::vector<size_t> scaling_params = {}; /// Distinct risks the group applies.
 
         /// Whether the overall scale of the rule group is free.
-        /// - a rule names the reference: not free;
-        /// - some risk applied is pinned: not free, it fixes the level of the whole group.
+        /// * a rule names the reference -> not free;
+        /// * some risk applied is pinned -> not free, it fixes the level of the whole group.
         bool is_free(const Parameter &param) const;
     };
 

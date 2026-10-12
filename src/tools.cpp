@@ -324,7 +324,7 @@ namespace housepi::str
     namespace
     {
         /// Return Levenshtein distance between `seq_A` and `seq_B`.
-        /// - one empty sequence: length of the other.
+        /// * one empty sequence -> length of the other.
         /// Based on @cite wikipedia_levenshtein_2026
         size_t helper_levenshtein_(std::string_view seq_A, std::string_view seq_B)
         {
@@ -545,7 +545,7 @@ namespace housepi::parse
     {
         /// Split `s` at top-level delimiters, skipping those inside brackets.
         ///
-        /// - n delimiters give n + 1 entries, empty ones included: an unnamed argument keeps its key slot.
+        /// * n delimiters give n + 1 entries, empty ones included: an unnamed argument keeps its key slot.
         std::vector<std::string> split_top_(const std::string &s)
         {
             std::vector<std::string> entries;

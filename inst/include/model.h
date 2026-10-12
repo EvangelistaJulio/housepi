@@ -63,8 +63,8 @@ namespace housepi
 
 	/// Transmission model: per-household log-likelihood and simulation hooks.
 	///
-	/// - built-in and custom models derive from it through the `HOUSEPI_*` macros;
-	/// - the accessors below read the engine the model is bound to.
+	/// * built-in and custom models derive from it through the `HOUSEPI_*` macros;
+	/// * the accessors below read the engine the model is bound to.
 	class ModelBase
 	{
 	public:
@@ -102,15 +102,15 @@ namespace housepi
 		/// Compute the transmission log-likelihood of `house`.
 		virtual double compute_house_transm_log_lik(const Household & /*house*/) = 0;
 		/// Export named quantities of `house` at the current state into `out`.
-		/// - called on an equivalence-class head, once every class is evaluated;
-		/// - default: nothing.
+		/// * called on an equivalence-class head, once every class is evaluated;
+		/// * default -> nothing.
 		/// @note A cache written by compute_house_transm_log_lik() may hold a rejected proposal.
 		virtual void export_house_quantities(const Household & /*house*/, HouseQuantities & /*out*/) {}
 
 		/// Initialize the model for evaluation (cache variables, lookup tables).
 		virtual void init_model_for_evaluation() {}
 		/// Initialize household `house` for evaluation.
-		/// - runs right after init_model_for_evaluation().
+		/// * runs right after init_model_for_evaluation().
 		virtual void init_house_for_evaluation(const Household & /*house*/) {}
 
 		/// Initialize the model for simulation (cache variables, lookup tables).
@@ -170,7 +170,7 @@ namespace housepi
 		//////  Setter: model calls  //////
 
 		/// Set member `indiv` infected, at the status the status process draws.
-		/// - no status process: the lowest infected status.
+		/// * no status process -> the lowest infected status.
 		/// @note Call init_missing_latent() after to initialize individual status-specific variables.
 		void set_infected(Household &house, Individual &indiv)
 		{
@@ -186,7 +186,7 @@ namespace housepi
 		void set_latent_value(size_t a, const Individual &m, double x) { mcmc_->augm.at(a, m).set(x); }
 
 		/// Initialize the latents and observations of member `indiv`.
-		/// - latent set by the user: skipped.
+		/// * latent set by the user -> skipped.
 		/// @todo Allow order-dependent assignments in simulation.
 		void init_missing_latent(Individual &indiv)
 		{
@@ -249,8 +249,8 @@ namespace housepi
 		//////  Cache  //////
 
 		/// @name Model cache of the equivalence class of `house`, by cache key.
-		/// - recovered on a rejected latent move;
-		/// - recovered on a rejected move of a parameter feeding the infectivity profile.
+		/// * recovered on a rejected latent move;
+		/// * recovered on a rejected move of a parameter feeding the infectivity profile.
 		/// @note Values computed from other parameters may hold a rejected proposal: recompute them.
 		///@{
 

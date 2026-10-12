@@ -46,7 +46,7 @@ namespace housepi
 {
     /// Exception raised by housepi code, its message written as cli markup.
     ///
-    /// - any other exception: foreign, its message rendered literally in R.
+    /// * any other exception -> foreign, its message rendered literally in R.
     /// @note Keep its qualified name in sync with the R side.
     struct TrustedException : std::exception
     {
@@ -121,7 +121,7 @@ namespace housepi
 
         /// Convert `input` to an IntegerVector when `discr` is requested.
         /// Values are assumed whole.
-        /// - value beyond the int range: `input` returned unchanged.
+        /// * value beyond the int range -> `input` returned unchanged.
         SEXP rcpp_typed_column(const Rcpp::NumericVector &input, bool discr)
         {
             constexpr int machine_max_int = std::numeric_limits<int>::max();
@@ -142,7 +142,7 @@ namespace housepi
         }
 
         /// Convert an interval to an R list.
-        /// - unbounded side: -Inf or Inf.
+        /// * unbounded side -> -Inf or Inf.
         Rcpp::List rcpp_interval(double min, double max,
                                  Interval below, Interval above)
         {
@@ -180,15 +180,15 @@ namespace housepi
         }
 
         /// Fill a fixed number of named column slots, then stamp them as an R data.frame.
-        /// - column: protected by its slot from the moment it is added;
-        /// - repeated name: a second column, never a replacement.
+        /// * column -> protected by its slot from the moment it is added;
+        /// * repeated name -> a second column, never a replacement.
         struct RcppFrame
         {
             explicit RcppFrame(size_t n_cols)
                 : cols_(n_cols), names_(n_cols) {}
 
             /// Place column `col` named `name` in the next slot.
-            /// - slot past the declared width: Rcpp index error.
+            /// * slot past the declared width -> Rcpp index error.
             void add(const std::string &name, SEXP col)
             {
                 names_(next_) = name;
@@ -254,8 +254,8 @@ namespace housepi
             Rcpp::NumericVector args() const { return rcpp_export_args(ptr_.get()); }
 
             /// Whether the definition takes discrete values.
-            /// - plain function: the values it returns;
-            /// - distribution: the values of its support, so drawing families override this.
+            /// * plain function -> the values it returns;
+            /// * distribution -> the values of its support, so drawing families override this.
             virtual bool is_discrete() const { return ptr_->codomain().on_integers(); }
             /// Whether the definition is provably strictly positive.
             virtual bool is_positive() const { return ptr_->is_positive(); }
@@ -452,7 +452,7 @@ namespace housepi
         //////////////////////////////  MCMC : imports from Rcpp  //////////////////////////////
 
         /// Convert an R data frame to a table of columns, by name.
-        /// - NULL: empty table.
+        /// * NULL -> empty table.
         template <class Table>
         Table rdataframe_to(SEXP input)
         {
@@ -697,7 +697,7 @@ namespace housepi
         //////  MCMC : data::Long : exports  //////
 
         /// Export the long data of the members of `scope`, one row per entry.
-        /// - no long data: empty data frame.
+        /// * no long data -> empty data frame.
         template <class Scope>
         Rcpp::DataFrame rcpp_long_frame(const Data &data, const Scope &scope)
         {
@@ -802,9 +802,9 @@ namespace housepi
         //////  Posterior : Rcpp export methods  //////
 
         /// Flush `draws` as a data.frame, releasing its C++ storage column by column.
-        /// - missing draw: NA;
-        /// - table columns reading one stored column share its SEXP, until R modifies one;
-        /// - flushed again: empty data.frame.
+        /// * missing draw -> NA;
+        /// * table columns reading one stored column share its SEXP, until R modifies one;
+        /// * flushed again -> empty data.frame.
         Rcpp::DataFrame flush_draws(Posterior::Draws &draws)
         {
             Rcpp::List stored(draws.cols.size());
@@ -882,7 +882,7 @@ namespace housepi
         }
 
         /// Snapshot the contact risks of `house` as a from-by-to matrix, with member ids as dimnames.
-        /// - no contact risk defined: empty 0x0 matrix.
+        /// * no contact risk defined -> empty 0x0 matrix.
         Rcpp::NumericMatrix rcpp_snapshot_contact_risks(Rcpp::XPtr<MCMC> mcmc_ptr,
                                                         const Household &house)
         {
@@ -945,7 +945,7 @@ namespace housepi
         }
 
         /// Snapshot the log-density of each key of `list`, per member of `house`.
-        /// - key with no distribution for a member: NA.
+        /// * key with no distribution for a member -> NA.
         Rcpp::DataFrame rcpp_snapshot_log_lik(Rcpp::XPtr<MCMC> mcmc_ptr,
                                               const Household &house,
                                               const std::vector<size_t> &list)
@@ -986,8 +986,8 @@ namespace housepi
         }
 
         /// Snapshot the quantities the model exports for `house`, with member ids as names and dimnames.
-        /// - read from the class head, mapped onto the members of `house`;
-        /// - some household not evaluated at the current state: empty list.
+        /// * read from the class head, mapped onto the members of `house`;
+        /// * some household not evaluated at the current state -> empty list.
         Rcpp::List rcpp_snapshot_model_quantities(Rcpp::XPtr<MCMC> mcmc_ptr,
                                                   const Household &house)
         {
@@ -1092,8 +1092,8 @@ namespace housepi
                             }
 
                             // surrogate columns:
-                            // - household reduction: one value shared by every member row;
-                            // - member column: read on each member, never-infected ones included, as the model reads them.
+                            // * household reduction -> one value shared by every member row;
+                            // * member column -> read on each member, never-infected ones included, as the model reads them.
                             size_t c = augm.scheme().list_latent_export.size() + augm.scheme().list_obs_member.size();
                             for (const augm::Surrogate &surr : augm.scheme().list_surrogate)
                             {
@@ -1168,9 +1168,9 @@ namespace housepi
 
             /// Restore observed status and point every read-cell back at its imported value.
             ///
-            /// - post-simulation reads of data_wide return the input;
-            /// - generated values leave through the simulated frames;
-            /// - wired cells refer to Variables the next run clears.
+            /// * post-simulation reads of data_wide return the input;
+            /// * generated values leave through the simulated frames;
+            /// * wired cells refer to Variables the next run clears.
             void restore(MCMC &engine)
             {
                 engine.augm.release_simulation();
@@ -1183,8 +1183,8 @@ namespace housepi
 
         /// Report the progress of a run to the R session.
         ///
-        /// - each report checks for user interrupts;
-        /// - R `NULL` handle: no bar to fill.
+        /// * each report checks for user interrupts;
+        /// * R `NULL` handle -> no bar to fill.
         struct Progress
         {
             ProgressBar *bar; /// Bar filled, null for none.
@@ -1409,8 +1409,8 @@ namespace housepi
         }
         /// Run inference on every engine of `engine_list`, `workers` of them at once.
         ///
-        /// - main thread: checks user interrupts and refreshes `progress`;
-        /// - first error or user interrupt: every engine stops at its next iteration.
+        /// * main thread -> checks user interrupts and refreshes `progress`;
+        /// * first error or user interrupt -> every engine stops at its next iteration.
         /// @param progress Progress handle filled one unit per engine, or R `NULL`.
         /// @return List of `seconds` per engine, the `error` that stopped the run and the engine that `failed`.
         Rcpp::List run_inference_list(Rcpp::List engine_list, int workers, SEXP progress)
@@ -1448,7 +1448,7 @@ namespace housepi
         }
 
         /// Aggregate individuals by hh_id, given as 1-based codes of the distinct ids.
-        /// - missing status: NA (NA_INTEGER is INT_MIN).
+        /// * missing status -> NA (NA_INTEGER is INT_MIN).
         measure::cases::Table summarise_houses_from_df(Rcpp::DataFrame data_wide)
         {
             Rcpp::CharacterVector col_names = data_wide.names();
@@ -1473,7 +1473,7 @@ namespace housepi
         }
 
         /// Export a mean rate per household size, in column `name`.
-        /// - size with no contributing household: NA.
+        /// * size with no contributing household -> NA.
         Rcpp::DataFrame rcpp_rate_by_hh_size(unsigned grid_min,
                                              const std::vector<double> &mean,
                                              const std::vector<unsigned> &count,

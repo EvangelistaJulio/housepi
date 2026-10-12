@@ -128,11 +128,11 @@ public:
 
 	/// Store community and person-to-person escape rates of `house` in the cache.
 	/// @todo Compute per partition, not per member, escaped partitions included:
-	/// - fill rates between part representatives (`part_indexes`) only;
-	/// - partition escaped members in `init_house_for_evaluation()`;
-	/// - sum escaped contributions by counts, sum_E n_E (commu_E + sum_P n_P p2p_PE);
-	/// - read the intra-partition diagonal in the homogeneous branch, not `[0][1]`;
-	/// - keep a per-member fill for export_house_quantities().
+	/// * fill rates between part representatives (`part_indexes`) only;
+	/// * partition escaped members in `init_house_for_evaluation()`;
+	/// * sum escaped contributions by counts, sum_E n_E (commu_E + sum_P n_P p2p_PE);
+	/// * read the intra-partition diagonal in the homogeneous branch, not `[0][1]`;
+	/// * keep a per-member fill for export_house_quantities().
 	void fill_house_escape_matrix(const Household &house)
 	{
 		const MemberIdx house_size = house.size();
@@ -192,8 +192,8 @@ public:
 	}
 
 	/// Export community and person-to-person escape probabilities of `house`, by member.
-	/// - `community_escape`: one per member;
-	/// - `p2p_escape`: infector by row, infectee by column, diagonal 1.
+	/// * `community_escape`: one per member;
+	/// * `p2p_escape`: infector by row, infectee by column, diagonal 1.
 	void export_house_quantities(const Household &house, HouseQuantities &out) override final
 	{
 		// escape rates at the current parameters

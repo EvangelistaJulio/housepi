@@ -7,22 +7,20 @@
 sample_house_structure(data_wide, houses = NA_integer_)
 }
 \arguments{
-\item{data_wide}{\code{data.frame} Household data used for analysis (wide format).
-Optional at construction; if omitted, attach it later with
-\link[=add_data_wide]{add_data_wide()}.}
+\item{data_wide}{\code{data.frame} Household data used for analysis (wide format).}
 
 \item{houses}{\code{integer(1)} Number of households to draw.
-\code{NA} targets the number of households carried by \code{data_wide}.}
+If \code{NA}, the number of households carried by \code{data_wide}.}
 }
 \value{
-\code{data.frame} with \code{hh_id} renumbered sequentially, so a household
-drawn twice stands as two independent households, and \code{id} regenerated as
-a row number when the input carries one.
+\code{data.frame} The survey, \code{hh_id} renumbered sequentially,
+so a household drawn twice stands as two independent households,
+and \code{id} regenerated as a row number when the input carries one.
 }
 \description{
 Draw whole households with replacement, so the household-size distribution
-and the within-household composition of the covariates are preserved while
-the number of households is scaled.
+and the within-household composition of the covariates are preserved
+while the number of households is scaled.
 }
 \examples{
 structure <- sample_house_structure(flu_1918_frederick, houses = 20)

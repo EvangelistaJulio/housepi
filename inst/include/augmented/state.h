@@ -32,9 +32,9 @@ namespace housepi::augm
     struct SimMember
     {
         /// Variables per status scheme, swapped into the member's own when its status selects them.
-        /// - unreachable status scheme: no block;
-        /// - key left unbound: empty, as in State::blank;
-        /// - binding error: partial, never swapped in.
+        /// * unreachable status scheme -> no block;
+        /// * key left unbound -> empty, as in State::blank;
+        /// * binding error -> partial, never swapped in.
         std::vector<std::vector<Variable>> blocks = {};
         std::vector<std::exception_ptr> errors = {}; /// Binding error per status scheme, raised if reached.
         std::vector<size_t> swapped = {};            /// Keys the member holds from its block.
@@ -45,8 +45,8 @@ namespace housepi::augm
     {
         std::vector<IndivState> varia = {}; /// Member variables, by individual index.
         /// Household observations, per house and slot.
-        /// - inference: bound to data;
-        /// - simulation: live.
+        /// * inference -> bound to data;
+        /// * simulation -> live.
         std::vector<std::vector<Variable>> house_varia = {};
 
         std::vector<SimMember> sim = {};  /// Simulation storage, by individual index.
@@ -73,7 +73,7 @@ namespace housepi::augm
     //////  Log-likelihood  //////
 
     /// Compute and store the latent-model log-likelihood of a member.
-    /// - value outside a support shifted by a moved parameter: -Inf.
+    /// * value outside a support shifted by a moved parameter -> -Inf.
     double commit_latent_log_lik(const StatusScheme &ss,
                                  IndivState &st);
     /// Compute and store the log-ratio of models a move of `a` touches, `a` included.
@@ -81,7 +81,7 @@ namespace housepi::augm
                                        IndivState &st,
                                        size_t a);
     /// Sum the log-densities of models `a` can shift, `a` included.
-    /// - consumer out of support: -Inf.
+    /// * consumer out of support -> -Inf.
     double sum_guarded_latent_log_lik(const StatusScheme &ss,
                                       const IndivState &st,
                                       size_t a);
@@ -93,7 +93,7 @@ namespace housepi::augm
                                                       double L_old);
 
     /// Evaluate the observation log-likelihood of a member, without storing it.
-    /// - datum outside its support: -Inf.
+    /// * datum outside its support -> -Inf.
     double eval_log_obs(const StatusScheme &ss,
                         const IndivState &st);
     /// Compute and store the observation log-likelihood of a member.

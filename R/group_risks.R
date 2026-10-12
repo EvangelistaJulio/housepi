@@ -11,8 +11,8 @@ risk_reserved_cols <- c("group_risk", "param_name", "n", "rule_group",
 # Covariate columns of logic table `tbl`.
 risk_cov_cols_ <- function(tbl) strata_cov_cols_(tbl, risk_reserved_cols)
 
-# Assert that the covariates of a risk are character and take no reserved name
-# but the ones in `allow`.
+# Assert the covariates of a risk are character and take no reserved name,
+# except those in `allow`.
 assert_risk_covariates_ <- function(covariates, allow = character()) {
   if (all(is.na(covariates))) return(invisible())
   if (isFALSE(is.character(covariates))) stop_h(
@@ -29,9 +29,9 @@ risk_rule_groups_ <- function(tbl) {
   compute_rule_groups(tbl, risk_cov_cols_(tbl), "param_name")
 }
 
-# Stop on risk logic tables that do not resolve every unit of `cells` to one
-# rule per group, see assert_strata_fit_(). The hint of an automatic
-# definition `def` names its `by` covariates.
+# Assert risk logic tables resolve every unit of `cells` to one rule per group,
+# see assert_strata_fit_().
+# * automatic definition `def` -> the hint names its `by` covariates.
 assert_risk_fit_ <- function(tables, cells, label, unit, def) {
   hint <- if (identical(def$mode, "auto")) cli::format_inline(
     "Some {.field {def$by}} values are missing: change them, ",
@@ -41,8 +41,8 @@ assert_risk_fit_ <- function(tables, cells, label, unit, def) {
                      risk_reserved_cols, "param_name", label, unit, hint)
 }
 
-# Count the units of `cells` every rule of risk logic table `tbl` is resolved
-# to, see rule_counts_().
+# Count the units of `cells` resolved to each rule of logic table `tbl`,
+# see rule_counts_().
 count_risk_rules_ <- function(tbl, cells) {
   rule_counts_(risk_rule_groups_(tbl), cells, risk_reserved_cols)
 }
@@ -57,7 +57,8 @@ empty_risk_table <- function(cols) {
   as.data.frame(risk_reserved_proto[cols])
 }
 
-# Typed `NA` padding for each of `cols`. A covariate column pads as character.
+# Typed `NA` padding for each of `cols`.
+# * covariate column -> character.
 risk_na_pad <- function(cols) {
   lapply(stats::setNames(cols, cols), function(col) {
     proto <- risk_reserved_proto[[col]]
@@ -65,9 +66,12 @@ risk_na_pad <- function(cols) {
   })
 }
 
-# Parameter definitions of the logic tables of one risk. A named parameter
-# takes its override when given, else the shared `setup` or, missing that,
-# the default for an `absolute` risk; its table pins its values.
+# Parameter definitions of the logic tables of one risk.
+# A named parameter takes, in order of precedence:
+# * its override, when given;
+# * the shared `setup`;
+# * the default for an `absolute` risk.
+# Its table pins its values.
 risk_params_ <- function(tables, overrides, setup, absolute) {
   if (is.null(setup)) setup <- default_risk_mcmc_setup(absolute)
   out <- list()
@@ -81,9 +85,8 @@ risk_params_ <- function(tables, overrides, setup, absolute) {
   out
 }
 
-# Whether a risk carries absolute values, some rule group having no
-# reference. An automatic definition not yet built from the data reads it
-# off its reference.
+# Whether some rule group of a risk has no reference, making it absolute.
+# * automatic definition not yet built from data -> read off its reference.
 risk_is_absolute_ <- function(def, tables) {
   if (!length(def)) return(FALSE)
   if (identical(def$mode, "auto") && !length(tables))
@@ -104,9 +107,8 @@ format_risk_prefix_ <- function(prefix) {
   else paste0(prefix, "_")
 }
 
-# @description
-# Tidy risk table for the read surface. Definitions expand from data.
-# If none is attached the table is an empty shell with columns `cols`.
+# Tidy risk table for the read surface, definitions expanded from data.
+# * no data attached -> empty shell with columns `cols`.
 helper_show_risk_table <- function(module, cols, is_data_attached) {
   out <- module$tidy_table
   if (NROW(out)) return(out)
@@ -130,7 +132,7 @@ risk_mode_ <- function(by, strata, params) {
     return("auto")
   }
   if (is.null(strata)) stop_h(
-    "Invalid risk definition: provide one between {.arg {c('by', 'strata')}}.",
+    "Invalid risk definition: provide one of {.arg {c('by', 'strata')}}.",
     hint
   )
   "custom"
@@ -153,10 +155,8 @@ assert_valid_strata_ <- function(strata, params, reference,
   invisible(strata)
 }
 
-#' Assert that covariate values in data are safe.
-#' @param this_table Logic table whose covariate columns are checked.
-#' @return `character()`
-#' @keywords internal
+#' Assert the covariate values of logic table `this_table` are safe.
+#' @return `character()` Covariate columns checked.
 #' @noRd
 assess_covariate_values <- function(this_table) {
   # column names to consider
@@ -165,10 +165,8 @@ assess_covariate_values <- function(this_table) {
   colmask
 }
 
-#' Assert that a user-provided logic table is valid.
-#' @param logic_table `data.frame` with a `param_name` column.
-#' @param allow Reserved names the caller accepts as covariates.
-#' @keywords internal
+#' Assert a user-provided logic table is valid.
+#' @param allow `character()` Reserved names the caller accepts as covariates.
 #' @noRd
 assert_valid_logic_table <- function(logic_table, allow = character()) {
   assert_strata_shape_(
@@ -189,7 +187,7 @@ assert_valid_logic_table <- function(logic_table, allow = character()) {
   # validate covariate column names
   covariate_cols <- risk_cov_cols_(logic_table)
   assert_risk_covariates_(covariate_cols, allow)
-  # no covariate column, or only catch-all cells, duplicates the baseline
+  # no covariate column, or only catch-all cells -> duplicates the baseline
   if (all(is.na(logic_table[covariate_cols]))) stop_h(
     paste("Strata table sets no covariate value:",
           "its rules cannot tell members apart."),
@@ -199,10 +197,8 @@ assert_valid_logic_table <- function(logic_table, allow = character()) {
   assert_valid_pins(logic_table)
 }
 
-#' Assert that the pin columns of a logic table are valid.
-#' @param tbl `data.frame` logic table with a `param_name` column.
-#' @return `data.frame` the input, invisibly.
-#' @keywords internal
+#' Assert the pin columns of a logic table are valid.
+#' @return `data.frame` Input, invisibly.
 #' @noRd
 assert_valid_pins <- function(tbl) {
   if (!any(risk_pin_cols %in% colnames(tbl))) return(invisible(tbl))
@@ -243,15 +239,11 @@ assert_valid_pins <- function(tbl) {
   invisible(tbl)
 }
 
-#' @title Assert that each rule group designates at most one reference cell.
-#' @description A reference sets the unit scale of its rule group,
-#' so two distinct cells of one group cannot both carry the tag.
-#' Symmetric contact rules reach one cell through either direction,
-#' hence both orderings of a pair count as the same cell.
-#' @param strata `data.frame` logic table with a `param_name` column.
-#' @param symmetric `logical(1)` Treat reversed from/to pairs as one cell.
-#' @return `data.frame` the input, invisibly.
-#' @keywords internal
+#' Assert each rule group designates at most one reference cell.
+#' A reference sets the unit scale of its rule group.
+#' * symmetric contact rules -> both orderings of a pair are one cell.
+#' @param symmetric `logical(1)` Whether reversed from/to pairs are one cell.
+#' @return `data.frame` Input, invisibly.
 #' @noRd
 assert_one_reference_per_group <- function(strata, symmetric = FALSE) {
   idx_refer <- which(strata$param_name == ".reference")
@@ -287,11 +279,9 @@ assert_one_reference_per_group <- function(strata, symmetric = FALSE) {
   invisible(strata)
 }
 
-#' Pins carried by a logic table, keyed by `param_name`.
-#' A stratum spread over several rules carries a single pin, read off its first.
-#' @param tbl `data.frame` logic table with a `param_name` column.
+#' Read the pins of a logic table, keyed by `param_name`.
+#' * stratum spread over several rules -> one pin, read off its first rule.
 #' @return `list` of `list(value = , const = )`, one per pinned stratum.
-#' @keywords internal
 #' @noRd
 collect_table_pins <- function(tbl) {
   if (!any(risk_pin_cols %in% colnames(tbl))) return(list())
@@ -306,11 +296,9 @@ collect_table_pins <- function(tbl) {
 }
 
 #' Fold a stratum pin into its parameter definition.
-#' A fixed stratum is a constant parameter: it carries no prior.
+#' * fixed stratum -> constant parameter, no prior.
 #' @param def `list` Shared MCMC setup of the risk.
-#' @param pin `list` or `NULL` Pin of the stratum.
-#' @return `list`
-#' @keywords internal
+#' @param pin `list` | `NULL` Pin of the stratum.
 #' @noRd
 helper_pin_param_def <- function(def, pin) {
   if (is.null(pin)) return(def)
@@ -319,12 +307,10 @@ helper_pin_param_def <- function(def, pin) {
 }
 
 #' Whether a set of logic tables leaves the scale of its risk free.
-#' Every unit matches a rule of every rule group, so a rule group without a
-#' `.reference` row sets the scale on its own. A table without rules carries
-#' no scale.
+#' * rule group without a `.reference` row -> sets the scale on its own,
+#'   as every unit matches a rule of every rule group;
+#' * table without rules -> carries no scale.
 #' @param tables `list` of logic tables with a `param_name` column.
-#' @return `logical(1)`
-#' @keywords internal
 #' @noRd
 lacks_reference_ <- function(tables) {
   any(vapply(tables, function(tbl) {
@@ -334,10 +320,8 @@ lacks_reference_ <- function(tables) {
 }
 
 #' Assert every `params` entry names a parameter the strata table declares.
-#' @param strata `data.frame` logic table with a `param_name` column.
 #' @param params `list` Per-parameter MCMC-setup overrides.
-#' @return `list` the input `params`, invisibly.
-#' @keywords internal
+#' @return `list` `params`, invisibly.
 #' @noRd
 assert_known_params_names <- function(strata, params) {
   unknown <- setdiff(names(params), setdiff(strata$param_name, ".reference"))
@@ -347,11 +331,9 @@ assert_known_params_names <- function(strata, params) {
   invisible(params)
 }
 
-#' Warn that `params` is dropped: an automatic definition derives its own
-#' parameters, so the list has nothing to override.
+#' Warn that automatic mode drops `params`, as it derives its own parameters.
 #' @param params `list` Per-parameter MCMC-setup overrides.
-#' @return `list` the input `params`, invisibly.
-#' @keywords internal
+#' @return `list` `params`, invisibly.
 #' @noRd
 warn_unused_auto_params <- function(params) {
   if (!length(params)) return(invisible(params))
@@ -363,11 +345,9 @@ warn_unused_auto_params <- function(params) {
   invisible(params)
 }
 
-#' Assert that no stratum is both pinned and overridden through `params`.
-#' @param strata `data.frame` logic table with a `param_name` column.
+#' Assert no stratum is both pinned and overridden through `params`.
 #' @param params `list` Per-parameter MCMC-setup overrides.
-#' @return `list` the input `params`, invisibly.
-#' @keywords internal
+#' @return `list` `params`, invisibly.
 #' @noRd
 assert_no_pin_params_clash <- function(strata, params) {
   clash <- intersect(names(params), names(collect_table_pins(strata)))
@@ -380,10 +360,7 @@ assert_no_pin_params_clash <- function(strata, params) {
   invisible(params)
 }
 
-#' Set ordering for risk logic-tables: `.reference` first, decreasing 'n'.
-#' @param tbl `data.frame` Logic table with `param_name`, `n`.
-#' @return `data.frame`
-#' @keywords internal
+#' Order a risk logic table: `.reference` first, then by decreasing `n`.
 #' @noRd
 reorder_risks_logic_table <- function(tbl) {
   if (!nrow(tbl)) return(tbl)
@@ -394,12 +371,10 @@ reorder_risks_logic_table <- function(tbl) {
 }
 
 #' Read the data status column as infected-status labels.
-#' Escaped and missing members carry `NA`: they match no status rule and read
-#' the reference risk.
+#' * escaped or missing member -> `NA`, which matches no status rule
+#'   and reads the reference risk.
 #' @param x Status column, integer codes or a factor of labels.
 #' @param status_codes `integer()` Engine status codes, named after the labels.
-#' @return `character()`
-#' @keywords internal
 #' @noRd
 status_as_labels <- function(x, status_codes) {
   labels <- names(status_codes)
@@ -410,13 +385,10 @@ status_as_labels <- function(x, status_codes) {
   labels[match(suppressWarnings(as.integer(x)), status_codes)]
 }
 
-#' Return logic table of group risks
-#' @param data_wide Data from which to extract group risks
-#' @param this_cov Covariate as list of data column names.
+#' Build the logic table of one group risk from the data.
+#' @param this_cov `list` Covariate data column names.
 #' @param status_levels `character()` Declared infected-status labels.
 #' @param status_observed `logical(1)` Whether the data carries any status.
-#' @return data.frame with logic table
-#' @keywords internal
 #' @noRd
 group_risk_logic_table <- function(data_wide, this_cov,
                                    status_levels = character(),
@@ -435,16 +407,16 @@ group_risk_logic_table <- function(data_wide, this_cov,
   # create a dataframe of all possible multi-covariates
   y <- expand.grid(uni_covariates)
 
-  # count every combination in one pass. A cell the data does not carry
-  # matches no stratum, so those members are left out of the count
+  # count every combination in one pass
+  # * cell the data does not carry -> matches no stratum, members left out
   carried <- data_wide[stats::complete.cases(data_wide[this_cov]), ,
                        drop = FALSE]
   counted <- table(row_keys_(carried, this_cov))
   multicov_count <- as.integer(counted[row_keys_(y, this_cov)])
   multicov_count[is.na(multicov_count)] <- 0L
 
-  # keep the combinations the data carries; a member may draw any infected
-  # status, so every declared level stands on each of them
+  # keep the combinations the data carries, each at every declared status
+  # level, as a member may draw any infected status
   keep <- multicov_count > 0
   if ("status" %in% this_cov) {
     others <- setdiff(this_cov, "status")
@@ -456,25 +428,20 @@ group_risk_logic_table <- function(data_wide, this_cov,
     }
   }
   y <- y[keep, , drop = FALSE]
-  # no status is observed: sample sizes unknown
+  # no status observed -> sample sizes unknown
   y$n <- if ("status" %in% this_cov && isFALSE(status_observed))
     rep(NA_integer_, nrow(y)) else multicov_count[keep]
 
   y
 }
 
-#' Associate parameter name to group risk logic table.
-#' @param this_table
-#' Data.frame containing conditions for the group risk.
-#' @param prefix
-#' Prefix to parameter names associated to the group risk.
-#' @param reference
-#' Choose reference providing corresponding covariates.
-#' `".auto"` picks the group with the largest sample size.
-#' Empty leaves the risk without a reference.
-#' @return
-#' input data.frame with logic table with parameter names.
-#' @keywords internal
+#' Name the parameters of a group risk logic table.
+#' @param this_table `data.frame` Conditions of the group risk.
+#' @param prefix `character(1)` Prefix of parameter names.
+#' @param reference Covariates of the reference group:
+#' * `".auto"` -> the group with the largest sample size;
+#' * empty -> no reference.
+#' @return `data.frame` Input with a `param_name` column.
 #' @noRd
 associate_group_param_names <- function(this_table, prefix, reference) {
   # column names to consider
@@ -520,10 +487,7 @@ reference_rows_ <- function(tbl, cols, reference) {
   })))
 }
 
-#' Combine list with group risk definition into a single dataframe
-#' @param all_tables `list`. Definitions for each group risk.
-#' @return `data.frame`
-#' @keywords internal
+#' Bind the group risk definitions into one `data.frame`.
 #' @noRd
 tidyup_group_risk_tables <- function(all_tables) {
   df_list <- lapply(names(all_tables), function(risk) {
@@ -531,7 +495,7 @@ tidyup_group_risk_tables <- function(all_tables) {
     if (!length(this_table)) return(data.frame(
       group_risk = risk, param_name = ".reference", rule_group = 1L
     ))
-    # concat this risk's sub-tables, then compute rule_groups within risk
+    # bind this risk's sub-tables, then compute its rule_groups
     cols <- unique(c("param_name", "n",
                      sort(unlist(lapply(this_table, names)))))
     tbl <- risk_rule_groups_(do.call(rbind, lapply(this_table, pad_risk_cols_,
@@ -550,13 +514,12 @@ tidyup_group_risk_tables <- function(all_tables) {
   as.data.frame(combined_df)
 }
 
-#' Return the user MCMC setup of a risk as written, `NULL` if every choice is
-#' missing. It is validated here and encoded once its parameters are declared.
+#' Validate the user MCMC setup of a risk, returned as written.
+#' It is encoded once the risk's parameters are declared.
+#' * every choice missing -> `NULL`.
 #' @param dots `list` Distribution and proposal arguments.
 #' @param family `character(1)` Holder family.
-#' @param name `character(1)` or `NULL`. Name of the risk, when it has one.
-#' @return `list` or `NULL`
-#' @keywords internal
+#' @param name `character(1)` | `NULL` Name of the risk, when it has one.
 #' @noRd
 unwrap_risk_setup_ <- function(prior, proposal, min, max, dots, family,
                                name = NULL) {
@@ -573,7 +536,7 @@ unwrap_risk_setup_ <- function(prior, proposal, min, max, dots, family,
   setup <- c(list(prior = prior), as.list(args),
              list(min = min, max = max, proposal = proposal))
   is_default <- vapply(setup, \(x) isTRUE(is.na(x)), logical(1))
-  # all defaults: resolved once the data tells absolute from relative
+  # all defaults -> resolved once the data tells absolute from relative
   if (all(is_default)) return(NULL)
   # nolint next: object_usage_linter. read by the cli glue below
   label <- if (is.null(name)) family else name
@@ -585,11 +548,9 @@ unwrap_risk_setup_ <- function(prior, proposal, min, max, dots, family,
 }
 
 #' Return the default MCMC setup of a risk.
-#' Absolute risks are rates on their own; relative ones are ratios,
-#' whose defaults follow \insertRef{cauchemez_household_2009}{housepi}.
+#' * absolute -> rates on their own;
+#' * relative -> ratios, as in \insertRef{cauchemez_household_2009}{housepi}.
 #' @param absolute `logical(1)` Whether the risk carries absolute values.
-#' @return `list`
-#' @keywords internal
 #' @noRd
 default_risk_mcmc_setup <- function(absolute) {
   if (isTRUE(absolute)) list(prior = "uniform", proposal = "rw_log")
@@ -610,29 +571,20 @@ auto_group_reference_ <- function(by, reference) {
   stats::setNames(reference, by)
 }
 
-############################################################################
-############################################################################
-############################# Housepi Group Risk ###########################
-############################################################################
-############################################################################
+########  HousepiGroupRisk  ########
 
-#' @title Internal R6 holder for housepi group-risk definitions
-#' @description
-#' Helper class managing group-risk definitions of the model object.
-#' @keywords internal
+#' Hold the group-risk definitions of a model.
 #' @noRd
 HousepiGroupRisk <- R6::R6Class(
   classname = "HousepiGroupRisk",
   cloneable = TRUE,
 
-  ############################################################################
-  ################################## PRIVATE #################################
-  ############################################################################
+  ####  Private  ####
 
   private = list(
     deep_clone = function(name, value) helper_clone(value),
 
-    # Add risk definition in automatic mode.
+    # Add a definition in automatic mode.
     helper_auto_add_ = function(name, by,
                                 prefix = NA_character_,
                                 reference = NULL,
@@ -655,7 +607,7 @@ HousepiGroupRisk <- R6::R6Class(
       invisible(self)
     },
 
-    # Add risk definition in custom mode.
+    # Add a definition in custom mode.
     helper_custom_add_ = function(name, strata,
                                   params = NULL,
                                   reference = NULL,
@@ -681,9 +633,9 @@ HousepiGroupRisk <- R6::R6Class(
       invisible(self)
     },
 
-    # Stop if one risk does not resolve every member to one rule per group.
-    # A risk read on infected members only is checked at every level in
-    # `status_levels`, whatever the data records.
+    # Assert one risk resolves every member to one rule per group.
+    # * risk read on infected members only -> checked at every level in
+    #   `status_levels`, whatever the data records.
     assert_rules_fit_ = function(risk_id, data_wide,
                                  status_levels = character()) {
       tables <- self$logic_tables[[risk_id]]
@@ -732,7 +684,7 @@ HousepiGroupRisk <- R6::R6Class(
         # status is carried by the model, not required as a data column
         assert_data_covariates(setdiff(cov_cols, "status"), colnames(data_wide))
         tbl$n <- count_risk_rules_(tbl, member_cells_(data_wide, cov_cols))
-        # no status is observed: every declared stratum stands, sizes unknown
+        # no status observed -> every declared stratum stands, sizes unknown
         if ("status" %in% cov_cols && isFALSE(status_observed))
           tbl$n <- NA_integer_
         self$logic_tables[[risk_id]][[ti]] <- tbl
@@ -741,13 +693,10 @@ HousepiGroupRisk <- R6::R6Class(
     }
   ),
 
-  ############################################################################
-  ################################## ACTIVE ##################################
-  ############################################################################
+  ####  Active  ####
 
   active = list(
-    #' @field parameters `list`.
-    #' Parameter definitions associated to group risks.
+    # `list` Parameter definitions associated to group risks.
     parameters = function(value) {
       new_params <- list()
       for (risk_id in names(self$logic_tables)) {
@@ -760,22 +709,22 @@ HousepiGroupRisk <- R6::R6Class(
       new_params
     },
 
-    #' @field data_required `character()`. Data required by group risks.
+    # `character()` Data columns required by group risks.
     data_required = function(value) {
       required <- unique(unlist(lapply(self$defs, `[[`, "by")))
       required <- setdiff(required[!is.na(required)], "status")
       set_source_name_(required, self$family)
     },
 
-    #' @field covariate_names `character()`. Data columns the risks stratify on,
-    #' declared through `by` or carried by a custom logic table.
+    # `character()` Data columns the risks stratify on,
+    # declared through `by` or carried by a custom logic table.
     covariate_names = function(value) {
       setdiff(self$raw_covariate_names, "status")
     },
 
-    #' @field raw_covariate_names `character()`. Stratification axes, `status`
-    #' included. `covariate_names` drops it: it is an always-present model axis,
-    #' neither a required data column nor a name an observation can collide on.
+    # `character()` Stratification axes, `status` included.
+    # `covariate_names` drops `status`, an always-present model axis,
+    # neither a required data column nor a name an observation can collide on.
     raw_covariate_names = function(value) {
       custom <- lapply(unlist(self$logic_tables, recursive = FALSE),
                        risk_cov_cols_)
@@ -783,7 +732,7 @@ HousepiGroupRisk <- R6::R6Class(
       unique(covs[!is.na(covs)])
     },
 
-    #' @field param_required `character()`. Parameters required by group risks.
+    # `character()` Parameters required by group risks.
     param_required = function(value) {
       tables <- unlist(self$logic_tables, recursive = FALSE)
       required <- setdiff(unlist(lapply(tables, `[[`, "param_name")),
@@ -791,40 +740,34 @@ HousepiGroupRisk <- R6::R6Class(
       set_source_name_(required, self$family)
     },
 
-    #' @field tidy_table `data.frame()`.
-    #' Combined list with group risk and parameter definitions.
+    # `data.frame()` Combined list with group risk and parameter definitions.
     tidy_table = function(value) {
       tidyup_group_risk_tables(self$logic_tables)
     }
   ),
 
-  ############################################################################
-  ################################## PUBLIC ##################################
-  ############################################################################
+  ####  Public  ####
 
   public = list(
-    #' @field family `character(1)`. Holder family.
+    # `character(1)` Holder family.
     family = "group risk",
 
-    #' @field store_warn_over `character()`. Cached overwritten names.
+    # `character()` Cached overwritten names.
     store_warn_over = character(),
 
-    #' @field defs `list`. Current group risk definitions.
+    # `list` Current group risk definitions.
     defs = list(),
 
-    #' @field raw_params `list`. Raw parameter definitions.
+    # `list` Raw parameter definitions.
     raw_params = list(),
 
-    #' @field param_overrides `list`.
-    #' Per-parameter MCMC overrides keyed by risk name.
+    # `list` Per-parameter MCMC overrides keyed by risk name.
     param_overrides = list(),
 
-    #' @field logic_tables `list`.
-    #' Table of parameters associated to each group risk.
+    # `list` Parameter table of each group risk.
     logic_tables = list(),
 
-    #' @description
-    #' New object of class [HousepiGroupRisk][housepi::HousepiGroupRisk].
+    # Create an empty holder.
     initialize = function() {
       self$defs <- list()
       self$logic_tables <- list()
@@ -833,9 +776,8 @@ HousepiGroupRisk <- R6::R6Class(
       invisible(self)
     },
 
-    #' @description
-    #' Remove a given group_risk definition.
-    #' @param name `character(1)`. Name of group risk definition to remove.
+    # Remove the group risk definition `name`.
+    # @return `character(1)` | `NULL` Name removed, `NULL` when none matched.
     remove = function(name) {
       if (any(names(self$defs) == name)) {
         # drop previous definition
@@ -849,16 +791,13 @@ HousepiGroupRisk <- R6::R6Class(
       c()
     },
 
-    #' @description
-    #' Whether a risk carries absolute values, some rule group having no
-    #' reference.
-    #' @param name `character(1)`. Name of the group risk definition.
-    #' @return `logical(1)`
+    # Whether some rule group of risk `name` has no reference, making it
+    # absolute.
     is_absolute = function(name) {
       risk_is_absolute_(self$defs[[name]], self$logic_tables[[name]])
     },
 
-    #' @inherit add_group_risk
+    # Add a definition, arguments as in add_group_risk().
     add_quo = function(name, by = NA_character_, ...,
                        reference = NULL, joint = FALSE,
                        strata = NULL, params = NULL,
@@ -868,7 +807,7 @@ HousepiGroupRisk <- R6::R6Class(
                        prefix = NA_character_, .warn_over = TRUE) {
       name <- housepi_smart_unwrap(name, "name")
       by <- housepi_smart_unwrap(by, "by")
-      # control valid name # NOTE: `by` is the injected default variable
+      # check the name, `by` being the injected default variable
       assert_valid_definition_name(name, self$family)
 
       # automatic definition
@@ -905,26 +844,18 @@ HousepiGroupRisk <- R6::R6Class(
       invisible(self)
     },
 
-    #' @inherit add_group_risk
     add_quo_list = function(xquos, append = FALSE) {
       housepi_load_defin_quos(self, "by", xquos, append)
       invisible(self)
     },
 
-    ############################################################################
-    ############################################################################
-    ############################################################################
+    ####  Build  ####
 
-    #' @description
-    #' Implement group risk definition according to data.
-    #' @param data_wide
-    #' A `data.frame` with the dataset to be considered.
-    #' @param status_codes
-    #' `integer()` Engine status codes, named after the labels the risks may
-    #' stratify on.
-    #' @param wall `logical(1)`. Whether to raise error.
-    #' @param stratified `character()` Risks the model reads on infected
-    #' members only.
+    # Build the logic tables from `data_wide`, then assert every member fits.
+    # * keyed on status, none declared -> error at the `wall`, else skipped.
+    # @param status_codes `integer()` Engine status codes,
+    # named after the labels the risks may stratify on.
+    # @param stratified `character()` Risks read on infected members only.
     implement = function(data_wide, status_codes = integer(),
                          wall = FALSE, stratified = character()) {
       # preserve custom-mode entries and drop auto-mode entries
@@ -933,8 +864,9 @@ HousepiGroupRisk <- R6::R6Class(
       )))
       self$logic_tables <- self$logic_tables[mask_custom]
 
-      # read the status through the dictionary: the exported column is a factor
-      # of labels once the levels are known, and integer codes before that
+      # read the status through the dictionary:
+      # * levels known -> a factor of labels;
+      # * before -> integer codes.
       status_levels <- names(status_codes)
       if ("status" %in% colnames(data_wide))
         data_wide[["status"]] <- status_as_labels(data_wide[["status"]],
@@ -942,8 +874,8 @@ HousepiGroupRisk <- R6::R6Class(
       status_observed <- any(!is.na(data_wide[["status"]]))
 
       for (risk_id in names(self$defs)) {
-        # a status-keyed risk waits for the statuses to be declared, so
-        # decorator order stays free; the wall reports one that never came
+        # status-keyed risk -> waits for the statuses to be declared,
+        # so decorator order stays free, the wall reporting one never declared
         if (!length(status_codes) && private$keys_on_status_(risk_id)) {
           if (isTRUE(wall)) stop_h(
             paste("A {self$family} is keyed on {.field status},",
@@ -970,10 +902,8 @@ HousepiGroupRisk <- R6::R6Class(
       invisible(self)
     },
 
-    #' @description
-    #' Stop on group risk definitions the model never reads. A required group
-    #' risk left undefined holds 1 for every member.
-    #' @param required `character()`. Required group risks.
+    # Assert the model reads every group risk defined.
+    # * required risk left undefined -> 1 for every member.
     assert = function(required) {
       notused <- template_not_used_find(required, names(self$defs))
       if (length(notused)) stop_h(
@@ -984,17 +914,14 @@ HousepiGroupRisk <- R6::R6Class(
       invisible(self)
     },
 
-    #' @description
-    #' Tidy table of group risks definition to be passed to Cpp.
-    #' @param info
-    #' `list` of `list`s. Info about class and levels of data columns.
-    #' @param status_codes
-    #' `integer()` Engine status codes, named after the labels.
+    # Encode the definitions for the engine.
+    # @param info `list` of `list`s Class and levels of the data columns.
+    # @param status_codes `integer()` Engine status codes, named by label.
     expose_to_cpp = function(info, status_codes) {
       defs <- self$tidy_table
       defs[c("n", risk_pin_cols)] <- NULL
-      # status carries no entry in `info`: it is coded against the engine
-      # codes the individuals hold, not against a data column
+      # status has no entry in `info`, coded against the engine codes
+      # members hold, not against a data column
       encode_strata_levels_(code_status_col_(defs, status_codes), info,
                             cols = risk_cov_cols_(defs))
     }

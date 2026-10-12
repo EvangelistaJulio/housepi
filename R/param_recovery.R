@@ -3,26 +3,25 @@
 ## SPDX-License-Identifier: GPL-3.0-or-later
 ##
 
-## Roxygen text shared by several blocks, read at the use site as `r <name>`.
+# Roxygen text shared by several blocks, read at the use site as `r <name>`.
 
 rd_recov_houses_ <- "`integer()` One or more household counts to sweep.
-`NA` targets the number of households carried by the attached data."
-rd_recov_truth_ <- "Values the surveys are simulated at, overriding the
-parameter pins of the model. `NULL` reads the pins.
-One between
-- `data.frame`;
-- `posterior::draws`;
-- [HousepiPosteriorDraws][housepi::HousepiPosteriorDraws].
+If `NA`, the number of households carried by the attached data."
+rd_recov_truth_ <- "Values the surveys are simulated at,
+overriding the parameter pins of the model.
+If `NULL`, the pins.
+One of:
+* `data.frame`;
+* `posterior::draws`;
+* [HousepiPosteriorDraws].
 
 Several rows are collapsed to their point estimate."
 
-############################################################################
-############################################################################
-############################################################################
+########  Recovery  ########
 
 #' Simulation values: every pinned parameter, overridden by `truth`.
-#' Mirrors what `run_simulation()` builds from the pins on its own, so the
-#' surveys are generated exactly as an ordinary simulation would.
+#' The pins are those run_simulation() builds on its own,
+#' so the surveys are generated as an ordinary simulation would.
 #' @noRd
 recovery_pins_ <- function(hh_model, truth, point_estimate) {
   pins <- sweep_pins_(hh_model)
@@ -48,9 +47,9 @@ recovery_collapse_truth_ <- function(truth, point_estimate) {
   vapply(tab, function(x) stat(as.numeric(x)), numeric(1L))
 }
 
-#' Simulation values of the estimated parameters. Every one of them must be
-#' pinned, since a recovery check simulates every replicate at the same known
-#' values.
+#' Simulation values of the estimated parameters.
+#' * estimated parameter not pinned -> error, as a recovery check simulates
+#'   every replicate at the same known values.
 #' @noRd
 recovery_truth_ <- function(hh_model, pins) {
   estimated <- sweep_estimated_(hh_model)
@@ -87,14 +86,14 @@ recovery_summary_ <- function(estimates) {
 #' @title Resample the household structure of a survey
 #' @description
 #' Draw whole households with replacement, so the household-size distribution
-#' and the within-household composition of the covariates are preserved while
-#' the number of households is scaled.
+#' and the within-household composition of the covariates are preserved
+#' while the number of households is scaled.
 #' @param data_wide `r rd_add_wide_`
 #' @param houses `integer(1)` Number of households to draw.
-#' `NA` targets the number of households carried by `data_wide`.
-#' @return `data.frame` with `hh_id` renumbered sequentially, so a household
-#' drawn twice stands as two independent households, and `id` regenerated as
-#' a row number when the input carries one.
+#' If `NA`, the number of households carried by `data_wide`.
+#' @return `data.frame` The survey, `hh_id` renumbered sequentially,
+#' so a household drawn twice stands as two independent households,
+#' and `id` regenerated as a row number when the input carries one.
 #' @examples
 #' structure <- sample_house_structure(flu_1918_frederick, houses = 20)
 #' new_housepi_model(structure, "final_size") |>
@@ -118,9 +117,9 @@ sample_house_structure <- function(data_wide, houses = NA_integer_) {
 
 #' @title Parameter recovery check of a housepi model
 #' @description
-#' Container for the sweep run by [check_recovery()]: surveys simulated at
-#' known parameter values and fitted back, replicated at one or more household
-#' counts.
+#' Container for the sweep run by [check_recovery()]:
+#' surveys simulated at known parameter values and fitted back,
+#' replicated at one or more household counts.
 #' @examples
 #' recovery <- flu_1918_frederick |>
 #'   new_housepi_model("final-size") |>
@@ -132,9 +131,7 @@ sample_house_structure <- function(data_wide, houses = NA_integer_) {
 HousepiRecoveryCheck <- R6::R6Class(
   classname = "HousepiRecoveryCheck",
 
-  ############################################################################
-  ################################## PRIVATE #################################
-  ############################################################################
+  ####  Private  ####
 
   private = list(
     name_ = NA_character_,
@@ -148,9 +145,8 @@ HousepiRecoveryCheck <- R6::R6Class(
     warnings_ = NULL,
     secs_ = NA_real_,
 
-    # Point estimate, posterior sd, credible interval, whether it covers the
-    # values the survey was simulated at, and convergence diagnostics per
-    # parameter.
+    # Summarise the draws per parameter: point estimate, posterior sd,
+    # credible interval, whether it covers `truth`, convergence diagnostics.
     summarise_draws_ = function(draws, truth) {
       stat <- switch(private$point_estimate_, mean = mean, stats::median)
       probs <- cri_level_probs(private$cri_level_)
@@ -173,22 +169,20 @@ HousepiRecoveryCheck <- R6::R6Class(
     }
   ),
 
-  ############################################################################
-  ################################## ACTIVE ##################################
-  ############################################################################
+  ####  Active  ####
 
   active = list(
     #' @field estimates `data.frame`
     #' One row per household count, replicate and parameter
     #' \describe{
-    #'   \item{truth}{Value the survey was simulated at}
-    #'   \item{estimate}{Posterior point estimate}
-    #'   \item{sd}{Posterior standard deviation}
-    #'   \item{cri_lower, cri_upper}{Credible interval bounds}
-    #'   \item{covers}{Whether the credible interval covers the truth}
-    #'   \item{rhat, ess_bulk}{Convergence diagnostics of the fit}
+    #'   \item{truth}{Value the survey was simulated at;}
+    #'   \item{estimate}{Posterior point estimate;}
+    #'   \item{sd}{Posterior standard deviation;}
+    #'   \item{cri_lower, cri_upper}{Credible interval bounds;}
+    #'   \item{covers}{Whether the credible interval covers the truth;}
+    #'   \item{rhat, ess_bulk}{Convergence diagnostics of the fit;}
     #'   \item{flagged}{`TRUE` when the diagnostics flagged the parameter:
-    #'     `r paste(diagnostic_flags_, collapse = "; ")`}
+    #'     `r paste(diagnostic_flags_, collapse = "; ")`.}
     #' }
     estimates = function(value) {
       assert_read_only_(value, "estimates")
@@ -198,11 +192,11 @@ HousepiRecoveryCheck <- R6::R6Class(
     #' @field replicates `data.frame`
     #' One row per household count and replicate
     #' \describe{
-    #'   \item{seed}{Seed of the fit's random number generators}
-    #'   \item{inference_secs}{Wall-clock of the sampling loop}
-    #'   \item{min_ess_bulk}{Smallest bulk effective sample size over the
-    #'     parameters of the fit}
-    #'   \item{flagged}{Whether any parameter of the fit was flagged}
+    #'   \item{seed}{Seed of the fit's random number generators;}
+    #'   \item{inference_secs}{Wall-clock of the sampling loop;}
+    #'   \item{min_ess_bulk}{Smallest bulk effective sample size
+    #'     over the parameters of the fit;}
+    #'   \item{flagged}{Whether any parameter of the fit was flagged.}
     #' }
     replicates = function(value) {
       assert_read_only_(value, "replicates")
@@ -212,11 +206,11 @@ HousepiRecoveryCheck <- R6::R6Class(
     #' @field summary `data.frame`
     #' Recovery statistics per household count and parameter
     #' \describe{
-    #'   \item{bias, rel_bias}{Mean error, absolute and relative to the truth}
-    #'   \item{rmse}{Root mean squared error}
-    #'   \item{coverage}{Share of replicates whose interval covers the truth}
-    #'   \item{cri_width}{Mean width of the credible interval}
-    #'   \item{nrep, n_flagged}{Replicates aggregated, and those flagged}
+    #'   \item{bias, rel_bias}{Mean error, absolute and relative to the truth;}
+    #'   \item{rmse}{Root mean squared error;}
+    #'   \item{coverage}{Share of replicates whose interval covers the truth;}
+    #'   \item{cri_width}{Mean width of the credible interval;}
+    #'   \item{nrep, n_flagged}{Replicates aggregated, and those flagged.}
     #' }
     summary = function(value) {
       assert_read_only_(value, "summary")
@@ -226,11 +220,11 @@ HousepiRecoveryCheck <- R6::R6Class(
     #' @field overview `data.frame`
     #' Sweep cost per household count, averaged over the replicates
     #' \describe{
-    #'   \item{nrep, n_flagged}{Replicates run, and those flagged}
-    #'   \item{mean_inference_secs}{Mean wall-clock of a sampling loop}
-    #'   \item{secs_per_ess}{Seconds of sampling per effective draw of the
-    #'     worst-mixing parameter, pooled over the replicates: a cost of this
-    #'     run on this machine and thread count, not of the model}
+    #'   \item{nrep, n_flagged}{Replicates run, and those flagged;}
+    #'   \item{mean_inference_secs}{Mean wall-clock of a sampling loop;}
+    #'   \item{secs_per_ess}{Seconds of sampling per effective draw
+    #'     of the worst-mixing parameter, pooled over the replicates:
+    #'     a cost of this run, machine and thread count, not of the model.}
     #' }
     overview = function(value) {
       assert_read_only_(value, "overview")
@@ -244,15 +238,13 @@ HousepiRecoveryCheck <- R6::R6Class(
       private$truth_
     },
 
-    #' @field houses `integer()`
-    #' Household counts swept.
+    #' @field houses `integer()` Household counts swept.
     houses = function(value) {
       assert_read_only_(value, "houses")
       private$houses_
     },
 
-    #' @field nrep `integer(1)`
-    #' Replicates run at each household count.
+    #' @field nrep `integer(1)` Replicates run at each household count.
     nrep = function(value) {
       assert_read_only_(value, "nrep")
       private$nrep_
@@ -280,14 +272,12 @@ HousepiRecoveryCheck <- R6::R6Class(
     }
   ),
 
-  ############################################################################
-  ################################## PUBLIC ##################################
-  ############################################################################
+  ####  Public  ####
 
   public = list(
     #' @description
-    #' Internal: [check_recovery()] builds this object, don't call `$new()`
-    #' directly.
+    #' Create the recovery check object.
+    #' Use [check_recovery()] instead of calling `$new()`.
     #' @param hh_model `r rd_model_in_`
     #' @param nrep `r rd_sweep_nrep_`
     #' @param houses `r rd_recov_houses_`
@@ -333,7 +323,7 @@ HousepiRecoveryCheck <- R6::R6Class(
       invisible(self)
     },
 
-    #' @description Override the default printing behavior.
+    #' @description Print a summary of the sweep.
     print = function() {
       model <- spaced_choice(private$name_)
       flagged <- sum(private$replicates_[["flagged"]])
@@ -356,12 +346,13 @@ HousepiRecoveryCheck <- R6::R6Class(
 #' @description
 #' Simulate surveys at known parameter values, fit each one back with the same
 #' model, and report how well the posterior recovers the values that generated
-#' it. The sweep is repeated at one or more household counts, which is what
-#' shows whether a bias shrinks with the size of the study.
+#' it.
+#' The sweep is repeated at one or more household counts,
+#' which shows whether a bias shrinks with the size of the study.
 #'
-#' The parameter pins of the model are the values the surveys are simulated
-#' at, and the priors of the very same model drive inference, so no separate
-#' simulation model is needed.
+#' The parameter pins of the model are the values the surveys are simulated at,
+#' and the priors of the same model drive inference,
+#' so no separate simulation model is needed.
 #' @param hh_model `r rd_model_in_`
 #' @param nrep `r rd_sweep_nrep_`
 #' @param houses `r rd_recov_houses_`
@@ -377,11 +368,10 @@ HousepiRecoveryCheck <- R6::R6Class(
 #' @param ... `r rd_dots_config_`
 #' @return An object of class [HousepiRecoveryCheck].
 #' @details
-#' The first replicate that fails stops the check, with an error naming its
-#' household count and replicate.
+#' The first replicate that fails stops the check,
+#' with an error naming its household count and replicate.
 #' `r rd_sweep_reporting_`
-#' `r rd_global_summary_`
-#' `r rd_sweep_seed_`
+#' `r rd_global_summary_` `r rd_sweep_seed_`
 #' @examples
 #' recovery <- flu_1918_frederick |>
 #'   new_housepi_model("final-size") |>
