@@ -426,6 +426,11 @@ HousepiGenerator <- R6::R6Class(
                         paths = character(),
                         flags = character(),
                         libs = character()) {
+      if (!pkgbuild::has_build_tools()) stop_h(
+        "No C++ compiler found to compile model {.val {self$name}}.",
+        `!` = "Custom and discrete-time models compile at run time.",
+        "Diagnose with {.code pkgbuild::check_build_tools(debug = TRUE)}."
+      )
       # compile the dynamic library
       withr::with_envvar(
         private$build_compile_flags_(paths = paths,

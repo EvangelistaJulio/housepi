@@ -214,6 +214,18 @@ test_that("Model has no leaks", {
 ## MODEL GENERATOR : RUNTIME COMPILES ##
 ########################################
 
+test_that("A model compiling at run time requires a compiler", {
+  path <- tempfile("no_compiler")
+  dir.create(path)
+  on.exit(unlink(path, recursive = TRUE), add = TRUE)
+  system.file("examples", "custom", "model.cpp", package = "housepi") |>
+    file.copy(path)
+  withr::local_options(pkgbuild.has_compiler = FALSE)
+
+  new_housepi_model(model = path, force = TRUE) |>
+    expect_error("[Nn]o.*compiler found")
+})
+
 test_that("A session template compiles user flags and warns when they change", {
   path <- file.path(tempdir(), "session_template")
   on.exit(unlink(path, recursive = TRUE), add = TRUE)

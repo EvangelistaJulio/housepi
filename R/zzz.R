@@ -48,7 +48,6 @@ wrap_cpp_member_ <- function(x, name) {
 
 # nocov start
 .onLoad <- function(libname, pkgname) {
-  pkgbuild::check_build_tools(quiet = TRUE)
   module <- Rcpp::Module(pkgname, PACKAGE = pkgname)
   .engine <<- structure(list(module = module), class = "housepi_engine")
 }
