@@ -134,9 +134,6 @@ namespace housepi::data
         /// * values read through the read-cells of `state`;
         /// * `live` columns -> skipped, they take their value during the run.
         void assert_required_everyone(const State &state, const std::vector<std::string> &live = {}) const;
-        /// Throw if boolean column `d` does not flag exactly one member per household.
-        /// * values read through the read-cells of `state`.
-        void assert_one_per_house(const State &state, size_t d) const;
 
         /// Whether no data was provided.
         bool is_empty() const noexcept { return house_vector_.empty(); }

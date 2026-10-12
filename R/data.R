@@ -91,8 +91,7 @@ NULL
 #'   \item{vacc_status}{Vaccination status at the follow-up start;}
 #'   \item{recovered}{Whether previously recovered from infection;}
 #'   \item{isolated}{Whether isolated;}
-#'   \item{asymptomatic}{Whether asymptomatic;}
-#'   \item{index_case}{1 for the member positive on the household's first test day, 0 otherwise.}
+#'   \item{asymptomatic}{Whether asymptomatic.}
 #' }
 #'
 #' @docType data
@@ -103,15 +102,14 @@ NULL
 #' summarise_house_cases(hh_model)
 #' @name sarscov2_2021_icofs
 #' @usage data(sarscov2_2021_icofs)
-#' @format A data frame with 3,578 rows and 13 columns
+#' @format A data frame with 4,168 rows and 12 columns
 #' @source <https://gitlab.pasteur.fr/mmmi-pasteur/hh_israel_sarscov2_delta2/-/raw/main/codes/db_filtered.txt>
 #'
 #' @details
 #' Each household is followed for 21 days from its first positive SARS-CoV-2 PCR test
 #' as in the original analysis. Study starts from July 2021.
 #' A member first testing positive after \code{end_date} counts as escaped.
-#' Households where several members test positive on the first day are left out,
-#' so each household has a single index case (\code{index_case}).
+#' In 135 households several members test positive on the first day.
 #' Vaccination status (\code{vacc_status}) reflects the doses effective
 #' at the start of the follow-up, assuming a 7-day delay for effectiveness.
 #'

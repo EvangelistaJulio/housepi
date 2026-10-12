@@ -14,12 +14,13 @@
 HOUSEPI_OPEN_MODULE_NAMESPACE()
 
 /// Model ascertained cases with augmented infection times and a single introduction per household.
-/// Simulation pins the introduction to the index case (data column `index_case`).
+/// Simulation draws the first infection uniformly among the members.
+/// Based on @cite cauchemez_bayesian_2004
 class Model final : public ModelBase
 {
 public:
 	HOUSEPI_DECLARE_REGISTER_KEYS(Latent, infec_time)
-	HOUSEPI_DECLARE_REGISTER_KEYS(Data, start_date, end_date, index_case)
+	HOUSEPI_DECLARE_REGISTER_KEYS(Data, start_date, end_date)
 	HOUSEPI_DECLARE_EMPTY_KEYS(Long)
 	HOUSEPI_DECLARE_REGISTER_KEYS(GroupRisk, community, susceptibility, infectivity)
 	HOUSEPI_DECLARE_REGISTER_KEYS(HHmember, intro_case)
@@ -33,10 +34,8 @@ public:
 	{
 		request_data_discrete(
 			{Data::start_date, Data::end_date});
-		request_data_boolean(
-			{Data::index_case});
 		request_data_every_member(
-			{Data::start_date, Data::end_date, Data::index_case});
+			{Data::start_date, Data::end_date});
 		request_param_positive(
 			{Param::alpha, Param::hh_size_ref});
 		request_risk_identifiability(
@@ -60,15 +59,8 @@ public:
 	/// Whether the model requires an infectivity profile definition.
 	bool has_infec_profile() const override final { return true; }
 
-	/// Assert no member has missing status and each household has one index case.
-	void init_model_for_evaluation() override final
-	{
-		assert_no_missing_status();
-		assert_data_one_per_house(Data::index_case);
-	}
-
-	/// Assert each household has one index case.
-	void init_model_for_simulation() override final { assert_data_one_per_house(Data::index_case); }
+	/// Assert no member has missing status.
+	void init_model_for_evaluation() override final { assert_no_missing_status(); }
 
 	/// Assert `house` has an infected member and non-negative follow-up periods.
 	void init_house_for_evaluation(const Household &house) override final
@@ -396,12 +388,10 @@ public:
 		}
 	}
 
-	/// Infect the index case, flagged in data column `index_case`, and set every other member escaped.
+	/// Infect a member drawn uniformly, and set every other member escaped.
 	MemberIdx helper_set_intro(Household &house)
 	{
-		MemberIdx i0 = 0;
-		while (data(Data::index_case, house.at(i0)) != 1.)
-			++i0;
+		const MemberIdx i0 = uniform() * house.size();
 		Individual &indiv_0 = house.at(i0);
 		set_infected(house, indiv_0);
 		init_missing_latent(indiv_0);

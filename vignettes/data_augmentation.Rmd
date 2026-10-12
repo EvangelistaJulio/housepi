@@ -76,7 +76,6 @@ set.seed(42)
 onset_tommy <- 5
 hh_model <- data.frame(id = c("tommy", "gina"),
                        hh_id = "house_1",
-                       index_case = c(TRUE, FALSE),
                        start_date = onset_tommy,
                        end_date = onset_tommy + 10,
                        status = c(1, 2),
@@ -193,7 +192,7 @@ hh_model <- dataset |>
     # infection time uniform within the reported exposure window
     # min = 0 by default for uniform; + 0.99 spans the whole reported day
     infec_time = list(model = "uniform", max = exposure_max + 0.99),
-    # incubation period gamma by mean/std. deviation, bounded to a plausible range
+    # incubation period gamma by mean/std. deviation
     incub_period = list(model = "gamma", mean = mean, sd = sd,
                         min = 0.1, max = 14),
     # onset time follows deterministically as their sum

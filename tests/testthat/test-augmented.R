@@ -42,8 +42,7 @@ mk_onset <- local({
 # two infected statuses under the template definitions
 mk_status <- local({
   hhdata <- data.frame(id = c("m1", "m2", "m3", "m4"), hh_id = "h1",
-                       status = c(1, 2, 0, 0), start_date = 0, end_date = 21,
-                       index_case = c(1, 0, 0, 0))
+                       status = c(1, 2, 0, 0), start_date = 0, end_date = 21)
   hh_model <- hhdata |>
     new_housepi_model("case-ascertained") |>
     add_parameter(import = "template") |>
@@ -1203,8 +1202,7 @@ test_that("A surrogate column proves the requirement its model asks", {
   mk <- function(defin, level = "house") {
     data.frame(id = c("m1", "m2", "m3", "m4"),
                hh_id = c("h1", "h1", "h2", "h2"),
-               status = c(1, 0, 1, 0), end_date = 16, datum = 0.5,
-               index_case = c(1, 0, 1, 0)) |>
+               status = c(1, 0, 1, 0), end_date = 16, datum = 0.5) |>
       new_housepi_model("case-ascertained") |>
       add_observation("start_date", value = !!defin, level = level) |>
       get_data_wide()
@@ -2280,7 +2278,7 @@ test_that("Status-specific blocks alone cover every drawn status", {
   mk <- function(..., weights = c(0.5, 0.5)) {
     data.frame(
       id = c("m1", "m2", "m3", "m4"), hh_id = c("h1", "h1", "h2", "h2"),
-      status = NA, start_date = 0, end_date = 21, index_case = c(1, 0, 1, 0)
+      status = NA, start_date = 0, end_date = 21
     ) |>
       new_housepi_model("case-ascertained") |>
       add_parameter(import = "template") |>

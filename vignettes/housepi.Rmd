@@ -222,9 +222,9 @@ We load the parameter definitions directly from the model template.
 
 ```{r}
 #| label: load-latent-model
-# select a data structure and index cases (used later for the simulation)
+# select a data structure (used later for the simulation)
 community_structure <- sarscov2_2021_icofs |>
-  dplyr::select(id, hh_id, index_case)
+  dplyr::select(id, hh_id)
 
 hh_model <- community_structure |>
   new_housepi_model("case-ascertained") |>
@@ -291,7 +291,7 @@ We can overlook these alerts for the rest of the walk-through.
 The infectivity profile, instead, is mandatory for this model: above we loaded the one shipped with it, and [Infectivity profiles](infectivity_profiles.html) shows how to provide a custom definition.
 
 We run a simulation with the method `run_simulation`, using the same community structure from the survey.
-Each household's outbreak starts from its index case, the member flagged in the data column `index_case`.
+Each household's outbreak starts from one member drawn at random, its primary case.
 Simulations associate latent incubation periods, infection times and sampled onset dates to all infected individuals:
 
 ```{r}

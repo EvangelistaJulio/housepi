@@ -95,12 +95,10 @@ NULL
 #' @section Data:
 #' * \code{start_date}: first day of follow-up of the member
 #' * \code{end_date} \eqn{t_\mathrm{end}}{t_end}: last day of follow-up of the member, included
-#' * \code{index_case}: 1 for the index case of the household, 0 for every other member
 #'
-#' All three need a value for every member, escaped ones included.
-#' Each household has exactly one index case, so households with several are dropped beforehand.
-#' In simulation the index case is the primary case.
+#' Both need a value for every member, escaped ones included.
 #' An observation standing for them is defined at household level, or from data columns only.
+#' In simulation the primary case is drawn uniformly among the members \insertCite{cauchemez_bayesian_2004}{housepi}.
 #'
 #' @section Parameters:
 #' * \code{alpha} \eqn{\alpha}{alpha}: baseline community instantaneous transmission risk

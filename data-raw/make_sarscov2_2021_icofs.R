@@ -44,8 +44,6 @@ sarscov2_2021_icofs <- utils::read.table(url) |>
     status = dplyr::case_when(
       is.na(test_date) ~ 0L, asymptomatic ~ 2L, .default = 1L
     ),
-    # observed index case: positive on the household's first test day
-    index_case = as.integer(!is.na(test_date) & test_date == start_date),
     # re-derive vaccination categories with fixed icofs_origin
     # 7-day activation, >90-day split on dose
     delay_1 = as.numeric(start_date - as.Date(vaccine_1)),
@@ -63,12 +61,10 @@ sarscov2_2021_icofs <- utils::read.table(url) |>
     ),
     isolated = isolation != "no quarantine"
   ) |>
-  # case-ascertained model assumes a single introduction per household
-  dplyr::filter(sum(index_case) == 1, .by = hh_id) |>
   dplyr::select(
     id, hh_id, status, age, sex,
     start_date, end_date, test_date,
-    vacc_status, recovered, isolated, asymptomatic, index_case
+    vacc_status, recovered, isolated, asymptomatic
   ) |>
   as.data.frame()
 

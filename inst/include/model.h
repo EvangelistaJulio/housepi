@@ -157,15 +157,11 @@ namespace housepi
 		void request_data_discrete(std::vector<size_t> vec) { mcmc_->data.wide().request_discrete(vec); }
 		/// Request positive data columns `vec`.
 		void request_data_positive(std::vector<size_t> vec) { mcmc_->data.wide().request_positive(vec); }
-		/// Request boolean data columns `vec`, valued 0 or 1.
-		void request_data_boolean(std::vector<size_t> vec) { mcmc_->data.wide().request_boolean(vec); }
 		/// Request data columns `vec` with a value for every member, escaped ones included.
 		void request_data_every_member(std::vector<size_t> vec) { mcmc_->data.wide().request_everyone(vec); }
 
 		/// Throw if some member has missing status.
 		void assert_no_missing_status() const { mcmc_->data.wide().assert_no_missing_status(); }
-		/// Throw if boolean data column `d` does not flag exactly one member per household.
-		void assert_data_one_per_house(size_t d) const { mcmc_->data.wide().assert_one_per_house(mcmc_->data.state, d); }
 
 		//////  Setter: model calls  //////
 

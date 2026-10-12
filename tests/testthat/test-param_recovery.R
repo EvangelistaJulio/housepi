@@ -346,7 +346,7 @@ test_that("Final-size inference recovers the simulating parameters", {
 test_that("Case-ascertained inference recovers the simulating parameters", {
   skip_on_cran()
   # observed onsets date the infection times the transmission reads
-  sarscov2_2021_icofs[c("id", "hh_id", "index_case")] |>
+  sarscov2_2021_icofs[c("id", "hh_id")] |>
     new_housepi_model("case-ascertained") |>
     add_parameter(import = "template") |>
     add_infectivity_profile(import = "template") |>

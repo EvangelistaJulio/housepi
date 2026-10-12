@@ -90,10 +90,6 @@ namespace housepi
     {
         vect::append_unique(posit_, vec);
     }
-    void KeyHolderWithRequests::request_boolean(std::vector<size_t> vec)
-    {
-        vect::append_unique(boolean_, vec);
-    }
     bool KeyHolderWithRequests::is_required_discrete(size_t p) const noexcept
     {
         return vect::contains(discr_, p);
@@ -101,10 +97,6 @@ namespace housepi
     bool KeyHolderWithRequests::is_required_positive(size_t p) const noexcept
     {
         return vect::contains(posit_, p);
-    }
-    bool KeyHolderWithRequests::is_required_boolean(size_t p) const noexcept
-    {
-        return vect::contains(boolean_, p);
     }
 
     template <class Def>
@@ -116,9 +108,6 @@ namespace housepi
         if (is_required_positive(p) && !def.is_positive())
             msg::stop(def.str() +
                       " was not strictly positive, as requested by the model.");
-        if (is_required_boolean(p) && !def.is_boolean())
-            msg::stop(def.str() +
-                      " was not boolean-valued (0 or 1), as requested by the model.");
     }
     template void KeyHolderWithRequests::assert_requests(size_t, const Attribute &) const;
     template void KeyHolderWithRequests::assert_requests(size_t, const Variable &) const;

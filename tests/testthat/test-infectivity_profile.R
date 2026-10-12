@@ -22,8 +22,7 @@ mk_infec_discr <- local({
 mk_house <- local({
   hh_model <- data.frame(
     id = c("m1", "m2", "m3"), hh_id = "h1",
-    status = c(1, 1, 0), start_date = 0, end_date = 20, datum = c(2, 9, 4),
-    index_case = c(1, 0, 0)
+    status = c(1, 1, 0), start_date = 0, end_date = 20, datum = c(2, 9, 4)
   ) |>
     new_housepi_model("case-ascertained", quiet = TRUE) |>
     add_parameter(alpha = 0.001, beta = 0.07, gamma = 0.9, hh_size_ref = 4)
@@ -34,7 +33,7 @@ mk_house <- local({
 mk_house_discr <- local({
   hh_model <- data.frame(
     id = c("m1", "m2", "m3"), hh_id = "h1",
-    status = c(1, 1, 0), start_date = 0, end_date = 6, index_case = c(1, 0, 0)
+    status = c(1, 1, 0), start_date = 0, end_date = 6
   ) |>
     new_housepi_model("case-ascertained", discr = TRUE, quiet = TRUE) |>
     add_parameter(alpha = 0.001, beta = 0.07, gamma = 0.9, hh_size_ref = 4)
