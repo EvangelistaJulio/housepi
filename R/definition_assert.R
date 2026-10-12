@@ -100,7 +100,7 @@ probe_definition_ <- function(func_name, args, def_name, family, model_col,
   exposers <- c(func = "expose_function",
                 dist = "expose_distribution",
                 infec = "expose_infec_profile")
-  out <- lapply(stats::setNames(nm = probed), \(k) {
+  out <- lapply(stats::setNames(nm = probed), function(k) {
     probe_exposer_(exposers[[k]], func_name, func_args, bounds[1], bounds[2])
   })
   err <- Filter(is.character, out)
@@ -131,17 +131,15 @@ append_call_args_ <- function(call, args) {
 fill_defaults_ <- function(gear, r, col, obj, user_args) {
   args <- cpp_member_(obj, "args")()
   args <- args[!is.na(args) & !names(args) %in% user_args]
-  if (length(args)) {
+  if (length(args))
     gear$defs[r, col] <- append_call_args_(gear$defs[r, col], args)
-  }
 
   domain <- cpp_member_(obj, "domain")()
   aliases <- cpp_member_(obj, "bound_aliases")()
   for (key in intersect(c("min", "max"), colnames(gear$defs))) {
     bound <- domain[[key]]
-    if (is.na(gear$defs[r, key]) && is.finite(bound) && !aliases[[key]]) {
+    if (is.na(gear$defs[r, key]) && is.finite(bound) && !aliases[[key]])
       gear$defs[r, key] <- sprintf("%s|N", as.character(bound))
-    }
   }
 }
 
@@ -165,7 +163,7 @@ housepi_assert_args <- function(gear, last = NA_integer_) {
     for (i in which(!is.na(func_names))) {
       r <- rows[[i]]
       # the bounds truncate the defining distribution, never the function
-      bound <- \(key) {
+      bound <- function(key) {
         if (col == "func" || !key %in% colnames(readable_defs)) NA_real_
         else readable_defs[[key]][[i]]
       }
@@ -184,9 +182,11 @@ housepi_assert_args <- function(gear, last = NA_integer_) {
 # Assert no argument name is given twice to one definition.
 assert_unique_arg_names <- function(nms, family, name = NULL) {
   dups <- unique(nms[nzchar(nms) & duplicated(nms)])
-  if (!length(dups)) return(invisible())
-  stop_h(paste("{cli::qty(dups)}Repeated argument{?s} {.arg {dups}} for",
-               if (is.null(name)) "{family}." else "{family} {.val {name}}."))
+  if (length(dups)) stop_h(
+    paste("{cli::qty(dups)}Repeated argument{?s} {.arg {dups}} for",
+          if (is.null(name)) "{family}." else "{family} {.val {name}}.")
+  )
+  invisible()
 }
 
 # Assert a name carries no declaration of another kind:
@@ -195,11 +195,11 @@ assert_unique_arg_names <- function(nms, family, name = NULL) {
 assert_no_kind_clash <- function(defs, name, kind) {
   if (is.null(defs)) return(invisible())
   other <- defs[["kind"]][defs[["name"]] == name & defs[["kind"]] != kind]
-  if (!length(other)) return(invisible())
-  stop_h(
+  if (length(other)) stop_h(
     "Name {.val {name}} is already declared as {kind2family(other[1])}.",
     "Each name stands for one quantity: choose a different name."
   )
+  invisible()
 }
 
 # Assert that a string argument respects the naming convention, `what` naming
@@ -210,13 +210,14 @@ assert_valid_character <- function(x, what) {
     "{what} {.val {x}} contained invalid characters.",
     "Only letters, numbers, underscores and dots are allowed."
   )
+  invisible()
 }
 
 # Assert a given law name respects the naming convention.
 assert_valid_law_name <- function(x, what) {
-  if (is.character(x) && length(x) == 1 && !is.na(x)) {
+  if (is.character(x) && length(x) == 1 && !is.na(x))
     assert_valid_character(x, what)
-  }
+  invisible()
 }
 
 # Assert that x can be treated as a covariate value.
@@ -230,6 +231,7 @@ assert_valid_covariate <- function(x, family) {
     stop_h("{arg_name} of {family} must be a unidimensional type.",
            format_type_error(x))
   }
+  invisible()
 }
 
 # Assert that given definition name is valid.
@@ -248,6 +250,7 @@ assert_valid_definition_name <- function(x, family) {
       "A leading dot is reserved to the definitions housepi generates itself."
     )
   }
+  invisible()
 }
 
 # Assert data columns have valid names and can be sourced by definitions.
@@ -260,6 +263,7 @@ assert_valid_data_columns <- function(cols, targets = data_reserved_cols) {
     "Use only letters, digits and/or underscores {.code _}."
   )
   # warn about lookalikes
+  # nolint next: object_usage_linter. read by the cli glue below
   what <- c(id = "individual identifier",
             hh_id = "household identifier",
             status = "infection status")

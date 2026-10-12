@@ -177,7 +177,7 @@ test_that("Exported getter functions work correctly", {
 
 test_that("Print behavior is stable", {
   local_results <- mk_draws$results
-  print(local_results) |> expect_snapshot()
+  print(local_results) |> expect_snapshot(transform = helper_scrub_secs)
 })
 
 test_that("A short run records one warning, under its sample size", {
@@ -276,7 +276,7 @@ test_that("A model without parameters returns empty parameter draws", {
     run_inference(steps = 5L, chains = 1L, adapt = 0L, thin = 1L) |>
     suppressWarnings()
 
-  print(results) |> expect_output("1 latent")
+  print(results) |> expect_message("Latent: 1")
   # nothing carries a prior: no lprior column, in its field or the bundle
   posterior::nvariables(results$lprior_draws) |> expect_identical(0L)
   posterior::variables(get_complete_draws(results)) |>

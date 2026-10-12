@@ -2,7 +2,10 @@
 
     Code
       print(local_results)
-    Output
+    Message
       i Posterior draws of model "final size".
-      100 iterations, 1 chain, 3 parameters.
+        Iterations: 100
+        Chains: 1
+        Parameters: 3
+        Inference time: <secs>
 

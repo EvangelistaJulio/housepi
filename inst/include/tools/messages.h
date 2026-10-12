@@ -40,8 +40,8 @@ namespace housepi
 
 namespace housepi::msg
 {
-    /// Print message `txt` to stdout and flush.
-    void info(const std::string &txt) noexcept;
+    /// Print message `txt`, with no line ending added.
+    void info(const std::string &txt);
     /// Raise warning `txt`.
     void warn(const std::string &txt);
     /// Throw error `txt`.

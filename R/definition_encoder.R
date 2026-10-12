@@ -55,9 +55,9 @@ assert_valid_arg_keys <- function(keys) {
 # Format a call over encoded arguments to match housepi standard typed
 # definitions.
 housepi_format_call <- function(func_name, func_args) {
-  if (!func_name %in% c("+", "*")) {
+  if (!func_name %in% c("+", "*"))
     assert_valid_character(func_name, "function name")
-  }
+
   assert_valid_arg_keys(names(func_args))
   paste0(c(func_name,
            paste0(names(func_args), collapse = ":"),
@@ -80,9 +80,9 @@ collect_flat_args <- function(node, op) {
   node_args <- lapply(rlang::call_args(node), strip_useless_parens)
   # NOTE: differences sum minuend with negated subtrahend: a - b = a + (-b)
   ops <- if (op == "+") c("+", "-") else op
-  if (rlang::call_name(node) == "-") {
+  if (rlang::call_name(node) == "-")
     node_args[[2]] <- rlang::call2("-", node_args[[2]])
-  }
+
   result <- list()
   for (a in node_args) {
     if (rlang::is_call(a) && rlang::call_name(a) %in% ops &&
@@ -129,7 +129,8 @@ housepi_func_from_call <- function(call, env = rlang::global_env()) {
                       rlang::call_name(call))
 
   # flatten operator chains to avoid nested calls
-  if (func_name %in% c("+", "*")) args <- collect_flat_args(call, func_name)
+  if (func_name %in% c("+", "*"))
+    args <- collect_flat_args(call, func_name)
 
   # named operands keep their key, unnamed ones fill the free slots x, x2, ...
   nms <- rlang::names2(args)
@@ -159,7 +160,8 @@ housepi_func_from_call <- function(call, env = rlang::global_env()) {
 
 # Number of '|' separators in an encoded definition.
 housepi_bar_count <- function(x) {
-  if (is.null(x)) 0L else nchar(x) - nchar(gsub("|", "", x, fixed = TRUE))
+  if (is.null(x)) 0L
+  else nchar(x) - nchar(gsub("|", "", x, fixed = TRUE))
 }
 
 # Flag to tell if object is a sourced value (one '|').
@@ -282,9 +284,9 @@ housepi_load_defin_quos <- function(self, implicit_name, xquos,
                           rlang::new_quosure,
                           env = rlang::quo_get_env(def_quo))
 
-      if (!any(nzchar(names(args_quos)))) {
+      if (!any(nzchar(names(args_quos))))
         args_quos <- rlang::set_names(list(def_quo), implicit_name)
-      }
+
       inj <- inject_defaults(names(args_quos))
       rlang::inject(self$add_quo(name = nm, !!!args_quos, !!!inj,
                                  .warn_over = FALSE))

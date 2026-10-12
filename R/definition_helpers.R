@@ -194,7 +194,8 @@ helper_variable_args <- function(opts, family, args, func) {
 
 # Flatten dots holding a single quosures list (from `enquos()`).
 flatten_definition_dots <- function(dots) {
-  if (length(dots) == 1 && rlang::is_quosures(dots[[1]])) dots[[1]] else dots
+  if (length(dots) == 1 && rlang::is_quosures(dots[[1]])) dots[[1]]
+  else dots
 }
 
 # @description
@@ -254,10 +255,8 @@ helper_variable_move <- function(opts, family) {
   is_param <- family == "parameter"
 
   # infer if sampling proposal but no constant provided
-  if (is.na(opts$const)
-      && !(is.na(opts$proposal) && is.na(opts[[dist_word]]))) {
+  if (is.na(opts$const) && !(is.na(opts$proposal) && is.na(opts[[dist_word]])))
     opts$const <- FALSE
-  }
 
   if (isTRUE(opts$const)) {
     if (is.na(opts$value)) stop_h(
@@ -273,6 +272,9 @@ helper_variable_move <- function(opts, family) {
     stop_h("No {.arg {dist_word}} provided for {family} {.val {opts$name}}.")
   }
 
+  headline <- paste("No {.arg {dist_word}} to sample from",
+                    "for {family} {.val {opts$name}}.")
+
   # a latent with neither model nor function is sampled flat within its bounds:
   # with a proposal, with bounds alone, or with a number declared not constant
   is_num <- is.numeric(showcaser_extract_numeric(opts$value))
@@ -280,13 +282,12 @@ helper_variable_move <- function(opts, family) {
         is.na(opts$func) &&
         (!is.na(opts$proposal) || is.na(opts$value) ||
            (is_num && isFALSE(opts$const)))) {
-    headline <- "No {.arg {dist_word}} to sample from for {family} {.val {opts$name}}."
     if (identical(opts$proposal, "forward")) stop_h(
       headline, "Proposal {.val forward} draws from the {.arg {dist_word}}."
     )
     if (anyNA(c(opts$min, opts$max))) stop_h(
       headline,
-      "Provide a {.arg {dist_word}}, or both {.arg min} and {.arg max} to sample within."
+      "Provide a {.arg {dist_word}}, or both {.arg min} and {.arg max}."
     )
     opts$const <- FALSE
     if (is.na(opts$proposal)) opts$proposal <- "rw"
@@ -298,10 +299,7 @@ helper_variable_move <- function(opts, family) {
       if (is.na(opts$func) &&
             is.numeric(showcaser_extract_numeric(opts$value))) {
         # raise error if const is FALSE (not if NA or already TRUE)
-        if (isFALSE(opts$const)) stop_h(paste(
-          "No {.arg {dist_word}} to sample from",
-          "for {family} {.val {opts$name}}."
-        ))
+        if (isFALSE(opts$const)) stop_h(headline)
         opts$const <- TRUE
       }
     } else {
@@ -313,9 +311,7 @@ helper_variable_move <- function(opts, family) {
       "Deterministic {family} {.val {opts$name}} cannot be sampled.",
       "Drop {.arg proposal} and {.arg {dist_word}}, or drop {.arg func}."
     )
-    if (is.na(opts[[dist_word]])) stop_h(
-      "No {.arg {dist_word}} to sample from for {family} {.val {opts$name}}."
-    )
+    if (is.na(opts[[dist_word]])) stop_h(headline)
   }
 
   opts

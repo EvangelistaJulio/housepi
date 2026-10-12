@@ -422,7 +422,7 @@ test_that("The summary reports an attached reporting process", {
   mk_frederick$template |>
     add_reporting_process(identity) |>
     print() |>
-    expect_output("Reporting process")
+    expect_message("Reporting process")
 })
 
 test_that("An unresolved source is reported softly and at the wall", {
@@ -434,7 +434,7 @@ test_that("An unresolved source is reported softly and at the wall", {
     add_observation(record = list(model = "normal", mean = unknown, sd = 1))
   # soft: the messages are returned, and the model summary carries them
   length(dig_(hh_model, "assert_sources_", wall = FALSE)) |> expect_gt(0)
-  print(hh_model) |> expect_output("Sources")
+  print(hh_model) |> expect_message("Sources")
   # wall: the same messages are raised
   dig_(hh_model, "assert_sources_", wall = TRUE) |>
     expect_error("[Cc]ould not resolve the source of .unknown.")

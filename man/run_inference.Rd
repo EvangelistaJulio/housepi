@@ -49,7 +49,8 @@ One between:
 \item{\code{integer}}{seconds between prints. A shorter run does not print.}
 \item{\code{TRUE}}{one print per second;}
 \item{\code{FALSE} or \code{0}}{no progress bar.}
-}}
+}
+The bar prints as messages, which \code{\link[=suppressMessages]{suppressMessages()}} silences.}
 
 \item{warn}{\code{logical(1)} Whether to report the warnings the run raises.
 A quiet run still records the convergence diagnostics it flagged, read back

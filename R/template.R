@@ -210,9 +210,8 @@ browse_templates <- function(name = NA_character_,
 
 # Associate same name to all elements of a vector
 set_source_name_ <- function(x, name = NA_character_) {
-  if (isTRUE(nzchar(name, keepNA = TRUE)) && length(x)) {
+  if (isTRUE(nzchar(name, keepNA = TRUE)) && length(x))
     names(x) <- rep(name, length(x))
-  }
   x
 }
 

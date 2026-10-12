@@ -217,7 +217,8 @@ One between:
   \\item{`integer`}{seconds between prints. A shorter run does not print.}
   \\item{`TRUE`}{one print per second;}
   \\item{`FALSE` or `0`}{no progress bar.}
-}"
+}
+The bar prints as messages, which [suppressMessages()] silences."
 rd_dots_config_ <- "Advanced configuration."
 rd_param_table_ <- "One between
 - `data.frame`;
@@ -572,9 +573,8 @@ add_template_defs_ <- function(holder, generator, family, append, key, dots,
                                singles) {
   assert_no_def_mixing_(key, dots, singles)
   defs <- template_defs_(generator, family)
-  if (!is.null(defs)) {
+  if (!is.null(defs))
     holder$add_quo_list(convert_list_to_quosures(defs), append = isTRUE(append))
-  }
 }
 
 # Add the definitions of the list-like `add_*` modes: `import = "template"`,
@@ -662,17 +662,16 @@ add_parameter <- function(hh_model,
   if (!add_listed_defs_(pvt$param_, pvt$gen_, "parameter", name, import,
                         append, rlang::enquos(...), rlang::caller_env(),
                         match.call(expand.dots = FALSE), "name",
-                        has_template = TRUE))
+                        has_template = TRUE)) {
     #> single mode
-    pvt$param_$add_quo(
-      name = name, value = rlang::enquo(value),
-      const = const, discr = discr,
-      prior = prior, rlang::enquos(...),
-      func = rlang::enquo(func),
-      min = rlang::enquo(min), max = rlang::enquo(max),
-      proposal = proposal,
-      .assert = TRUE
-    )
+    pvt$param_$add_quo(name = name, value = rlang::enquo(value),
+                       const = const, discr = discr,
+                       prior = prior, rlang::enquos(...),
+                       func = rlang::enquo(func),
+                       min = rlang::enquo(min), max = rlang::enquo(max),
+                       proposal = proposal,
+                       .assert = TRUE)
+  }
   pvt$rebuild_()
   new_obj
 }
@@ -736,17 +735,16 @@ add_latent <- function(hh_model,
   if (!add_listed_defs_(pvt$augm_, pvt$gen_, "latent", name, import,
                         append, rlang::enquos(...), rlang::caller_env(),
                         match.call(expand.dots = FALSE), c("name", "status"),
-                        has_template = TRUE, status = status))
+                        has_template = TRUE, status = status)) {
     #> single mode
-    pvt$augm_$add_quo(
-      name = name, value = rlang::enquo(value),
-      status = status, const = const, discr = discr,
-      func = rlang::enquo(func),
-      model = model, rlang::enquos(...),
-      min = rlang::enquo(min), max = rlang::enquo(max),
-      proposal = proposal,
-      .assert = TRUE
-    )
+    pvt$augm_$add_quo(name = name, value = rlang::enquo(value),
+                      status = status, const = const, discr = discr,
+                      func = rlang::enquo(func),
+                      model = model, rlang::enquos(...),
+                      min = rlang::enquo(min), max = rlang::enquo(max),
+                      proposal = proposal,
+                      .assert = TRUE)
+  }
   pvt$rebuild_()
   new_obj
 }
@@ -823,15 +821,15 @@ add_observation <- function(hh_model, name = NULL,
                         import, append, rlang::enquos(...),
                         rlang::caller_env(), match.call(expand.dots = FALSE),
                         c("name", "status", "level"),
-                        status = status, .kind = level))
+                        status = status, .kind = level)) {
     #> single mode
-    pvt$augm_$add_quo(
-      name = name, value = rlang::enquo(value), status = status,
-      const = NA, discr = discr, func = rlang::enquo(func),
-      model = model, rlang::enquos(...),
-      min = rlang::enquo(min), max = rlang::enquo(max),
-      .assert = TRUE, .kind = level
-    )
+    pvt$augm_$add_quo(name = name, value = rlang::enquo(value),
+                      status = status, const = NA, discr = discr,
+                      func = rlang::enquo(func), model = model,
+                      rlang::enquos(...),
+                      min = rlang::enquo(min), max = rlang::enquo(max),
+                      .assert = TRUE, .kind = level)
+  }
   pvt$rebuild_()
   new_obj
 }
@@ -987,16 +985,15 @@ add_group_risk <-  function(hh_model,
   if (!add_listed_defs_(pvt$group_risks_, pvt$gen_,
                         pvt$group_risks_$family, name, import, append,
                         rlang::enquos(...), rlang::caller_env(),
-                        match.call(expand.dots = FALSE), "name"))
+                        match.call(expand.dots = FALSE), "name")) {
     #> single mode
-    pvt$group_risks_$add_quo(
-      name = name, by = by,
-      reference = reference, joint = joint,
-      strata = strata, params = params,
-      prior = prior, rlang::enquos(...),
-      min = rlang::enquo(min), max = rlang::enquo(max),
-      proposal = proposal, prefix = prefix
-    )
+    pvt$group_risks_$add_quo(name = name, by = by,
+                             reference = reference, joint = joint,
+                             strata = strata, params = params,
+                             prior = prior, rlang::enquos(...),
+                             min = rlang::enquo(min), max = rlang::enquo(max),
+                             proposal = proposal, prefix = prefix)
+  }
   pvt$rebuild_()
   new_obj
 }
@@ -1116,14 +1113,13 @@ add_infectivity_profile <- function(hh_model,
                         "infectivity profile", func, import, append,
                         rlang::enquos(...), rlang::caller_env(),
                         match.call(expand.dots = FALSE), "func",
-                        has_template = TRUE))
+                        has_template = TRUE)) {
     #> single mode
-    pvt$infec_profile_$add_quo(
-      func = func, status = status, discr = discr,
-      rlang::enquos(...),
-      min = rlang::enquo(min), max = rlang::enquo(max),
-      .assert = TRUE
-    )
+    pvt$infec_profile_$add_quo(func = func, status = status, discr = discr,
+                               rlang::enquos(...),
+                               min = rlang::enquo(min), max = rlang::enquo(max),
+                               .assert = TRUE)
+  }
   pvt$rebuild_()
   new_obj
 }

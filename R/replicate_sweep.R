@@ -141,9 +141,9 @@ sweep_house_counts_ <- function(houses, observed, one = FALSE) {
 #' @noRd
 sweep_warning_counts_ <- function(raised) {
   held <- do.call(rbind, raised)
-  if (!NROW(held)) {
+  if (!NROW(held))
     return(data.frame(message = character(), count = integer()))
-  }
+
   counts <- tapply(held[["count"]], held[["message"]], sum)
   data.frame(message = names(counts), count = as.integer(counts),
              row.names = NULL, stringsAsFactors = FALSE)
@@ -225,20 +225,22 @@ sweep_run_ <- function(hh_model, structure, sampler, houses, nrep, pins,
     # seeds drawn ahead of the fits: the reducers draw from the same stream
     # whatever the size of a wave
     seeds <- draw_seed_(nrep)
-    unlist(lapply(waves, \(reps) {
+    unlist(lapply(waves, function(reps) {
       draws <- sweep_fit_wave_(hh_model, surveys$wide[reps], reps, n,
                                seeds[reps], fit_args, workers$outer, bar)
       Map(sweep_reduce_one_, draws, truths[reps], reps, seeds[reps],
           MoreArgs = list(houses = n, reducer = reducer))
     }), recursive = FALSE)
   }
-  ran <- with_progress_(progress, label, length(houses) * nrep, \(bar) {
+  start <- proc.time()[["elapsed"]]
+  ran <- with_progress_(progress, label, length(houses) * nrep, function(bar) {
     unlist(lapply(houses, cell, bar = bar), recursive = FALSE)
   })
   field <- \(k) lapply(ran, `[[`, k)
   list(estimates = sweep_stack_(field("estimates"), c("houses", "rep")),
        replicates = sweep_stack_(field("replicate"), c("houses", "rep")),
-       warnings = sweep_warning_counts_(field("warnings")))
+       warnings = sweep_warning_counts_(field("warnings")),
+       secs = proc.time()[["elapsed"]] - start)
 }
 
 #' One wave: the surveys of `wides` built in order and sampled `outer` at a

@@ -146,6 +146,7 @@ HousepiRecoveryCheck <- R6::R6Class(
     estimates_ = NULL,
     replicates_ = NULL,
     warnings_ = NULL,
+    secs_ = NA_real_,
 
     # Point estimate, posterior sd, credible interval, whether it covers the
     # values the survey was simulated at, and convergence diagnostics per
@@ -190,7 +191,7 @@ HousepiRecoveryCheck <- R6::R6Class(
     #'     `r paste(diagnostic_flags_, collapse = "; ")`}
     #' }
     estimates = function(value) {
-      if (!missing(value)) stop_read_only("estimates")
+      assert_read_only_(value, "estimates")
       private$estimates_
     },
 
@@ -204,7 +205,7 @@ HousepiRecoveryCheck <- R6::R6Class(
     #'   \item{flagged}{Whether any parameter of the fit was flagged}
     #' }
     replicates = function(value) {
-      if (!missing(value)) stop_read_only("replicates")
+      assert_read_only_(value, "replicates")
       private$replicates_
     },
 
@@ -218,7 +219,7 @@ HousepiRecoveryCheck <- R6::R6Class(
     #'   \item{nrep, n_flagged}{Replicates aggregated, and those flagged}
     #' }
     summary = function(value) {
-      if (!missing(value)) stop_read_only("summary")
+      assert_read_only_(value, "summary")
       recovery_summary_(private$estimates_)
     },
 
@@ -232,49 +233,49 @@ HousepiRecoveryCheck <- R6::R6Class(
     #'     run on this machine and thread count, not of the model}
     #' }
     overview = function(value) {
-      if (!missing(value)) stop_read_only("overview")
+      assert_read_only_(value, "overview")
       sweep_overview_(private$replicates_)
     },
 
     #' @field truth named `numeric()`
     #' Values the surveys were simulated at.
     truth = function(value) {
-      if (!missing(value)) stop_read_only("truth")
+      assert_read_only_(value, "truth")
       private$truth_
     },
 
     #' @field houses `integer()`
     #' Household counts swept.
     houses = function(value) {
-      if (!missing(value)) stop_read_only("houses")
+      assert_read_only_(value, "houses")
       private$houses_
     },
 
     #' @field nrep `integer(1)`
     #' Replicates run at each household count.
     nrep = function(value) {
-      if (!missing(value)) stop_read_only("nrep")
+      assert_read_only_(value, "nrep")
       private$nrep_
     },
 
     #' @field point_estimate `character(1)`
     #' Summary statistic taken as the posterior point estimate.
     point_estimate = function(value) {
-      if (!missing(value)) stop_read_only("point_estimate")
+      assert_read_only_(value, "point_estimate")
       private$point_estimate_
     },
 
     #' @field cri_level `numeric(1)`
     #' Credible level the intervals and the coverage are computed at.
     cri_level = function(value) {
-      if (!missing(value)) stop_read_only("cri_level")
+      assert_read_only_(value, "cri_level")
       private$cri_level_
     },
 
     #' @field warnings `data.frame`
     #' Distinct warnings raised over the sweep, with their counts.
     warnings = function(value) {
-      if (!missing(value)) stop_read_only("warnings")
+      assert_read_only_(value, "warnings")
       private$warnings_
     }
   ),
@@ -327,6 +328,7 @@ HousepiRecoveryCheck <- R6::R6Class(
       private$estimates_ <- swept$estimates
       private$replicates_ <- swept$replicates
       private$warnings_ <- swept$warnings
+      private$secs_ <- swept$secs
       sweep_report_warnings_(private$warnings_, "Parameter recovery")
       invisible(self)
     },
@@ -335,13 +337,15 @@ HousepiRecoveryCheck <- R6::R6Class(
     print = function() {
       model <- spaced_choice(private$name_)
       flagged <- sum(private$replicates_[["flagged"]])
-      print_bullets(c(
-        i = "Parameter recovery check of model {.val {model}}.",
-        "Households: {.val {private$houses_}}. \\
-         Replicates each: {private$nrep_}.",
-        "Point estimate: {.val {private$point_estimate_}}. \\
-         Credible level: {.val {private$cri_level_}}.",
-        "Flagged by diagnostics: {flagged}."
+      fit_secs <- mean(private$replicates_[["inference_secs"]])
+      print_rows_("Parameter recovery check of model {.val {model}}.", c(
+        Households = "{private$houses_}",
+        `Replicates each` = "{private$nrep_}",
+        `Point estimate` = "{private$point_estimate_}",
+        `Credible interval` = "{round(100 * private$cri_level_)}%",
+        `Flagged by diagnostics` = "{flagged}",
+        `Run time` = "{format_secs_(private$secs_)}",
+        `Inference time per fit` = "{format_secs_(fit_secs)}"
       ))
       invisible(self)
     }

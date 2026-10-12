@@ -3,13 +3,25 @@
 ## SPDX-License-Identifier: GPL-3.0-or-later
 ##
 
-# Render a `cli_bullets()` block to stdout as a single block.
-print_bullets <- function(x, .envir = parent.frame()) {
-  cat(cli::cli_fmt(cli::cli_bullets(x, .envir = .envir)), sep = "\n")
-}
-
 # Unprintable tag leading a C++ message line, followed by its bullet name.
 bullet_tag_ <- "\x1F"
+
+# Render a `cli_bullets()` block as one message.
+print_bullets <- function(x, .envir = parent.frame()) {
+  message(paste(cli::cli_fmt(cli::cli_bullets(x, .envir = .envir)),
+                collapse = "\n"))
+}
+
+# Render `header` as an info line, then one indented `Label: value` line per
+# element of `rows`, its name the label and its value cli markup.
+print_rows_ <- function(header, rows = character(), .envir = parent.frame()) {
+  lines <- paste0(names(rows), ": ", rows)
+  print_bullets(c(i = header, stats::setNames(lines, rep(" ", length(lines)))),
+                .envir = .envir)
+}
+
+# Duration of `secs` seconds, as the progress bar prints it.
+format_secs_ <- function(secs) .engine$format_secs(secs)
 
 # Flatten `...`/vectors into one line per element, splitting on newlines.
 # Names are preserved; segments produced by a split inherit an empty name,
@@ -146,11 +158,13 @@ with_cpp_conditions <- function(expr) {
   )
 }
 
-#' Standard error message for read-only fields.
+#' Error when a value is assigned to a read-only active field.
+#' @param value The `value` argument of the active binding, missing on read.
 #' @param active `character(1)` Name of the active method.
 #' @noRd
-stop_read_only <- function(active) {
-  stop_h("Active field {.field {active}} is read only.")
+assert_read_only_ <- function(value, active) {
+  if (!missing(value)) stop_h("Active field {.field {active}} is read only.")
+  invisible()
 }
 
 # Unprintable separator hashing several values into one key.
@@ -510,9 +524,8 @@ resolve_source_types_ <- function(defs, dict) {
   if (!length(defs)) return(defs)
   cols <- c("value", "func", "prior", "model", "min", "max", "proposal")
   for (col in intersect(names(defs), cols)) {
-    if (is.character(defs[[col]])) {
+    if (is.character(defs[[col]]))
       defs[[col]] <- housepi_resolve_definition(defs[[col]], dict)
-    }
   }
   defs
 }
@@ -760,12 +773,11 @@ set_housepi_theme <- function(base_size = 11,
   }
 
   # flextable theme
-  if (requireNamespace("flextable", quietly = TRUE)) {
+  if (requireNamespace("flextable", quietly = TRUE))
     flextable::set_flextable_defaults(font.family = base_family,
                                       font.size = base_size,
                                       font.color = "black",
                                       background.color = "white",
                                       theme_fun = "theme_vanilla")
-  }
   invisible()
 }

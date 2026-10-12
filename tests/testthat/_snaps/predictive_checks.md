@@ -2,10 +2,11 @@
 
     Code
       print(ppc)
-    Output
-      i Posterior predictions for model "final size":
-      * sar
-      N. replicates: 10
-      Point estimate: median
-      Credible interval: 90%
+    Message
+      i Posterior predictions for model "final size".
+        Measures: sar
+        Replicates: 10
+        Point estimate: median
+        Credible interval: 90%
+        Run time: <secs>
 

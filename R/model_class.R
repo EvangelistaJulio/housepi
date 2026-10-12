@@ -637,22 +637,20 @@ HousepiModel <- R6::R6Class(
       )
 
       # risks derive from their own covariates (they append to param_$defs)
-      if (derive && length(private$group_risks_$defs)) {
+      if (derive && length(private$group_risks_$defs))
         private$build_group_risks_(wall)
-      }
-      if (derive && length(private$contact_risks_$defs)) {
+
+      if (derive && length(private$contact_risks_$defs))
         private$build_contact_risks_()
-      }
 
       # defer the engine push while required data is incomplete
-      if (length(private$assert_data_wide_(FALSE, simulating = TRUE)) > 0) {
+      if (length(private$assert_data_wide_(FALSE, simulating = TRUE)) > 0)
         return(invisible(self))
-      }
+
       # a forward reference waits for the decorator that declares it, rather
       # than pushing an unsettled source into the engine
-      if (!wall && length(private$assert_sources_(FALSE)) > 0) {
+      if (!wall && length(private$assert_sources_(FALSE)) > 0)
         return(invisible(self))
-      }
 
       mcmc_ptr <- private$gen_$mcmc_ptr
       info_wide <- private$gen_$info_data_wide
@@ -682,9 +680,8 @@ HousepiModel <- R6::R6Class(
       latent_defs <- resolve_status_codes_(private$resolved_latent_(),
                                            status_dict)
       # NOTE: unresolved definitions wait for completeness or for the wall
-      if (wall || private$latent_declaration_complete_(latent_defs)) {
+      if (wall || private$latent_declaration_complete_(latent_defs))
         .engine$import_latent(mcmc_ptr, latent_defs)
-      }
 
       # status dictionary drives the factor refactoring of the status column
       private$gen_$set_status_levels(status_dict)
@@ -732,9 +729,9 @@ HousepiModel <- R6::R6Class(
                            id_draws = NULL, simulating = FALSE,
                            seed = draw_seed_(), ...) {
       # only run_inference resolves a selection; other builds store nothing
-      if (!is.list(id_draws)) {
+      if (!is.list(id_draws))
         id_draws <- list(id = character(), hh_id = character())
-      }
+
       .engine$import_setup(
         private$gen_$mcmc_ptr,
         char_setup_input_(c(list(
@@ -875,21 +872,21 @@ HousepiModel <- R6::R6Class(
     #' @field name `character(1)`
     #'  Model name.
     name = function(value) {
-      if (!missing(value)) stop_read_only("name")
+      assert_read_only_(value, "name")
       private$gen_$name
     },
 
     #' @field escaped `character(1)`
     #' Label for status code `0` in a character or factor `status` column.
     escaped = function(value) {
-      if (!missing(value)) stop_read_only("escaped")
+      assert_read_only_(value, "escaped")
       private$gen_$escaped
     },
 
     #' @field setup `list`
     #' Last setup used by the build process.
     setup = function(value) {
-      if (!missing(value)) stop_read_only("setup")
+      assert_read_only_(value, "setup")
       .engine$export_setup(private$gen_$mcmc_ptr)
     },
 
@@ -897,7 +894,7 @@ HousepiModel <- R6::R6Class(
     #' Individual level data.
     #' One row per individual index by corresponding ID.
     data_wide = function(value) {
-      if (!missing(value)) stop_read_only("data_wide")
+      assert_read_only_(value, "data_wide")
       # no data attached yet (deferred until add_data_wide() or the wall)
       if (!length(private$gen_$cols_data_wide)) return(NULL)
       .engine$export_data_wide(private$gen_$mcmc_ptr) |>
@@ -907,7 +904,7 @@ HousepiModel <- R6::R6Class(
     #' @field data_long `data.frame`
     #' Additional data rows indexed by individual (long format).
     data_long = function(value) {
-      if (!missing(value)) stop_read_only("data_long")
+      assert_read_only_(value, "data_long")
       .engine$export_data_long(private$gen_$mcmc_ptr) |>
         private$gen_$refactor_data_long()
     },
@@ -915,7 +912,7 @@ HousepiModel <- R6::R6Class(
     #' @field parameters `data.frame`
     #' Parameter definitions.
     parameters = function(value) {
-      if (!missing(value)) stop_read_only("parameters")
+      assert_read_only_(value, "parameters")
       private$resolved_param_() |>
         housepi_defin_showcaser() |>
         sort_definitions_()
@@ -924,7 +921,7 @@ HousepiModel <- R6::R6Class(
     #' @field group_risks `data.frame`
     #' Group risk definitions.
     group_risks = function(value) {
-      if (!missing(value)) stop_read_only("group_risks")
+      assert_read_only_(value, "group_risks")
       private$group_risks_ |>
         helper_show_risk_table(setdiff(risk_reserved_cols, risk_pin_cols),
                                private$has_data_wide_()) |>
@@ -934,7 +931,7 @@ HousepiModel <- R6::R6Class(
     #' @field contact_risks `data.frame`
     #' Contact risk definitions.
     contact_risks = function(value) {
-      if (!missing(value)) stop_read_only("contact_risks")
+      assert_read_only_(value, "contact_risks")
       private$contact_risks_ |>
         helper_show_risk_table(c("param_name", "n", "rule_group"),
                                private$has_data_wide_()) |>
@@ -944,7 +941,7 @@ HousepiModel <- R6::R6Class(
     #' @field latent `data.frame`
     #' Latent definitions.
     latent = function(value) {
-      if (!missing(value)) stop_read_only("latent")
+      assert_read_only_(value, "latent")
       private$resolved_latent_() |>
         augm_defs_of_kind("latent") |>
         housepi_defin_showcaser() |>
@@ -955,7 +952,7 @@ HousepiModel <- R6::R6Class(
     #' Observation definitions.
     #' Column 'level' tells member ("member") from household ("house") entries.
     observations = function(value) {
-      if (!missing(value)) stop_read_only("observations")
+      assert_read_only_(value, "observations")
       resolved <- private$resolved_latent_()
       do.call(rbind, lapply(c("member", "house"), function(level) {
         out <- augm_defs_of_kind(resolved, level)
@@ -970,7 +967,7 @@ HousepiModel <- R6::R6Class(
     #' Status process: one row per rule, with its status, weight, the members
     #' it applies to, its rule group and covariates.
     status_process = function(value) {
-      if (!missing(value)) stop_read_only("status_process")
+      assert_read_only_(value, "status_process")
       data_wide <- self$data_wide
       levels <- if (!is.null(data_wide)) private$status_draw_levels_()
       private$status_$tidy_table(data_wide, levels)
@@ -979,7 +976,7 @@ HousepiModel <- R6::R6Class(
     #' @field infectivity_profiles `data.frame`
     #' Infectivity profile definitions.
     infectivity_profiles = function(value) {
-      if (!missing(value)) stop_read_only("infectivity_profiles")
+      assert_read_only_(value, "infectivity_profiles")
       private$resolved_profile_() |>
         private$infec_profile_$showcase() |>
         sort_definitions_()
@@ -988,7 +985,7 @@ HousepiModel <- R6::R6Class(
     #' @field reporting_process `list`
     #' Reporting process: functions `wide` and `long`, `NULL` when absent.
     reporting_process = function(value) {
-      if (!missing(value)) stop_read_only("reporting_process")
+      assert_read_only_(value, "reporting_process")
       private$reporting_process_
     }
   ),
@@ -1054,9 +1051,8 @@ HousepiModel <- R6::R6Class(
       src_gen_priv <- private$gen_$.__enclos_env__$private
       for (field in names(new_gen_priv)) {
         val <- src_gen_priv[[field]]
-        if (field != "mcmc_ptr_" && !is.function(val)) {
+        if (field != "mcmc_ptr_" && !is.function(val))
           new_gen_priv[[field]] <- helper_clone(val)
-        }
       }
       new_gen$init_pointers()
       obj_priv$gen_ <- new_gen
@@ -1079,17 +1075,15 @@ HousepiModel <- R6::R6Class(
       header <- "Household transmission model {.val {self$name}}"
 
       # append link to template documentation if any
-      if (!is.na(get_template_dir(private$gen_$raw_name))) {
+      if (!is.na(get_template_dir(private$gen_$raw_name)))
         header <- paste(header,
           "({.run [template](housepi::browse_templates(\"{self$name}\"))})"
         )
-      }
       header <- c(i = paste0(header, "."))
 
       # UPDATE: to be rationalize in the future if more options are included
-      if (private$gen_$is_discrete_time) {
+      if (private$gen_$is_discrete_time)
         header <- c(header, "Model is set to {.emph discrete time} mode.")
-      }
 
       # each section is a self-contained cli_bullets block (headline + subs)
       blocks <- list()
@@ -1166,9 +1160,8 @@ HousepiModel <- R6::R6Class(
       for (k in seq_along(blocks)) {
         sms <- c(sms, blocks[[k]])
         # aligned like a sub-line (invisible bullet), no clash with leading `i`
-        if (k == last_minor) {
+        if (k == last_minor)
           sms <- c(sms, " " = "A custom choice can be provided.")
-        }
       }
 
       print_bullets(sms)

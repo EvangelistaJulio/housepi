@@ -54,11 +54,9 @@ HousepiInfecProfile <- R6::R6Class(
       mask <- vapply(self$defs[["status"]], function(x) {
         identical(x, as.integer(status))
       }, logical(1))
-      if (any(mask)) {
-        self$defs <- self$defs[!mask, ]
-        return(status)
-      }
-      c()
+      if (!any(mask)) return(NULL)
+      self$defs <- self$defs[!mask, ]
+      return(status)
     },
 
     #' @inherit add_infectivity_profile
@@ -98,9 +96,8 @@ HousepiInfecProfile <- R6::R6Class(
       # NOTE: if arg 'min' not provided
       # impose min = 1 for discrete-time, min = 0 for continuous time
       # NOTE: 'loc' already places the origin, no further shift is stacked on it
-      if (is.null(min)) {
+      if (is.null(min))
         min <- if (discr && !"loc" %in% names(func_args)) "1|N" else "0|N"
-      }
       if (is.null(max)) max <- NA_character_
 
       # append new definition
@@ -127,17 +124,14 @@ HousepiInfecProfile <- R6::R6Class(
     #' @param defs `data.frame()`. Definitions to read, the stored ones by
     #' default. The model passes the table with its sources resolved.
     showcase = function(defs = self$defs) {
-      if (length(defs)) {
-        output <- housepi_defin_showcaser(defs)
+      if (!length(defs)) return(NULL)
+      output <- housepi_defin_showcaser(defs)
 
-        # append func_args if not present
-        i <- which(names(output) == "func")
-        if (names(output)[i + 1] != "func_args") {
-          output <- append(output, list(func_args = NA), after = i)
-        }
-        return(output)
-      }
-      NULL
+      # append func_args if not present
+      i <- which(names(output) == "func")
+      if (names(output)[i + 1] != "func_args")
+        output <- append(output, list(func_args = NA), after = i)
+      output
     }
   )
 )

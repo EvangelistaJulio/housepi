@@ -355,6 +355,12 @@ test_that("Custom measures are checked next to the standard ones", {
   names(ppc$attack_rate) |> expect_contains(c("observed", "predicted"))
   colnames(ppc$formatted_attack_rate) |> expect_contains("observed")
   ppc |> expect_read_only_field("overall", "attack_rate")
+  # the print links standard measures to their help page, custom ones stay plain
+  withr::local_options(cli.hyperlink = TRUE, cli.hyperlink_run = TRUE)
+  lines <- helper_print_lines(print(ppc))
+  lines |>
+    expect_match("x-r-run:utils::help\\(\"measure_ar_by_hh_size\"", all = FALSE)
+  lines |> expect_match(", and overall$", all = FALSE)
 })
 
 test_that("Standard measures can be dropped", {
@@ -406,7 +412,7 @@ test_that("Predictive check on custom measures has read-only fields", {
 
   class(ppc)[1] |> expect_identical("HousepiPredictiveCheck")
   names(ppc$sar) |> expect_contains(c("observed", "predicted"))
-  print(ppc) |> expect_snapshot()
+  print(ppc) |> expect_snapshot(transform = helper_scrub_secs)
 
   # read access returns the run settings
   ppc$nrep |> expect_identical(10L)

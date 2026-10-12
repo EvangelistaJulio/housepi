@@ -64,11 +64,10 @@ namespace housepi::msg
         throw housepi::TrustedException(txt);
     }
 
-    /// Print an information message to stdout.
-    void info(const std::string &txt) noexcept
+    /// Emit `txt` as an R message, with no line ending added.
+    void info(const std::string &txt)
     {
-        Rcpp::Rcout << txt;
-        Rcpp::Rcout.flush();
+        Rcpp::Function("message", R_BaseNamespace)(txt, Rcpp::_["appendLF"] = false);
     }
 
     /// Raise warning `txt` as a housepi_cpp_warning condition.
@@ -1606,6 +1605,7 @@ RCPP_MODULE(housepi)
     Rcpp::function("progress_open", &progress_open);
     Rcpp::function("progress_close", &progress_close);
     Rcpp::function("progress_crash", &progress_crash);
+    Rcpp::function("format_secs", &format_secs);
     Rcpp::function("evaluate_log_lik", &evaluate_log_lik);
     Rcpp::function("import_data_wide", &import_data_wide);
     Rcpp::function("import_data_long", &import_data_long);

@@ -67,66 +67,66 @@
 
     Code
       print(browse_functions("pow", x2 = 3))
-    Output
+    Message
       i Exposed function "pow".
-      `x2` = 3
-      Continuous on (-Inf, Inf).
+        x2: 3
+        Domain: continuous on (-Inf, Inf)
 
 ---
 
     Code
       print(browse_distributions("normal", mean = 2, sd = 3))
-    Output
+    Message
       i Exposed distribution "normal".
-      `mean` = 2
-      `sd` = 3
-      Continuous on (-Inf, Inf).
+        mean: 2
+        sd: 3
+        Domain: continuous on (-Inf, Inf)
 
 ---
 
     Code
       print(browse_infectivity_profiles("gamma", shape = 2, scale = 1))
-    Output
+    Message
       i Exposed infectivity profile "gamma".
-      `shape` = 2
-      `scale` = 1
-      Continuous on [0, Inf).
+        shape: 2
+        scale: 1
+        Domain: continuous on [0, Inf)
 
 ---
 
     Code
       print(browse_functions("sin"))
-    Output
+    Message
       i Exposed function "sin".
-      Continuous on (-Inf, Inf).
+        Domain: continuous on (-Inf, Inf)
 
 ---
 
     Code
       print(browse_distributions("poisson", lambda = 3, min = 0.5))
-    Output
+    Message
       i Exposed distribution "poisson".
-      `lambda` = 3
-      Discrete on [0.5, Inf).
+        lambda: 3
+        Domain: discrete on [0.5, Inf)
 
 ---
 
     Code
       print(browse_distributions("poisson", lambda = 3, loc = 2))
-    Output
+    Message
       i Exposed distribution "poisson".
-      `lambda` = 3
-      `loc` = 2
-      Discrete on [2, Inf).
+        lambda: 3
+        loc: 2
+        Domain: discrete on [2, Inf)
 
 ---
 
     Code
       print(browse_distributions("gamma", shape = 2, scale = 1, loc = 3))
-    Output
+    Message
       i Exposed distribution "gamma".
-      `shape` = 2
-      `scale` = 1
-      `loc` = 3
-      Continuous on [3, Inf).
+        shape: 2
+        scale: 1
+        loc: 3
+        Domain: continuous on [3, Inf)
 

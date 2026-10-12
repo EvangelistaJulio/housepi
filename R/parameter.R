@@ -141,9 +141,9 @@ HousepiParameter <- R6::R6Class(
     assert = function(required, wall, warn_unused = TRUE) {
       defined <- self$defs[["name"]]
       # point out parameters that are not used
-      if (isTRUE(warn_unused)) {
+      if (isTRUE(warn_unused))
         template_not_used_warn(required, defined, self$family)
-      }
+
       # stop if parameters are missing
       sms <- template_missing_stop(required, defined, self$family)
       wall_or_return_(sms, wall)

@@ -226,11 +226,11 @@ auto_contact_reference_ <- function(by, reference, joint = FALSE) {
   }
   # convenience: an un-prefixed name sets both ends of the pair
   bare <- names(reference) %in% by
-  if (any(bare)) {
+  if (any(bare))
     reference <- c(reference[!bare],
                    stats::setNames(rep(reference[bare], 2L),
                                    pair_cols_(names(reference)[bare])))
-  }
+
   wrong_entries <- setdiff(names(reference), valid_names)
   if (length(wrong_entries)) stop_h(
     "Unrecognized choice{?s} for reference: {.val {wrong_entries}}.",
@@ -278,9 +278,8 @@ HousepiContactRisk <- R6::R6Class(
       assert_risk_covariates_(by)
 
       # load reference and validate reference names
-      if (length(reference)) {
+      if (length(reference))
         reference <- auto_contact_reference_(by, reference, joint)
-      }
 
       # store definition
       self$defs <- list(by = by, reference = reference, prefix = prefix,
@@ -331,9 +330,9 @@ HousepiContactRisk <- R6::R6Class(
                                    drop = FALSE]
         # extract reference entries for this sub-table, propagating .auto
         relevant_ref <- self$defs$reference
-        if (!identical(relevant_ref, ".auto")) {
+        if (!identical(relevant_ref, ".auto"))
           relevant_ref <- relevant_ref[names(relevant_ref) %in% cols]
-        }
+
         this_table <- associate_contact_param_names(
           this_table, prefix, relevant_ref, symmetric
         )

@@ -116,10 +116,12 @@ mk_recov <- local({
   list(model = hh_model, results = results)
 })
 
-# no fit is flagged and every point estimate lies within four posterior sd
-# of its simulating value, which a calibrated posterior strays past about once
-# in 16,000 fits
+# no fit raised a warning, no fit is flagged and every point estimate lies
+# within four posterior sd of its simulating value, which a calibrated
+# posterior strays past about once in 16,000 fits
+# the check is run under `suppressWarnings()`: its warnings are read back here
 expect_recovered <- function(results) {
+  results$warnings$message |> expect_identical(character())
   estimates <- results$estimates
   estimates$flagged |> expect_all_false()
   (abs(estimates$estimate - estimates$truth) < 4 * estimates$sd) |>
@@ -135,16 +137,20 @@ test_that("Recovery results are read only", {
 
 test_that("Recovery results print their settings", {
   results <- mk_recov$results
-  lines <- capture.output(printed <- print(results))
+  lines <- helper_print_lines(printed <- print(results))
   # printing returns the object itself
   printed |> expect_identical(results)
   lines[1] |> expect_match("[Pp]arameter recovery check.*final size")
-  lines |> expect_contains("Households: 20 and 40. Replicates each: 2.")
-  lines |> expect_contains("Point estimate: \"median\". Credible level: 0.9.")
+  lines |> expect_contains(c("Households: 20 and 40", "Replicates each: 2",
+                             "Point estimate: median",
+                             "Credible interval: 90%"))
   # the count is that of the flagged replicates
   lines |>
-    expect_contains(paste0("Flagged by diagnostics: ",
-                           sum(results$replicates$flagged), "."))
+    expect_contains(paste("Flagged by diagnostics:",
+                          sum(results$replicates$flagged)))
+  # durations read as the progress bar prints them
+  lines |> expect_match("^Run time: [0-9]+s$", all = FALSE)
+  lines |> expect_match("^Inference time per fit: [0-9]+s$", all = FALSE)
 })
 
 test_that("Recovery sweeps every household count", {
@@ -315,12 +321,15 @@ test_that("Recovery refuses a sweep it cannot run", {
 test_that("Latent inference recovers the simulating parameter", {
   skip_on_cran()
   # @note test model simulates only on the statuses it is given
-  data.frame(hh_id = seq(200), status = 1) |>
+  # `rho` mixes as slowly whatever the household count: few households and a
+  # long thinned chain keep R-hat clear of its limit
+  data.frame(hh_id = seq(50), status = 1) |>
     new_housepi_model("test") |>
     add_parameter("rho", value = 2, prior = "uniform", min = -5, max = 5) |>
     add_latent("hidden", model = "normal", mean = rho, sd = 1) |>
     add_observation("record", model = "normal", mean = hidden, sd = 1) |>
-    check_recovery(nrep = 1, progress = FALSE) |>
+    check_recovery(nrep = 1, steps = 4000, thin = 20, progress = FALSE) |>
+    suppressWarnings() |>
     expect_recovered()
 })
 
@@ -330,6 +339,7 @@ test_that("Final-size inference recovers the simulating parameters", {
     new_housepi_model("final-size") |>
     add_parameter(import = "template") |>
     check_recovery(nrep = 1, progress = FALSE) |>
+    suppressWarnings() |>
     expect_recovered()
 })
 
@@ -353,5 +363,6 @@ test_that("Case-ascertained inference recovers the simulating parameters", {
       end_date = start_date + 21
     ) |>
     check_recovery(nrep = 1, houses = 200, progress = FALSE) |>
+    suppressWarnings() |>
     expect_recovered()
 })

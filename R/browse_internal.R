@@ -85,7 +85,7 @@ HousepiExposed <- R6::R6Class(
     #' @field args `numeric()`
     #' Named argument values the definition was built with.
     args = function(value) {
-      if (!missing(value)) stop_read_only("args")
+      assert_read_only_(value, "args")
       private$call_("args")
     },
 
@@ -94,7 +94,7 @@ HousepiExposed <- R6::R6Class(
     #' `closed`, whether each bound belongs to the interval. The bounds are
     #' read before the location shift `loc`.
     domain = function(value) {
-      if (!missing(value)) stop_read_only("domain")
+      assert_read_only_(value, "domain")
       private$call_("domain")
     },
 
@@ -102,7 +102,7 @@ HousepiExposed <- R6::R6Class(
     #' Whether the values the definition takes lie on a lattice of
     #' integers. A distribution answers for the values it draws.
     is_discrete = function(value) {
-      if (!missing(value)) stop_read_only("is_discrete")
+      assert_read_only_(value, "is_discrete")
       private$discr_
     },
 
@@ -111,7 +111,7 @@ HousepiExposed <- R6::R6Class(
     #' positive. A distribution answers for the values it draws.
     #' Note that `FALSE` reads as "not known to be positive".
     is_positive = function(value) {
-      if (!missing(value)) stop_read_only("is_positive")
+      assert_read_only_(value, "is_positive")
       private$call_("is_positive")
     },
 
@@ -120,7 +120,7 @@ HousepiExposed <- R6::R6Class(
     #' A distribution returns a density, a mass or a cumulative probability,
     #' never a draw: see `domain` for the values it is defined on.
     codomain = function(value) {
-      if (!missing(value)) stop_read_only("codomain")
+      assert_read_only_(value, "codomain")
       private$call_("codomain")
     }
   ),
@@ -145,19 +145,13 @@ HousepiExposed <- R6::R6Class(
 
     #' @description Override the default printing behavior.
     print = function() {
-      args <- self$args
-      items <- vapply(names(args),
-                      \(arg) inline_cli_("{.arg {arg}} = {args[[arg]]}"),
-                      character(1), USE.NAMES = FALSE)
-      if (!is.na(private$loc_)) {
-        items <- c(items, "{.arg loc} = {format(private$loc_)}")
-      }
+      args <- vapply(self$args, \(x) escape_cli_(format(x)), character(1))
+      if (!is.na(private$loc_)) args <- c(args, loc = format(private$loc_))
       loc <- if (is.na(private$loc_)) 0 else private$loc_
-      print_bullets(c(
-        i = "Exposed {private$family_} {.val {private$name_}}.",
-        items,
-        paste(if (private$discr_) "Discrete" else "Continuous",
-              "on {format_interval_(self$domain, loc)}.")
+      print_rows_("Exposed {private$family_} {.val {private$name_}}.", c(
+        args,
+        Domain = paste(if (private$discr_) "discrete" else "continuous",
+                       "on {format_interval_(self$domain, loc)}")
       ))
       invisible(self)
     }
@@ -323,9 +317,9 @@ browse_functions <- function(name = NA_character_, ...,
                              min = NA_real_,
                              max = NA_real_,
                              discr = FALSE) {
-  if (is.na(name)) {
+  if (is.na(name))
     return(show_registered_(.engine$list_functions(), .family$func))
-  }
+
   assert_unique_arg_names(names(list(...)), .family$func, name)
   obj <- .engine$expose_function(name, unlist(list(...)), min, max, discr)
   HousepiExposedFunction$new(obj, name)
@@ -354,9 +348,9 @@ browse_distributions <- function(name = NA_character_, ...,
                                  min = NA_real_,
                                  max = NA_real_,
                                  discr = FALSE) {
-  if (is.na(name)) {
+  if (is.na(name))
     return(show_registered_(.engine$list_distributions(), .family$distr))
-  }
+
   assert_unique_arg_names(names(list(...)), .family$distr, name)
   obj <- .engine$expose_distribution(name, unlist(list(...)), min, max, discr)
   HousepiExposedDistribution$new(obj, name)
@@ -384,9 +378,9 @@ browse_infectivity_profiles <- function(name = NA_character_, ...,
                                         min = NA_real_,
                                         max = NA_real_,
                                         discr = FALSE) {
-  if (is.na(name)) {
+  if (is.na(name))
     return(show_registered_(.engine$list_infec_profiles(), .family$infec))
-  }
+
   # FIXME: this is unaware of loc !
   if (is.na(min)) min <- if (discr) 1 else 0
   assert_unique_arg_names(names(list(...)), .family$infec, name)

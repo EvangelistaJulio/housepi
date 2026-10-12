@@ -189,9 +189,9 @@ HousepiGenerator <- R6::R6Class(
       if (force ||
             !file.exists(private$dll_) ||
             untracked_changes(private$source_dir_, private$dll_) ||
-            !private$has_same_flags_as_dll_()) {
+            !private$has_same_flags_as_dll_())
         private$build_as_custom_model_(as_template, force)
-      }
+
       invisible(self)
     },
 
@@ -199,9 +199,9 @@ HousepiGenerator <- R6::R6Class(
     # Initialize template model loading template model name.
     init_template_model_ = function(choice, force) {
       private$store_source_and_filter_flags_(get_template_dir(choice))
-      if (force || !private$has_same_flags_as_dll_()) {
+      if (force || !private$has_same_flags_as_dll_())
         private$build_as_custom_model_(FALSE, force)
-      }
+
       invisible(self)
     },
 
@@ -248,14 +248,12 @@ HousepiGenerator <- R6::R6Class(
       private$cache_dir_ <- file.path(tempdir(), template_name(private$name_))
 
       # nest one level if cache overlaps source so the latter is never deleted
-      if (cache_overlaps_source(private$cache_dir_, private$source_dir_)) {
+      if (cache_overlaps_source(private$cache_dir_, private$source_dir_))
         private$cache_dir_ <- file.path(private$cache_dir_, ".build")
-      }
 
-      if (!dir.exists(private$cache_dir_)) {
+      if (!dir.exists(private$cache_dir_))
         if (!dir.create(private$cache_dir_, recursive = TRUE,
                         showWarnings = FALSE)) raise_permissions_error()
-      }
 
       if (as_template) {
         if (file.exists(private$dll_)) {
@@ -332,7 +330,8 @@ HousepiGenerator <- R6::R6Class(
         private$dll_ <- cache_dll_files[1]
         # cached dll is the one if changes are tracked and flags still match
         if (!untracked_changes(private$source_dir_, private$dll_) &&
-              private$has_same_flags_as_dll_()) return(FALSE)
+              private$has_same_flags_as_dll_())
+          return(FALSE)
       }
       # no dll cached or multiple dlls require recompilation
       TRUE

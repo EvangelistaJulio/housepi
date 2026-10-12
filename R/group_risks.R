@@ -424,7 +424,8 @@ group_risk_logic_table <- function(data_wide, this_cov,
   # extract unique covariates and sort by list length
   # status strata are declared by the model, not read off the data
   uni_covariates <- lapply(this_cov, function(f) {
-    if (identical(f, "status")) status_levels else sort(unique(data_wide[[f]]))
+    if (identical(f, "status")) status_levels
+    else sort(unique(data_wide[[f]]))
   })
   sorted_indices <- order(lengths(uni_covariates), decreasing = TRUE)
   this_cov <- this_cov[sorted_indices]
@@ -644,9 +645,8 @@ HousepiGroupRisk <- R6::R6Class(
       warn_or_store_overwrite_(self, rmv_name, .warn_over)
 
       # load reference and validate reference names
-      if (length(reference)) {
+      if (length(reference))
         reference <- auto_group_reference_(by, reference)
-      }
 
       # add new definition
       self$defs[[name]] <- list(by = by, reference = reference,

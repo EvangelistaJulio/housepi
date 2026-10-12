@@ -302,19 +302,19 @@ test_that("Advanced setup options route through `...`", {
 })
 
 test_that("Progress bar prints every `progress` seconds until interrupted", {
-  # the run outlasts the time limit, whose interrupt stops it
+  # the run outlasts the time limit, which stops it: an interrupt at the
+  # engine's check, an error while a print runs
   on.exit(setTimeLimit())
-  printed <- capture.output(type = "output",
-    notice <- capture.output(type = "message", { # R time-limit notice
-      outcome <- tryCatch({
-        setTimeLimit(elapsed = 3.5, transient = TRUE)
-        mk_wrapper$model |>
-          add_parameter("rho", prior = "uniform") |>
-          run_inference(steps = 1e10, thin = 1e4, progress = 1)
-      }, interrupt = \(e) e)
-    })
-  )
-  outcome |> expect_s3_class("interrupt")
+  # the bar prints as messages
+  printed <- capture.output(type = "message", {
+    outcome <- tryCatch({
+      setTimeLimit(elapsed = 3.5, transient = TRUE)
+      mk_wrapper$model |>
+        add_parameter("rho", prior = "uniform") |>
+        run_inference(steps = 1e10, thin = 1e4, progress = 1)
+    }, interrupt = \(e) e, error = \(e) e)
+  })
+  outcome |> expect_s3_class(c("interrupt", "error"))
 
   # every line reports a percentage: the interrupted bar prints no closing line
   # interactive prints overwrite one line, each led by a carriage return

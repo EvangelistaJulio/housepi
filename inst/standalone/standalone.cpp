@@ -51,8 +51,8 @@ namespace housepi
             std::exit(EXIT_FAILURE);
         }
 
-        /// Print an information message to stdout.
-        void info(const std::string &txt) noexcept
+        /// Print message `txt` to stdout, with no line ending added.
+        void info(const std::string &txt)
         {
             std::cout << txt;
             std::cout.flush();

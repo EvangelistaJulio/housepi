@@ -17,7 +17,8 @@ showcase_map_ <- function(x, fn, na = NA_character_) {
 # Helper to extract sourced value from a definition.
 showcaser_extract <- function(x, src) {
   showcase_map_(x, function(z, element) {
-    if (length(z) != 2 || z[2] != src) element else as.character(z[1])
+    if (length(z) != 2 || z[2] != src) element
+    else as.character(z[1])
   })
 }
 
@@ -94,17 +95,15 @@ housepi_defin_showcaser <- function(defs) {
         args = base::I(showcase_extract_args(output[[col]]))
       )
       class(col_args$args) <- "list"
-      if (!col %in% c("prior", "model")) {
+      if (!col %in% c("prior", "model"))
         col_args <- stats::setNames(col_args, paste0(col, "_args"))
-      }
 
       right_side <- cbind(
         stats::setNames(list(showcaser_extract_func(output[[col]])), col),
         col_args
       )
-      if (pos < ncol(output)) {
+      if (pos < ncol(output))
         right_side <- cbind(right_side, output[(pos + 1):ncol(output)])
-      }
       if (pos > 1) output <- cbind(output[1:(pos - 1)], right_side)
       else output <- right_side
     }

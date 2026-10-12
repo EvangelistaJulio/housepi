@@ -28,9 +28,9 @@ helper_process_data <- function(data_wide, escaped = "escaped") {
     paste("Measures by household size need one row per individual, with a",
           "household identifier and a follow-up outcome.")
   )
-  if (is.character(df$status) || is.factor(df$status)) {
+  if (is.character(df$status) || is.factor(df$status))
     df$status <- status_to_codes_(df$status, escaped)$codes
-  }
+
   df$status <- as.integer(df$status)
   df$hh_id <- match(df$hh_id, unique(df$hh_id))
   df
@@ -224,14 +224,12 @@ ppc_frame_apply_cri <- function(frame_list, cri_level = 0.9,
 # Non-numeric or NA elements are reported as FALSE (not a mismatch).
 ppc_observed_outside_cri <- function(x) {
   .vec_outside <- function(obs, low, up) {
-    if (!is.numeric(obs) || !is.numeric(low) || !is.numeric(up)) {
+    if (!is.numeric(obs) || !is.numeric(low) || !is.numeric(up))
       return(rep(FALSE, length(obs)))
-    }
     !is.na(obs) & !is.na(low) & !is.na(up) & (obs < low | obs > up)
   }
-  if (!is.data.frame(x$observed)) {
+  if (!is.data.frame(x$observed))
     return(.vec_outside(x$observed, x$cri_lower, x$cri_upper))
-  }
   as.data.frame(Map(.vec_outside, x$observed, x$cri_lower, x$cri_upper))
 }
 
@@ -295,7 +293,10 @@ HousepiPredictiveCheck <- R6::R6Class(
     thin_ess_ = TRUE,
     is_posterior_ = FALSE,
     model_name_ = NA_character_,
+    secs_ = NA_real_,
     measure_names_ = character(0),
+    # help topic of each built-in measure, by measure name
+    measure_topics_ = character(0),
     measures_ = list(),
     # whether the simulated frames reach the measures with their labels
     # restored; user-supplied measures always do
@@ -335,33 +336,33 @@ HousepiPredictiveCheck <- R6::R6Class(
   active = list(
     #' @field point_estimate `character(1)`. Summary statistic name.
     point_estimate = function(value) {
-      if (!missing(value)) stop_read_only("point_estimate")
+      assert_read_only_(value, "point_estimate")
       private$point_estimate_
     },
     #' @field cri_level `numeric(1)`. Credible interval level.
     cri_level = function(value) {
-      if (!missing(value)) stop_read_only("cri_level")
+      assert_read_only_(value, "cri_level")
       private$cri_level_
     },
     #' @field nrep `integer(1)`. Number of replicates used for the predictions.
     nrep = function(value) {
-      if (!missing(value)) stop_read_only("nrep")
+      assert_read_only_(value, "nrep")
       private$nrep_
     },
     #' @field thin_ess `logical(1)`. Whether thinning to ESS was applied.
     thin_ess = function(value) {
-      if (!missing(value)) stop_read_only("thin_ess")
+      assert_read_only_(value, "thin_ess")
       private$thin_ess_
     },
     #' @field is_posterior `logical(1)`.
     #' Whether the predictions are posterior predictions.
     is_posterior = function(value) {
-      if (!missing(value)) stop_read_only("is_posterior")
+      assert_read_only_(value, "is_posterior")
       private$is_posterior_
     },
     #' @field model_name `character(1)`. Name of the underlying model.
     model_name = function(value) {
-      if (!missing(value)) stop_read_only("model_name")
+      assert_read_only_(value, "model_name")
       private$model_name_
     }
   ),
@@ -391,6 +392,7 @@ HousepiPredictiveCheck <- R6::R6Class(
                           thin_ess = TRUE,
                           threads = 1L,
                           progress = TRUE) {
+      start <- proc.time()[["elapsed"]]
       nrep <- assert_count_(nrep, "Number of replicates", allow_na = TRUE)
       # associate summary statistic and credible interval
       private$point_estimate_ <- get_global_point_estimate()
@@ -398,9 +400,8 @@ HousepiPredictiveCheck <- R6::R6Class(
 
       # load and classify measure functions (wide vs long)
       m_wide <- list(...)
-      if (length(m_wide)) {
+      if (length(m_wide))
         assert_measure_names_(names(m_wide), ls(self, all.names = TRUE))
-      }
       # FIXME this breaks if it's already list
       m_long <- list()
       if (!is.null(measures_long)) m_long <- list(measures_long)
@@ -478,7 +479,7 @@ HousepiPredictiveCheck <- R6::R6Class(
         local({
           m_name <- mn
           setter <- function(value) {
-            if (!missing(value)) stop_read_only(m_name)
+            assert_read_only_(value, m_name)
             private$measures_[[m_name]]
           }
           makeActiveBinding(m_name, setter, self)
@@ -494,6 +495,7 @@ HousepiPredictiveCheck <- R6::R6Class(
       private$thin_ess_ <- isTRUE(thin_ess)
 
       private$check_observed_in_cri_()
+      private$secs_ <- proc.time()[["elapsed"]] - start
 
       invisible(self)
     },
@@ -503,16 +505,21 @@ HousepiPredictiveCheck <- R6::R6Class(
     print = function() {
       kind <- if (private$is_posterior_) "Posterior predictions" else
         "Predictions"
-      sms <- c(i = "{kind} for model {.val {private$model_name_}}:")
-      for (m in private$measure_names_) {
-        sms <- c(sms, paste0(cli::symbol$bullet, " ", m))
-      }
-      print_bullets(c(
-        sms,
-        paste0("N. replicates: {private$nrep_}",
-               if (private$thin_ess_) " (ESS)" else ""),
-        "Point estimate: {private$point_estimate_}",
-        "Credible interval: {round(100 * private$cri_level_)}%"
+      # built-in measures link to their help page
+      measures <- vapply(private$measure_names_, function(m) {
+        topic <- private$measure_topics_[m]
+        if (is.na(topic)) m
+        else cli::format_inline(
+          "{.run [{m}](utils::help(\"{topic}\", \"housepi\"))}"
+        )
+      }, character(1), USE.NAMES = FALSE)
+      print_rows_("{kind} for model {.val {private$model_name_}}.", c(
+        Measures = "{measures}",
+        Replicates = paste0("{private$nrep_}",
+                            if (private$thin_ess_) " (ESS)" else ""),
+        `Point estimate` = "{private$point_estimate_}",
+        `Credible interval` = "{round(100 * private$cri_level_)}%",
+        `Run time` = "{format_secs_(private$secs_)}"
       ))
       invisible(self)
     }
@@ -560,9 +567,7 @@ helper_filter_tables <- function(cases_count,
   }
 
   # implement min household size mask (rows only: any case column stays valid)
-  if (!is.na(min_hh_size)) {
-    mask_row <- mask_row & (obsdf$hh_size >= min_hh_size)
-  }
+  if (!is.na(min_hh_size)) mask_row <- mask_row & (obsdf$hh_size >= min_hh_size)
 
   list(
     observed = obsdf[mask_row, mask_col],
@@ -635,15 +640,16 @@ HousepiEpiPredictiveCheck <- R6::R6Class(
     min_hh_size_ = NA_integer_,
     max_hh_size_ = NA_integer_,
     house_counts_ = NULL,
+    measure_topics_ = c(attack_rate = "measure_ar_by_hh_size",
+                        sec_attack_rate = "measure_sar_by_hh_size",
+                        cases_count = "measure_cases_by_hh_size"),
 
     # Restrict a by-hh_size data.frame to the set [min_hh_size_, max_hh_size_].
     filter_hh_size_ = function(df) {
-      if (!is.na(private$min_hh_size_)) {
+      if (!is.na(private$min_hh_size_))
         df <- df[df$hh_size >= private$min_hh_size_, ]
-      }
-      if (!is.na(private$max_hh_size_)) {
+      if (!is.na(private$max_hh_size_))
         df <- df[df$hh_size <= private$max_hh_size_, ]
-      }
       df
     }
   ),
@@ -657,7 +663,7 @@ HousepiEpiPredictiveCheck <- R6::R6Class(
     #' Observed and predicted attack rates by household size.
     #' Sizes outside the set household size bounds are not returned.
     formatted_attack_rate = function(value) {
-      if (!missing(value)) stop_read_only("formatted_attack_rate")
+      assert_read_only_(value, "formatted_attack_rate")
       # convert internal list to data.frame
       output <- data.frame(
         hh_size = self$attack_rate$observed$hh_size,
@@ -678,7 +684,7 @@ HousepiEpiPredictiveCheck <- R6::R6Class(
     #' Observed and predicted secondary attack rates by household size.
     #' Sizes outside the set household size bounds are not returned.
     formatted_sec_attack_rate = function(value) {
-      if (!missing(value)) stop_read_only("formatted_sec_attack_rate")
+      assert_read_only_(value, "formatted_sec_attack_rate")
       # convert internal list to data.frame
       output <- data.frame(
         hh_size = self$sec_attack_rate$observed$hh_size,
@@ -699,7 +705,7 @@ HousepiEpiPredictiveCheck <- R6::R6Class(
     #' Formatted observed and predicted cases by household size.
     #' Sizes outside the set household size bounds are not returned.
     formatted_cases_count = function(value) {
-      if (!missing(value)) stop_read_only("formatted_cases_count")
+      assert_read_only_(value, "formatted_cases_count")
       # filter according to household size bounds
       cases <- helper_filter_tables(self$cases_count,
                                     private$min_hh_size_, private$max_hh_size_)
@@ -741,8 +747,7 @@ HousepiEpiPredictiveCheck <- R6::R6Class(
                           max_hh_size = NA_integer_,
                           threads = 1L,
                           progress = TRUE) {
-      epi_names <- c("attack_rate", "sec_attack_rate", "cases_count")
-      clash <- intersect(names(list(...)), epi_names)
+      clash <- intersect(names(list(...)), names(private$measure_topics_))
       if (length(clash)) stop_h(
         paste("{cli::qty(clash)}Measure name{?s} {.field {clash}} already used",
               "by a standard epidemiological measure."),

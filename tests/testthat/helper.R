@@ -5,6 +5,14 @@ expect_read_only_field <- function(obj, ...) {
   }
 }
 
+# Mask the durations a print reports, which vary from run to run.
+helper_scrub_secs <- function(lines) sub("(time[^:]*: ).*$", "\\1<secs>", lines)
+
+# Lines a print emits as messages, stripped of their indentation.
+helper_print_lines <- function(expr) {
+  trimws(unlist(strsplit(testthat::capture_messages(expr), "\n")))
+}
+
 # Give the latents of a model a sink, so inference samples them at all.
 # A uniform observation over a window nothing can leave contributes a constant,
 # leaving the posterior of what it reads equal to what the model declares.

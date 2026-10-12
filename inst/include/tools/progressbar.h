@@ -19,6 +19,25 @@
 
 namespace housepi
 {
+    /// Format `secs` in whole seconds, showing large time scales only when relevant.
+    /// - e.g. `12s`, `3m05s`, `1h02m`, `2d03h`.
+    inline std::string format_secs(double secs)
+    {
+        const long t = static_cast<long>(secs);
+        const long dys = t / 86400, hrs = t / 3600 % 24, mns = t / 60 % 60, scs = t % 60;
+        std::ostringstream oss;
+        oss << std::setfill('0');
+        if (dys > 0)
+            oss << dys << "d" << std::setw(2) << hrs << "h";
+        else if (hrs > 0)
+            oss << hrs << "h" << std::setw(2) << mns << "m";
+        else if (mns > 0)
+            oss << mns << "m" << std::setw(2) << scs << "s";
+        else
+            oss << scs << "s";
+        return oss.str();
+    }
+
     /// Display the progress of a sequence of runs, with elapsed and remaining time.
     /// Based on @cite hammouchi_fancy_2024
     ///
@@ -67,8 +86,8 @@ namespace housepi
             std::ostringstream oss;
             line_(oss, prog);
             oss << std::fixed << std::setprecision(0) << 100. * prog << "% "
-                << fmt_time_(secs) << "<"
-                << (secs >= silencer_ && prog > 0. ? fmt_time_(secs * (1. - prog) / prog) : "?s")
+                << format_secs(secs) << "<"
+                << (secs >= silencer_ && prog > 0. ? format_secs(secs * (1. - prog) / prog) : "?s")
                 << std::setw(interactive_ ? 10 : 0) << ""; // wipe a longer previous line
             print_(oss, false);
             has_bar_print_ = true;
@@ -76,7 +95,7 @@ namespace housepi
 
         /// End the line of a bar left open by an error, once.
         /// - non-interactive: no-op, every print ends its line.
-        void crash() noexcept
+        void crash()
         {
             if (has_bar_print_ && interactive_)
                 msg::info("\n"); // # nocov
@@ -93,7 +112,7 @@ namespace housepi
 
             std::ostringstream oss;
             line_(oss, 1.);
-            oss << fmt_time_(secs_()) << std::setw(interactive_ ? 15 : 0) << "";
+            oss << format_secs(secs_()) << std::setw(interactive_ ? 15 : 0) << "";
             print_(oss, true);
         }
 
@@ -115,24 +134,6 @@ namespace housepi
 
         /// Seconds since opening.
         double secs_() const { return std::chrono::duration<double>(Clock::now() - start_).count(); }
-
-        /// Format `secs` in whole seconds, showing large time scales only when relevant.
-        static std::string fmt_time_(double secs)
-        {
-            const long t = static_cast<long>(secs);
-            const long dys = t / 86400, hrs = t / 3600 % 24, mns = t / 60 % 60, scs = t % 60;
-            std::ostringstream oss;
-            oss << std::setfill('0');
-            if (dys > 0)
-                oss << dys << "d" << std::setw(2) << hrs << "h";
-            else if (hrs > 0)
-                oss << hrs << "h" << std::setw(2) << mns << "m";
-            else if (mns > 0)
-                oss << mns << "m" << std::setw(2) << scs << "s";
-            else
-                oss << scs << "s";
-            return oss.str();
-        }
 
         /// Write into `os` the text and the bar filled at progress `prog`.
         /// - interactive: led by a carriage return, bar in green.

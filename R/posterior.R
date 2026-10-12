@@ -165,10 +165,10 @@ summarise_draws.housepi_draws <- function(
 ) {
   # strip the tag so the forwarded call dispatches to the next class
   class(.x) <- setdiff(class(.x), "housepi_draws")
-  if (length(list(...)) > 0) return(
-    posterior::summarise_draws(.x, ..., .args = .args,
-                               .num_args = .num_args, .cores = .cores)
-  )
+  if (length(list(...)) > 0)
+    return(posterior::summarise_draws(.x, ..., .args = .args,
+                                      .num_args = .num_args, .cores = .cores))
+
   probs <- unname(cri_level_probs(get_global_cri_level()))
   quantile_fn <- function(x) posterior::quantile2(x, probs = probs)
   posterior::summarise_draws(
@@ -364,7 +364,7 @@ HousepiPosteriorDraws <- R6::R6Class(
     #' @field parameter_draws `posterior::draws_df`.
     #' Draws of parameters.
     parameter_draws = function(value) {
-      if (!missing(value)) stop_read_only("param_draws")
+      assert_read_only_(value, "param_draws")
       if (is.null(private$draws_$param)) return(empty_draws_())
       private$draws_$param
     },
@@ -372,7 +372,7 @@ HousepiPosteriorDraws <- R6::R6Class(
     #' @field latent_draws `posterior::draws_df`.
     #' Draws of the selected individuals' latent variables.
     latent_draws = function(value) {
-      if (!missing(value)) stop_read_only("latent_draws")
+      assert_read_only_(value, "latent_draws")
       if (is.null(private$draws_$latent)) return(empty_draws_())
       private$draws_$latent
     },
@@ -387,7 +387,7 @@ HousepiPosteriorDraws <- R6::R6Class(
     #' the observation, transmission, and latent model contributions.
     #' `r rd_natural_log_`
     log_lik_draws = function(value) {
-      if (!missing(value)) stop_read_only("log_lik_draws")
+      assert_read_only_(value, "log_lik_draws")
       private$draws_$point_log_lik
     },
 
@@ -396,7 +396,7 @@ HousepiPosteriorDraws <- R6::R6Class(
     #' latent-variable log-density enters the `log_lik` bundle, not `lprior`.
     #' `r rd_natural_log_`
     lprior_draws = function(value) {
-      if (!missing(value)) stop_read_only("lprior_draws")
+      assert_read_only_(value, "lprior_draws")
       if (is.null(private$draws_$lprior)) return(empty_draws_())
       private$draws_$lprior
     },
@@ -407,7 +407,7 @@ HousepiPosteriorDraws <- R6::R6Class(
     #' parameter) posterior (see `log_lik_draws` and `lprior_draws`).
     #' `r rd_natural_log_`
     complete_draws = function(value) {
-      if (!missing(value)) stop_read_only("complete_draws")
+      assert_read_only_(value, "complete_draws")
       # rename pointwise log-likelihood standard convention
       aux <- private$draws_$point_log_lik
       n_vars <- posterior::nvariables(aux)
@@ -428,7 +428,7 @@ HousepiPosteriorDraws <- R6::R6Class(
     #' Recorded whether or not the run reported them. Per-variable R-hat and
     #' Bulk ESS behind a flag are read from [summarise_draws()].
     warnings = function(value) {
-      if (!missing(value)) stop_read_only("warnings")
+      assert_read_only_(value, "warnings")
       private$warnings_
     },
 
@@ -436,7 +436,7 @@ HousepiPosteriorDraws <- R6::R6Class(
     #' Wall-clock of the sampling loop, leaving out the model build and the
     #' conversion of the draws.
     inference_secs = function(value) {
-      if (!missing(value)) stop_read_only("inference_secs")
+      assert_read_only_(value, "inference_secs")
       private$secs_
     }
   ),
@@ -491,13 +491,12 @@ HousepiPosteriorDraws <- R6::R6Class(
       else nlatent <- posterior::nvariables(private$draws_$latent)
 
       model <- spaced_choice(private$name_)
-      print_bullets(c(
-        i = "Posterior draws of model {.val {model}}.",
-        paste0(
-          "{niter} iteration{?s}, {nchains} chain{?s}",
-          if (nparams > 0) ", {nparams} parameter{?s}" else "",
-          if (nlatent > 0) ", {nlatent} latent" else "", "."
-        )
+      print_rows_("Posterior draws of model {.val {model}}.", c(
+        Iterations = "{niter}",
+        Chains = "{nchains}",
+        if (nparams > 0) c(Parameters = "{nparams}"),
+        if (nlatent > 0) c(Latent = "{nlatent}"),
+        `Inference time` = "{format_secs_(private$secs_)}"
       ))
       invisible()
     }

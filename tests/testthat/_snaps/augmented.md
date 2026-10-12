@@ -2,7 +2,7 @@
 
     Code
       print(hh_model)
-    Output
+    Message
       i Household transmission model "test" (`template`).
       v Latent
 

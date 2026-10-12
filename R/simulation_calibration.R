@@ -155,6 +155,7 @@ HousepiCalibrationCheck <- R6::R6Class(
     estimates_ = NULL,
     replicates_ = NULL,
     warnings_ = NULL,
+    secs_ = NA_real_,
     thresholds_ = list(),
 
     # Rank of the simulating value of every estimated parameter, and the
@@ -177,11 +178,11 @@ HousepiCalibrationCheck <- R6::R6Class(
     # Log-threshold of the uniformity test at `n` replicates, computed once.
     threshold_ = function(n) {
       key <- as.character(n)
-      if (is.null(private$thresholds_[[key]])) {
+      if (is.null(private$thresholds_[[key]]))
         private$thresholds_[[key]] <- calibration_log_threshold_(
           n, private$rank_draws_, calibration_alpha_
         )
-      }
+
       private$thresholds_[[key]]
     }
   ),
@@ -203,7 +204,7 @@ HousepiCalibrationCheck <- R6::R6Class(
     #'     effective sample size is below `rank_draws`}
     #' }
     estimates = function(value) {
-      if (!missing(value)) stop_read_only("estimates")
+      assert_read_only_(value, "estimates")
       private$estimates_
     },
 
@@ -217,7 +218,7 @@ HousepiCalibrationCheck <- R6::R6Class(
     #'   \item{flagged}{Whether any parameter of the fit was flagged}
     #' }
     replicates = function(value) {
-      if (!missing(value)) stop_read_only("replicates")
+      assert_read_only_(value, "replicates")
       private$replicates_
     },
 
@@ -231,7 +232,7 @@ HousepiCalibrationCheck <- R6::R6Class(
     #'     every `z` at once, with probability at least 0.95}
     #' }
     ecdf = function(value) {
-      if (!missing(value)) stop_read_only("ecdf")
+      assert_read_only_(value, "ecdf")
       calibration_ecdf_(private$estimates_, private$rank_draws_,
                         private$threshold_)
     },
@@ -247,7 +248,7 @@ HousepiCalibrationCheck <- R6::R6Class(
     #'   \item{uniform}{Whether the ranks pass the test}
     #' }
     summary = function(value) {
-      if (!missing(value)) stop_read_only("summary")
+      assert_read_only_(value, "summary")
       calibration_summary_(private$estimates_, private$rank_draws_,
                            private$threshold_)
     },
@@ -262,35 +263,35 @@ HousepiCalibrationCheck <- R6::R6Class(
     #'     run on this machine and thread count, not of the model}
     #' }
     overview = function(value) {
-      if (!missing(value)) stop_read_only("overview")
+      assert_read_only_(value, "overview")
       sweep_overview_(private$replicates_)
     },
 
     #' @field houses `integer(1)`
     #' Household count of the surveys.
     houses = function(value) {
-      if (!missing(value)) stop_read_only("houses")
+      assert_read_only_(value, "houses")
       private$houses_
     },
 
     #' @field nrep `integer(1)`
     #' Replicates run.
     nrep = function(value) {
-      if (!missing(value)) stop_read_only("nrep")
+      assert_read_only_(value, "nrep")
       private$nrep_
     },
 
     #' @field rank_draws `integer(1)`
     #' Posterior draws each simulating value is ranked among.
     rank_draws = function(value) {
-      if (!missing(value)) stop_read_only("rank_draws")
+      assert_read_only_(value, "rank_draws")
       private$rank_draws_
     },
 
     #' @field warnings `data.frame`
     #' Distinct warnings raised over the sweep, with their counts.
     warnings = function(value) {
-      if (!missing(value)) stop_read_only("warnings")
+      assert_read_only_(value, "warnings")
       private$warnings_
     }
   ),
@@ -349,6 +350,7 @@ HousepiCalibrationCheck <- R6::R6Class(
       private$estimates_ <- swept$estimates
       private$replicates_ <- swept$replicates
       private$warnings_ <- swept$warnings
+      private$secs_ <- swept$secs
       sweep_report_warnings_(private$warnings_, "Simulation calibration")
       invisible(self)
     },
@@ -357,12 +359,14 @@ HousepiCalibrationCheck <- R6::R6Class(
     print = function() {
       model <- spaced_choice(private$name_)
       flagged <- sum(private$replicates_[["flagged"]])
-      print_bullets(c(
-        i = "Simulation calibration check of model {.val {model}}.",
-        "Households: {.val {private$houses_}}. \\
-         Replicates: {private$nrep_}.",
-        "Posterior draws each value is ranked among: {private$rank_draws_}.",
-        "Flagged by diagnostics: {flagged}."
+      fit_secs <- mean(private$replicates_[["inference_secs"]])
+      print_rows_("Simulation calibration check of model {.val {model}}.", c(
+        Households = "{private$houses_}",
+        Replicates = "{private$nrep_}",
+        `Posterior draws ranked among` = "{private$rank_draws_}",
+        `Flagged by diagnostics` = "{flagged}",
+        `Run time` = "{format_secs_(private$secs_)}",
+        `Inference time per fit` = "{format_secs_(fit_secs)}"
       ))
       invisible(self)
     }

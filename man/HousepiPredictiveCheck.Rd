@@ -96,7 +96,8 @@ One between:
 \item{\code{integer}}{seconds between prints. A shorter run does not print.}
 \item{\code{TRUE}}{one print per second;}
 \item{\code{FALSE} or \code{0}}{no progress bar.}
-}}
+}
+The bar prints as messages, which \code{\link[=suppressMessages]{suppressMessages()}} silences.}
     }
     \if{html}{\out{</div>}}
   }
