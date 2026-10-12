@@ -1,8 +1,6 @@
 ## housepi - Epidemiological Analysis of Household Outbreaks.
-##
-## Copyright © 2024-2026 Institut Pasteur (Paris), CNRS and INSERM.
-## Distributed under the terms of the GNU General Public License (GPLv3).
-## See the LICENSE file for details.
+## Copyright 2024-2026 Institut Pasteur (Paris), France.
+## SPDX-License-Identifier: GPL-3.0-or-later
 ##
 
 # Render a `cli_bullets()` block to stdout as a single block.
@@ -54,7 +52,7 @@ with_progress_ <- function(progress, label, total, code) {
   bar <- .engine$progress_open(label, total, pace,
                                min(getOption("width"), 78L) %/% 2L,
                                interactive(),
-                               if (cli::is_utf8_output()) "■" else "#")
+                               if (cli::is_utf8_output()) "\u25a0" else "#")
   out <- withCallingHandlers(code(bar),
                              error = \(e) .engine$progress_crash(bar))
   .engine$progress_close(bar)

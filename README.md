@@ -5,7 +5,7 @@
 [![release](https://gitlab.pasteur.fr/mmmi-pasteur/housepi/-/badges/release.svg?key_text=release&key_width=50)](https://gitlab.pasteur.fr/mmmi-pasteur/housepi/-/releases)
 [![pipeline status](https://gitlab.pasteur.fr/mmmi-pasteur/housepi/badges/main/pipeline.svg)](https://gitlab.pasteur.fr/mmmi-pasteur/housepi/-/commits/main)
 [![coverage report](https://gitlab.pasteur.fr/mmmi-pasteur/housepi/badges/main/coverage.svg?job=coverage)](https://gitlab.pasteur.fr/mmmi-pasteur/housepi/-/commits/main)
-[![license](https://img.shields.io/badge/license-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
+[![license](https://img.shields.io/badge/license-GPL--3.0--or--later-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![docs](https://img.shields.io/badge/docs-pkgdown-blue.svg)](https://mmmi-pasteur.pages.pasteur.fr/housepi)
 <!-- badges: end -->
 
@@ -39,6 +39,6 @@ devtools::install()
 
 ## License
 
-GPLv3 © Institut Pasteur, Paris (France).
-Distributed under the terms of the GNU General Public License, Version 3.
+Copyright 2024-2026 Institut Pasteur (Paris), France.
+Distributed under the terms of the GNU General Public License, version 3 or later.
 For details, see [LICENSE](LICENSE.md).

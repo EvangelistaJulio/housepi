@@ -1,8 +1,6 @@
 /* housepi - Epidemiological Analysis of Household Outbreaks.
- *
- * Copyright © 2024-2026 Institut Pasteur (Paris), CNRS and INSERM.
- * Distributed under the terms of the GNU General Public License (GPLv3).
- * See the LICENSE file for details.
+ * Copyright 2024-2026 Institut Pasteur (Paris), France.
+ * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
 #pragma once
@@ -26,7 +24,7 @@ namespace housepi
     ///
     /// - one thread prints, the threads running engines only count their iterations;
     /// - each run fills one unit per engine, after the units of past runs;
-    /// - open line: `text |■■■   | 50% 3s<3s`, closing line: `text |■■■■■■| 6s`;
+    /// - open line: `text |###   | 50% 3s<3s`, closing line: `text |######| 6s`;
     /// - closed with no line printed: prints nothing.
     class ProgressBar
     {
