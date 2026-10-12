@@ -9,6 +9,9 @@ and each generation's new infections are independent binomial draws among the re
 The index cases are not known a priori: the first generation is infected from the community.
 Each later generation is infected only by the members infected in the previous one.
 The likelihood of a household sums over every transmission chain that ends in the observed final size.
+Infected members share a risk partition when their group and contact risks match.
+A household is refused when its infected members fall into too many partitions to sum over.
+Up to 15 partitions are accepted when each holds a single member, fewer when partitions hold several.
 }
 \section{Parameters}{
 

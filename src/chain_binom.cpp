@@ -7,8 +7,10 @@
 #include <cmath>
 #include <cstdint>
 #include <map>
+#include <numeric>
 
 #include "tools/math.h"
+#include "tools/messages.h"
 #include "tools/nan.h"
 #include "chain_binom.h"
 
@@ -27,8 +29,10 @@ namespace housepi::chain_binom
     {
         /// Compute the homogeneous chain-binomial log-likelihood of `n` infected members.
         ///
+        /// Model based on @cite longini_household_1982
+        /// Run a Reed-Frost chain seeded by community infections at generation 0.
+        /// Final size ignores timing, so seeding at generation 0 is exact, after @cite ball_unified_1986
         /// Sum over generation sizes `c_0, c_1, ...` adding up to `n`.
-        /// Based on @cite longini_household_1982
         /// Sequences are grouped by state, so the sum takes O(n^3) products:
         /// * `s`: members infected before the last generation;
         /// * `l`: members of the last generation.
@@ -310,6 +314,31 @@ namespace housepi::chain_binom
             }
 
             return evaluate_partition_tree_(tree, log_commu_esc, log_p2p_esc);
+        }
+    }
+
+    //////////////////////////////  Cost limit  //////////////////////////////
+
+    void assert_tractable(const std::vector<MemberIdx> &part_counts,
+                          MemberIdx n_parts,
+                          const std::string &where)
+    {
+        std::uint64_t terms = 1, nodes = 1;
+        for (MemberIdx s = 0; s < n_parts && terms - nodes <= max_terms; ++s)
+        {
+            const std::uint64_t c = part_counts[s];
+            terms *= (c + 1) * (c + 2) / 2;
+            nodes *= c + 1;
+        }
+        if (terms - nodes > max_terms)
+        {
+            const size_t n_infec = std::accumulate(part_counts.begin(), part_counts.begin() + n_parts, size_t{0});
+            msg::stop(
+                "The " + std::to_string(n_infec) + " infected members of " + where + " fall into " +
+                std::to_string(n_parts) + " risk partitions, too many to evaluate.\n" +
+                "Household members share a partition if their group and contact risks match.\n" +
+                msg::alert("Computation time grows exponentially with the number of partitions.") +
+                "\nReduce the number of strata.");
         }
     }
 

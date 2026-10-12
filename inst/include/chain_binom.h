@@ -7,6 +7,7 @@
 
 #include <cstdint>
 #include <map>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -17,11 +18,19 @@ namespace housepi::chain_binom
     using gentype = std::vector<MemberIdx>; /// Count vector, one entry per part.
     using ShapeIdx = std::uint32_t;         /// Index of a shape (part-count vector) in LookUpTables.
 
-    /// Cap to the within-household risk partitions.
+    /// Most terms the recurrence may sum in one household evaluation, 3^15.
     ///
-    /// * heterogeneous -> 3^K steps per evaluation, costs 0.5 s at K = 15;
-    /// * partitioned -> at least 2^K tree nodes.
-    constexpr MemberIdx max_parts = 15;
+    /// * every infected member in its own part, 15 parts -> 0.5s per evaluation, 4 MB;
+    /// * parts holding several members -> 16 bytes of partition tree per term, 200 MB at the limit.
+    constexpr std::uint64_t max_terms = 14348907;
+
+    /// Throw if the recurrence of a household would sum more than max_terms terms.
+    ///
+    /// @param part_counts Member count of each part, read up to `n_parts`.
+    /// @param where Household label in the message.
+    void assert_tractable(const std::vector<MemberIdx> &part_counts,
+                          MemberIdx n_parts,
+                          const std::string &where);
 
     //////////////////////////////  chain_binom::PartitionTree  //////////////////////////////
 

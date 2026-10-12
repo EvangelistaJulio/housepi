@@ -51,7 +51,7 @@ public:
 	void init_model_for_evaluation() override final { assert_no_missing_status(); }
 
 	/// Order members of `house`, then group infected ones into risk partitions.
-	/// * partitions exceeding chain_binom::max_parts -> error.
+	/// * partitions needing more than chain_binom::max_terms terms -> error.
 	void init_house_for_evaluation(const Household &house) override final
 	{
 		//////  Order  //////
@@ -99,15 +99,11 @@ public:
 				}
 			}
 		}
-
 		cache_member(house, HHmember::num_parts) = K;
 
-		if (K > chain_binom::max_parts)
-			msg::stop(
-				"Number of risk partitions in " + str(house) + " exceeds the maximum of " + std::to_string(chain_binom::max_parts) +
-				".\n" + msg::alert("Household members share a partition if their group and contact risks match.") +
-				"\n" + msg::alert("Computation time grows exponentially with the number of partitions.") +
-				"\nReduce the number of strata.");
+		// assert that the model is tractable
+		chain_binom::assert_tractable(part_counts, K, str(house));
+
 		// assign a shape index to the equivalence class
 		if (shape_idx_.size() <= house.eq_class())
 			shape_idx_.resize(house.eq_class() + 1);

@@ -135,6 +135,15 @@ build_house_model <- function(house, par, groups, contacts) {
     add_parameter(import = par, append = FALSE)
 }
 
+# household of infected members, one susceptibility stratum per entry of `sizes`
+build_strata_model <- function(sizes) {
+  data.frame(hh_id = "h1", status = 1,
+             datum = rep(as.character(seq_along(sizes)), sizes)) |>
+    new_housepi_model("final-size") |>
+    add_parameter(alpha = 0.1, beta = 0.3, gamma = 0, hh_size_ref = 4) |>
+    add_group_risk("susceptibility", by = "datum", reference = ".auto")
+}
+
 # probability of every transmission chain among infected members, given their
 # community escapes `B` and person-to-person escapes `Q` (infector by row)
 # a chain orders the infected into generations: the first is infected by the
@@ -216,14 +225,22 @@ test_that("Chain binomial guards against misusage", {
     expect_error("not supported.*Choose a model")
 })
 
-test_that("A household above 15 risk partitions is refused", {
-  # every infected member in its own susceptibility stratum
-  data.frame(hh_id = "h1", status = 1, datum = as.character(1:16)) |>
-    new_housepi_model("final-size") |>
-    add_parameter(alpha = 0.1, beta = 0.3, gamma = 0, hh_size_ref = 4) |>
-    add_group_risk("susceptibility", by = "datum", reference = ".auto") |>
+test_that("A household with too many risk partitions to evaluate is refused", {
+  # every infected member in its own stratum
+  build_strata_model(rep(1, 16)) |>
     evaluate_log_lik() |>
-    expect_error("partitions in household .h1. exceeds the maximum of 15")
+    expect_error("household .h1. fall into 16 risk partitions")
+
+  # fewer partitions, but a repeated pair of members doubles the terms to sum
+  build_strata_model(c(2, rep(1, 14))) |>
+    evaluate_log_lik() |>
+    expect_error("household .h1. fall into 15 risk partitions")
+
+  # many members in few risk partitions are not refused
+  build_strata_model(c(9, 8)) |>
+    evaluate_log_lik() |>
+    is.finite() |>
+    expect_true()
 })
 
 ##############################################
