@@ -19,8 +19,9 @@ and \code{model_quantities}, the named quantities the model exports,
 see its \verb{template_<model>} help page.
 An empty definition is dropped unless the model requires it.
 The transmission log-likelihood is \code{NA} and \code{model_quantities} absent
-until the current definitions are evaluated,
-by \code{\link[=evaluate_log_lik]{evaluate_log_lik()}} on every household or by \code{\link[=run_inference]{run_inference()}}.
+until the household is evaluated at the current definitions,
+by \code{\link[=evaluate_log_lik]{evaluate_log_lik()}} on it or on every household, or by \code{\link[=run_inference]{run_inference()}}.
+Each evaluation discards the previous one.
 }
 \description{
 Read all the variables a \code{HousepiModel} holds for one household.

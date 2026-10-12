@@ -235,35 +235,53 @@ test_that("Household snapshot reads before any definition is pushed", {
   snapshot$data_wide |> expect_equal(dummy_household)
 })
 
-test_that("Household snapshot reports transmission once all are evaluated", {
-  hh_model <- data.frame(id = c("m1", "m2"), hh_id = c("h1", "h2"),
-                         status = c(1, 0)) |>
+test_that("Household snapshot reports a household once it is evaluated", {
+  # `h2` and `h3` are equivalent: one member escaping alone
+  hh_model <- data.frame(id = c("m1", "m2", "m3"), hh_id = c("h1", "h2", "h3"),
+                         status = c(1, 0, 0)) |>
     new_housepi_model("final-size") |>
     add_parameter(alpha = 0.3, beta = 0.2, gamma = 1, hh_size_ref = 4)
-  expect_unevaluated <- function(hh_model) {
-    snapshot <- inspect_house_state(hh_model, "h2")
+  expect_unevaluated <- function(hh_model, hh_id) {
+    snapshot <- inspect_house_state(hh_model, hh_id)
     snapshot$transmission_log_lik |> expect_all_na()
     snapshot$model_quantities |> expect_null()
   }
+  # the member escapes the community alone
+  expect_escaped <- function(hh_model, hh_id) {
+    snapshot <- inspect_house_state(hh_model, hh_id)
+    snapshot$transmission_log_lik |> expect_equal(-0.3)
+    names(snapshot$model_quantities) |>
+      expect_identical(c("community_escape", "p2p_escape"))
+  }
 
-  # never evaluated, then one household evaluated
-  expect_unevaluated(hh_model)
+  # never evaluated
+  expect_unevaluated(hh_model, "h2")
+
+  # one household evaluated, its equivalent with it
+  evaluate_log_lik(hh_model, "h2")
+  summary <- summarise_house_cases(hh_model)
+  summary$count[summary$metric == "classes"] |> expect_equal(2)
+  expect_escaped(hh_model, "h2")
+  expect_escaped(hh_model, "h3")
+  expect_unevaluated(hh_model, "h1")
+
+  # each evaluation starts afresh from the definitions
   evaluate_log_lik(hh_model, "h1")
-  expect_unevaluated(hh_model)
+  inspect_house_state(hh_model, "h1")$transmission_log_lik |>
+    is.finite() |>
+    expect_true()
+  expect_unevaluated(hh_model, "h2")
 
-  # every household evaluated: `m2` escapes the community alone
+  # every household evaluated
   evaluate_log_lik(hh_model)
-  snapshot <- inspect_house_state(hh_model, "h2")
-  snapshot$transmission_log_lik |> expect_equal(-0.3)
-  names(snapshot$model_quantities) |>
-    expect_identical(c("community_escape", "p2p_escape"))
+  expect_escaped(hh_model, "h2")
 
   # a redefinition or a simulation discards the evaluation
   expect_warning(hh_model_2 <- add_parameter(hh_model, alpha = 0.5),
                  "[Oo]verwriting")
-  expect_unevaluated(hh_model_2)
+  expect_unevaluated(hh_model_2, "h2")
   run_simulation(hh_model)
-  expect_unevaluated(hh_model)
+  expect_unevaluated(hh_model, "h2")
 
   # a model exporting nothing drops the entry
   hh_model_3 <- new_housepi_model(dummy_household, "test")

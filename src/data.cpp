@@ -577,12 +577,12 @@ namespace housepi::data
     void State::allocate_transm_log_lik(const Wide &wide)
     {
         transm_log_lik_.assign(wide.eq_class_size(), LogProba());
-        is_evaluated_ = false;
+        evaluated_.assign(wide.eq_class_size(), false);
     }
 
     void State::allocate_cache(const Wide &wide)
     {
-        is_evaluated_ = false;
+        evaluated_.assign(wide.eq_class_size(), false);
         previous_.resize(wide.eq_class_size());
         current_.resize(wide.eq_class_size());
 

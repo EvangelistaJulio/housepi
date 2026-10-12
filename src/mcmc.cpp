@@ -737,10 +737,11 @@ namespace housepi
         else
         {
             // single household evaluation
+            const Household &house = data.wide().at(hh_id);
             infec_profile.update_cache();
             acc = commit_house_log_posterior_(
-                data.wide().at(hh_id),
-                true, augm.scheme().is_any_latent_model(), augm.scheme().is_any_obs_model());
+                house, true, augm.scheme().is_any_latent_model(), augm.scheme().is_any_obs_model());
+            data.state.set_evaluated(house);
         }
 
         // complete-data household log-likelihood: observation + transmission + latent model

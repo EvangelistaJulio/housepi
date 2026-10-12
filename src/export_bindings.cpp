@@ -987,11 +987,11 @@ namespace housepi
 
         /// Snapshot the quantities the model exports for `house`, with member ids as names and dimnames.
         /// * read from the class head, mapped onto the members of `house`;
-        /// * some household not evaluated at the current state -> empty list.
+        /// * household not evaluated at the current state -> empty list.
         Rcpp::List rcpp_snapshot_model_quantities(Rcpp::XPtr<MCMC> mcmc_ptr,
                                                   const Household &house)
         {
-            if (!mcmc_ptr->data.state.is_evaluated())
+            if (!mcmc_ptr->data.state.is_evaluated(house))
                 return Rcpp::List::create();
 
             const data::Wide &data_wide = mcmc_ptr->data.wide();
@@ -1045,7 +1045,7 @@ namespace housepi
                     Rcpp::_["infectivity_profiles"] = rcpp_snapshot_infec_profile(mcmc_ptr, house),
                     Rcpp::_["latent_log_lik"] = rcpp_snapshot_log_lik(mcmc_ptr, house, augm.scheme().list_latent_export),
                     Rcpp::_["observation_log_lik"] = rcpp_snapshot_log_lik(mcmc_ptr, house, augm.scheme().list_obs_member),
-                    Rcpp::_["transmission_log_lik"] = state.is_evaluated() ? hsp_to_rcpp(state.transm_log_lik(house).value()) : NA_REAL,
+                    Rcpp::_["transmission_log_lik"] = state.is_evaluated(house) ? hsp_to_rcpp(state.transm_log_lik(house).value()) : NA_REAL,
                     Rcpp::_["model_quantities"] = rcpp_snapshot_model_quantities(mcmc_ptr, house));
             }
             catch (const housepi::TrustedException &e)

@@ -1218,8 +1218,9 @@ inspect_augmented_data <- function(hh_model) {
 #' see its `template_<model>` help page.
 #' An empty definition is dropped unless the model requires it.
 #' The transmission log-likelihood is `NA` and `model_quantities` absent
-#' until the current definitions are evaluated,
-#' by [evaluate_log_lik()] on every household or by [run_inference()].
+#' until the household is evaluated at the current definitions,
+#' by [evaluate_log_lik()] on it or on every household, or by [run_inference()].
+#' Each evaluation discards the previous one.
 #' @seealso [inspect_augmented_data()]
 #' @examples
 #' hh_model <- flu_1918_frederick |>
