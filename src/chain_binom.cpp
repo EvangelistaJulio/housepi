@@ -21,155 +21,72 @@ namespace housepi::chain_binom
     template <typename T>
     using matrix = vector<vector<T>>;
 
-    namespace
-    {
-        /// Return factorial of `n`.
-        inline unsigned long factorial(unsigned long n)
-        {
-            unsigned long result = 1;
-            for (unsigned long i = 2; i <= n; ++i)
-                result *= i;
-            return result;
-        }
-
-        //////////////////////////////  Transmission generations  //////////////////////////////
-
-        /// Return every ranked offspring generation of `n` infected members, `n` above 0.
-        /// - `n = 3`: [[0, 0, 0], [0, 0, 1], [0, 1, 1], [0, 1, 2]].
-        /// @todo Make it cache friendly.
-        vector<gentype> recursive_span_generation_(unsigned n)
-        {
-            vector<gentype> output(1, gentype(n, 0));
-
-            for (unsigned root = n - 1; root > 0; --root)
-                for (gentype g : recursive_span_generation_(n - root))
-                {
-                    for (unsigned i = 0; i < n - root; ++i)
-                        ++g[i];
-                    output.emplace_back(root, 0);
-                    output.back().insert(output.back().end(), g.begin(), g.end());
-                }
-            return output;
-        }
-    }
-
-    void LookUpTables::ensure_homogeneous(MemberIdx n)
-    {
-        if (n < num_generations_.size())
-            return;
-
-        unsigned old_size(num_generations_.size());
-        num_generations_.resize(n + 1);
-        gen_multiplicity_.resize(n + 1);
-        generations_.resize(n + 1);
-
-        if (old_size == 0)
-        {
-            num_generations_[0] = 0;
-            gen_multiplicity_[0].push_back(0);
-            generations_[0].push_back({});
-            old_size = 1;
-        }
-
-        vector<unsigned long> aux_num_vec;
-        vector<gentype> aux_gen_vec;
-
-        for (unsigned k = old_size; k <= n; ++k)
-        {
-            aux_num_vec.clear();
-            aux_gen_vec.clear();
-
-            for (const gentype &g : recursive_span_generation_(k))
-            {
-                std::map<MemberIdx, MemberIdx> freq_map = {};
-                gentype counts = {};
-                unsigned long multiplicities = factorial(k);
-
-                for (MemberIdx val : g)
-                    if (freq_map.count(val))
-                        ++freq_map[val];
-                    else
-                        freq_map.emplace(val, 1);
-
-                for (const auto &[val, c] : freq_map)
-                {
-                    counts.push_back(c);
-                    multiplicities /= factorial(c);
-                }
-
-                aux_num_vec.push_back(multiplicities);
-                aux_gen_vec.push_back(counts);
-            }
-
-            size_t tot_num_gen = aux_gen_vec.size();
-            num_generations_[k] = tot_num_gen;
-            gen_multiplicity_[k].resize(tot_num_gen);
-            generations_[k].resize(tot_num_gen);
-
-            for (size_t c = 0; c < tot_num_gen; ++c)
-            {
-                gen_multiplicity_[k][c] = aux_num_vec[c];
-                generations_[k][c] = aux_gen_vec[c];
-            }
-        }
-    }
-
     //////////////////////////////  Homogeneous log-likelihood  //////////////////////////////
 
     namespace
     {
-        /// Compute the homogeneous chain-binomial log-likelihood.
+        /// Compute the homogeneous chain-binomial log-likelihood of `n` infected members.
+        ///
+        /// Sum over generation sizes `c_0, c_1, ...` adding up to `n`.
         /// Based on @cite longini_household_1982
-        /// @param multiplicity Multiplicity of each generation of `n_infec` infected.
-        /// @param generations Count-compressed generations of `n_infec` infected.
-        double log_lik_homogeneous_(const vector<unsigned long> &multiplicity,
-                                    const vector<gentype> &generations,
-                                    MemberIdx n_infec,
+        /// Sequences are grouped by state, so the sum takes O(n^3) products:
+        /// * `s`: members infected before the last generation;
+        /// * `l`: members of the last generation.
+        /// @note Probabilities below 1e-308 underflow, returning -Inf.
+        double log_lik_homogeneous_(MemberIdx n,
                                     double commu_infec_rate,
                                     double p2p_infec_rate)
         {
-            const double log_commu_esc_proba = -commu_infec_rate;
-            const double log_commu_infec_proba = math::log1mexp(commu_infec_rate);
-            const double log_p2p_esc_proba = -p2p_infec_rate;
+            const double commu_infec_proba = -math::expm1(-commu_infec_rate);
+            const double commu_esc_proba = std::exp(-commu_infec_rate);
+            const double p2p_esc_proba = std::exp(-p2p_infec_rate);
 
-            // log-probability of infection by a generation of n_prev infectors, per generation size
-            thread_local vector<double> log_p2p_infec_proba;
-            log_p2p_infec_proba.assign(n_infec + 1, 0.);
-            for (unsigned n_prev = 1; n_prev <= n_infec; ++n_prev)
-                log_p2p_infec_proba[n_prev] = math::log1mexp(n_prev * p2p_infec_rate);
+            // probability of infection by a generation of n_prev infectors, per generation size
+            thread_local vector<double> p2p_infec_proba;
+            p2p_infec_proba.assign(n + 1, 0.);
+            for (unsigned n_prev = 1; n_prev <= n; ++n_prev)
+                p2p_infec_proba[n_prev] = -math::expm1(-(n_prev * p2p_infec_rate));
 
-            //////  Seropositive contribution  //////
+            // probability of escaping the community, per number of members
+            thread_local vector<double> commu_esc_pow;
+            commu_esc_pow.assign(n + 1, 1.);
+            for (unsigned k = 1; k <= n; ++k)
+                commu_esc_pow[k] = commu_esc_pow[k - 1] * commu_esc_proba;
 
-            // sum over all possible generations
-            double sero_positive_term = 0., tmp = 0.;
-            for (size_t c = 0; c < generations.size(); ++c)
+            // probability of reaching state (s, l), at s * (n + 1) + l
+            thread_local vector<double> state_proba;
+            state_proba.assign((n + 1) * (n + 1), 0.);
+
+            // generation (0) : C(n, c) ways for c members infected by community, the others escaped
+            double ways = 1.;
+            for (unsigned c = 1; c <= n; ++c)
             {
-                // generation counts
-                const auto &gen_counts = generations[c];
-
-                // generation (0) : infected by community
-                tmp = gen_counts[0] * log_commu_infec_proba;
-                // generation (0) : escaped by community
-                tmp += (n_infec - gen_counts[0]) * log_commu_esc_proba;
-
-                // generation (i) : within house, i > 0
-                unsigned long n_earlier = 0; // members of generations 0 <= g < i - 1
-                for (size_t i = 1; i < gen_counts.size(); ++i)
-                {
-                    // generation (i) : infected by previous generation i - 1
-                    tmp += gen_counts[i] * log_p2p_infec_proba[gen_counts[i - 1]];
-
-                    // generation (i) : escaped from other generations g, i. e. 0 <= g < i - 1
-                    tmp += gen_counts[i] * n_earlier * log_p2p_esc_proba;
-
-                    n_earlier += gen_counts[i - 1];
-                }
-
-                // weighted by the number of equivalent configurations
-                sero_positive_term += multiplicity[c] * std::exp(tmp);
+                ways *= commu_infec_proba * (n - c + 1) / c;
+                state_proba[c] = ways * commu_esc_pow[n - c];
             }
 
-            return std::log(sero_positive_term);
+            // generation (i) : C(n - s - l, c) ways for c members infected by generation i - 1
+            double total = 0., p2p_esc_earlier = 1.; // escape from the s members before generation i - 1
+            for (unsigned s = 0; s < n; ++s, p2p_esc_earlier *= p2p_esc_proba)
+                for (unsigned l = 1; s + l <= n; ++l)
+                {
+                    const double prev = state_proba[s * (n + 1) + l];
+                    if (s + l == n)
+                    {
+                        total += prev;
+                        continue;
+                    }
+                    const double member_proba = p2p_infec_proba[l] * p2p_esc_earlier;
+                    const unsigned n_left = n - s - l;
+                    ways = prev;
+                    for (unsigned c = 1; c <= n_left; ++c)
+                    {
+                        ways *= member_proba * (n_left - c + 1) / c;
+                        state_proba[(s + l) * (n + 1) + c] += ways;
+                    }
+                }
+
+            return std::log(total);
         }
 
         //////////////////////////////  Heterogeneous log-likelihood  //////////////////////////////
@@ -312,7 +229,9 @@ namespace housepi::chain_binom
     namespace
     {
         /// Evaluate log P(final = c_root | all infecteds in c_root).
+        ///
         /// Recursion: pi(t|t) = 1 - sum_{w < t} C(t,w) * pi(w|w) * prod_s q_s(w)^(t_s - w_s).
+        /// Here q_s(w) is the probability that a member of part s escapes the community and every member in w.
         double evaluate_partition_tree_(const PartitionTree &dp,
                                         const vector<double> &log_commu_esc,
                                         const matrix<double> &log_p2p_esc)
@@ -323,6 +242,18 @@ namespace housepi::chain_binom
 
             thread_local vector<double> log_pi;
             log_pi.assign(dp.sub_vecs.size(), 0.); // log pi(0|0) = 0
+
+            // log q_s(w) per node w and part s, at w * K + s
+            thread_local vector<double> log_q;
+            log_q.assign(dp.sub_vecs.size() * K, 0.);
+            for (size_t wi = 0; wi < dp.sub_vecs.size(); ++wi)
+                for (MemberIdx s = 0; s < K; ++s)
+                {
+                    double log_q_s = log_commu_esc[s];
+                    for (MemberIdx u = 0; u < K; ++u)
+                        log_q_s += dp.sub_vecs[wi][u] * log_p2p_esc[u][s];
+                    log_q[wi * K + s] = log_q_s;
+                }
 
             for (size_t ti = 1; ti < dp.sub_vecs.size(); ++ti)
             {
@@ -337,14 +268,8 @@ namespace housepi::chain_binom
 
                     double expo = 0.;
                     for (MemberIdx s = 0; s < K; ++s)
-                    {
-                        if (t[s] == w[s])
-                            continue;
-                        double log_q_s = log_commu_esc[s];
-                        for (MemberIdx u = 0; u < K; ++u)
-                            log_q_s += w[u] * log_p2p_esc[u][s];
-                        expo += (t[s] - w[s]) * log_q_s;
-                    }
+                        if (t[s] != w[s])
+                            expo += (t[s] - w[s]) * log_q[wi * K + s];
 
                     sum += std::exp(log_C + log_pi[wi] + expo);
                 }
@@ -419,9 +344,7 @@ namespace housepi::chain_binom
             return ll + math::log1mexp(commu_infec_rate[0]);
         // homogeneous case
         else if (n_parts < 2)
-            return ll + log_lik_homogeneous_(
-                            lut.gen_multiplicity_[n_infec], lut.generations_[n_infec],
-                            n_infec, commu_infec_rate[0], p2p_infec_rate[0][1]);
+            return ll + log_lik_homogeneous_(n_infec, commu_infec_rate[0], p2p_infec_rate[0][1]);
         // partitioned case
         else if (n_parts < n_infec)
             return ll + log_lik_partitioned_(

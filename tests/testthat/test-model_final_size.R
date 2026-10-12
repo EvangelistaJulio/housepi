@@ -216,6 +216,16 @@ test_that("Chain binomial guards against misusage", {
     expect_error("not supported.*dropped")
 })
 
+test_that("A household above 15 risk partitions is refused", {
+  # every infected member in its own susceptibility stratum
+  data.frame(hh_id = "h1", status = 1, datum = as.character(1:16)) |>
+    new_housepi_model("final-size") |>
+    add_parameter(alpha = 0.1, beta = 0.3, gamma = 0, hh_size_ref = 4) |>
+    add_group_risk("susceptibility", by = "datum", reference = ".auto") |>
+    evaluate_log_lik() |>
+    expect_error("partitions in household .h1. exceeds the maximum of 15")
+})
+
 ##############################################
 ###  FINAL SIZE HH MODEL : LOG-LIKELIHOOD  ###
 ##############################################
@@ -281,6 +291,26 @@ test_that("Likelihood sums to one over every final outcome of a household", {
            numeric(1)) |>
     exp() |>
     sum() |>
+    expect_equal(1)
+})
+
+test_that("Likelihood of a large household sums to one over its final sizes", {
+  # 22 risk-equivalent members: every outcome takes the homogeneous branch,
+  # and outcomes with as many infected share one probability
+  n <- 22L
+  houses <- do.call(rbind, lapply(0:n, function(k) {
+    data.frame(hh_id = paste0("h", k), status = rep(c(1, 0), c(k, n - k)))
+  }))
+  hh_model <- houses |>
+    new_housepi_model("final-size") |>
+    add_parameter(alpha = 0.1, beta = 0.3, gamma = 0, hh_size_ref = 4)
+  evaluate_log_lik(hh_model)
+
+  paste0("h", 0:n) |>
+    vapply(\(hh_id) inspect_house_state(hh_model, hh_id)$transmission_log_lik,
+           numeric(1)) |>
+    exp() |>
+    (\(p) sum(choose(n, 0:n) * p))() |>
     expect_equal(1)
 })
 
