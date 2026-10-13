@@ -9,22 +9,19 @@
 [![docs](https://img.shields.io/badge/docs-pkgdown-blue.svg)](https://mmmi-pasteur.pages.pasteur.fr/housepi)
 <!-- badges: end -->
 
-housepi is an open source R package for the statistical analysis
-and modelling of epidemiological data from household outbreaks.
-Household transmission surveys are a standard route to estimating
-key epidemiological parameters.
-The relative ease of sampling household data makes it a readily available
-source of information during the early phases of an epidemic
-(e. g. longitudinal studies).
-Additionally, retrospective serological surveys can provide critical insights
-into the history of transmission within a population (final size studies).
+*housepi* is an R package for the statistical analysis and modelling
+of infectious disease transmission within households.
+Household transmission models are specified declaratively, fitted to data with Bayesian MCMC
+and used to simulate outbreaks.
+They support data augmentation, infectivity profiles, and individual group and contact risks.
+Validation is supported through simulations studies and posterior predictive checks.
 
 > [!IMPORTANT]
-> The package has not been released yet. Certain options are still under development.
+> *housepi* has not been released yet: the API may change between versions until the first release.
 
 ## Installation
 
-housepi is compiled from source, so it needs a working C++17 toolchain.
+*housepi* is compiled from source, so it needs a working C++17 toolchain.
 The same toolchain compiles custom and discrete-time models at runtime.
 Check that it is available with:
 ``` r
@@ -36,8 +33,29 @@ Then install the development version from [GitLab](https://gitlab.pasteur.fr/mmm
 remotes::install_gitlab("mmmi-pasteur/housepi", host = "gitlab.pasteur.fr")
 ```
 
+## Getting started
+
+Fit the final-size model to the 1918 influenza outbreak in Frederick (USA),
+shipped with the package, using the parameter definitions of the model template:
+``` r
+library(housepi)
+
+fit <- flu_1918_frederick |>
+  new_housepi_model("final_size") |>
+  add_parameter(import = "template") |>
+  run_inference()
+
+summarise_draws(fit)
+```
+Learn more about data format, parameter definitions, inference and simulation,
+in the guide [Get started](https://mmmi-pasteur.pages.pasteur.fr/housepi/articles/housepi).
+
+## Citation
+
+To cite *housepi* in publications, run `citation("housepi")`.
+
 ## License
 
 Copyright 2024-2026 Institut Pasteur (Paris), France.
 Distributed under the terms of the GNU General Public License, version 3 or later.
-For details, see [LICENSE](LICENSE.md).
+For details, see [LICENSE](https://gitlab.pasteur.fr/mmmi-pasteur/housepi/-/blob/main/LICENSE.md).

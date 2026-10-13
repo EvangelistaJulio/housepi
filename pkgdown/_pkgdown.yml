@@ -17,9 +17,9 @@ footer:
     developed_by: "Developed by Francesco Camaglia."
 
 home:
-  title: Household Epidemiological Modeling and Analysis
+  title: Household Epidemiological Modelling and Analysis
   desc: >
-    A library of models and tools for epidemiological modeling and analysis of household epidemiological data.
+    Statistical analysis and modelling of infectious disease transmission within households.
 
 ## References ##
 reference:
