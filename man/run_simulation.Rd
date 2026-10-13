@@ -6,7 +6,7 @@
 \usage{
 run_simulation(
   hh_model,
-  param_table = NULL,
+  draws = NULL,
   nrep = NA_integer_,
   thin_ess = TRUE,
   ...
@@ -15,31 +15,32 @@ run_simulation(
 \arguments{
 \item{hh_model}{\code{HousepiModel} object.}
 
-\item{param_table}{One of:
+\item{draws}{Parameter values, one row per draw.
+One of:
 \itemize{
 \item \code{data.frame};
 \item \code{posterior::draws};
 \item \link{HousepiPosteriorDraws}.
 }}
 
-\item{nrep}{\code{integer(1)} Maximum number of \code{param_table} rows simulated.
+\item{nrep}{\code{integer(1)} Maximum number of draws simulated.
 Posterior draws are thinned to their ESS when \code{thin_ess} is \code{TRUE}.
-Then \code{nrep} evenly spaced rows are kept, all of them when fewer remain.
-If \code{NA}, every row is simulated.
-Without \code{param_table}, the number of replicates,
+Then \code{nrep} evenly spaced draws are kept, all of them when fewer remain.
+If \code{NA}, every draw is simulated.
+Without \code{draws}, the number of replicates,
 which share the pinned parameters and draw the others from their prior.
 If \code{NA}, one replicate.
 Once set, even to 1, the replicates are returned as a list.}
 
 \item{thin_ess}{\code{logical(1)}
-Whether to thin \code{param_table} to its bulk effective sample size (ESS).
-Ignored if \code{param_table} has no posterior draws.}
+Whether to thin \code{draws} to their bulk effective sample size (ESS).
+Ignored if \code{draws} is a plain \code{data.frame}.}
 
 \item{...}{Advanced configuration.}
 }
 \value{
 A \code{data.frame} for a single replicate,
-when \code{nrep} is \code{NA} and \code{param_table} is \code{NULL} or a one-row \code{data.frame}.
+when \code{nrep} is \code{NA} and \code{draws} is \code{NULL} or a one-row \code{data.frame}.
 Otherwise a \code{list} with one \code{data.frame} per replicate.
 With a \code{long} reporting process, a \code{list(wide = , long = )} of either.
 }

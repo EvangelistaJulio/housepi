@@ -599,8 +599,8 @@ test_that("Per-replicate parameter values reach the latents reading them", {
   # declared constant: the table overrides its value
   hh_model_2 <- hh_model |> add_parameter(rho = 0.3)
 
-  for (results in list(run_simulation(hh_model, param_table = rho_table),
-                       run_simulation(hh_model_2, param_table = rho_table))) {
+  for (results in list(run_simulation(hh_model, draws = rho_table),
+                       run_simulation(hh_model_2, draws = rho_table))) {
     vapply(results, \(x) x$hidden[2], numeric(1)) |>
       expect_equal(rho_table$rho)
     vapply(results, \(x) x$hidden_2[2], numeric(1)) |>

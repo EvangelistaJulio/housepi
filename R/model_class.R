@@ -241,7 +241,7 @@ HousepiModel <- R6::R6Class(
     read_param_table_ = function(table,
                                  nrep = NA_integer_,
                                  thin_ess = TRUE,
-                                 arg = "param_table") {
+                                 arg = "draws") {
       table <- helper_read_param_table_(table, thin_ess = thin_ess)
       private$assert_no_baseline_value_(table, arg)
       helper_thin_even_(table, nrep)
@@ -705,17 +705,18 @@ HousepiModel <- R6::R6Class(
 
     # Build the model for simulation.
     # @todo build differently given a param table
-    helper_simulation_build_ = function(param_table = NULL,
+    helper_simulation_build_ = function(draws = NULL,
                                         nrep = NA_integer_,
                                         thin_ess = TRUE,
                                         ...) {
       nrep <- assert_count_(nrep, "Number of replicates", allow_na = TRUE)
 
       # read param table
-      if (is.null(param_table)) {
+      param_table <- NULL
+      if (is.null(draws)) {
         if (is.na(nrep)) nrep <- 1L
       } else {
-        param_table <- private$read_param_table_(param_table, nrep, thin_ess)
+        param_table <- private$read_param_table_(draws, nrep, thin_ess)
         nrep <- nrow(param_table)
         # an undeclared model builds on the table's first row: the engine
         # keeps it for the run, the caller's definitions stay as declared
@@ -777,7 +778,7 @@ HousepiModel <- R6::R6Class(
 
     # Run a measure function on posterior simulations.
     # @todo loop in C++
-    run_measure_ = function(param_table,
+    run_measure_ = function(draws,
                             apply_wide,
                             apply_long = NULL,
                             nrep = NA_integer_,
@@ -785,7 +786,7 @@ HousepiModel <- R6::R6Class(
                             threads = 1L,
                             progress = TRUE,
                             labelled = TRUE) {
-      param_table <- private$read_param_table_(param_table, nrep, thin_ess)
+      param_table <- private$read_param_table_(draws, nrep, thin_ess)
       nsim <- nrow(param_table)
 
       # internal build function

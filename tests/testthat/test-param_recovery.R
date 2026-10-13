@@ -274,7 +274,7 @@ test_that("Every estimated parameter needs a simulation value", {
   # a value given for a parameter the model does not carry is reported; the
   # fit is too short to pass the diagnostics
   check_recovery(hh_model, nrep = 1, steps = 50, thin = 1, chains = 1,
-                 progress = FALSE, truth = data.frame(beta = 0.2, rho = 1)) |>
+                 progress = FALSE, draws = data.frame(beta = 0.2, rho = 1)) |>
     expect_warning("[Nn]o parameter named") |>
     suppressWarnings()
 })
@@ -294,8 +294,8 @@ test_that("A collapsed baseline takes no simulation value", {
   )
 
   check_recovery(hh_model, nrep = 1, progress = FALSE,
-                 truth = data.frame(alpha = 0.3)) |>
-    expect_error("[Tt]ruth.*alpha.*other than 1")
+                 draws = data.frame(alpha = 0.3)) |>
+    expect_error("draws.*alpha.*other than 1")
 })
 
 test_that("Recovery refuses a sweep it cannot run", {

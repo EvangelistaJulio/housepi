@@ -214,7 +214,7 @@ sweep_run_ <- function(hh_model, structure, sampler, houses, nrep, pins,
   hh_model <- add_reporting_process(hh_model, long = NULL)
   # one simulation call per household count yields the whole cell,
   # the pins repeated one row per replicate
-  sim_args <- c(list(param_table = sweep_param_table_(pins, nrep)),
+  sim_args <- c(list(draws = sweep_param_table_(pins, nrep)),
                 dots[names(dots) == "time_step"])
   workers <- sweep_split_(nrep, threads)
   fit_args <- c(fit_args, adapt, threads = workers$inner, id_draws = ".none")

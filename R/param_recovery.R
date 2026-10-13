@@ -7,42 +7,37 @@
 
 rd_recov_houses_ <- "`integer()` One or more household counts to sweep.
 If `NA`, the number of households carried by the attached data."
-rd_recov_truth_ <- "Values the surveys are simulated at,
+rd_recov_draws_ <- "Values the surveys are simulated at,
 overriding the parameter pins of the model.
-If `NULL`, the pins.
-One of:
-* `data.frame`;
-* `posterior::draws`;
-* [HousepiPosteriorDraws].
-
-Several rows are collapsed to their point estimate."
+Several draws are collapsed to their point estimate.
+If `NULL`, the pins."
 
 ########  Recovery  ########
 
-#' Simulation values: every pinned parameter, overridden by `truth`.
+#' Simulation values: every pinned parameter, overridden by `draws`.
 #' The pins are those run_simulation() builds on its own,
 #' so the surveys are generated as an ordinary simulation would.
 #' @noRd
-recovery_pins_ <- function(hh_model, truth, point_estimate) {
+recovery_pins_ <- function(hh_model, draws, point_estimate) {
   pins <- sweep_pins_(hh_model)
-  if (!is.null(truth)) {
-    given <- recovery_collapse_truth_(truth, point_estimate)
-    hh_model$.__enclos_env__$private$assert_no_baseline_value_(given, "truth")
+  if (!is.null(draws)) {
+    given <- recovery_collapse_truth_(draws, point_estimate)
+    hh_model$.__enclos_env__$private$assert_no_baseline_value_(given, "draws")
     known <- intersect(names(given), names(pins))
     pins[known] <- given[known]
     unknown <- setdiff(names(given), names(pins))
     if (length(unknown)) warn_h(
       "No parameter named {.val {unknown}} in the model.",
-      `!` = "Its {.arg truth} value is ignored."
+      `!` = "Its {.arg draws} value is ignored."
     )
   }
   pins[!is.na(pins)]
 }
 
-#' Collapse a table of values to one named vector of point estimates.
+#' Collapse draws to one named vector of point estimates.
 #' @noRd
-recovery_collapse_truth_ <- function(truth, point_estimate) {
-  tab <- helper_read_param_table_(truth, thin_ess = FALSE)
+recovery_collapse_truth_ <- function(draws, point_estimate) {
+  tab <- helper_read_param_table_(draws, thin_ess = FALSE)
   stat <- if (identical(point_estimate, "mean")) mean else stats::median
   vapply(tab, function(x) stat(as.numeric(x)), numeric(1L))
 }
@@ -58,7 +53,7 @@ recovery_truth_ <- function(hh_model, pins) {
     "No simulation value for parameter{?s} {.val {unpinned}}.",
     paste("A recovery check simulates at known values: set {.arg value} on",
           "{.fn add_parameter}, the {.field value} column of a strata table,",
-          "or pass {.arg truth}.")
+          "or pass {.arg draws}.")
   )
   pins[estimated]
 }
@@ -279,10 +274,11 @@ HousepiRecoveryCheck <- R6::R6Class(
     #' Create the recovery check object.
     #' Use [check_recovery()] instead of calling `$new()`.
     #' @param hh_model `r rd_model_in_`
+    #' @param draws `r rd_draws_`
+    #' `r rd_recov_draws_`
     #' @param nrep `r rd_sweep_nrep_`
     #' @param houses `r rd_recov_houses_`
     #' @param structure_sampler `r rd_sweep_sampler_`
-    #' @param truth `r rd_recov_truth_`
     #' @param steps `r rd_smpl_steps_`
     #' @param burn `r rd_smpl_burn_`
     #' @param thin `r rd_smpl_thin_`
@@ -291,9 +287,10 @@ HousepiRecoveryCheck <- R6::R6Class(
     #' @param threads `r rd_sweep_threads_`
     #' @param progress `r rd_progress_`
     #' @param ... `r rd_dots_config_`
-    initialize = function(hh_model, nrep = 50L, houses = NA_integer_,
+    initialize = function(hh_model, draws = NULL,
+                          nrep = 50L, houses = NA_integer_,
                           structure_sampler = sample_house_structure,
-                          truth = NULL, steps = 1000L, burn = 0L,
+                          steps = 1000L, burn = 0L,
                           thin = 5L, adapt = 500L,
                           chains = 4L, threads = 1L,
                           progress = TRUE, ...) {
@@ -302,7 +299,7 @@ HousepiRecoveryCheck <- R6::R6Class(
       private$cri_level_ <- get_global_cri_level()
       private$name_ <- hh_model$.__enclos_env__$private$gen_$raw_name
 
-      pins <- recovery_pins_(hh_model, truth, private$point_estimate_)
+      pins <- recovery_pins_(hh_model, draws, private$point_estimate_)
       private$truth_ <- recovery_truth_(hh_model, pins)
       structure <- sweep_base_structure_(hh_model)
       private$houses_ <- sweep_houses_(structure, houses,
@@ -350,14 +347,15 @@ HousepiRecoveryCheck <- R6::R6Class(
 #' The sweep is repeated at one or more household counts,
 #' which shows whether a bias shrinks with the size of the study.
 #'
-#' The parameter pins of the model are the values the surveys are simulated at,
+#' The surveys are simulated at the parameter pins of the model, or at `draws`,
 #' and the priors of the same model drive inference,
 #' so no separate simulation model is needed.
 #' @param hh_model `r rd_model_in_`
+#' @param draws `r rd_draws_`
+#' `r rd_recov_draws_`
 #' @param nrep `r rd_sweep_nrep_`
 #' @param houses `r rd_recov_houses_`
 #' @param structure_sampler `r rd_sweep_sampler_`
-#' @param truth `r rd_recov_truth_`
 #' @param steps `r rd_smpl_steps_`
 #' @param burn `r rd_smpl_burn_`
 #' @param thin `r rd_smpl_thin_`
@@ -381,10 +379,10 @@ HousepiRecoveryCheck <- R6::R6Class(
 #' recovery$overview
 #' @export
 check_recovery <- function(hh_model,
+                           draws = NULL,
                            nrep = 50L,
                            houses = NA_integer_,
                            structure_sampler = sample_house_structure,
-                           truth = NULL,
                            steps = 1000L, burn = 0L,
                            thin = 5L, adapt = 500L,
                            chains = 4L, threads = 1L,
@@ -393,8 +391,8 @@ check_recovery <- function(hh_model,
   stopifnothousepi(hh_model)
   assert_advanced_setup_(c("adapt_window", "time_step"), ...)
   HousepiRecoveryCheck$new(
-    hh_model$copy(), nrep = nrep, houses = houses,
-    structure_sampler = structure_sampler, truth = truth,
+    hh_model$copy(), draws = draws, nrep = nrep, houses = houses,
+    structure_sampler = structure_sampler,
     steps = steps, burn = burn, thin = thin, adapt = adapt,
     chains = chains, threads = threads, progress = progress, ...
   )

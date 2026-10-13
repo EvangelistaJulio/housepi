@@ -6,10 +6,10 @@
 \usage{
 check_recovery(
   hh_model,
+  draws = NULL,
   nrep = 50L,
   houses = NA_integer_,
   structure_sampler = sample_house_structure,
-  truth = NULL,
   steps = 1000L,
   burn = 0L,
   thin = 5L,
@@ -23,6 +23,19 @@ check_recovery(
 \arguments{
 \item{hh_model}{\code{HousepiModel} object.}
 
+\item{draws}{Parameter values, one row per draw.
+One of:
+\itemize{
+\item \code{data.frame};
+\item \code{posterior::draws};
+\item \link{HousepiPosteriorDraws}.
+}
+
+Values the surveys are simulated at,
+overriding the parameter pins of the model.
+Several draws are collapsed to their point estimate.
+If \code{NULL}, the pins.}
+
 \item{nrep}{\code{integer(1)}
 Number of surveys simulated and fitted back at each household count.}
 
@@ -33,18 +46,6 @@ If \code{NA}, the number of households carried by the attached data.}
 Sampler of the household structure the surveys are generated on,
 called as \code{structure_sampler(data_wide, houses)}.
 If \code{NULL}, the attached structure is reused verbatim and \code{houses} ignored.}
-
-\item{truth}{Values the surveys are simulated at,
-overriding the parameter pins of the model.
-If \code{NULL}, the pins.
-One of:
-\itemize{
-\item \code{data.frame};
-\item \code{posterior::draws};
-\item \link{HousepiPosteriorDraws}.
-}
-
-Several rows are collapsed to their point estimate.}
 
 \item{steps}{\code{integer(1)} Number of MCMC iterations per chain.}
 
@@ -85,7 +86,7 @@ it.
 The sweep is repeated at one or more household counts,
 which shows whether a bias shrinks with the size of the study.
 
-The parameter pins of the model are the values the surveys are simulated at,
+The surveys are simulated at the parameter pins of the model, or at \code{draws},
 and the priors of the same model drive inference,
 so no separate simulation model is needed.
 }

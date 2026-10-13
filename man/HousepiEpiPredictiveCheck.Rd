@@ -62,7 +62,7 @@ Sizes outside the set household size bounds are not returned.}
     \if{html}{\out{<div class="r">}}
     \preformatted{HousepiEpiPredictiveCheck$new(
   hh_model,
-  param_table,
+  draws,
   ...,
   nrep = NA_integer_,
   thin_ess = TRUE,
@@ -77,7 +77,8 @@ Sizes outside the set household size bounds are not returned.}
     \if{html}{\out{<div class="arguments">}}
     \describe{
       \item{\code{hh_model}}{\code{HousepiModel} object.}
-      \item{\code{param_table}}{One of:
+      \item{\code{draws}}{Parameter values, one row per draw.
+One of:
 \itemize{
 \item \code{data.frame};
 \item \code{posterior::draws};
@@ -87,13 +88,13 @@ Sizes outside the set household size bounds are not returned.}
 Each returns a \code{numeric()}, a \code{list} or a \code{data.frame}.
 Names must be unique and cannot match a member of the returned object.
 They are checked alongside standard epidemiological measures.}
-      \item{\code{nrep}}{\code{integer(1)} Maximum number of \code{param_table} rows simulated.
+      \item{\code{nrep}}{\code{integer(1)} Maximum number of draws simulated.
 Posterior draws are thinned to their ESS when \code{thin_ess} is \code{TRUE}.
-Then \code{nrep} evenly spaced rows are kept, all of them when fewer remain.
-If \code{NA}, every row is simulated.}
+Then \code{nrep} evenly spaced draws are kept, all of them when fewer remain.
+If \code{NA}, every draw is simulated.}
       \item{\code{thin_ess}}{\code{logical(1)}
-Whether to thin \code{param_table} to its bulk effective sample size (ESS).
-Ignored if \code{param_table} has no posterior draws.}
+Whether to thin \code{draws} to their bulk effective sample size (ESS).
+Ignored if \code{draws} is a plain \code{data.frame}.}
       \item{\code{min_hh_size}}{\code{integer(1)} Minimum household size retained in the outputs.
 If \code{NA}, no lower bound is applied.}
       \item{\code{max_hh_size}}{\code{integer(1)} Maximum household size retained in the outputs.

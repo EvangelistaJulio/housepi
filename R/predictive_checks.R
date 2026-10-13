@@ -347,10 +347,10 @@ HousepiPredictiveCheck <- R6::R6Class(
 
   public = list(
     #' @description
-    #' Simulate from a model and a table of parameters,
+    #' Simulate from a model and parameter draws,
     #' then compute the predicted values of a set of measures.
     #' @param hh_model `r rd_model_in_`
-    #' @param param_table `r rd_param_table_`
+    #' @param draws `r rd_draws_`
     #' @param ... `r rd_measure_dots_`
     #' @param nrep `r rd_nrep_`
     #' @param thin_ess `r rd_thin_ess_`
@@ -359,7 +359,7 @@ HousepiPredictiveCheck <- R6::R6Class(
     #' @param threads `r rd_thread_`
     #' @param progress `r rd_progress_`
     initialize = function(hh_model,
-                          param_table,
+                          draws,
                           ...,
                           measures_long = NULL,
                           nrep = NA_integer_,
@@ -412,7 +412,7 @@ HousepiPredictiveCheck <- R6::R6Class(
 
       # run measures on posterior simulations
       output <- hh_model$.__enclos_env__$private$run_measure_(
-        param_table,
+        draws,
         apply_wide = apply_wide,
         apply_long = apply_long,
         nrep = nrep,
@@ -462,8 +462,7 @@ HousepiPredictiveCheck <- R6::R6Class(
       # store decorations for print and read-only access
       private$model_name_ <- hh_model$name
       private$is_posterior_ <-
-        inherits(param_table, "HousepiPosteriorDraws") ||
-        posterior::is_draws(param_table)
+        inherits(draws, "HousepiPosteriorDraws") || posterior::is_draws(draws)
       private$measure_names_ <- all_measure_names
       private$nrep_ <- length(parsed[[1]])
       private$thin_ess_ <- isTRUE(thin_ess)
@@ -683,7 +682,7 @@ HousepiEpiPredictiveCheck <- R6::R6Class(
 
   public = list(
     #' @param hh_model `r rd_model_in_`
-    #' @param param_table `r rd_param_table_`
+    #' @param draws `r rd_draws_`
     #' @param ... `r rd_measure_dots_`
     #' They are checked alongside standard epidemiological measures.
     #' @param nrep `r rd_nrep_`
@@ -693,7 +692,7 @@ HousepiEpiPredictiveCheck <- R6::R6Class(
     #' @param threads `r rd_thread_`
     #' @param progress `r rd_progress_`
     initialize = function(hh_model,
-                          param_table,
+                          draws,
                           ...,
                           nrep = NA_integer_,
                           thin_ess = TRUE,
@@ -716,7 +715,7 @@ HousepiEpiPredictiveCheck <- R6::R6Class(
 
       # initialize parent class HousepiPredictiveCheck
       super$initialize(
-        hh_model = hh_model, param_table = param_table,
+        hh_model = hh_model, draws = draws,
         attack_rate = \(x) measure_ar_by_hh_size(x, esc),
         sec_attack_rate = \(x) measure_sar_by_hh_size(x, esc),
         cases_count = \(x) measure_cases_by_hh_size(x, esc),
@@ -764,7 +763,7 @@ HousepiEpiPredictiveCheck <- R6::R6Class(
 #' @title Posterior predictive check of a housepi model
 #' @description
 #' Posterior predictive check comparing observed values of household measures
-#' against their values on surveys simulated from a table of parameters
+#' against their values on surveys simulated from parameter draws
 #' \insertCite{gelman_posterior_1996}{housepi}.
 #' It checks standard epidemiological measures by household size:
 #' \describe{
@@ -777,7 +776,7 @@ HousepiEpiPredictiveCheck <- R6::R6Class(
 #' Each replicate goes through the reporting process of the model,
 #' see [add_reporting_process()].
 #' @param hh_model `r rd_model_in_`
-#' @param param_table `r rd_param_table_`
+#' @param draws `r rd_draws_`
 #' @param ... `r rd_measure_dots_`
 #' @param nrep `r rd_nrep_`
 #' @param thin_ess `r rd_thin_ess_`
@@ -819,7 +818,7 @@ HousepiEpiPredictiveCheck <- R6::R6Class(
 #' ppc
 #' @export
 check_predictive <- function(hh_model,
-                             param_table,
+                             draws,
                              ...,
                              epi = TRUE,
                              nrep = NA_integer_,
@@ -833,7 +832,7 @@ check_predictive <- function(hh_model,
     "{.arg epi} should be {.code TRUE} or {.code FALSE}."
   )
   if (isTRUE(epi)) return(HousepiEpiPredictiveCheck$new(
-    hh_model$copy(), param_table, ..., nrep = nrep,
+    hh_model$copy(), draws, ..., nrep = nrep,
     thin_ess = thin_ess, min_hh_size = min_hh_size, max_hh_size = max_hh_size,
     threads = threads, progress = progress
   ))
@@ -847,7 +846,7 @@ check_predictive <- function(hh_model,
     "Set {.code epi = TRUE} or restrict household sizes inside the measures."
   )
   HousepiPredictiveCheck$new(
-    hh_model$copy(), param_table, ...,
+    hh_model$copy(), draws, ...,
     nrep = nrep, thin_ess = thin_ess,
     threads = threads, progress = progress
   )

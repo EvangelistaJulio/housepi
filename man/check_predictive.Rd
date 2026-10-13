@@ -6,7 +6,7 @@
 \usage{
 check_predictive(
   hh_model,
-  param_table,
+  draws,
   ...,
   epi = TRUE,
   nrep = NA_integer_,
@@ -20,7 +20,8 @@ check_predictive(
 \arguments{
 \item{hh_model}{\code{HousepiModel} object.}
 
-\item{param_table}{One of:
+\item{draws}{Parameter values, one row per draw.
+One of:
 \itemize{
 \item \code{data.frame};
 \item \code{posterior::draws};
@@ -37,14 +38,14 @@ If \code{FALSE}, only the measures in \code{...} are checked,
 and the formatted outputs and household size bounds of
 \link{HousepiEpiPredictiveCheck} are unavailable.}
 
-\item{nrep}{\code{integer(1)} Maximum number of \code{param_table} rows simulated.
+\item{nrep}{\code{integer(1)} Maximum number of draws simulated.
 Posterior draws are thinned to their ESS when \code{thin_ess} is \code{TRUE}.
-Then \code{nrep} evenly spaced rows are kept, all of them when fewer remain.
-If \code{NA}, every row is simulated.}
+Then \code{nrep} evenly spaced draws are kept, all of them when fewer remain.
+If \code{NA}, every draw is simulated.}
 
 \item{thin_ess}{\code{logical(1)}
-Whether to thin \code{param_table} to its bulk effective sample size (ESS).
-Ignored if \code{param_table} has no posterior draws.}
+Whether to thin \code{draws} to their bulk effective sample size (ESS).
+Ignored if \code{draws} is a plain \code{data.frame}.}
 
 \item{min_hh_size}{\code{integer(1)} Minimum household size retained in the outputs.
 If \code{NA}, no lower bound is applied. Only with \code{epi = TRUE}.}
@@ -69,7 +70,7 @@ of class \link{HousepiPredictiveCheck} otherwise.
 }
 \description{
 Posterior predictive check comparing observed values of household measures
-against their values on surveys simulated from a table of parameters
+against their values on surveys simulated from parameter draws
 \insertCite{gelman_posterior_1996}{housepi}.
 It checks standard epidemiological measures by household size:
 \describe{

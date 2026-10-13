@@ -226,18 +226,19 @@ one of:
 }
 The bar prints as messages, which [suppressMessages()] silences."
 rd_dots_config_ <- "Advanced configuration."
-rd_param_table_ <- "One of:
+rd_draws_ <- "Parameter values, one row per draw.
+One of:
 * `data.frame`;
 * `posterior::draws`;
 * [HousepiPosteriorDraws].
 "
-rd_nrep_ <- "`integer(1)` Maximum number of `param_table` rows simulated.
+rd_nrep_ <- "`integer(1)` Maximum number of draws simulated.
 Posterior draws are thinned to their ESS when `thin_ess` is `TRUE`.
-Then `nrep` evenly spaced rows are kept, all of them when fewer remain.
-If `NA`, every row is simulated."
+Then `nrep` evenly spaced draws are kept, all of them when fewer remain.
+If `NA`, every draw is simulated."
 rd_thin_ess_ <- "`logical(1)`
-Whether to thin `param_table` to its bulk effective sample size (ESS).
-Ignored if `param_table` has no posterior draws."
+Whether to thin `draws` to their bulk effective sample size (ESS).
+Ignored if `draws` is a plain `data.frame`."
 rd_natural_log_ <- "Logarithms are natural (base \\eqn{e})."
 rd_global_summary_ <- "Results are summarised at the point estimate
 and credible level of the global options, see [set_housepi_summary()]."
@@ -1391,16 +1392,16 @@ wrap_inference_ <- function(hh_model, ran, i = 1L) {
 #' With a reporting process, the generated data go through it,
 #' see [add_reporting_process()].
 #' @param hh_model `r rd_model_in_`
-#' @param param_table `r rd_param_table_`
+#' @param draws `r rd_draws_`
 #' @param nrep `r rd_nrep_`
-#' Without `param_table`, the number of replicates,
+#' Without `draws`, the number of replicates,
 #' which share the pinned parameters and draw the others from their prior.
 #' If `NA`, one replicate.
 #' Once set, even to 1, the replicates are returned as a list.
 #' @param thin_ess `r rd_thin_ess_`
 #' @param ... `r rd_dots_config_`
 #' @return A `data.frame` for a single replicate,
-#' when `nrep` is `NA` and `param_table` is `NULL` or a one-row `data.frame`.
+#' when `nrep` is `NA` and `draws` is `NULL` or a one-row `data.frame`.
 #' Otherwise a `list` with one `data.frame` per replicate.
 #' With a `long` reporting process, a `list(wide = , long = )` of either.
 #' @examples
@@ -1411,18 +1412,17 @@ wrap_inference_ <- function(hh_model, ran, i = 1L) {
 #'   head()
 #' @export
 run_simulation <- function(hh_model,
-                           param_table = NULL,
+                           draws = NULL,
                            nrep = NA_integer_,
                            thin_ess = TRUE,
                            ...) {
   output <- simulate_with_parameters_(
-    hh_model, param_table = param_table, thin_ess = thin_ess, nrep = nrep, ...
+    hh_model, draws = draws, thin_ess = thin_ess, nrep = nrep, ...
   )
   output$parameters <- NULL
   # the arguments, not the replicates left after thinning, ask for one frame
-  single <- is.null(param_table) || (
-    is.data.frame(param_table) && !posterior::is_draws(param_table) &&
-      nrow(param_table) == 1L
+  single <- is.null(draws) || (
+    is.data.frame(draws) && !posterior::is_draws(draws) && nrow(draws) == 1L
   )
   if (is.na(nrep) && single) output <- lapply(output, `[[`, 1L)
   if (length(output) == 1) output[[1]] else output
@@ -1433,7 +1433,7 @@ run_simulation <- function(hh_model,
 #' and `parameters`, one row per replicate, pinned or drawn from the prior.
 #' @noRd
 simulate_with_parameters_ <- function(hh_model,
-                                      param_table = NULL,
+                                      draws = NULL,
                                       nrep = NA_integer_,
                                       thin_ess = TRUE,
                                       ...) {
@@ -1442,7 +1442,7 @@ simulate_with_parameters_ <- function(hh_model,
   assert_advanced_setup_("time_step", ...)
   pvt <- hh_model$.__enclos_env__$private
   pvt$helper_simulation_build_(
-    param_table = param_table, nrep = nrep, thin_ess = thin_ess, ...
+    draws = draws, nrep = nrep, thin_ess = thin_ess, ...
   )
 
   # run simulations

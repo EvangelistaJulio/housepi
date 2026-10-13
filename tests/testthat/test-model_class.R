@@ -620,7 +620,7 @@ test_that("Simulation rejects wrong arguments", {
 
 test_that("Param table with degenerate columns raises an ESS error", {
   new_housepi_model(model = "test") |>
-    run_simulation(param_table = posterior::as_draws_df(
+    run_simulation(draws = posterior::as_draws_df(
       data.frame(rho = rep(1, 100))
     )) |>
     expect_error("ESS")
@@ -634,33 +634,33 @@ test_that("Thinning to ESS keeps from a few draws up to all draws", {
     rho = rep(c(10, 20), each = 20) + rep(seq_len(20L), 2) / 20,
     .chain = rep(1:2, each = 20), .iteration = rep(seq_len(20L), 2)
   ))
-  thinned <- run_simulation(hh_model, param_table = trend)
+  thinned <- run_simulation(hh_model, draws = trend)
   length(thinned) |> expect_gte(2L)
   length(thinned) |> expect_lt(5L)
   # without thinning, every draw is simulated, under a cap above their count
   hh_model |>
-    run_simulation(param_table = trend, thin_ess = FALSE, nrep = 100) |>
+    run_simulation(draws = trend, thin_ess = FALSE, nrep = 100) |>
     expect_length(40L)
   # one chain of 20 iterations alternating low and high draws:
   # its ESS lies above the draw count, where `posterior` caps it
   alternate <- data.frame(rho = c(rbind(1:10, 20:11)))
   hh_model |>
-    run_simulation(param_table = posterior::as_draws_df(alternate)) |>
+    run_simulation(draws = posterior::as_draws_df(alternate)) |>
     expect_length(20L)
   # one trending chain: its ESS floors to a single draw, still in a list
   hh_model |>
-    run_simulation(param_table = posterior::as_draws_df(
+    run_simulation(draws = posterior::as_draws_df(
       data.frame(rho = seq_len(100L))
     )) |>
     expect_length(1L)
 })
 
-test_that("Simulation reads undeclared parameters from param_table", {
+test_that("Simulation reads undeclared parameters from draws", {
   hh_model <- mk_frederick$model$copy()
   param_table <- data.frame(alpha = c(0.3, 0.1), beta = c(0.2, 0.4),
                             gamma = 1, hh_size_ref = 4)
   hh_model |>
-    run_simulation(param_table = param_table) |>
+    run_simulation(draws = param_table) |>
     expect_length(2L)
   # the model holds the parameters of the last replicate
   state <- hh_model |> inspect_house_state(hh_model$data_wide$hh_id[1])
@@ -676,7 +676,7 @@ test_that("Simulation reads undeclared parameters from param_table", {
   data.frame(hh_id = "h1", status = 1) |>
     new_housepi_model("test") |>
     add_parameter(rho = list(prior = "uniform"), rho_2 = exp(rho)) |>
-    run_simulation(param_table = data.frame(rho = 0.5, rho_2 = 3)) |>
+    run_simulation(draws = data.frame(rho = 0.5, rho_2 = 3)) |>
     expect_error("[Nn]on numeric parameter .rho_2.")
 })
 
@@ -715,12 +715,12 @@ test_that("Simulation replicates are a list of data frames", {
   simulated |> expect_length(1L)
   simulated[[1]] |> expect_s3_class("data.frame")
 
-  # a param_table larger than nrep is thinned down to it
+  # more draws than nrep are thinned down to nrep
   params <- get_parameters(mk_frederick$template)
   param_table <- as.data.frame(as.list(stats::setNames(params$value,
                                                        params$name)))
   param_table <- param_table[rep(1L, 10L), , drop = FALSE]
-  run_simulation(mk_frederick$template, param_table = param_table, nrep = 4) |>
+  run_simulation(mk_frederick$template, draws = param_table, nrep = 4) |>
     expect_length(4L)
 })
 

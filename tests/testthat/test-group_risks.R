@@ -986,7 +986,7 @@ test_that("Two absolute risks on one baseline are identifiable once pinned", {
 
   # a simulation table gives every scale a value: no product of free scales
   # is left to resolve
-  run_simulation(hh_model, param_table = pin_all_params(hh_model)) |>
+  run_simulation(hh_model, draws = pin_all_params(hh_model)) |>
     expect_s3_class("data.frame")
 })
 
@@ -1003,7 +1003,7 @@ test_that("An absolute group risk holds its baseline at the reference", {
 
   # one stratum read from the table fixes the level of the whole group
   hh_model |>
-    run_simulation(param_table = data.frame(com_member_mother = 0.5)) |>
+    run_simulation(draws = data.frame(com_member_mother = 0.5)) |>
     expect_s3_class("data.frame")
   # the prior it was given leaves with the scale
   params <- get_parameters(hh_model)
@@ -1028,7 +1028,7 @@ test_that("A declared baseline is collapsed at the decorator", {
     "[Bb]aseline.*constant reference"
   )
 
-  run_simulation(hh_model, param_table = pin_all_params(hh_model)) |>
+  run_simulation(hh_model, draws = pin_all_params(hh_model)) |>
     expect_s3_class("data.frame")
 
   # a later definition on an untouched baseline says nothing again
@@ -1040,10 +1040,10 @@ test_that("A declared baseline is collapsed at the decorator", {
 
   # the run cannot give the scale back
   hh_model |>
-    run_simulation(param_table = data.frame(alpha = 0.5)) |>
-    expect_error("[Pp]aram_table.*alpha.*other than 1")
+    run_simulation(draws = data.frame(alpha = 0.5)) |>
+    expect_error("draws.*alpha.*other than 1")
   hh_model |>
-    run_simulation(param_table = data.frame(alpha = 1)) |>
+    run_simulation(draws = data.frame(alpha = 1)) |>
     expect_s3_class("data.frame")
 })
 
@@ -1089,7 +1089,7 @@ test_that("A measure table cannot give a collapsed baseline its scale back", {
                  com_member_mother = 0.5),
       sar = measure_sar_by_hh_size, thin_ess = FALSE, nrep = 2L
     ) |>
-    expect_error("[Pp]aram_table.*alpha.*other than 1")
+    expect_error("draws.*alpha.*other than 1")
 })
 
 test_that("A strata pin reaches simulation and stratifies on data only", {

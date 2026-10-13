@@ -243,7 +243,7 @@ helper_read_param_table_ <- function(ptab, thin_ess = TRUE) {
 
   tryCatch({
     return(as.data.frame(ptab))
-  }, error = \(e) stop_h("Type of {.arg param_table} not supported.")
+  }, error = \(e) stop_h("Type of {.arg draws} not supported.")
   )
 }
 
