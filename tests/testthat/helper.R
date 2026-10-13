@@ -30,7 +30,7 @@ helper_onset_house <- list(
                     status = c(rep(1, 3), rep(0, 4)),
                     infec_time = c(0, 3, 4, rep(NA, 4)),
                     onset_date = c(2, 6, 6, rep(NA, 4)),
-                    start_date = 0, end_date = 21),
+                    end_date = 21),
   param = list(alpha = 1e-04, beta = 0.07, gamma = 0.9,
                hh_size_ref = 4, shape = 2, scale = 1.1)
 )

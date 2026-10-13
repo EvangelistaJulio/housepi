@@ -335,7 +335,6 @@ test_that("An unnamed reference names the single covariate", {
 
 test_that("Contact risks expand on their own covariates only", {
   hhdata <- sarscov2_2021_icofs |>
-    dplyr::select(-start_date) |>
     dplyr::filter(hh_id %in% utils::head(unique(hh_id), 50))
 
   # the covariate itself must be a genuine data column

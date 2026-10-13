@@ -62,8 +62,7 @@ sarscov2_2021_icofs <- utils::read.table(url) |>
     isolated = isolation != "no quarantine"
   ) |>
   dplyr::select(
-    id, hh_id, status, age, sex,
-    start_date, end_date, test_date,
+    id, hh_id, status, age, sex, end_date, test_date,
     vacc_status, recovered, isolated, asymptomatic
   ) |>
   as.data.frame()

@@ -793,7 +793,7 @@ add_latent <- function(hh_model,
 #'   add_parameter(import = "template") |>
 #'   add_infectivity_profile(import = "template") |>
 #'   add_latent(
-#'     infec_time = list(min = start_date - 10, max = end_date),
+#'     infec_time = list(min = end_date - 31, max = end_date),
 #'     incub_period = list(model = "gamma", mean = 3, sd = 1.4),
 #'     onset_time = infec_time + incub_period
 #'   ) |>

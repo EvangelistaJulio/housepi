@@ -204,7 +204,6 @@ test_that("Group risks hold without data and re-derive on add_data_wide", {
 
 test_that("Group risks expand on their own covariates only", {
   hhdata <- sarscov2_2021_icofs |>
-    dplyr::select(-start_date) |>
     dplyr::filter(hh_id %in% utils::head(unique(hh_id), 50))
 
   # a data column the risk does not read leaves the expansion untouched
@@ -888,7 +887,7 @@ test_that("A status stratum drives simulated transmission", {
   # must transmit far less than one that draws only symptomatic ones
   hh_model <- sarscov2_2021_icofs |>
     dplyr::filter(hh_id %in% sample(unique(hh_id), 150)) |>
-    dplyr::mutate(status = NA, start_date = 0, end_date = 21) |>
+    dplyr::mutate(status = NA, end_date = 21) |>
     new_housepi_model("case-ascertained", quiet = TRUE) |>
     add_infectivity_profile(import = "template") |>
     add_latent(

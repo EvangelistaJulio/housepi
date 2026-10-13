@@ -20,7 +20,7 @@ class Model final : public ModelBase
 {
 public:
 	HOUSEPI_DECLARE_REGISTER_KEYS(Latent, infec_time)
-	HOUSEPI_DECLARE_REGISTER_KEYS(Data, start_date, end_date)
+	HOUSEPI_DECLARE_REGISTER_KEYS(Data, end_date)
 	HOUSEPI_DECLARE_EMPTY_KEYS(Long)
 	HOUSEPI_DECLARE_REGISTER_KEYS(GroupRisk, community, susceptibility, infectivity)
 	HOUSEPI_DECLARE_REGISTER_KEYS(HHmember, intro_case)
@@ -33,9 +33,9 @@ public:
 	void init_model_requirements() override final
 	{
 		request_data_discrete(
-			{Data::start_date, Data::end_date});
+			{Data::end_date});
 		request_data_every_member(
-			{Data::start_date, Data::end_date});
+			{Data::end_date});
 		request_param_positive(
 			{Param::alpha, Param::hh_size_ref});
 		request_risk_identifiability(
@@ -62,20 +62,13 @@ public:
 	/// Assert no member has missing status.
 	void init_model_for_evaluation() override final { assert_no_missing_status(); }
 
-	/// Assert `house` has an infected member and non-negative follow-up periods.
+	/// Assert `house` has an infected member.
 	void init_house_for_evaluation(const Household &house) override final
 	{
 		if (house.n_infected_status() == 0)
 			msg::stop(
 				"No infected members were found in " + str(house) +
 				".\nCase-ascertained model assumes at least one infected member per household.");
-
-		// study period must be non-negative
-		for (const Individual &indiv : house)
-			if (data(Data::start_date, indiv) > data(Data::end_date, indiv))
-				msg::stop(
-					"Found negative follow-up period for " + str(indiv) +
-					".\nCheck " + msg::arg("start_date") + " and " + msg::arg("end_date") + ".");
 	}
 
 	//////////////////////////////  Model : household log-likelihood  //////////////////////////////

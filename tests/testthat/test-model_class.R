@@ -81,17 +81,16 @@ test_that("Household size is capped by the engine member storage", {
 })
 
 test_that("A missing datum is not a requirement violation", {
-  # 'case_ascertained' requires start_date and end_date discrete; an absent
-  # cell carries no verdict, so it imports and reads back as NA -- the
-  # requirement itself is asserted at the run wall
+  # 'case_ascertained' requires end_date discrete; an absent cell carries no
+  # verdict, so it imports and reads back as NA -- the requirement itself is
+  # asserted at the run wall
   hhdata <- data.frame(
     id = c("m1", "m2", "m3"), hh_id = "h1", status = c(1, 1, 0),
-    start_date = c(1, NA, 1), end_date = c(21, 21, NA)
+    end_date = c(21, 21, NA)
   ) |>
     new_housepi_model("case-ascertained", quiet = TRUE) |>
     get_data_wide()
 
-  hhdata$start_date |> expect_equal(c(1, NA, 1))
   hhdata$end_date |> expect_equal(c(21, 21, NA))
 })
 
@@ -102,18 +101,15 @@ test_that("A datum violating a model requirement is refused at import", {
       new_housepi_model("case-ascertained", quiet = TRUE)
   }
 
-  # 'case_ascertained' requires start_date and end_date discrete, and the
-  # offending row is named alongside the column
-  mk(start_date = c(1, 2.5, 1), end_date = 21) |>
-    expect_error("start_date.*not discrete-valued")
-
-  mk(start_date = 1, end_date = c(21, 21, 20.5)) |>
-    expect_error("not discrete-valued")
+  # 'case_ascertained' requires end_date discrete, and the offending row is
+  # named alongside the column
+  mk(end_date = c(21, 21, 20.5)) |>
+    expect_error("end_date.*not discrete-valued")
 
   # integer-valued cells clear the requirement, negative ones included
-  mk(start_date = c(-3, 0, 1), end_date = 21) |>
+  mk(end_date = c(-3, 0, 1)) |>
     get_data_wide() |>
-    getElement("start_date") |>
+    getElement("end_date") |>
     expect_equal(c(-3, 0, 1))
 })
 
@@ -122,15 +118,15 @@ test_that("Model-required data can be postponed to the run wall", {
   # tolerates the gap, the wall (evaluate_*/run_*) names it
   hh_model <- sarscov2_2021_icofs |>
     dplyr::filter(hh_id %in% utils::head(unique(hh_id), 20)) |>
-    dplyr::select(-start_date) |>
+    dplyr::select(-end_date) |>
     new_housepi_model("case-ascertained")
 
   hh_model |>
     evaluate_log_lik() |>
-    expect_error("start_date")
+    expect_error("end_date")
   hh_model |>
     run_simulation() |>
-    expect_error("start_date")
+    expect_error("end_date")
 })
 
 test_that("Wide data can be deferred and attached with add_data_wide", {

@@ -10,7 +10,7 @@ mk_house <- helper_onset_house
 mk_simulation <- local({
   hh_model <- sarscov2_2021_icofs |>
     dplyr::filter(hh_id %in% utils::head(unique(hh_id), 100)) |>
-    dplyr::mutate(start_date = 0, end_date = 21) |>
+    dplyr::mutate(end_date = 21) |>
     new_housepi_model("case-ascertained") |>
     add_infectivity_profile(import = "template") |>
     add_latent(
@@ -173,26 +173,13 @@ test_that("A saturated transmission infects every member", {
 
 test_that("Sentinel against no introduction throws error", {
   data.frame(id = seq(2), hh_id = "h1", status = 0,
-             start_date = 0, end_date = 21) |>
+             end_date = 21) |>
     new_housepi_model("case-ascertained") |>
     add_infectivity_profile(import = "template") |>
     add_parameter(import = "template") |>
     add_latent(import = "template") |>
     run_inference() |>
     expect_error("at least one infected member")
-})
-
-test_that("Sentinel against a reversed follow-up window throws error", {
-  # end_date < start_date has no valid exposure period
-  data.frame(id = c("m1", "m2"), hh_id = "h1",
-             status = c(1, 0), infec_date = c(0, NA),
-             start_date = 5, end_date = 2) |>
-    new_housepi_model("case-ascertained", quiet = TRUE) |>
-    add_parameter(import = mk_house$param) |>
-    add_latent(infec_time = infec_date) |>
-    add_infectivity_profile(func = "gamma", shape = shape, scale = scale) |>
-    evaluate_log_lik() |>
-    expect_error("negative follow-up period")
 })
 
 test_that("Sentinel against a member missing a follow-up date throws error", {
@@ -218,8 +205,7 @@ test_that("Sentinel against a member missing a follow-up date throws error", {
 })
 
 test_that("Log-likelihood of case ascertained model is correct", {
-  house <- mk_house$data[c("id", "hh_id", "status", "infec_time",
-                           "start_date", "end_date")]
+  house <- mk_house$data[c("id", "hh_id", "status", "infec_time", "end_date")]
   # risks far below the machine epsilon
   tiny <- modifyList(mk_house$param, list(alpha = 1e-20, beta = 1e-20))
 
@@ -251,7 +237,7 @@ test_that("A case with no source of infection has zero likelihood", {
   # `m2` is the only child, out of reach of the community,
   # and no household transmission
   hhdata <- transform(mk_house$data[c("id", "hh_id", "status", "infec_time",
-                                      "start_date", "end_date")],
+                                      "end_date")],
                       age = c("adult", "child", rep("adult", 5)))
   strata <- data.frame(age = c(NA, "child"),
                        param_name = c(".reference", "com_child"),
@@ -271,7 +257,7 @@ test_that("Model quantities are the rates of the force of infection", {
   # and contact with the adults
   child <- c(FALSE, TRUE, rep(FALSE, 5))
   house <- transform(mk_house$data[c("id", "hh_id", "status", "infec_time",
-                                     "start_date", "end_date")],
+                                     "end_date")],
                      age = ifelse(child, "child", "adult"))
   strata <- function(param_name, value) {
     data.frame(age = c(NA, "child"), param_name = c(".reference", param_name),
@@ -303,8 +289,7 @@ test_that("Model quantities are the rates of the force of infection", {
 })
 
 test_that("Latent moves preserve log-likelihood", {
-  house <- mk_house$data[c("id", "hh_id", "status", "onset_date",
-                           "start_date", "end_date")]
+  house <- mk_house$data[c("id", "hh_id", "status", "onset_date", "end_date")]
   hh_model <- house |>
     new_housepi_model("case-ascertained", quiet = TRUE) |>
     add_parameter(import = "template") |>

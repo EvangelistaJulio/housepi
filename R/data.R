@@ -85,10 +85,9 @@ NULL
 #'   \item{status}{Follow-up outcome: 0 escaped, 1 symptomatic, 2 asymptomatic;}
 #'   \item{age}{Age class, adult or child;}
 #'   \item{sex}{Sex;}
-#'   \item{start_date}{Follow-up start: household's first positive PCR;}
-#'   \item{end_date}{Follow-up end: 21 days after \code{start_date};}
+#'   \item{end_date}{Follow-up end: 21 days after the household's first positive PCR;}
 #'   \item{test_date}{Date of the first positive test within the follow-up;}
-#'   \item{vacc_status}{Vaccination status at the follow-up start;}
+#'   \item{vacc_status}{Vaccination status at the household's first positive PCR;}
 #'   \item{recovered}{Whether previously recovered from infection;}
 #'   \item{isolated}{Whether isolated;}
 #'   \item{asymptomatic}{Whether asymptomatic.}
@@ -102,7 +101,7 @@ NULL
 #' summarise_house_cases(hh_model)
 #' @name sarscov2_2021_icofs
 #' @usage data(sarscov2_2021_icofs)
-#' @format A data frame with 4,168 rows and 12 columns
+#' @format A data frame with 4,168 rows and 11 columns
 #' @source <https://gitlab.pasteur.fr/mmmi-pasteur/hh_israel_sarscov2_delta2/-/raw/main/codes/db_filtered.txt>
 #'
 #' @details

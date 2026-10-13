@@ -12,7 +12,7 @@ mk_latent <- local({
 mk_outbreak <- local({
   hhdata <- sarscov2_2021_icofs |>
     dplyr::filter(hh_id %in% utils::head(unique(hh_id), 50)) |>
-    dplyr::mutate(start_date = 0, end_date = 21)
+    dplyr::mutate(end_date = 21)
   hh_model <- hhdata |>
     new_housepi_model("case-ascertained") |>
     add_infectivity_profile(import = "template") |>
@@ -27,7 +27,7 @@ mk_outbreak <- local({
 # two infected statuses under the template definitions
 mk_status <- local({
   hhdata <- data.frame(id = c("m1", "m2", "m3", "m4"), hh_id = "h1",
-                       status = c(1, 2, 0, 0), start_date = 0, end_date = 21)
+                       status = c(1, 2, 0, 0), end_date = 21)
   hh_model <- hhdata |>
     new_housepi_model("case-ascertained") |>
     add_parameter(import = "template") |>
@@ -215,8 +215,7 @@ test_that("Status process generates a labelled status factor in simulation", {
   # feed the factor-status output back for inference: factorization maps the
   # labels to the same codes (escaped -> 0), so the density is finite
   hh_model <- simulated |>
-    dplyr::select(id, hh_id, status, infec_date = infec_time, start_date,
-                  end_date) |>
+    dplyr::select(id, hh_id, status, infec_date = infec_time, end_date) |>
     add_data_wide(hh_model = mk_pinned$model)
   evaluate_log_lik(hh_model) |> expect_all_finite()
 

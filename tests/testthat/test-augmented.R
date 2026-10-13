@@ -12,7 +12,7 @@ mk_latent <- local({
 mk_outbreak <- local({
   hhdata <- sarscov2_2021_icofs |>
     dplyr::filter(hh_id %in% utils::head(unique(hh_id), 50)) |>
-    dplyr::mutate(start_date = 0, end_date = 21)
+    dplyr::mutate(end_date = 21)
   hh_model <- hhdata |>
     new_housepi_model("case-ascertained") |>
     add_infectivity_profile(import = "template") |>
@@ -42,7 +42,7 @@ mk_onset <- local({
 # two infected statuses under the template definitions
 mk_status <- local({
   hhdata <- data.frame(id = c("m1", "m2", "m3", "m4"), hh_id = "h1",
-                       status = c(1, 2, 0, 0), start_date = 0, end_date = 21)
+                       status = c(1, 2, 0, 0), end_date = 21)
   hh_model <- hhdata |>
     new_housepi_model("case-ascertained") |>
     add_parameter(import = "template") |>
@@ -488,7 +488,7 @@ test_that("An external list of latent definitions can be imported", {
 
 test_that("Latent template import loads", {
   hh_model <- mk_outbreak$model |>
-    add_latent(hidden = start_date + 1, append = FALSE)
+    add_latent(hidden = end_date + 1, append = FALSE)
 
   # appending keeps the pre-existing definitions beside the template ones
   hh_model |>
@@ -1178,62 +1178,62 @@ test_that("A household reduction folds its argument over the members", {
 })
 
 test_that("A household observation with no datum yet reads as NA", {
-  # 'start_date' reduces over an observation the run has still to draw: there
+  # 'end_date' reduces over an observation the run has still to draw: there
   # is nothing to reduce, so the data view reports NA rather than reading the
   # empty reduction as a datum failing the discreteness 'case_ascertained' asks
   hhdata <- data.frame(id = c("m1", "m2", "m3", "m4"),
                        hh_id = c("h1", "h1", "h2", "h2"),
-                       status = NA, end_date = 21) |>
+                       status = NA) |>
     new_housepi_model("case-ascertained") |>
     add_observation(
       onset_date = list(model = "normal", discr = TRUE, mean = 3, sd = 1),
-      start_date = list(value = min(onset_date), level = "house")
+      end_date = list(value = max(onset_date), level = "house")
     ) |>
     get_data_wide()
 
-  hhdata$start_date |> expect_all_na()
+  hhdata$end_date |> expect_all_na()
 })
 
 test_that("A surrogate column proves the requirement its model asks", {
-  # a surrogate filling 'start_date' answers the discreteness 'case_ascertained'
+  # a surrogate filling 'end_date' answers the discreteness 'case_ascertained'
   # asks of the column, and answers for what it can return, not for the value it
   # happens to settle on. A household-level definition reduces over its members,
   # so its root is the reduction; the member level takes the algebra directly
   mk <- function(defin, level = "house") {
     data.frame(id = c("m1", "m2", "m3", "m4"),
                hh_id = c("h1", "h1", "h2", "h2"),
-               status = c(1, 0, 1, 0), end_date = 16, datum = 0.5) |>
+               status = c(1, 0, 1, 0), datum = 0.5, datum_2 = 16) |>
       new_housepi_model("case-ascertained") |>
-      add_observation("start_date", value = !!defin, level = level) |>
+      add_observation("end_date", value = !!defin, level = level) |>
       get_data_wide()
   }
 
   # integer-valued cells fold to the integer lattice through the algebra
-  mk(quote(min(end_date)))$start_date |> expect_equal(rep(16, 4))
-  mk(quote(sum(end_date)))$start_date |> expect_equal(rep(32, 4))
-  mk(quote(end_date * 2 - 1), level = "member")$start_date |>
+  mk(quote(min(datum_2)))$end_date |> expect_equal(rep(16, 4))
+  mk(quote(sum(datum_2)))$end_date |> expect_equal(rep(32, 4))
+  mk(quote(datum_2 * 2 - 1), level = "member")$end_date |>
     expect_equal(rep(31, 4))
 
   # two halves sum to an integer, and are refused all the same: the column
   # answers for what the definition can return, not for the value it settles on
   mk(quote(sum(datum))) |>
     expect_error("not discrete-valued")
-  mk(quote(end_date / 4), level = "member") |>
+  mk(quote(datum_2 / 4), level = "member") |>
     expect_error("not discrete-valued")
-  mk(quote(sqrt(end_date)), level = "member") |>
+  mk(quote(sqrt(datum_2)), level = "member") |>
     expect_error("not discrete-valued")
 
   # rounding restores the proof
-  mk(quote(round(end_date / 4)), level = "member")$start_date |>
+  mk(quote(round(datum_2 / 4)), level = "member")$end_date |>
     expect_equal(rep(4, 4))
-  mk(quote(ceil(sqrt(end_date))), level = "member")$start_date |>
+  mk(quote(ceil(sqrt(datum_2))), level = "member")$end_date |>
     expect_equal(rep(4, 4))
 
   # the refusal names the definition and the place it was built for
   sms <- tryCatch(mk(quote(sum(datum))), error = conditionMessage)
   sms |> expect_match("[Hh]ousehold observation")
   sms |> expect_match("h1")
-  sms <- tryCatch(mk(quote(end_date / 4), level = "member"),
+  sms <- tryCatch(mk(quote(datum_2 / 4), level = "member"),
                   error = conditionMessage)
   sms |> expect_match("individual")
   sms |> expect_match("m1")
@@ -1242,7 +1242,6 @@ test_that("A surrogate column proves the requirement its model asks", {
 test_that("Data-bound household observation rejects latent dependence", {
   # a household observation standing in for data resolves from data alone
   mk_outbreak$model |>
-    add_data_wide(dplyr::select(mk_outbreak$data, -start_date)) |>
     add_observation(start_date = min(test_date) + alpha,
                     level = "house") |>
     evaluate_log_lik() |>
@@ -1924,7 +1923,7 @@ test_that("Discretization is resolved every time the data changes", {
 
 test_that("A bare observation name reads its column in a house reduction", {
   simulated <- mk_outbreak$model |>
-    add_data_wide(dplyr::select(mk_outbreak$data, -test_date, -start_date)) |>
+    add_data_wide(dplyr::select(mk_outbreak$data, -test_date)) |>
     add_observation(
       test_date = list(model = "normal", mean = infec_time + incub_period),
       start_date = list(value = min(test_date), level = "house")
@@ -1942,7 +1941,7 @@ test_that("A bare observation name reads its column in a house reduction", {
 test_that("A household-bound member observation bounds every member", {
   # the follow-up end reads the household start: a pinned index reads it too
   simulated <- mk_outbreak$data |>
-    dplyr::select(-test_date, -start_date, -end_date) |>
+    dplyr::select(-test_date, -end_date) |>
     new_housepi_model("case-ascertained") |>
     add_infectivity_profile(import = "template") |>
     add_parameter(alpha = 1e-3, beta = 0.15, gamma = 1, hh_size_ref = 4) |>
@@ -2044,7 +2043,7 @@ test_that("Household observation derives from simulated observations", {
   # both the observation (test_date) and the surrogate column (start_date) are
   # produced internally: neither is provided in the input data
   reps <- mk_outbreak$model |>
-    add_data_wide(dplyr::select(mk_outbreak$data, -test_date, -start_date)) |>
+    add_data_wide(dplyr::select(mk_outbreak$data, -test_date)) |>
     add_observation("test_date", model = "normal",
                     mean = infec_time + incub_period, sd = 1) |>
     add_observation(start_date = min(test_date), level = "house") |>
@@ -2177,8 +2176,7 @@ test_that("A latent reads a static data-bound household observation", {
   # start_date stands in for provided (static) test_date, read by infec_time
   simulated <- mk_outbreak$model |>
     add_data_wide(mk_outbreak$data |>
-                    dplyr::mutate(test_date = 5, end_date = 26) |>
-                    dplyr::select(-start_date)) |>
+                    dplyr::mutate(test_date = 5, end_date = 26)) |>
     add_latent(
       infec_time = list(value = start_date - 1, min = start_date - 5,
                         max = start_date + 5, proposal = "rw"),
@@ -2198,7 +2196,7 @@ test_that("Simulation rejects a latent reading a live household observation", {
   # simulation value of infec_time depends on start_date,
   # but start_date is consumer of test_date: cycle get rejected
   mk_outbreak$model |>
-    add_data_wide(dplyr::select(mk_outbreak$data, -test_date, -start_date)) |>
+    add_data_wide(dplyr::select(mk_outbreak$data, -test_date)) |>
     add_latent(
       infec_time = list(value = start_date - 1, min = start_date - 5,
                         max = start_date + 5, proposal = "rw"),
@@ -2211,7 +2209,8 @@ test_that("Simulation rejects a latent reading a live household observation", {
 })
 
 test_that("Data-bound household observation supplies a required data column", {
-  # the dates of the dataset itself, where start_date is the first test date
+  # the dates of the dataset itself, where end_date is 21 days after the first
+  # test date
   hhdata <- sarscov2_2021_icofs |>
     dplyr::filter(hh_id %in% utils::head(unique(hh_id), 40))
   hh_model <- new_housepi_model(model = "case-ascertained") |>
@@ -2219,13 +2218,13 @@ test_that("Data-bound household observation supplies a required data column", {
     add_parameter(import = "template") |>
     add_latent(import = "template")
 
-  # 'start_date' provided as an ordinary data column
+  # 'end_date' provided as an ordinary data column
   provided <- add_data_wide(hh_model, hhdata)
 
-  # 'start_date' is passed as a surrogate observation
+  # 'end_date' is passed as a surrogate observation
   surrogate <- hh_model |>
-    add_data_wide(dplyr::select(hhdata, -start_date)) |>
-    add_observation(start_date = min(test_date), level = "house")
+    add_data_wide(dplyr::select(hhdata, -end_date)) |>
+    add_observation(end_date = min(test_date) + 21, level = "house")
 
   # the two agree on the pointwise sum: the unpinned template draws the same
   # values under the same seed
@@ -2278,7 +2277,7 @@ test_that("Status-specific blocks alone cover every drawn status", {
   mk <- function(..., weights = c(0.5, 0.5)) {
     data.frame(
       id = c("m1", "m2", "m3", "m4"), hh_id = c("h1", "h1", "h2", "h2"),
-      status = NA, start_date = 0, end_date = 21
+      status = NA, end_date = 21
     ) |>
       new_housepi_model("case-ascertained") |>
       add_parameter(import = "template") |>

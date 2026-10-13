@@ -187,7 +187,7 @@ test_that("A definition named like a single-mode argument is not dropped", {
   mk_member$model |>
     add_group_risk(community = "member", reference = ".auto") |>
     expect_error(paste0(err, ".*reference"))
-  data.frame(hh_id = "h1", status = 1, start_date = 0, end_date = 20) |>
+  data.frame(hh_id = "h1", status = 1, end_date = 20) |>
     new_housepi_model("case-ascertained", quiet = TRUE) |>
     add_infectivity_profile(discr = TRUE) |>
     expect_error(paste0(err, ".*discr"))

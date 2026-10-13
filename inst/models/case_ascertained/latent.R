@@ -1,5 +1,5 @@
 list(
   infec_time = list(
-    min = ~ start_date - 10, max = ~ end_date
+    min = ~ end_date - 31, max = ~ end_date
   )
 )

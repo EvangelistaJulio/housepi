@@ -12,12 +12,11 @@ The household is followed from its first infection, the primary case, which ente
 \section{Data}{
 
 \itemize{
-\item \code{start_date}: first day of follow-up of the member
 \item \code{end_date} \eqn{t_\mathrm{end}}{t_end}: last day of follow-up of the member, included
 }
 
-Both need a value for every member, escaped ones included.
-An observation standing for them is defined at household level, or from data columns only.
+It needs a value for every member, escaped ones included.
+An observation standing for it is defined at household level, or from data columns only.
 In simulation the primary case is drawn uniformly among the members \insertCite{cauchemez_bayesian_2004}{housepi}.
 }
 
