@@ -200,6 +200,10 @@ namespace housepi
 
 		/// User-configured time step of the simulation.
 		double real_time_step() const { return mcmc_->setup.time_step; }
+		/// Number of thread slots, the size of a per-thread pool.
+		size_t n_threads() const { return mcmc_->setup.n_threads; }
+		/// Slot of the calling thread in a per-thread pool.
+		size_t thread_slot() const { return mcmc_->setup.thread_slot(); }
 
 		/// Value of parameter `p`.
 		double par(size_t p) const { return mcmc_->param.at(p).value(); }

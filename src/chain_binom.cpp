@@ -37,7 +37,8 @@ namespace housepi::chain_binom
         /// * `s`: members infected before the last generation;
         /// * `l`: members of the last generation.
         /// @note Probabilities below 1e-308 underflow, returning -Inf.
-        double log_lik_homogeneous_(MemberIdx n,
+        double log_lik_homogeneous_(Scratch &scratch,
+                                    MemberIdx n,
                                     double commu_infec_rate,
                                     double p2p_infec_rate)
         {
@@ -46,19 +47,19 @@ namespace housepi::chain_binom
             const double p2p_esc_proba = std::exp(-p2p_infec_rate);
 
             // probability of infection by a generation of n_prev infectors, per generation size
-            thread_local vector<double> p2p_infec_proba;
+            auto &p2p_infec_proba = scratch.p2p_infec_proba;
             p2p_infec_proba.assign(n + 1, 0.);
             for (unsigned n_prev = 1; n_prev <= n; ++n_prev)
                 p2p_infec_proba[n_prev] = -math::expm1(-(n_prev * p2p_infec_rate));
 
             // probability of escaping the community, per number of members
-            thread_local vector<double> commu_esc_pow;
+            auto &commu_esc_pow = scratch.commu_esc_pow;
             commu_esc_pow.assign(n + 1, 1.);
             for (unsigned k = 1; k <= n; ++k)
                 commu_esc_pow[k] = commu_esc_pow[k - 1] * commu_esc_proba;
 
             // probability of reaching state (s, l), at s * (n + 1) + l
-            thread_local vector<double> state_proba;
+            auto &state_proba = scratch.state_proba;
             state_proba.assign((n + 1) * (n + 1), 0.);
 
             // generation (0) : C(n, c) ways for c members infected by community, the others escaped
@@ -97,14 +98,15 @@ namespace housepi::chain_binom
 
         /// Compute the heterogeneous chain-binomial log-likelihood over subset bitmasks.
         /// Based on @cite addy_generalized_1991
-        double log_lik_heterogeneous_(MemberIdx n_infec,
+        double log_lik_heterogeneous_(Scratch &scratch,
+                                      MemberIdx n_infec,
                                       const std::vector<double> &commu_infec_rate,
                                       const std::vector<std::vector<double>> &p2p_infec_rate)
         {
             const size_t Nsets = size_t(1) << n_infec; // number of subsets R, 2^n_infec
 
             // log-escape probabilities q of every subset R, built incrementally
-            thread_local vector<double> log_q;
+            auto &log_q = scratch.log_q;
             log_q.assign(Nsets * n_infec, 0.);
 
             // empty R: community escape only, O(n)
@@ -121,7 +123,7 @@ namespace housepi::chain_binom
                     log_q[R * n_infec + j] = log_q[Rprev * n_infec + j] - p2p_infec_rate[i][j];
             }
 
-            thread_local vector<double> log_pi;
+            auto &log_pi = scratch.log_pi;
             log_pi.assign(Nsets, 0.); // log pi(empty) = 0
 
             for (size_t S = 1; S < Nsets; ++S)
@@ -236,7 +238,8 @@ namespace housepi::chain_binom
         ///
         /// Recursion: pi(t|t) = 1 - sum_{w < t} C(t,w) * pi(w|w) * prod_s q_s(w)^(t_s - w_s).
         /// Here q_s(w) is the probability that a member of part s escapes the community and every member in w.
-        double evaluate_partition_tree_(const PartitionTree &dp,
+        double evaluate_partition_tree_(Scratch &scratch,
+                                        const PartitionTree &dp,
                                         const vector<double> &log_commu_esc,
                                         const matrix<double> &log_p2p_esc)
         {
@@ -244,11 +247,11 @@ namespace housepi::chain_binom
                                     ? 0
                                     : static_cast<MemberIdx>(dp.sub_vecs.front().size());
 
-            thread_local vector<double> log_pi;
+            auto &log_pi = scratch.log_pi;
             log_pi.assign(dp.sub_vecs.size(), 0.); // log pi(0|0) = 0
 
             // log q_s(w) per node w and part s, at w * K + s
-            thread_local vector<double> log_q;
+            auto &log_q = scratch.log_q;
             log_q.assign(dp.sub_vecs.size() * K, 0.);
             for (size_t wi = 0; wi < dp.sub_vecs.size(); ++wi)
                 for (MemberIdx s = 0; s < K; ++s)
@@ -289,21 +292,23 @@ namespace housepi::chain_binom
         ///
         /// Seropositives sharing a contribution enumerate partition sequences, not permutations.
         /// @note Subset bitmasks do not carry over: integer partitions have no closed-form count.
+        /// @param scratch Buffers of the calling thread.
         /// @param tree Partition tree of the part counts.
         /// @param n_parts Number of parts.
         /// @param part_indexes Member representative of each part.
         /// @param commu_infec_rate Community infection rate per member.
         /// @param p2p_infec_rate Person-to-person infection rate per member pair.
-        double log_lik_partitioned_(const PartitionTree &tree,
+        double log_lik_partitioned_(Scratch &scratch,
+                                    const PartitionTree &tree,
                                     MemberIdx n_parts,
                                     const std::vector<MemberIdx> &part_indexes,
                                     const std::vector<double> &commu_infec_rate,
                                     const std::vector<std::vector<double>> &p2p_infec_rate)
         {
             // log-escape probabilities per part
-            thread_local vector<double> log_commu_esc;
+            auto &log_commu_esc = scratch.log_commu_esc;
             log_commu_esc.assign(n_parts, 0.);
-            thread_local matrix<double> log_p2p_esc;
+            auto &log_p2p_esc = scratch.log_p2p_esc;
             log_p2p_esc.assign(n_parts, vector<double>(n_parts, 0.));
 
             for (MemberIdx t = 0; t < n_parts; ++t)
@@ -313,7 +318,7 @@ namespace housepi::chain_binom
                     log_p2p_esc[t][s] = -p2p_infec_rate[part_indexes[t]][part_indexes[s]];
             }
 
-            return evaluate_partition_tree_(tree, log_commu_esc, log_p2p_esc);
+            return evaluate_partition_tree_(scratch, tree, log_commu_esc, log_p2p_esc);
         }
     }
 
@@ -345,6 +350,7 @@ namespace housepi::chain_binom
     //////////////////////////////  Log-likelihood dispatcher  //////////////////////////////
 
     double log_likelihood(const LookUpTables &lut,
+                          Scratch &scratch,
                           MemberIdx n_infec, MemberIdx n_parts,
                           ShapeIdx shape_idx,
                           const std::vector<MemberIdx> &part_indexes,
@@ -373,15 +379,15 @@ namespace housepi::chain_binom
             return ll + math::log1mexp(commu_infec_rate[0]);
         // homogeneous case
         else if (n_parts < 2)
-            return ll + log_lik_homogeneous_(n_infec, commu_infec_rate[0], p2p_infec_rate[0][1]);
+            return ll + log_lik_homogeneous_(scratch, n_infec, commu_infec_rate[0], p2p_infec_rate[0][1]);
         // partitioned case
         else if (n_parts < n_infec)
             return ll + log_lik_partitioned_(
-                            lut.partition_trees_[shape_idx], n_parts, part_indexes,
+                            scratch, lut.partition_trees_[shape_idx], n_parts, part_indexes,
                             commu_infec_rate, p2p_infec_rate);
         // heterogeneous case
         else
             return ll + log_lik_heterogeneous_(
-                            n_infec, commu_infec_rate, p2p_infec_rate);
+                            scratch, n_infec, commu_infec_rate, p2p_infec_rate);
     }
 }

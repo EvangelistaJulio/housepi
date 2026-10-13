@@ -64,27 +64,27 @@ namespace housepi
 
         // number of chains
         if (input.count("chains") && !na::is(input.at("chains")[0]))
-            n_chains = str::toul(input.at("chains")[0], "chains");
+            n_chains = str::toull(input.at("chains")[0], "chains");
 
         // number of steps
         if (input.count("steps") && !na::is(input.at("steps")[0]))
-            n_steps = str::toul(input.at("steps")[0], "steps");
+            n_steps = str::toull(input.at("steps")[0], "steps");
 
         // number of adaptive steps
         if (input.count("adapt") && !na::is(input.at("adapt")[0]))
-            n_adapt = str::toul(input.at("adapt")[0], "adapt");
+            n_adapt = str::toull(input.at("adapt")[0], "adapt");
 
         // window of the smoothed acceptance rate
         if (input.count("adapt_window") && !na::is(input.at("adapt_window")[0]))
-            n_adapt_window = str::toul(input.at("adapt_window")[0], "adapt_window");
+            n_adapt_window = str::toull(input.at("adapt_window")[0], "adapt_window");
 
         // thinning interval
         if (input.count("thin") && !na::is(input.at("thin")[0]))
-            n_thin = str::toul(input.at("thin")[0], "thin");
+            n_thin = str::toull(input.at("thin")[0], "thin");
 
         // burn-in steps
         if (input.count("burn") && !na::is(input.at("burn")[0]))
-            n_burn = str::toul(input.at("burn")[0], "burn");
+            n_burn = str::toull(input.at("burn")[0], "burn");
 
         // individual IDs whose latent draws are traced
         if (input.count("id_draws") && !input.at("id_draws")[0].empty())
@@ -131,9 +131,14 @@ namespace housepi
         }
     }
 
+    std::size_t Setup::thread_slot() const
+    {
+        return budget.inner == 1 ? 0 : housepi::parallel::current_thread_index();
+    }
+
     rnd_gen &Setup::prng() const
     {
-        return prng_parallel_[budget.inner == 1 ? 0 : housepi::parallel::current_thread_index()];
+        return prng_parallel_[thread_slot()];
     }
 
     void Setup::init_mcmc_configuration(bool is_adaptive)

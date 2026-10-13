@@ -45,6 +45,21 @@ namespace housepi::chain_binom
         std::vector<std::vector<std::pair<std::uint32_t, double>>> ancestors;
     };
 
+    //////////////////////////////  chain_binom::Scratch  //////////////////////////////
+
+    /// Hold the buffers of one log-likelihood evaluation, overwritten by every call.
+    /// @note Concurrent callers each need their own Scratch.
+    struct Scratch
+    {
+        std::vector<double> p2p_infec_proba;          /// Infection probability per generation size.
+        std::vector<double> commu_esc_pow;            /// Community escape probability per member count.
+        std::vector<double> state_proba;              /// Probability per generation state.
+        std::vector<double> log_q;                    /// Log-escape probabilities, per subset or tree node.
+        std::vector<double> log_pi;                   /// Log-probability, per subset or tree node.
+        std::vector<double> log_commu_esc;            /// Community log-escape probability per part.
+        std::vector<std::vector<double>> log_p2p_esc; /// Person-to-person log-escape probability per part pair.
+    };
+
     //////////////////////////////  chain_binom::LookUpTables  //////////////////////////////
 
     /// Hold partition trees of one model, shared by its chains.
@@ -69,6 +84,7 @@ namespace housepi::chain_binom
 
         /// Read the tables.
         friend double log_likelihood(const LookUpTables &lut,
+                                     Scratch &scratch,
                                      MemberIdx n_infec,
                                      MemberIdx n_parts,
                                      ShapeIdx shape_idx,
@@ -82,8 +98,10 @@ namespace housepi::chain_binom
     /// * `n_parts == 1` -> generation sizes, homogeneous;
     /// * `n_parts == n_infec` -> bitmask DP, heterogeneous;
     /// * otherwise -> multitype partition tree, grouped.
+    /// @param scratch Buffers of the calling thread.
     /// @param shape_idx Shape index from LookUpTables::ensure_partitioned(), read only when grouped.
     double log_likelihood(const LookUpTables &lut,
+                          Scratch &scratch,
                           MemberIdx n_infec,
                           MemberIdx n_parts,
                           ShapeIdx shape_idx,

@@ -287,7 +287,7 @@ namespace housepi
                 size_t i = k + c * setup.c_sample_size;
 
                 // print iteration
-                unsigned long sweep = setup.n_burn + (k + 1) * setup.n_thin;
+                std::uint64_t sweep = setup.n_burn + (k + 1) * setup.n_thin;
                 ofs << sweep;
 
                 // joint log-likelihood (transmission + observation), summed over households from pointwise draws

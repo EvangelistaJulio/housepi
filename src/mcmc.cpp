@@ -378,7 +378,7 @@ namespace housepi
 
     /// Initialize the parameter draws of the posterior.
     void Posterior::init_param_draws_(const Parameter &param,
-                                      unsigned long sample_size)
+                                      std::uint64_t sample_size)
     {
         for (size_t p : param.scheme().sample)
         {
@@ -391,7 +391,7 @@ namespace housepi
     }
 
     void Posterior::init_house_draws_(const data::Wide &data_wide,
-                                      unsigned long sample_size)
+                                      std::uint64_t sample_size)
     {
         house_log_lik.cols.assign(data_wide.eq_class_size(), std::vector<double>(sample_size, na::DOUBLE));
 
@@ -407,7 +407,7 @@ namespace housepi
     void Posterior::init_latent_draws_(const Augmented &augm,
                                        const data::Wide &data_wide,
                                        const Setup &setup,
-                                       unsigned long sample_size)
+                                       std::uint64_t sample_size)
     {
         tracked_indivs = helper_init_individual_sample(
             augm, data_wide, setup.id_draws, setup.house_draws, setup.prng());
@@ -426,14 +426,14 @@ namespace housepi
         tracked_indivs.clear();
 
         const Setup &setup = mcmc.setup;
-        const unsigned long sample_size = setup.c_sample_size * setup.n_chains;
+        const std::uint64_t sample_size = setup.c_sample_size * setup.n_chains;
 
         init_param_draws_(mcmc.param, sample_size);
         init_house_draws_(mcmc.data.wide(), sample_size);
         init_latent_draws_(mcmc.augm, mcmc.data.wide(), setup, sample_size);
     }
 
-    void Posterior::store(MCMCBase &mcmc, unsigned long chain_id, unsigned long local)
+    void Posterior::store(MCMCBase &mcmc, std::uint64_t chain_id, std::uint64_t local)
     {
         const size_t col = chain_id * mcmc.setup.c_sample_size + local;
 
@@ -925,7 +925,7 @@ namespace housepi
         const auto start = std::chrono::steady_clock::now();
 
         // run multiple MCMC chains
-        for (unsigned long chain_id = 0; chain_id < setup.n_chains; ++chain_id)
+        for (std::uint64_t chain_id = 0; chain_id < setup.n_chains; ++chain_id)
         {
             init_chain_();
             run_chain_(chain_id);
@@ -998,7 +998,7 @@ namespace housepi
 
     void MCMC::run_mc_finite_adaptation_()
     {
-        for (unsigned long i = 0; i < setup.n_adapt; ++i)
+        for (std::uint64_t i = 0; i < setup.n_adapt; ++i)
         {
             move_all_<true>();
 
@@ -1015,14 +1015,14 @@ namespace housepi
         }
     }
 
-    void MCMC::run_mc_posterior_sampling_(unsigned long chain_id)
+    void MCMC::run_mc_posterior_sampling_(std::uint64_t chain_id)
     {
-        for (unsigned long i = 0; i < setup.n_burn; ++i)
+        for (std::uint64_t i = 0; i < setup.n_burn; ++i)
             move_all_<false>();
 
-        for (unsigned long i = 0; i < setup.c_sample_size; ++i)
+        for (std::uint64_t i = 0; i < setup.c_sample_size; ++i)
         {
-            for (unsigned long t = 1; t <= setup.n_thin; ++t)
+            for (std::uint64_t t = 1; t <= setup.n_thin; ++t)
                 move_all_<false>();
             posterior.store(*this, chain_id, i);
         }

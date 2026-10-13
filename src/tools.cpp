@@ -206,6 +206,12 @@ namespace housepi::str
                     (errtxt.empty() ? "" : "Unable to import " + errtxt + ". ") +
                     "Value " + msg::val(input) + " is not suitable to conversion.");
             }
+            catch (const std::out_of_range &)
+            {
+                msg::stop(
+                    (errtxt.empty() ? "" : "Unable to import " + errtxt + ". ") +
+                    "Value " + msg::val(input) + " is out of range.");
+            }
         }
     }
 
@@ -222,9 +228,9 @@ namespace housepi::str
     {
         return helper_converter_(static_cast<int (*)(const std::string &, size_t *, int)>(std::stoi), input, errtxt, nullptr, 10);
     }
-    unsigned long toul(const std::string &input, const std::string &errtxt)
+    std::uint64_t toull(const std::string &input, const std::string &errtxt)
     {
-        return helper_converter_(static_cast<unsigned long (*)(const std::string &, size_t *, int)>(std::stoul), input, errtxt, nullptr, 10);
+        return helper_converter_(static_cast<unsigned long long (*)(const std::string &, size_t *, int)>(std::stoull), input, errtxt, nullptr, 10);
     }
 
     //////  Formatters  //////

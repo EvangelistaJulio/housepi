@@ -19,6 +19,7 @@ class Model final : public ModelBase
 private:
 	chain_binom::LookUpTables lut_;                /// Chain-binomial lookup tables.
 	std::vector<chain_binom::ShapeIdx> shape_idx_; /// Shape index in `lut_`, per equivalence class.
+	std::vector<chain_binom::Scratch> scratch_;    /// Chain-binomial buffers, per thread slot.
 
 public:
 	HOUSEPI_DECLARE_EMPTY_KEYS(Latent)
@@ -47,8 +48,12 @@ public:
 	/// Whether the model uses contact risks.
 	bool has_contact_risk() const override final { return true; }
 
-	/// Assert no member has missing status.
-	void init_model_for_evaluation() override final { assert_no_missing_status(); }
+	/// Assert no member has missing status, then allocate buffers per thread slot.
+	void init_model_for_evaluation() override final
+	{
+		assert_no_missing_status();
+		scratch_.resize(n_threads());
+	}
 
 	/// Order members of `house`, then group infected ones into risk partitions.
 	/// * partitions needing more than chain_binom::max_terms terms -> error.
@@ -179,6 +184,7 @@ public:
 
 		return chain_binom::log_likelihood(
 			lut_,
+			scratch_[thread_slot()],
 			house.n_infected_status(),
 			cache_member(house, HHmember::num_parts),
 			shape_idx_[house.eq_class()],

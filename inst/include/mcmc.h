@@ -144,7 +144,7 @@ namespace housepi
 		}
 		/// Run chain `chain_id`: adaptation, then posterior sampling.
 		/// @note Call after init_chain_(). It calls no R and raises no warning.
-		void run_chain_(unsigned long chain_id)
+		void run_chain_(std::uint64_t chain_id)
 		{
 			run_mc_finite_adaptation_();
 			run_mc_posterior_sampling_(chain_id);
@@ -157,7 +157,7 @@ namespace housepi
 		void run_mc_finite_adaptation_();
 		/// Run posterior sampling iterations, burn-in included.
 		/// * draws -> stored in the column block of chain `chain_id`.
-		void run_mc_posterior_sampling_(unsigned long chain_id);
+		void run_mc_posterior_sampling_(std::uint64_t chain_id);
 
 		/// Move every parameter and latent.
 		/// * `Adapt` -> moves credited to the proposals, read by adaptation only.

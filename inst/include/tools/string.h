@@ -6,6 +6,7 @@
 #pragma once
 
 #include <cstddef>
+#include <cstdint>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -25,8 +26,8 @@ namespace housepi::str
     double tod(const std::string &input, const std::string &errtxt = "");
     /// Convert to int using `stoi`.
     int toi(const std::string &input, const std::string &errtxt = "");
-    /// Convert to unsigned long using `stoul`.
-    unsigned long toul(const std::string &input, const std::string &errtxt = "");
+    /// Convert to a 64-bit unsigned integer using `stoull`.
+    std::uint64_t toull(const std::string &input, const std::string &errtxt = "");
 
     /// Format a boolean value.
     std::string format(bool condition);

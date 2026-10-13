@@ -5,6 +5,7 @@
 
 #pragma once
 
+#include <cstdint>
 #include <string>
 #include <utility>
 #include <vector>
@@ -56,19 +57,21 @@ namespace housepi
         /// Initialize posterior sample.
         void init(MCMCBase &mcmc);
         /// Store current values as draw `local` of chain `chain_id`, in its own column block.
-        void store(MCMCBase &mcmc, unsigned long chain_id, unsigned long local);
+        void store(MCMCBase &mcmc,
+                   std::uint64_t chain_id,
+                   std::uint64_t local);
 
     private:
         /// Initialize the parameter draws of the posterior.
         void init_param_draws_(const Parameter &param,
-                               unsigned long sample_size);
+                               std::uint64_t sample_size);
         /// Initialize the household transmission log-likelihood draws of the posterior.
         void init_house_draws_(const data::Wide &data_wide,
-                               unsigned long sample_size);
+                               std::uint64_t sample_size);
         /// Initialize the latent draws of the posterior.
         void init_latent_draws_(const Augmented &augm,
                                 const data::Wide &data_wide,
                                 const Setup &setup,
-                                unsigned long sample_size);
+                                std::uint64_t sample_size);
     };
 }

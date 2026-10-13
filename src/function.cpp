@@ -830,7 +830,7 @@ namespace housepi
                 return continuous;
             case Kind::Discrete:
                 return discrete;
-            case Kind::InfecProfile:
+            default: // case Kind::InfecProfile
                 return infec_profile;
             }
         }

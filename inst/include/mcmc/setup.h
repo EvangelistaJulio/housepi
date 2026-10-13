@@ -7,6 +7,7 @@
 
 #include <atomic>
 #include <cstddef>
+#include <cstdint>
 #include <string>
 #include <vector>
 
@@ -34,29 +35,29 @@ namespace housepi
 
         std::int32_t seed;                    /// Seed of the pseudo-random number generators.
         unsigned n_threads;                   /// Number of threads for parallel computations.
-        unsigned long n_steps;                /// Number of iterations per chain after burn-in, a multiple of n_thin.
-        unsigned long n_burn;                 /// Number of burn-in iterations to discard, run after adaptation.
-        unsigned long n_thin;                 /// Thinning interval, storing every n_thin-th iteration.
-        unsigned long n_adapt;                /// Number of adaptive MCMC steps, 0 for no adaptation.
-        unsigned long n_chains;               /// Number of independent MCMC chains.
+        std::uint64_t n_steps;                /// Number of iterations per chain after burn-in, a multiple of n_thin.
+        std::uint64_t n_burn;                 /// Number of burn-in iterations to discard, run after adaptation.
+        std::uint64_t n_thin;                 /// Thinning interval, storing every n_thin-th iteration.
+        std::uint64_t n_adapt;                /// Number of adaptive MCMC steps, 0 for no adaptation.
+        std::uint64_t n_chains;               /// Number of independent MCMC chains.
         std::vector<std::string> id_draws;    /// Individual IDs whose latent draws are traced.
         std::vector<std::string> house_draws; /// Household IDs whose infected members are traced.
 
         //////  Advanced config  //////
 
-        unsigned long n_adapt_window; /// Effective window for the smoothed accept-rate.
+        std::uint64_t n_adapt_window; /// Effective window for the smoothed accept-rate.
         double time_step;             /// Real-time integration step for simulation.
 
         //////  Derived config  //////
 
         Budget budget;               /// Workers allotted to the chain and the per-chain dispatch level.
-        unsigned long c_sample_size; /// Sample size for a single chain after thinning.
+        std::uint64_t c_sample_size; /// Sample size for a single chain after thinning.
         double adapt_smoothing;      /// Smoothing factor of the accept-rate average, 1 / n_adapt_window.
 
         //////  Run config  //////
 
         const std::atomic<bool> *stop_flag = nullptr; /// Flag shared by the engines of one run, null outside it.
-        std::atomic<unsigned long> n_iter{0};         /// Iterations counted in the run, written by one thread.
+        std::atomic<std::uint64_t> n_iter{0};         /// Iterations counted in the run, written by one thread.
 
         //////  Constructor  //////
 
@@ -82,6 +83,10 @@ namespace housepi
         /// * thread 0 takes `seed`;
         /// * each next thread jumps 2^128 steps ahead of the previous one.
         void set_prng_seed();
+        /// Return slot of the calling thread in per-thread pools, below n_threads.
+        /// * one worker within a chain -> 0;
+        /// * otherwise -> worker index in the arena.
+        std::size_t thread_slot() const;
         /// Return generator of the calling thread.
         housepi::rnd_gen &prng() const;
 
