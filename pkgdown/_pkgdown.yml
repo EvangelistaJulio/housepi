@@ -132,6 +132,7 @@ navbar:
       - intro
       - reference
       - articles
+      - news
     right:
       - search
       - gitlab

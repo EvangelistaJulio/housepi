@@ -24,17 +24,16 @@ into the history of transmission within a population (final size studies).
 
 ## Installation
 
-Prior to installation, check that `devtools` is installed and test that a working C++ toolchain is present by running:
+housepi is compiled from source, so it needs a working C++17 toolchain.
+The same toolchain compiles custom and discrete-time models at runtime.
+Check that it is available with:
 ``` r
-if (!requireNamespace("devtools", quietly = TRUE)) {
-  install.packages("devtools")
-}
+install.packages(c("pkgbuild", "remotes"))
 pkgbuild::has_build_tools(debug = TRUE)
 ```
-
-Download the source code on [GitLab](https://gitlab.pasteur.fr/mmmi-pasteur/housepi), set the main folder as your working directory and run
-```r
-devtools::install()
+Then install the development version from [GitLab](https://gitlab.pasteur.fr/mmmi-pasteur/housepi):
+``` r
+remotes::install_gitlab("mmmi-pasteur/housepi", host = "gitlab.pasteur.fr")
 ```
 
 ## License

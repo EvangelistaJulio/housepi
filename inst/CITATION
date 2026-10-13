@@ -1,0 +1,9 @@
+bibentry(
+  bibtype = "Manual",
+  header = "To cite the housepi package in publications use:",
+  title = "{housepi}: Household Epidemiological Modelling and Analysis",
+  author = c(person("Francesco", "Camaglia"), person("Simon", "Cauchemez")),
+  year = substr(if (is.null(meta$Packaged)) Sys.Date() else meta$Packaged, 1, 4),
+  note = paste("R package version", meta$Version),
+  url = "https://mmmi-pasteur.pages.pasteur.fr/housepi"
+)
