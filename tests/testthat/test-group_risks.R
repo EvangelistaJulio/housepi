@@ -60,19 +60,19 @@ mk_observed <- local({
 # a simulation table giving every free parameter of the model a value
 pin_all_params <- function(hh_model, value = 0.5) {
   defs <- get_parameters(hh_model)
-  names <- defs$name[!(defs$const %in% TRUE)]
+  names <- defs$name[is.na(defs$const)]
   as.data.frame(stats::setNames(as.list(rep(value, length(names))), names))
 }
 
-# custom strata over `mk_flu`, pinning one stratum and fixing another
+# custom strata over `mk_flu`, pinning two strata
 # a catch-all stratum covers the remaining members
-pin_strata <- function(value = c(NA, 1.2, 0.5), const = c(NA, NA, TRUE)) {
+pin_strata <- function(const = c(NA, 1.2, 0.5)) {
   tibble::tribble(
-    ~member,    ~param_name,  ~value,   ~const,
-    "student",  ".reference", value[1], const[1],
-    "mother",   "sus_mum",    value[2], const[2],
-    "father",   "sus_dad",    value[3], const[3],
-    NA,         "sus_rest",   value[4], const[4]
+    ~member,    ~param_name,  ~const,
+    "student",  ".reference", const[1],
+    "mother",   "sus_mum",    const[2],
+    "father",   "sus_dad",    const[3],
+    NA,         "sus_rest",   const[4]
   )
 }
 
@@ -153,7 +153,7 @@ test_that("Group risks integrate with data", {
 
   # mcmc setup is the absolute default
   params <- get_parameters(hh_model)
-  params <- params[!params$const, ]
+  params <- params[is.na(params$const), ]
   params$min |> expect_all_equal(0)
   params$max |> expect_all_equal(1)
   params$proposal |> expect_all_equal("rw_log")
@@ -337,7 +337,7 @@ test_that("Parameter options work correctly", {
   # the collapsed baseline is not one of the risk parameters
   sampled_params <- function(hh_model) {
     params <- get_parameters(hh_model)
-    params[!params$const, ]
+    params[is.na(params$const), ]
   }
 
   params <- mk_risk$model |>
@@ -405,7 +405,7 @@ test_that("Group risk parameter overrides work", {
                             "uncle", "sus_uncle")
   overrides <- list(
     sus_old = 1.73,
-    sus_uncle = list(value = 0.5, prior = "lognormal", sdlog = 1.2,
+    sus_uncle = list(prior = "lognormal", sdlog = 1.2,
                      min = NA_real_, max = 10,
                      proposal = "rw_log", proposal_scale = 1)
   )
@@ -419,8 +419,7 @@ test_that("Group risk parameter overrides work", {
   params$name |> expect_setequal(c("sus_old", "sus_uncle"))
   # overrides used instead of raw params
   old <- get_parameters(hh_model, "sus_old")
-  old$value |> expect_equal(1.73)
-  old$const |> expect_true()
+  old$const |> expect_equal(1.73)
   uncle <- get_parameters(hh_model, "sus_uncle")
   uncle$prior |> expect_identical("lognormal")
   uncle$args[[1]] |> expect_equal(c(sdlog = 1.2, meanlog = 0))
@@ -472,7 +471,7 @@ test_that("Absoluteness follows the reference across every definition mode", {
   # the default prior tracks whether a risk carries absolute values
   risk_prior <- function(...) {
     params <- get_parameters(add_group_risk(mk_risk$model, ...))
-    unique(params$prior[!params$const])
+    unique(params$prior[is.na(params$const)])
   }
   tagged <- data.frame(sex = c("F", "M"),
                        param_name = c(".reference", "gentlemen"))
@@ -523,7 +522,7 @@ test_that("A catch-all rule makes an untagged table absolute", {
     add_group_risk("community", strata = strata) |>
     get_parameters()
 
-  subset(params, name == "alpha")$const |> expect_true()
+  subset(params, name == "alpha")$const |> expect_equal(1)
   subset(params, name != "alpha")$prior |> expect_all_equal("uniform")
 })
 
@@ -584,36 +583,31 @@ test_that("Rules tied at equal specificity are refused", {
 ###  GROUP RISKS : STRATA PINS  ###
 ###################################
 
-test_that("A strata value pins the stratum and keeps its prior", {
+test_that("A strata const pins the stratum, with no prior", {
   hh_model <- mk_flu$model |>
     add_group_risk("susceptibility", strata = pin_strata(),
                    prior = "lognormal", sdlog = 3)
+  # a pinned stratum is a constant parameter: it carries no prior
   mum <- get_parameters(hh_model, "sus_mum")
-  mum$value |> expect_equal(1.2)
-  mum$const |> expect_false()
-  mum$prior |> expect_identical("lognormal")
+  mum$const |> expect_equal(1.2)
+  mum$prior |> expect_all_na()
+  # an unpinned stratum keeps the shared prior
+  get_parameters(hh_model, "sus_rest")$prior |> expect_identical("lognormal")
 
-  # a fixed stratum is a constant parameter: it carries no prior
-  dad <- get_parameters(hh_model, "sus_dad")
-  dad$value |> expect_equal(0.5)
-  dad$const |> expect_true()
-  dad$prior |> expect_all_na()
-
-  # pin columns surface on the read table only when a pin exists
+  # the pin column surfaces on the read table only when a pin exists
   tidy <- get_group_risks(hh_model)
-  colnames(tidy) |> expect_contains(c("value", "const"))
-  # padding keeps the columns typed across sub-tables
-  tidy$value |> expect_type("double")
-  tidy$const |> expect_type("logical")
-  tidy$value[tidy$param_name == "sus_mum"] |> expect_equal(1.2)
-  tidy$value[tidy$param_name == ".reference"] |> expect_all_na()
+  colnames(tidy) |> expect_contains("const")
+  # padding keeps the column typed across sub-tables
+  tidy$const |> expect_type("double")
+  tidy$const[tidy$param_name == "sus_mum"] |> expect_equal(1.2)
+  tidy$const[tidy$param_name == ".reference"] |> expect_all_na()
 
   # an unpinned risk keeps the table it had
   mk_flu$model |>
     add_group_risk("susceptibility", by = "member") |>
     get_group_risks() |>
     colnames() |>
-    intersect(c("value", "const")) |>
+    intersect("const") |>
     expect_length(0)
 })
 
@@ -623,32 +617,22 @@ test_that("Invalid strata pins are rejected", {
                    prior = "lognormal", sdlog = 3)
   }
 
-  # a fixed stratum needs the value it is fixed at
-  mk(pin_strata(value = c(NA, 1.2, NA), const = c(NA, NA, TRUE))) |>
-    expect_error("sus_dad")
   # the reference is 1 by definition
-  mk(pin_strata(value = c(0.9, 1.2, 0.5))) |>
+  mk(pin_strata(const = c(0.9, 1.2, 0.5))) |>
     expect_error("[Rr]eference")
-  mk(pin_strata(const = c(TRUE, NA, TRUE))) |>
-    expect_error("[Rr]eference")
-  # a table carrying one pin column only
-  data.frame(member = c("student", NA), param_name = c(".reference", "sus"),
-             const = c(TRUE, NA)) |>
-    mk() |>
-    expect_error("[Rr]eference")
-  # the columns carry a fixed type
-  mk(transform(pin_strata(), value = as.character(value))) |>
-    expect_error("numeric")
+  # the column carries the value a stratum is pinned to
+  mk(pin_strata(const = c(NA, TRUE, TRUE))) |>
+    expect_error("const.*of the strata table must be numeric")
   mk(transform(pin_strata(), const = as.character(const))) |>
-    expect_error("logical")
+    expect_error("numeric")
 
   # a stratum spread over two rules carries a single pin, even when the data
   # carries no uncle to keep the second rule
   data.frame(member = c("student", "mother", "uncle"),
              param_name = c(".reference", "sus_mum", "sus_mum"),
-             value = c(NA, 1.2, 0.4)) |>
+             const = c(NA, 1.2, 0.4)) |>
     mk() |>
-    expect_error("[Cc]onflicting.*value.*sus_mum.*rows 2 and 3")
+    expect_error("[Cc]onflicting.*const.*sus_mum.*rows 2 and 3")
 })
 
 test_that("A pinned stratum takes no entry in params", {
@@ -677,7 +661,7 @@ test_that("Status is accepted as a stratification axis", {
   mk_status$model |>
     add_group_risk("infectivity", strata = strata) |>
     get_parameters() |>
-    subset(!const) |>
+    subset(is.na(const)) |>
     getElement("name") |>
     expect_identical("inf_symptomatic")
 
@@ -877,7 +861,7 @@ test_that("A status stratum reads as a covariate duplicating it", {
     pin(c("inf_datum_asymptomatic", "inf_datum_escaped"))
 
   # every parameter is pinned, so the likelihood is a deterministic probe
-  get_parameters(by_status)$value |> expect_no_na()
+  get_parameters(by_status)$const |> expect_no_na()
   evaluate_log_lik(by_status) |> expect_identical(evaluate_log_lik(by_datum))
 })
 
@@ -936,8 +920,7 @@ test_that("An absolute risk collapses the baseline it scales", {
 
   evaluate_log_lik(hh_model) |> expect_all_finite()
   params <- get_parameters(hh_model)
-  params$const[params$name == "alpha"] |> expect_true()
-  params$value[params$name == "alpha"] |> expect_equal(1.)
+  params$const[params$name == "alpha"] |> expect_equal(1.)
 
   # the collapsed baseline is carried into the posterior
   draws <- hh_model |>
@@ -1003,8 +986,7 @@ test_that("An absolute group risk holds its baseline at the reference", {
     expect_s3_class("data.frame")
   # the prior it was given leaves with the scale
   params <- get_parameters(hh_model)
-  params$const[params$name == "alpha"] |> expect_true()
-  params$value[params$name == "alpha"] |> expect_equal(1.)
+  params$const[params$name == "alpha"] |> expect_equal(1.)
 
   # a stratum held constant anchors the same way
   hh_model |>
@@ -1071,7 +1053,7 @@ test_that("A collapsed baseline is reported again only on a new declaration", {
   released <- hh_model |>
     add_group_risk("community", by = "member", reference = "student") |>
     suppressWarnings() # suppress overwrite warning
-  get_parameters(released, "alpha")$const |> expect_false()
+  get_parameters(released, "alpha")$const |> expect_all_na()
   warned(add_group_risk(released, "community", by = "member")) |> expect_true()
 })
 
@@ -1097,7 +1079,7 @@ test_that("A strata pin reaches simulation and stratifies on data only", {
     expect_s3_class("data.frame")
 })
 
-test_that("A fixed stratum holds across draws, a pinned one is resampled", {
+test_that("A pinned stratum holds across draws, an unpinned one is resampled", {
   mk <- function(strata) {
     mk_flu$pinned |>
       add_group_risk("susceptibility", strata = strata,
@@ -1105,14 +1087,12 @@ test_that("A fixed stratum holds across draws, a pinned one is resampled", {
   }
   twice <- \(hh_model) c(evaluate_log_lik(hh_model), evaluate_log_lik(hh_model))
 
-  # every stratum fixed: inference reads the values, nothing is drawn
-  log_lik <- twice(mk(pin_strata(value = c(NA, 1.2, 0.5, 0.8),
-                                 const = c(NA, TRUE, TRUE, TRUE))))
+  # every stratum pinned: inference reads the values, nothing is drawn
+  log_lik <- twice(mk(pin_strata(const = c(NA, 1.2, 0.5, 0.8))))
   log_lik[1] |> expect_equal(log_lik[2])
 
-  # a value= pin is a simulation-only override: the prior still drives inference
-  log_lik <- twice(mk(pin_strata(value = c(NA, 1.2, 0.5),
-                                 const = c(NA, NA, NA))))
+  # an unpinned stratum is drawn from its prior
+  log_lik <- twice(mk(pin_strata()))
   isTRUE(all.equal(log_lik[1], log_lik[2])) |> expect_false()
 })
 
@@ -1122,7 +1102,7 @@ test_that("A fixed stratum anchors the scale of its rule group", {
     add_parameter(alpha = list(prior = "uniform", min = 0.2, max = 0.9),
                   beta = 0.1, gamma = 1, hh_size_ref = 4) |>
     add_group_risk("community",
-      strata = pin_strata(value = c(NA, 1.2, 0.5), const = c(NA, TRUE, TRUE)),
+      strata = pin_strata(),
       prior = "lognormal", sdlog = 3
     ) |>
     evaluate_log_lik() |>

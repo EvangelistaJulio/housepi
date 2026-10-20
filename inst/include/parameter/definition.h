@@ -22,13 +22,16 @@ namespace housepi::param
 
         parse::Definition value, prior, func, min, max, proposal;
 
-        bool has_func = false;
-        bool is_const = false;
         bool is_discr = false;
 
         /// Parse row `r` of definition table `input`.
         /// * function reading a latent or a data column -> error.
         DefRow(const str_table &input, size_t r);
+
+        /// Whether the row holds a function.
+        bool has_func() const noexcept { return !func.is_na(); }
+        /// Whether the row holds a constant.
+        bool is_const() const noexcept { return !value.is_na(); }
     };
 
     /// Parameter definitions, immutable once built.

@@ -114,58 +114,87 @@ assert_no_sibling_dist_arg <- function(args, family, name = NULL) {
   )
 }
 
-# Parse implicit function/value.
-helper_variable_core <- function(opts, family, value, func) {
-  if (is.null(value) && is.null(func)) return(opts)
+# Encode quosure `func`, a formula's right side included:
+# * bare name -> alias;
+# * string -> function name;
+# * otherwise -> number or call.
+helper_load_func_ <- function(func) {
+  expr <- if (rlang::is_quosure(func)) rlang::quo_get_expr(func)
+  if (rlang::is_formula(expr)) expr <- rlang::f_rhs(expr)
+  is_alias <- rlang::is_symbol(strip_useless_parens(expr))
+  func <- housepi_extractor(!!func)
+  if (!is.null(func)) housepi_combine_to_call(func, character(), !is_alias)
+}
 
-  # at most one of the two is not NULL, asserted upstream
-  x <- if (is.null(value)) func else value
-  if (is.numeric(showcaser_extract_numeric(x))) {
-    # implicit numeric definition, whichever argument carried it
-    opts$value <- x
-    if (is.na(opts$const)) {
-      dcol <- family2model_col(family)
-      opts$const <- isTRUE(all(is.na(c(opts[[dcol]], opts$proposal))))
-    }
-    return(opts)
-  }
+# Assert `const` is a quosure or value other than a logical.
+assert_const_value_ <- function(const, family, name) {
+  expr <- if (rlang::is_quosure(const)) rlang::quo_get_expr(const) else const
+  if (is.logical(expr)) stop_h(
+    "{.arg const} of {family} {.val {name}} must be the value it is pinned to.",
+    format_type_error(expr)
+  )
+  invisible(const)
+}
 
-  # distinguish purely implicit function from plain name
-  y <- housepi_combine_to_call(func_name = x,
-                               func_args = character(),
-                               is_func = is.null(value))
-  # * value= beside a model/prior, or beside the proposal of a latent sampled
-  #   without a model -> simulation-only override, always in opts$value;
-  # * otherwise, the bulk `name = <expr>` shorthand included -> the shape
-  #   decides, whichever argument carried it.
-  has_law <- !is.na(opts[[family2model_col(family)]]) ||
-    (identical(opts$kind, "latent") && !is.na(opts$proposal))
-  if ((!is.null(value) && has_law) || housepi_is_sourced_value(y)) {
-    opts$value <- y
-  } else {
-    opts$func <- y
-  }
-
-  # a function is not constant a priori
-  if (is.na(opts$const)) opts$const <- FALSE
-  opts
+# Assert a definition holds one of a constant, a law or a function:
+# * none, unless a bounded latent -> error;
+# * function beside a law, a constant or a proposal -> error;
+# * constant beside a prior or a proposal -> error;
+# * bounded constant with no law -> error.
+# @param law `character(1)` Prior or model, `NA` if none.
+# @param bounded `logical(1)` Whether `min` or `max` is given.
+assert_definition_core_ <- function(family, name, const, func, law, proposal,
+                                    bounded) {
+  dcol <- family2model_col(family)
+  # nolint next: object_usage_linter. read by the cli glue below
+  keys <- switch(family, observation = c(dcol, "func"),
+                 `household observation` = "func", c("const", dcol, "func"))
+  # a bounded latent with no model is bare
+  is_bare <- bounded && family == "latent"
+  if (all(is.null(c(const, func)), is.na(law), !is_bare)) stop_h(
+    "Incomplete definition for {family} {.val {name}}.",
+    "Provide {cli::qty(keys)}{?/at least one of} {.arg {keys}}."
+  )
+  wrong <- "Wrong definition for {family} {.val {name}}."
+  if (!is.null(func) && !is.na(law)) stop_h(
+    wrong, "Provide only one of {.arg {c('func', dcol)}}."
+  )
+  if (!is.null(const) && !is.null(func)) stop_h(
+    wrong, "Provide only one of {.arg {c('const', 'func')}}."
+  )
+  if (!is.null(func) && !is.na(proposal)) stop_h(
+    "Deterministic {family} {.val {name}} cannot be sampled.",
+    "Drop {.arg proposal}, or drop {.arg func}."
+  )
+  if (is.null(const)) return(invisible())
+  if (dcol == "prior" && !is.na(law)) stop_h(
+    wrong, "Provide only one of {.arg {c('const', 'prior')}}."
+  )
+  if (!is.na(proposal)) stop_h(
+    "Constant {family} {.val {name}} cannot be sampled.",
+    "Drop {.arg proposal} to keep it constant."
+  )
+  if (bounded && is.na(law)) stop_h(
+    "Constant {family} {.val {name}} has no distribution to bound.",
+    "Drop {.arg min} and {.arg max} to keep it constant."
+  )
+  invisible()
 }
 
 # Attach the spare arguments to the object that takes them: the distribution
 # sampling the variable, or the function computing it.
-helper_variable_args <- function(opts, family, args, func) {
+helper_variable_args <- function(opts, family, args) {
   if (!length(args)) return(opts)
   dcol <- family2model_col(family)
-  col <- if (!is.na(opts[[dcol]])) dcol else if (!is.na(opts$func)) "func"
+  col <- if (!is.na(opts[[dcol]])) dcol else "func"
   headline <- paste("{cli::qty(args)}There {?was/were} {length(args)} spare",
                     "argument{?s} for {family} {.val {opts$name}}:",
                     "{.arg {names(args)}}.")
-  if (is.null(col) && is.null(func)) stop_h(
+  if (is.na(opts[[col]])) stop_h(
     headline, "Provide the {.arg {dcol}} or the {.arg func} they belong to."
   )
-  # func folded into a constant -> no call to attach them to
-  if (is.null(col)) col <- "func"
-  if (is.na(opts[[col]]) || housepi_is_call(opts[[col]])) stop_h(
+  # an alias or a call -> already complete
+  if (housepi_bar_count(opts[[col]]) > 0) stop_h(
     headline, "The {.arg {col}} expression already carries its arguments."
   )
   opts[[col]] <- housepi_combine_to_call(opts[[col]], args)
@@ -232,39 +261,16 @@ helper_definition_args <- function(proposal, dots, family, name = NULL) {
 }
 
 # Interpret user choice for Monte Carlo move.
+# * constant or function -> never sampled;
+# * latent with neither model nor function -> bare, sampled within its bounds;
+# * otherwise -> sampled from its prior or model.
 helper_variable_move <- function(opts, family) {
+  if (!is.na(opts$const) || !is.na(opts$func)) return(opts)
   # prior for parameters/risks, model for latent/observations
   dist_word <- family2model_col(family)
-  is_param <- family == "parameter"
-
-  # infer if sampling proposal but no constant provided
-  if (is.na(opts$const) && !(is.na(opts$proposal) && is.na(opts[[dist_word]])))
-    opts$const <- FALSE
-
-  if (isTRUE(opts$const)) {
-    if (is.na(opts$value)) stop_h(
-      "Missing value for constant {family} {.val {opts$name}}."
-    )
-    opts$proposal <- NA_character_
-    # drop prior if constant
-    if (is_param) opts[[dist_word]] <- NA_character_
-    # skip proposal if constant
-    return(opts)
-  } else if (is_param && is.na(opts[[dist_word]]) && is.na(opts$func)) {
-    # missing prior/func for not constant parameter
-    stop_h("No {.arg {dist_word}} provided for {family} {.val {opts$name}}.")
-  }
-
-  headline <- paste("No {.arg {dist_word}} to sample from",
-                    "for {family} {.val {opts$name}}.")
-
-  # latent with neither model nor function -> sampled flat within its bounds,
-  # given a proposal, bounds alone, or a number declared not constant
-  is_num <- is.numeric(showcaser_extract_numeric(opts$value))
-  if (identical(opts$kind, "latent") && is.na(opts[[dist_word]]) &&
-        is.na(opts$func) &&
-        (!is.na(opts$proposal) || is.na(opts$value) ||
-           (is_num && isFALSE(opts$const)))) {
+  if (identical(opts$kind, "latent") && is.na(opts[[dist_word]])) {
+    headline <- paste("No {.arg {dist_word}} to sample from",
+                      "for {family} {.val {opts$name}}.")
     if (identical(opts$proposal, "forward")) stop_h(
       headline, "Proposal {.val forward} draws from the {.arg {dist_word}}."
     )
@@ -272,31 +278,8 @@ helper_variable_move <- function(opts, family) {
       headline,
       "Provide a {.arg {dist_word}}, or both {.arg min} and {.arg max}."
     )
-    opts$const <- FALSE
-    if (is.na(opts$proposal)) opts$proposal <- "rw"
-    return(opts)
   }
-
-  if (is.na(opts$proposal)) {
-    if (is.na(opts[[dist_word]])) {
-      if (is.na(opts$func) &&
-            is.numeric(showcaser_extract_numeric(opts$value))) {
-        # raise error if const is FALSE (not if NA or already TRUE)
-        if (isFALSE(opts$const)) stop_h(headline)
-        opts$const <- TRUE
-      }
-    } else {
-      # otherwise -> adaptive random walk
-      opts$proposal <- "rw"
-    }
-  } else {
-    if (!is.na(opts$func)) stop_h(
-      "Deterministic {family} {.val {opts$name}} cannot be sampled.",
-      "Drop {.arg proposal} and {.arg {dist_word}}, or drop {.arg func}."
-    )
-    if (is.na(opts[[dist_word]])) stop_h(headline)
-  }
-
+  if (is.na(opts$proposal)) opts$proposal <- "rw"
   opts
 }
 
@@ -347,7 +330,7 @@ helper_variable_level <- function(opts, defs) {
 helper_cast_house_level <- function(defs) {
   if (is.null(defs)) return(defs)
   reads <- function(r, src) {
-    unlist(lapply(c("value", "func", "min", "max"),
+    unlist(lapply(c("const", "func", "min", "max"),
                   \(col) housepi_walk_definition(defs[[col]][[r]], src)))
   }
   is_candidate <- function(r) {

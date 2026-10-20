@@ -121,8 +121,8 @@ HousepiAugmented <- R6::R6Class(
 
     # Add one definition, arguments as in add_latent() and add_observation().
     add_quo = function(name, ...,
-                       value = NULL, status = NA_integer_,
-                       const = NA, discr = NA,
+                       status = NA_integer_,
+                       const = NULL, discr = NA,
                        model = NA_character_,
                        func = NULL,
                        min = NULL, max = NULL,
@@ -137,7 +137,6 @@ HousepiAugmented <- R6::R6Class(
       name <- housepi_smart_unwrap(name, "name")
       level <- housepi_smart_unwrap(level, "level", null_ok = TRUE)
       status <- housepi_smart_unwrap(status, "status")
-      const <- housepi_smart_unwrap(const, "const")
       discr <- housepi_smart_unwrap(discr, "discr")
       model <- housepi_smart_unwrap(model, "model")
       proposal <- housepi_smart_unwrap(proposal, "proposal")
@@ -145,8 +144,10 @@ HousepiAugmented <- R6::R6Class(
       assert_valid_law_name(proposal, "proposal")
 
       # load quosures
-      value <- housepi_extractor(!!value)
-      func <- housepi_extractor(!!func)
+      # an observation ignores const, see below
+      if (identical(.kind, "latent")) assert_const_value_(const, "latent", name)
+      const <- housepi_extractor(!!const)
+      func <- helper_load_func_(func)
       min <- housepi_extractor(!!min)
       max <- housepi_extractor(!!max)
 
@@ -176,25 +177,20 @@ HousepiAugmented <- R6::R6Class(
         # a household observation cannot be sampled
         if (identical(.kind, "house") && !is.na(model)) stop_h(
           "Household observation {.val {name}} cannot be sampled.",
-          "Provide {.arg value} instead of {.arg model}."
+          "Provide {.arg func} instead of {.arg model}."
         )
         # observation, never sampled -> sampling options dropped, dots included
         in_dots <- intersect(c("const", "proposal"), names(args))
         if (length(in_dots)) args <- args[!names(args) %in% in_dots]
-        ignored <- c("const", "proposal")[!is.na(c(const, proposal))]
+        ignored <- c("const", "proposal")[c(!is.null(const), !is.na(proposal))]
         ignored <- union(ignored, in_dots)
         if (length(ignored)) warn_h(
           "Observation {.val {name}} cannot be sampled.",
           `!` = "Ignored {.arg {ignored}} definition."
         )
-        const <- NA
         proposal <- NA_character_
-
-        if (!is.na(model)) {
-          const <- TRUE
-          # observation reads its datum from a like-named column
-          if (is.null(value)) value <- paste0(name, "|D")
-        }
+        # observation pinned to its datum, the like-named column
+        const <- if (!is.na(model)) paste0(name, "|D")
       }
 
       # managed kind read from private$kind_, restored on exit
@@ -207,33 +203,21 @@ HousepiAugmented <- R6::R6Class(
       assert_valid_status(status)
       # check the definition is meaningful
       assert_no_sibling_dist_arg(args, self$family, name)
-      # a latent without a model is sampled within its bounds
-      is_bounded <- identical(.kind, "latent") && !all(is.null(c(min, max)))
-      if (all(is.null(c(value, func)), is.na(model), !is_bounded)) stop_h(
-        "Incomplete definition for latent {.val {name}}.",
-        "Provide at least one of {.arg {c('value', 'model', 'func')}}."
-      )
-      if (is_bounded && !is.null(value) && is.na(model) &&
-            is.na(proposal) && is.na(const)) stop_h(
-        "Latent {.val {name}} has value and bounds, but no model or proposal.",
-        "Add {.arg proposal} to sample it, or drop {.arg min} and {.arg max}."
-      )
-      if (!is.null(func) && !is.na(model)) stop_h(
-        "Wrong definition for latent {.val {name}}.",
-        "Provide only one of {.arg {c('func', 'model')}}."
-      )
-      if (!is.null(value) && !is.null(func)) stop_h(
-        "Wrong definition for latent {.val {name}}.",
-        "Provide only one of {.arg {c('value', 'func')}}."
-      )
+      # a numeric func is a constant
+      if (is.null(const) && is.na(model) &&
+            is.numeric(showcaser_extract_numeric(func))) {
+        const <- func
+        func <- NULL
+      }
+      assert_definition_core_(self$family, name, const, func, model, proposal,
+                              bounded = !all(is.null(c(min, max))))
 
       # auxiliary typed options for Rcpp build method
       opts <- list(name = as.character(name),
-                   value = NA_real_,
                    status = as.character(status),
-                   const = as.logical(const),
+                   const = if (is.null(const)) NA_real_ else const,
                    discr = as.logical(discr),
-                   func = NA_character_,
+                   func = if (is.null(func)) NA_character_ else func,
                    fcumul = FALSE, # @todo expose as an option
                    model = as.character(model),
                    kind = as.character(.kind),
@@ -248,8 +232,7 @@ HousepiAugmented <- R6::R6Class(
       rmv_name <- self$remove(opts$name, opts$status)
       warn_or_store_overwrite_(self, rmv_name, .warn_over)
 
-      opts <- helper_variable_core(opts, self$family, value, func)
-      opts <- helper_variable_args(opts, self$family, args, func)
+      opts <- helper_variable_args(opts, self$family, args)
       opts <- helper_variable_move(opts, self$family)
       opts <- helper_variable_level(opts, self$defs)
 
@@ -284,7 +267,7 @@ HousepiAugmented <- R6::R6Class(
 
       # a bulk-level 'status =' applies to every entry not setting its own
       defaults <- if (all(is.na(status))) list() else list(status = status)
-      housepi_load_defin_quos(self, "value", xquos, append = TRUE,
+      housepi_load_defin_quos(self, "func", xquos, append = TRUE,
                               defaults = defaults)
       housepi_assert_args(self)
       invisible(self)

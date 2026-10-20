@@ -220,7 +220,7 @@ test_that("Log-likelihood of case ascertained model is correct", {
     if (discr) {
       strata <- data.frame(age = c(NA, "child"),
                            param_name = c(".reference", "com_child"),
-                           value = c(NA, 0), const = c(NA, TRUE))
+                           const = c(NA, 0))
       hh_model <- house |>
         transform(age = c("adult", "child", rep("adult", 5))) |>
         build_onset_model(mk_house$param, discr) |>
@@ -238,7 +238,7 @@ test_that("A case with no source of infection has zero likelihood", {
                       age = c("adult", "child", rep("adult", 5)))
   strata <- data.frame(age = c(NA, "child"),
                        param_name = c(".reference", "com_child"),
-                       value = c(NA, 0), const = c(NA, TRUE))
+                       const = c(NA, 0))
   param <- modifyList(mk_house$param, list(beta = 0))
 
   for (discr in c(FALSE, TRUE)) {
@@ -258,7 +258,7 @@ test_that("Model quantities are the rates of the force of infection", {
                      age = ifelse(child, "child", "adult"))
   strata <- function(param_name, value) {
     data.frame(age = c(NA, "child"), param_name = c(".reference", param_name),
-               value = c(NA, value), const = c(NA, TRUE))
+               const = c(NA, value))
   }
   hh_model <- build_onset_model(house, mk_house$param, FALSE) |>
     add_group_risk(community = list(strata = strata("com_child", 2)),
@@ -267,7 +267,7 @@ test_that("Model quantities are the rates of the force of infection", {
     add_contact_risk(strata = data.frame(
       from_age = c("child", NA), to_age = c("adult", NA),
       param_name = c("child_to_adult", ".reference"),
-      value = c(1.5, NA), const = c(TRUE, NA)
+      const = c(1.5, NA)
     ))
   evaluate_log_lik(hh_model)
 
@@ -309,15 +309,15 @@ test_that("Latent moves preserve log-likelihood", {
 
   # the pointwise log-lik folds transmission, the latent model and the
   # observation node: the complete-data density, parameter prior aside
-  # the flat infection time adds no density: transmission gives it
+  # the bare infection time adds no density: transmission gives it
   log_lik <- unname(get_log_lik_draws(results)$h1)
   param_draws <- get_parameter_draws(results) |>
     draws_to_frame()
   latent_draws <- get_latent_draws(results) |>
     draws_to_frame()
   consts <- get_parameters(hh_model) |>
-    subset(const, c("name", "value")) |>
-    tidyr::pivot_wider(names_from = "name", values_from = "value") |>
+    subset(!is.na(const), c("name", "const")) |>
+    tidyr::pivot_wider(names_from = "name", values_from = "const") |>
     as.list()
   state_at <- function(i) {
     dplyr::left_join(house, get_latent_state(latent_draws, i), by = "id")
@@ -346,8 +346,8 @@ test_that("Latent moves preserve log-likelihood", {
     transform(infec_draw = infec_time, incub_draw = incub_period) |>
     new_housepi_model("case-ascertained", quiet = TRUE) |>
     add_latent(
-      infec_time = list(value = infec_draw, const = TRUE),
-      incub_period = list(value = incub_draw, const = TRUE,
+      infec_time = list(const = infec_draw),
+      incub_period = list(const = incub_draw,
                           model = "weibull", shape = 2, scale = 1)
     ) |>
     add_observation("onset_date", model = "normal",

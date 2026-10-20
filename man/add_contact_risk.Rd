@@ -66,11 +66,9 @@ Rows keyed on different covariates form separate rule groups,
 whose risks multiply.
 Use \code{.reference} in \code{param_name} to designate the reference group.
 A rule group without it leaves the risk absolute.
-The reserved column \code{value} pins a stratum to that value in simulation,
-while it keeps its prior and is sampled in inference.
-The reserved column \code{const} fixes a pinned stratum in inference too,
-so that it carries no prior.
-The reference stratum takes neither.
+The reserved numeric column \code{const} pins a stratum to that value,
+in inference and simulation, so that it carries no prior.
+The reference stratum takes none.
 Mutually exclusive with \code{by}.}
 
 \item{params}{\code{list} Per-parameter MCMC setups, named as in \code{param_name}.

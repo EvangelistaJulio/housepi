@@ -32,9 +32,8 @@ One of:
 }
 
 Values the surveys are simulated at,
-overriding the parameter pins of the model.
-Several draws are collapsed to their point estimate.
-If \code{NULL}, the pins.}
+one for every estimated parameter.
+Several draws are collapsed to their point estimate.}
 
 \item{nrep}{\code{integer(1)}
 Number of surveys simulated and fitted back at each household count.}
@@ -86,7 +85,7 @@ it.
 The sweep is repeated at one or more household counts,
 which shows whether a bias shrinks with the size of the study.
 
-The surveys are simulated at the parameter pins of the model, or at \code{draws},
+The surveys are simulated at \code{draws},
 and the priors of the same model drive inference,
 so no separate simulation model is needed.
 }
@@ -106,7 +105,8 @@ at any \code{threads} up to \code{nrep}.
 recovery <- flu_1918_frederick |>
   new_housepi_model("final-size") |>
   add_parameter(import = "template") |>
-  check_recovery(nrep = 2, houses = 30, progress = FALSE)
+  check_recovery(data.frame(alpha = 0.15, beta = 0.2, gamma = 1),
+                 nrep = 2, houses = 30, progress = FALSE)
 recovery$summary
 recovery$overview
 }

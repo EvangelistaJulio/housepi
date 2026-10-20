@@ -145,7 +145,7 @@ A row with all covariate cells set to `NA` is the least specific rule possible, 
 ```{r}
 #| label: strata-table
 strata <- tibble::tribble(
-  ~from_member, ~to_member, ~param_name,       ~value,
+  ~from_member, ~to_member, ~param_name,       ~const,
   "child",      "parent",   "child_to_parent", 2.5,
   NA,           NA,         ".reference",      NA
 )
@@ -177,7 +177,8 @@ Everything else fell on the reference.
 Here we used `tibble::tribble` for cleanness, but any object ultimately a `data.frame` will do.
 
 
-The `params` argument gives one MCMC setup per parameter; a bare number pins it, which is what we use here to read the rates off a household.
+The reserved column `const` pins `child_to_parent` to its value, which is what we use here to read the rates off a household.
+A bare number in `params` pins a parameter the same way.
 `inspect_house_state()` returns everything the engine holds for one household, including the matrix of pairwise rates it multiplies `beta` by.
 
 ## Ambiguous rules are rejected

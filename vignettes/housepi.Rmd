@@ -173,7 +173,7 @@ hh_model <- hh_model |>
 hh_model |> get_parameters()
 ```
 
-We can also turn a parameter definition into a constant definition: it is sufficient to set the argument `const = TRUE`. In such a case a `value` must be provided.
+A parameter is defined as constant by passing a value to `const`, as in `add_parameter("gamma", const = 1)`, or as a bare number, as `hh_size_ref` above.
 At any moment we can read the definitions associated to the model object calling `get_parameters()`.
 
 For further information on the available options for priors and MCMC proposals definitions, see [Priors and proposals](priors_and_proposals.html).
@@ -266,7 +266,7 @@ hh_model <- hh_model |>
       mean = onset_time, sd = 1, min = floor(onset_time)
     ),
     # followup starts with earliest onset date (house-level observation)
-    start_date = list(value = min(onset_date), level = "house"),
+    start_date = list(func = min(onset_date), level = "house"),
     # followup ends after 3 weeks after first onset
     end_date = start_date + 21
   )
@@ -287,13 +287,17 @@ We can overlook these alerts for the rest of the walk-through.
 The infectivity profile, instead, is mandatory for this model: above we loaded the one shipped with it, and [Infectivity profiles](infectivity_profiles.html) shows how to provide a custom definition.
 
 We run a simulation with the method `run_simulation`, using the same community structure from the survey.
+The parameter values come as `draws`: a parameter without a value is drawn from its prior.
 Each household's outbreak starts from one member drawn at random, its primary case.
 Simulations associate latent incubation periods, infection times and sampled onset dates to all infected individuals:
 
 ```{r}
 #| label: run-simulation
+# parameter values of the simulation
+sim_values <- data.frame(alpha = 1e-3, beta = 0.15, gamma = 1)
+
 # the onset_date observation is sampled automatically
-simulated <- hh_model |> run_simulation()
+simulated <- hh_model |> run_simulation(draws = sim_values)
 
 head(simulated)
 ```
@@ -333,12 +337,9 @@ library(ggplot2)
 # extract sample to posterior draws_df
 param_draws <- get_parameter_draws(results)
 
-# select original parameters used for the simulation
-simul_parameters <- hh_model |>
-  get_parameters() |>
-  dplyr::select(name, value) |>
-  dplyr::filter(name %in% posterior::variables(param_draws)) |>
-  dplyr::rename(parameter = name, simulated = value)
+# original parameters used for the simulation
+simul_parameters <- data.frame(parameter = names(sim_values),
+                               simulated = unlist(sim_values))
 
 # use bayesplot to plot the posterior draws
 bayesplot::mcmc_trace(param_draws, facet_args = list(ncol = 1)) +
@@ -356,7 +357,7 @@ and we can perform R-hat diagnostics [@vehtari_rank_normalization_2021]
 #|  Color intensity represents R-hat values (≤1.05, ≤1.1, >1.1). Points near 1.0 indicate convergence.
 # compute Rhat values associated to inferred parameters
 var_names <- get_parameters(hh_model) |>
-  dplyr::filter(!const) |>
+  dplyr::filter(is.na(const)) |>
   dplyr::pull(name)
 rhat_table <- summarise_draws(param_draws, rhat = posterior::rhat)
 rhat_values <- setNames(rhat_table$rhat, rhat_table$variable)[var_names]

@@ -109,11 +109,12 @@ mk_recov <- local({
   hh_model <- flu_1918_frederick |>
     new_housepi_model("final-size") |>
     add_parameter(import = "template")
+  draws <- data.frame(alpha = 0.15, beta = 0.20, gamma = 1)
   results <- hh_model |>
-    check_recovery(nrep = 2, houses = c(20, 40),
+    check_recovery(draws, nrep = 2, houses = c(20, 40),
                    steps = 50, chains = 1, progress = FALSE) |>
     suppressWarnings()
-  list(model = hh_model, results = results)
+  list(model = hh_model, draws = draws, results = results)
 })
 
 # no fit raised a warning, no fit is flagged and every point estimate lies
@@ -205,8 +206,8 @@ test_that("Recovery fits the survey the wide reporting process returns", {
   mk_recov$model |>
     add_reporting_process(wide = \(x) transform(x, status = NA_integer_),
                           long = \(x) stop("long reporting process ran")) |>
-    check_recovery(nrep = 1, houses = 20, steps = 50, chains = 1,
-                   progress = FALSE) |>
+    check_recovery(mk_recov$draws, nrep = 1, houses = 20, steps = 50,
+                   chains = 1, progress = FALSE) |>
     expect_error("[Rr]eplicate 1 at.*20.*households.*missing status")
 })
 
@@ -239,8 +240,8 @@ test_that("A failed replicate stops the fits sampled with it", {
 test_that("A run too short to diagnose is flagged whole", {
   expect_warning(
     results <- check_recovery(
-      mk_recov$model, nrep = 2, houses = 20, steps = 50, chains = 1,
-      progress = FALSE
+      mk_recov$model, mk_recov$draws, nrep = 2, houses = 20, steps = 50,
+      chains = 1, progress = FALSE
     ),
     "raised 1 distinct warning"
   )
@@ -255,26 +256,25 @@ test_that("A run too short to diagnose is flagged whole", {
 
 test_that("Recovery leaves the model it was given untouched", {
   hh_model <- mk_recov$model
-  params <- get_parameters(hh_model)
-  stats::setNames(params$value, params$name)[c("alpha", "beta")] |>
-    expect_equal(c(alpha = 0.15, beta = 0.20))
+  fresh <- add_parameter(hh_model, import = "template", append = FALSE)
+  get_parameters(hh_model) |> expect_identical(get_parameters(fresh))
   hh_model$data_wide |> expect_nrow(nrow(flu_1918_frederick))
 })
 
 test_that("Every estimated parameter needs a simulation value", {
   hh_model <- flu_1918_frederick |>
     new_housepi_model("final-size") |>
-    add_parameter(alpha = list(value = 0.15, prior = "uniform"),
-                  beta = list(prior = "uniform"),
-                  gamma = list(value = 1, prior = "uniform", max = 3),
-                  hh_size_ref = 4)
+    add_parameter(import = "template")
 
-  check_recovery(hh_model, nrep = 1, progress = FALSE) |>
+  check_recovery(hh_model, data.frame(alpha = 0.15, gamma = 1), nrep = 1,
+                 progress = FALSE) |>
     expect_error("[Nn]o simulation value.*beta")
   # a value given for a parameter the model does not carry is reported; the
   # fit is too short to pass the diagnostics
   check_recovery(hh_model, nrep = 1, steps = 50, thin = 1, chains = 1,
-                 progress = FALSE, draws = data.frame(beta = 0.2, rho = 1)) |>
+                 progress = FALSE,
+                 draws = data.frame(alpha = 0.15, beta = 0.2, gamma = 1,
+                                    rho = 1)) |>
     expect_warning("[Nn]o parameter named") |>
     suppressWarnings()
 })
@@ -301,19 +301,18 @@ test_that("A collapsed baseline takes no simulation value", {
 test_that("Recovery refuses a sweep it cannot run", {
   hh_model <- flu_1918_frederick |>
     new_housepi_model("final-size") |>
-    add_parameter(alpha = list(value = 0.15, const = TRUE),
-                  beta = list(value = 0.20, const = TRUE),
-                  gamma = list(value = 1, const = TRUE), hh_size_ref = 4)
+    add_parameter(alpha = 0.15, beta = 0.20, gamma = 1, hh_size_ref = 4)
 
   check_recovery(hh_model, nrep = 1, progress = FALSE) |>
     expect_error("[Nn]o parameter to estimate")
   new_housepi_model(model = "final-size") |>
     add_parameter(import = "template") |>
-    check_recovery(nrep = 1, progress = FALSE) |>
+    check_recovery(mk_recov$draws, nrep = 1, progress = FALSE) |>
     expect_error("[Nn]o data is attached")
   # a setting no fit can run is refused up front, naming no replicate
-  failed <- check_recovery(mk_recov$model, nrep = 1, houses = 20, steps = 50,
-                           thin = 100, chains = 1, progress = FALSE) |>
+  failed <- check_recovery(mk_recov$model, mk_recov$draws, nrep = 1,
+                           houses = 20, steps = 50, thin = 100, chains = 1,
+                           progress = FALSE) |>
     expect_error("[Tt]hin.*cannot be greater than.*steps")
   conditionMessage(failed) |> expect_no_match("[Rr]eplicate")
 })
@@ -325,10 +324,11 @@ test_that("Latent inference recovers the simulating parameter", {
   # long thinned chain keep R-hat clear of its limit
   data.frame(hh_id = seq(50), status = 1) |>
     new_housepi_model("test") |>
-    add_parameter("rho", value = 2, prior = "uniform", min = -5, max = 5) |>
+    add_parameter("rho", prior = "uniform", min = -5, max = 5) |>
     add_latent("hidden", model = "normal", mean = rho, sd = 1) |>
     add_observation("record", model = "normal", mean = hidden, sd = 1) |>
-    check_recovery(nrep = 1, steps = 4000, thin = 20, progress = FALSE) |>
+    check_recovery(data.frame(rho = 2), nrep = 1, steps = 4000, thin = 20,
+                   progress = FALSE) |>
     suppressWarnings() |>
     expect_recovered()
 })
@@ -338,7 +338,7 @@ test_that("Final-size inference recovers the simulating parameters", {
   flu_1918_frederick |>
     new_housepi_model("final-size") |>
     add_parameter(import = "template") |>
-    check_recovery(nrep = 1, progress = FALSE) |>
+    check_recovery(mk_recov$draws, nrep = 1, progress = FALSE) |>
     suppressWarnings() |>
     expect_recovered()
 })
@@ -358,10 +358,11 @@ test_that("Case-ascertained inference recovers the simulating parameters", {
     add_observation(
       onset_date = list(discr = TRUE, model = "normal",
                         mean = onset_time, sd = 1, min = floor(onset_time)),
-      start_date = list(value = min(onset_date), level = "house"),
+      start_date = list(func = min(onset_date), level = "house"),
       end_date = start_date + 21
     ) |>
-    check_recovery(nrep = 1, houses = 200, progress = FALSE) |>
+    check_recovery(data.frame(alpha = 1e-3, beta = 0.15, gamma = 1),
+                   nrep = 1, houses = 200, progress = FALSE) |>
     suppressWarnings() |>
     expect_recovered()
 })

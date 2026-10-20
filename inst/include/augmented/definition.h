@@ -52,26 +52,28 @@ namespace housepi::augm
 
         parse::Definition value, func, model, min, max, proposal;
 
-        bool has_value = false;
-        bool has_func = false;
-        bool has_model = false;
-        bool has_proposal = false;
-        bool is_const = false;
         bool is_discr = false;
         bool is_fcumul = false;
 
         /// Parse row `r` of definition table `input`.
         DefRow(const str_table &input, size_t r);
 
+        /// Whether the row holds a function.
+        bool has_func() const noexcept { return !func.is_na(); }
+        /// Whether the row holds a model.
+        bool has_model() const noexcept { return !model.is_na(); }
+        /// Whether the row holds a proposal.
+        bool has_proposal() const noexcept { return !proposal.is_na(); }
+        /// Whether the row holds a constant.
+        bool is_const() const noexcept { return !value.is_na(); }
+
         /// Whether inference samples the row.
         /// * with a model or a proposal;
         /// * never when constant or a function.
-        bool is_sampled() const noexcept { return !is_const && !has_func && (has_model || has_proposal); }
-        /// Whether the row is sampled flat within its bounds, with no model.
-        /// Transmission generates it in simulation, else its value pins it.
-        bool is_flat() const noexcept { return is_sampled() && !has_model; }
-        /// Whether a value pins the sampled row in simulation.
-        bool is_sim_override() const noexcept { return has_value && is_sampled(); }
+        bool is_sampled() const noexcept { return !is_const() && !has_func() && (has_model() || has_proposal()); }
+        /// Whether the row is bare: sampled within its bounds, with no model.
+        /// Transmission generates it in simulation.
+        bool is_bare() const noexcept { return is_sampled() && !has_model(); }
 
         /// List the columns that may read sources.
         std::array<const parse::Definition *, 5> source_cols() const noexcept
@@ -79,13 +81,10 @@ namespace housepi::augm
             return {&value, &model, &func, &min, &max};
         }
         /// List the columns a run reads sources from.
-        /// * inference -> every column, except the value of a sampled row;
-        /// * simulation -> value and function of an override or a flat row, every column otherwise.
+        /// * bare row, inference -> its bounds;
+        /// * bare row, simulation -> none, transmission sets it;
+        /// * any other row -> every column.
         std::vector<const parse::Definition *> source_cols(bool simulation) const;
-        /// Select the column the definition resolves through in simulation.
-        /// * with a value, an override included -> the value;
-        /// * otherwise -> the function.
-        const parse::Definition &sim_source() const noexcept { return has_value ? value : func; }
     };
 
     /// Latent and observation definitions, immutable once built.

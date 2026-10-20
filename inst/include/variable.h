@@ -76,10 +76,9 @@ namespace housepi
         /// Draw the initial value from the distribution, if any.
         void restart(rnd_gen &prng);
         /// Draw the value from the distribution, the constant flag ignored.
-        /// * pinned by the simulation-only override -> skipped.
+        /// * no distribution -> skipped.
         void draw_value(rnd_gen &prng)
         {
-            // a variable pinned by the simulation holds no distribution
             if (pDistr_)
                 set(pDistr_->rand(prng));
         }

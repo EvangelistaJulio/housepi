@@ -160,7 +160,10 @@ housepi_assert_args <- function(gear, last = NA_integer_) {
     readable_defs <- housepi_defin_showcaser(gear$defs[rows, , drop = FALSE])
     func_names <- readable_defs[[col]]
 
-    for (i in which(!is.na(func_names))) {
+    # an alias reads a definition, not a function
+    is_alias <- vapply(gear$defs[rows, col], housepi_is_sourced_value,
+                       logical(1))
+    for (i in which(!is.na(func_names) & !is_alias)) {
       r <- rows[[i]]
       # the bounds truncate the defining distribution, never the function
       bound <- function(key) {

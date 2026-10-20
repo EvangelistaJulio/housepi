@@ -122,9 +122,9 @@ test_that("Definitions carry the defaults the user left out", {
   hh_model <- hhdata |>
     new_housepi_model("final-size") |>
     add_parameter(
-      rho = list(value = 0.3, prior = "gamma", shape = 2),
-      rho_2 = list(value = 0.3, prior = "gamma", mean = 2, sd = 1),
-      rho_3 = list(value = 0, prior = "normal", sd = 2, min = -1),
+      rho = list(prior = "gamma", shape = 2),
+      rho_2 = list(prior = "gamma", mean = 2, sd = 1),
+      rho_3 = list(prior = "normal", sd = 2, min = -1),
       rho_4 = list(func = "log", x = rho)
     ) |>
     add_observation(

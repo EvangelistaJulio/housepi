@@ -28,7 +28,7 @@ Posterior draws are thinned to their ESS when \code{thin_ess} is \code{TRUE}.
 Then \code{nrep} evenly spaced draws are kept, all of them when fewer remain.
 If \code{NA}, every draw is simulated.
 Without \code{draws}, the number of replicates,
-which share the pinned parameters and draw the others from their prior.
+which share the constant parameters and draw the others from their prior.
 If \code{NA}, one replicate.
 Once set, even to 1, the replicates are returned as a list.}
 

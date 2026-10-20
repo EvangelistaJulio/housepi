@@ -3,8 +3,8 @@
 ## SPDX-License-Identifier: GPL-3.0-or-later
 ##
 
-# `value` pins a stratum during simulation, `const` fixes it in inference too.
-risk_pin_cols <- c("value", "const")
+# `const` pins a stratum, in inference and simulation.
+risk_pin_cols <- "const"
 risk_reserved_cols <- c("group_risk", "param_name", "n", "rule_group",
                         risk_pin_cols)
 
@@ -50,7 +50,7 @@ count_risk_rules_ <- function(tbl, cells) {
 # Empty and typed prototype of every reserved column.
 risk_reserved_proto <- list(group_risk = character(), param_name = character(),
                             n = integer(), rule_group = integer(),
-                            value = double(), const = logical())
+                            const = double())
 
 # Empty logic table with the reserved columns `cols`, in order.
 empty_risk_table <- function(cols) {
@@ -202,39 +202,28 @@ assert_valid_logic_table <- function(logic_table, allow = character()) {
 #' @noRd
 assert_valid_pins <- function(tbl) {
   if (!any(risk_pin_cols %in% colnames(tbl))) return(invisible(tbl))
+  pins <- tbl[["const"]]
   # an all-NA column pins nothing, whichever type it was written with
-  if (!all(is.na(tbl[["value"]])) && !is.numeric(tbl[["value"]])) stop_h(
-    "Column {.field value} of the strata table must be numeric.",
-    format_type_error(tbl[["value"]])
+  if (!all(is.na(pins)) && !is.numeric(pins)) stop_h(
+    "Column {.field const} of the strata table must be numeric.",
+    format_type_error(pins)
   )
-  if (!all(is.na(tbl[["const"]])) && !is.logical(tbl[["const"]])) stop_h(
-    "Column {.field const} of the strata table must be logical.",
-    format_type_error(tbl[["const"]])
-  )
-  pins <- pad_risk_cols_(tbl, risk_pin_cols)
-  bad <- tbl$param_name == ".reference" &
-    (!is.na(pins$value) | !is.na(pins$const))
+  bad <- tbl$param_name == ".reference" & !is.na(pins)
   if (any(bad)) stop_h(
     paste("The {.val .reference} is pinned at",
           "{cli::qty(sum(bad))}row{?s} {which(bad)}."),
     "The reference stratum is 1 by definition: it carries no pin."
   )
-  bad <- pins$const %in% TRUE & is.na(pins$value)
-  if (any(bad)) stop_h(
-    paste("No {.field value} for fixed",
-          "strat{?um/a} {.val {unique(tbl$param_name[bad])}}."),
-    "A {.code const = TRUE} stratum needs the value it is fixed at."
-  )
   # a stratum spread over several rules carries a single pin, whichever of
   # its rules the data keeps
-  rows <- Filter(function(i) nrow(unique(pins[i, ])) > 1,
+  rows <- Filter(function(i) length(unique(pins[i])) > 1,
                  split(seq_len(nrow(tbl)), tbl$param_name))
   conflicts <- vapply(names(rows), function(nm) {
     cli::format_inline("{.val {nm}} (rows {rows[[nm]]})")
   }, character(1))
   if (length(conflicts)) stop_h(
-    "Conflicting {.field value} for {cli::qty(rows)}strat{?um/a} {conflicts}.",
-    "A stratum spread over several rules carries a single {.field value}."
+    "Conflicting {.field const} for {cli::qty(rows)}strat{?um/a} {conflicts}.",
+    "A stratum spread over several rules carries a single {.field const}."
   )
   invisible(tbl)
 }
@@ -281,29 +270,25 @@ assert_one_reference_per_group <- function(strata, symmetric = FALSE) {
 
 #' Read the pins of a logic table, keyed by `param_name`.
 #' * stratum spread over several rules -> one pin, read off its first rule.
-#' @return `list` of `list(value = , const = )`, one per pinned stratum.
+#' @return `list` of `numeric(1)`, one per pinned stratum.
 #' @noRd
 collect_table_pins <- function(tbl) {
   if (!any(risk_pin_cols %in% colnames(tbl))) return(list())
-  pins <- pad_risk_cols_(tbl, risk_pin_cols)
   out <- list()
   for (par_id in setdiff(unique(tbl$param_name), ".reference")) {
-    first <- match(par_id, tbl$param_name)
-    pin <- list(value = pins$value[first], const = pins$const[first])
-    if (!is.na(pin$value) || !is.na(pin$const)) out[[par_id]] <- pin
+    pin <- tbl[["const"]][match(par_id, tbl$param_name)]
+    if (!is.na(pin)) out[[par_id]] <- pin
   }
   out
 }
 
 #' Fold a stratum pin into its parameter definition.
-#' * fixed stratum -> constant parameter, no prior.
+#' * pinned stratum -> constant parameter, no prior.
 #' @param def `list` Shared MCMC setup of the risk.
-#' @param pin `list` | `NULL` Pin of the stratum.
+#' @param pin `numeric(1)` | `NULL` Pin of the stratum.
 #' @noRd
 helper_pin_param_def <- function(def, pin) {
-  if (is.null(pin)) return(def)
-  if (isTRUE(pin$const)) return(list(value = pin$value, const = TRUE))
-  c(def, list(value = pin$value))
+  if (is.null(pin)) def else list(const = pin)
 }
 
 #' Whether a set of logic tables leaves the scale of its risk free.

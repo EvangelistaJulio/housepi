@@ -10,7 +10,6 @@ add_observation(
   model = NA_character_,
   ...,
   level = c("member", "house"),
-  value = NULL,
   func = NULL,
   status = NA_integer_,
   discr = NA,
@@ -29,7 +28,7 @@ add_observation(
 Reserved to member-level observations.}
 
 \item{...}{Named arguments for the observation distribution.
-In mode 'multiple', the \code{name = value} definitions.}
+In mode 'multiple', the \code{name = list()} definitions, or \code{name = x} for \code{func = x}.}
 
 \item{level}{\code{character(1)} Level the datum is observed at, one of:
 \describe{
@@ -38,12 +37,10 @@ In mode 'multiple', the \code{name = value} definitions.}
 }
 In mode 'multiple', applies to every entry not setting its own.}
 
-\item{value}{\code{numeric(1)} | \code{character(1)}
-Definition of the observation, depending on \code{level}:
+\item{func}{Deterministic definition of the observation,
+taking no \code{model}, depending on \code{level}:
 \describe{
-\item{\code{"member"}}{without a \code{model}, the value computed for every member.
-With a \code{model}, the datum the model is evaluated at,
-the like-named data column when omitted;}
+\item{\code{"member"}}{the value computed for every member;}
 \item{\code{"house"}}{one value for the whole household.
 The reductions \code{min()}, \code{max()}, \code{sum()} and \code{prod()} fold over the members
 a per-member value: a data column, a latent or a group risk.
@@ -55,12 +52,6 @@ or an arithmetic expression combining them.
 A name is looked up among the latent variables, data columns, observations,
 group risks and parameters the model carries.
 Two of them sharing a name cannot be read.}
-
-\item{func}{One of:
-\itemize{
-\item \code{character(1)} Name of a latent function;
-\item an rlang expression.
-}}
 
 \item{status}{\code{integer(1)} Infected status the definition is specific to.
 If \code{NA}, the definition applies to every infected member.}
@@ -115,7 +106,8 @@ There are three mutually exclusive definition modes:
 Supply a \code{name} to add a single definition using the explicit arguments;
 }
 \item{multiple}{
-Pass pairs \code{name = list()} (or \code{name = value}) for multiple definitions;
+Pass pairs \code{name = list()} (or the shorthand \code{name = x})
+for multiple definitions;
 }
 \item{import}{
 Pass a pre-built named list of definitions through \code{import}.
@@ -136,6 +128,6 @@ hh_model <- sarscov2_2021_icofs |>
   add_observation("test_date", model = "normal",
                   mean = onset_time, sd = 1, min = floor(onset_time)) |>
   # house level: the earliest positive test among members
-  add_observation("first_test", value = min(test_date), level = "house")
+  add_observation("first_test", func = min(test_date), level = "house")
 get_observations(hh_model)
 }

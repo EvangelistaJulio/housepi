@@ -51,7 +51,7 @@ An argument value may name another definition of the model: a latent variable, a
 housepi looks the name up among the definitions the model carries, so each name must stand for one of them only^[A name nothing declares is an error, reported when the model is run, and so is a name two definitions claim.].
 E.g. `visit_day` reads the individual data column "visit_day", `beta` the current value of the parameter "beta", while a number such as `14` is read as it is.
 
-The convention applies to every definition argument: not only `value`, `min` and `max`, but also the arguments of the model distribution, as in `model = "gamma", mean = mean, sd = sd`, reading the parameters "mean" and "sd".
+The convention applies to every definition argument: not only `const`, `func`, `min` and `max`, but also the arguments of the model distribution, as in `model = "gamma", mean = mean, sd = sd`, reading the parameters "mean" and "sd".
 Names combine into arithmetic expressions, such as `onset_date - incub_period` or `exposure_max + 0.99`, and can be passed to any of the functions listed by `browse_functions()`, e.g. `sqrt(beta)` or `min(onset_date)`.
 An expression referencing no definition is instead evaluated once, when the definition is built: `max = 3 * 7` is stored as the plain value `21`, and a date such as `as.Date("2021-07-01")` collapses to its day count.
 

@@ -90,12 +90,11 @@ test_that("The calibration summary reads one verdict per parameter", {
 #############################################
 
 # a sweep short enough for the suite, every fit too short to pass the
-# diagnostics; the pin of `rho` is never read, and the attached households
-# are surveyed as they are
+# diagnostics, and the attached households are surveyed as they are
 mk_calib <- local({
   hh_model <- data.frame(hh_id = seq(30), status = 1) |>
     new_housepi_model("test") |>
-    add_parameter("rho", value = 2, prior = "uniform", min = -5, max = 5) |>
+    add_parameter("rho", prior = "uniform", min = -5, max = 5) |>
     add_latent("hidden", model = "normal", mean = rho, sd = 1) |>
     add_observation("record", model = "normal", mean = hidden, sd = 1)
   results <- hh_model |>
@@ -175,7 +174,7 @@ test_that("Calibration refuses a sweep it cannot rank", {
     expect_error("[Nn]umber of households")
   data.frame(hh_id = seq(30), status = 1) |>
     new_housepi_model("test") |>
-    add_parameter("rho", value = 2, const = TRUE) |>
+    add_parameter("rho", const = 2) |>
     check_calibration(progress = FALSE) |>
     expect_error("[Nn]o parameter to estimate")
 })

@@ -201,7 +201,7 @@ test_that("A logical data column reads 0 and 1 in a definition", {
                        datum_2 = 0)
   hh_model <- hhdata |>
     new_housepi_model("test", quiet = TRUE) |>
-    add_observation(datum_2 = list(value = datum * 2))
+    add_observation(datum_2 = list(func = datum * 2))
 
   hh_model$data_wide$datum_2 |> expect_equal(c(2, 0, 2))
   hh_model$data_wide$datum |> expect_identical(hhdata$datum)
@@ -290,7 +290,7 @@ test_that("A data column R can only spell quoted, survives the round trip", {
     expect_identical(colnames(hhdata))
 
   # a definition sources it by its name, quoted
-  get_latent(add_latent(hh_model, hidden = `if`))$value |>
+  get_latent(add_latent(hh_model, hidden = `if`))$func |>
     expect_identical("if|D")
 
   # data-long keys cross the same way

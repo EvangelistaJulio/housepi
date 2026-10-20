@@ -420,7 +420,7 @@ test_that("Every declared name maps to the source declaring it", {
     # a latent shadows the like-named column, as a simulated output fed back
     add_latent("record", model = "gamma", shape = 2, scale = 1) |>
     add_observation("datum_2", model = "normal", mean = hidden, sd = 1) |>
-    add_observation("datum_3", level = "house", value = min(datum_2)) |>
+    add_observation("datum_3", level = "house", func = min(datum_2)) |>
     dig_("source_dictionary_")
   unname(dict[c("rho", "hidden", "record", "datum_2", "datum_3")]) |>
     expect_identical(c("P", "A", "A", "D", "D"))
@@ -716,10 +716,7 @@ test_that("Simulation replicates are a list of data frames", {
   simulated[[1]] |> expect_s3_class("data.frame")
 
   # more draws than nrep are thinned down to nrep
-  params <- get_parameters(mk_frederick$template)
-  param_table <- as.data.frame(as.list(stats::setNames(params$value,
-                                                       params$name)))
-  param_table <- param_table[rep(1L, 10L), , drop = FALSE]
+  param_table <- data.frame(alpha = rep(0.15, 10L), beta = 0.2, gamma = 1)
   run_simulation(mk_frederick$template, draws = param_table, nrep = 4) |>
     expect_length(4L)
 })

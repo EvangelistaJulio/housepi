@@ -186,7 +186,7 @@ test_that("A discrete-time model refuses a profile declared continuous", {
     expect_error("must be discrete")
 })
 
-test_that("A discrete-time model resolves a flat latent to the lattice", {
+test_that("A discrete-time model resolves a bare latent to the lattice", {
   # the model imposes discretization on its latents, no per-definition flag
   mk <- function(min) {
     mk_infec_discr$model |>

@@ -178,12 +178,12 @@ test_that("A definition named like a single-mode argument is not dropped", {
     add_parameter(rho = 1, min = 2, rho_2 = 3) |>
     expect_error(paste0(err, ".*min"))
   hh_model |>
-    add_latent(hidden = min(datum), value = 1) |>
-    expect_error(paste0(err, ".*value"))
+    add_latent(hidden = min(datum), const = 1) |>
+    expect_error(paste0(err, ".*const"))
   hh_model |>
-    add_observation(record = min(datum), value = max(datum),
+    add_observation(record = min(datum), func = max(datum),
                     level = "house") |>
-    expect_error(paste0(err, ".*value"))
+    expect_error(paste0(err, ".*func"))
   mk_member$model |>
     add_group_risk(community = "member", reference = ".auto") |>
     expect_error(paste0(err, ".*reference"))
@@ -208,7 +208,7 @@ test_that("Bulk import resolves symbols in the calling frame", {
       add_parameter(import = list(rho = quote(datum_local * 2))) |>
       get_parameters()
   })
-  param$value |> expect_equal(6)
+  param$const |> expect_equal(6)
 })
 
 test_that("add_observation routes every input branch on `level`", {
@@ -224,7 +224,7 @@ test_that("add_observation routes every input branch on `level`", {
 
   # single, bulk and imported definitions
   single <- hh_model |>
-    add_observation("record_2", value = min(datum), level = "house")
+    add_observation("record_2", func = min(datum), level = "house")
   bulk <- hh_model |>
     add_observation(record_2 = min(datum), level = "house")
   imported <- hh_model |>
@@ -350,7 +350,7 @@ test_that("Group risk wrapper input branches", {
     add_group_risk(
       susceptibility = list(strata = strata, params = list(sus_student = 1.23))
     )
-  get_parameters(hh_model, "sus_student")$value |> expect_equal(1.23)
+  get_parameters(hh_model, "sus_student")$const |> expect_equal(1.23)
 
   # a covariate value the data never carries resolves no member
   strata <- tibble::tribble(~member,   ~param_name,

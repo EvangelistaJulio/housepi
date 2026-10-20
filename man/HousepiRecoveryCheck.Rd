@@ -13,7 +13,8 @@ replicated at one or more household counts.
 recovery <- flu_1918_frederick |>
   new_housepi_model("final-size") |>
   add_parameter(import = "template") |>
-  check_recovery(nrep = 2, houses = 30, progress = FALSE)
+  check_recovery(data.frame(alpha = 0.15, beta = 0.2, gamma = 1),
+                 nrep = 2, houses = 30, progress = FALSE)
 recovery
 recovery$summary
 }
@@ -127,9 +128,8 @@ One of:
 }
 
 Values the surveys are simulated at,
-overriding the parameter pins of the model.
-Several draws are collapsed to their point estimate.
-If \code{NULL}, the pins.}
+one for every estimated parameter.
+Several draws are collapsed to their point estimate.}
       \item{\code{nrep}}{\code{integer(1)}
 Number of surveys simulated and fitted back at each household count.}
       \item{\code{houses}}{\code{integer()} One or more household counts to sweep.

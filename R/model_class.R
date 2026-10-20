@@ -54,7 +54,7 @@ HousepiModel <- R6::R6Class(
                        character(1), USE.NAMES = FALSE)
       by_kind <- lapply(unique(family), function(f) {
         find_required_definitions(defs[family == f, , drop = FALSE], type,
-                                  c("value", "func", "model", "min", "max"), f)
+                                  c("const", "func", "model", "min", "max"), f)
       })
       c(unlist(by_kind),
         find_required_definitions(private$resolved_profile_(), type,
@@ -86,7 +86,7 @@ HousepiModel <- R6::R6Class(
     get_required_parameters_ = function() {
       c(private$gen_$param_required,       # by the model
         find_required_definitions(private$resolved_param_(), "P",
-                                  c("value", "func", "min", "max"),
+                                  c("const", "func", "min", "max"),
                                   private$param_$family), # by param functions
         private$group_risks_$param_required,     # by group risks
         private$contact_risks_$param_required,   # by contact risks
@@ -182,9 +182,7 @@ HousepiModel <- R6::R6Class(
       pins <- names(private$baseline_pins_())
       if (!length(pins)) return(private$param_)
       param <- private$param_$clone(deep = TRUE)
-      for (name in pins) param$add_quo(
-        name, value = 1, const = TRUE, .warn_over = FALSE
-      )
+      for (name in pins) param$add_quo(name, const = 1, .warn_over = FALSE)
       # a pin reads nothing, so leading keeps it ahead of whatever reads it
       is_pin <- param$defs[["name"]] %in% pins
       param$defs <- param$defs[order(!is_pin), , drop = FALSE]
@@ -201,7 +199,7 @@ HousepiModel <- R6::R6Class(
       if (is.na(row)) return(NA_character_)
       is_reference <- is.na(defs[["prior"]][row]) &&
         is.na(defs[["func"]][row]) &&
-        isTRUE(showcaser_extract_numeric(defs[["value"]][row]) == 1)
+        isTRUE(showcaser_extract_numeric(defs[["const"]][row]) == 1)
       if (is_reference) NA_character_
       else paste(unlist(defs[row, ]), collapse = "|")
     },
@@ -220,7 +218,7 @@ HousepiModel <- R6::R6Class(
                         declared[[name]])) next
         risks <- pins[[name]]
         value <- showcaser_extract_numeric(
-          defs[["value"]][match(name, defs[["name"]])]
+          defs[["const"]][match(name, defs[["name"]])]
         )
         warn_h(
           paste("Absolute {cli::qty(risks)} risk{?s} {.val {risks}}",
@@ -283,7 +281,7 @@ HousepiModel <- R6::R6Class(
     assert_sources_ = function(wall = TRUE) {
       # the full source-bearing column set, not the narrower requirement one:
       # a distribution or proposal argument carries references too
-      cols <- c("value", "func", "prior", "model", "min", "max", "proposal")
+      cols <- c("const", "func", "prior", "model", "min", "max", "proposal")
       scan <- \(defs) find_required_definitions(defs, "?", cols, NA_character_)
       unresolved <- unique(c(scan(private$resolved_latent_()),
                              scan(private$resolved_profile_()),
@@ -732,15 +730,15 @@ HousepiModel <- R6::R6Class(
       }
 
       # transmission sets the latents it generates in simulation:
-      # an undeclared one gets a flat row, whose bounds simulation never reads
+      # an undeclared one gets a bare row, whose bounds simulation never reads
       generated <- setdiff(private$gen_$latent_transmission,
                            private$augm_$defs[["name"]])
       if (length(generated)) {
         declared_augm <- private$augm_$clone(deep = TRUE)
         on.exit(private$augm_ <- declared_augm, add = TRUE)
-        flat <- rep(list(list(min = 0, max = 1)), length(generated))
+        bare <- rep(list(list(min = 0, max = 1)), length(generated))
         private$augm_$add_quo_list(
-          convert_list_to_quosures(stats::setNames(flat, generated)),
+          convert_list_to_quosures(stats::setNames(bare, generated)),
           append = TRUE, .kind = "latent"
         )
       }
@@ -751,16 +749,9 @@ HousepiModel <- R6::R6Class(
       # there may be no parameters at all
       if (!nrow(self$parameters)) return(nrep)
 
-      if (is.null(param_table)) {
-        # single row replicated nrep times, unpinned parameters (NA value)
-        # carrying no column, so a prior-only parameter is sampled
-        pinned <- !is.na(self$parameters$value)
-        param_table <- as.data.frame(stats::setNames(
-          as.list(self$parameters$value[pinned]), self$parameters$name[pinned]
-        ))
-        param_table <- param_table[rep(1L, nrep), , drop = FALSE]
-        rownames(param_table) <- NULL
-      }
+      # no column: a parameter is drawn from its prior
+      if (is.null(param_table))
+        param_table <- data.frame(row.names = seq_len(nrep))
       # attach table with parameters
       .engine$import_param_table(private$gen_$mcmc_ptr, param_table)
 
@@ -904,6 +895,8 @@ HousepiModel <- R6::R6Class(
       do.call(rbind, lapply(c("member", "house"), function(level) {
         out <- augm_defs_of_kind(resolved, level)
         if (is.null(out)) return(NULL)
+        # pinned to its datum, the like-named column
+        out[["const"]] <- NULL
         cbind(out, level = level)
       })) |>
         housepi_defin_showcaser() |>

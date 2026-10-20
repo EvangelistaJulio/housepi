@@ -64,7 +64,8 @@ There are three mutually exclusive definition modes:
 Supply a \code{name} to add a single definition using the explicit arguments;
 }
 \item{multiple}{
-Pass pairs \code{name = list()} (or \code{name = value}) for multiple definitions;
+Pass pairs \code{name = list()} (or the shorthand \code{name = x})
+for multiple definitions;
 }
 \item{import}{
 Pass a pre-built named list of definitions through \code{import}.

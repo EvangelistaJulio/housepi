@@ -217,18 +217,16 @@ namespace housepi
     {
         DefRow::DefRow(const str_table &input, size_t r)
             : name(input.at("name")[r]),
-              value(input.at("value")[r]),
+              value(input.at("const")[r]),
               prior(input.at("prior")[r]),
               func(input.at("func")[r]),
               min(input.at("min")[r]),
               max(input.at("max")[r]),
               proposal(input.at("proposal")[r]),
-              has_func(!na::is(input.at("func")[r])),
-              is_const(str::tobool(input.at("const")[r])),
               is_discr(str::tobool(input.at("discr")[r]))
         {
             // a function parameter may only read other parameters
-            if (!has_func)
+            if (!has_func())
                 return;
             if (func.consumes_latent())
                 msg::stop(
@@ -252,7 +250,7 @@ namespace housepi
             // producers first when function parameters exist, row order otherwise
             std::vector<size_t> out(rows.size());
             if (std::none_of(rows.begin(), rows.end(), [](const DefRow &row)
-                             { return row.has_func; }))
+                             { return row.has_func(); }))
             {
                 std::iota(out.begin(), out.end(), size_t{0});
                 return out;
@@ -296,12 +294,12 @@ namespace housepi
             {
                 const DefRow &row = def[k];
                 size_t p = keys.consult(row.name);
-                if (row.has_func)
+                if (row.has_func())
                 {
                     constant.push_back(p);
                     func.push_back(p);
                 }
-                else if (row.is_const)
+                else if (row.is_const())
                 {
                     constant.push_back(p);
                 }
@@ -418,9 +416,9 @@ namespace housepi
             size_t p = consult(row.name);
             Variable &var = at(p);
 
-            if (row.has_func)
+            if (row.has_func())
                 bind_function_(var, row, translator);
-            else if (row.is_const)
+            else if (row.is_const())
                 bind_constant_(var, row, translator);
             else
                 bind_to_sample_(var, row, translator);

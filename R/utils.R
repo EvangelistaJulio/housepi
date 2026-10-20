@@ -493,7 +493,7 @@ resolve_status_codes_ <- function(defs, dictionary) {
 #' @noRd
 resolve_source_types_ <- function(defs, dict) {
   if (!length(defs)) return(defs)
-  cols <- c("value", "func", "prior", "model", "min", "max", "proposal")
+  cols <- c("const", "func", "prior", "model", "min", "max", "proposal")
   for (col in intersect(names(defs), cols)) {
     if (is.character(defs[[col]]))
       defs[[col]] <- housepi_resolve_definition(defs[[col]], dict)
@@ -524,8 +524,8 @@ resolve_discr_flags_ <- function(defs, discr_req_defs,
   # whether the datum column the definition reads is discrete
   by_data <- rep(FALSE, length(discr))
   if (!is.null(discr_col_types)) {
-    # name of the data column a definition value reads
-    col <- as.character(defs[["value"]])
+    # name of the data column a definition is pinned to
+    col <- as.character(defs[["const"]])
     hit <- grepl("^[A-Za-z0-9_.]+\\|D$", col)
     # NA if it reads none
     col <- ifelse(hit, sub("\\|D$", "", col), NA_character_)

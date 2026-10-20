@@ -44,19 +44,23 @@ rd_mdl_flags_ <- "Named arguments. Additional compilation options:
 ####  Definition vocabulary  ####
 
 rd_var_name_ <- "`character(1)` Name used by internal calls."
-rd_var_const_ <- "`logical(1)` Whether the definition is constant.
-If `TRUE`, Monte Carlo settings are ignored."
+rd_var_const_ <- "`numeric(1)` | `character(1)`
+Value the definition is pinned to, in inference and simulation.
+Either a number, or a data column, a constant parameter,
+or an arithmetic expression of them.
+Its prior, proposal and bounds are ignored.
+Cannot be combined with `func`."
+rd_aug_const_ <- paste(rd_var_const_, "
+A latent with a `model` keeps its density at that value,
+truncated by `min` and `max`.
+A latent the transmission model generates is pinned in inference only:
+simulation sets it.")
 rd_var_discr_ <- function(what, from) {
   sprintf("`logical(1)` Whether the %s definition is discrete, if applicable.
           If `NA`, inferred from %s.", what, from)
 }
 rd_obs_discr_from_ <- "the observed data column, or the model requirements"
 rd_var_prior_ <- "`character(1)` Prior distribution."
-rd_var_val_ <- function(what) {
-  sprintf("Value the definition is pinned to in simulations.
-          In inference, it pins a constant or deterministic definition,
-          and is ignored when a `%s` is given.", what)
-}
 rd_var_args_ <- function(what, proposal = FALSE, func = FALSE) {
   sink <- if (func) ", or for `func` when the definition is deterministic."
   else "."
@@ -67,8 +71,9 @@ rd_var_min_ <- "`numeric(1)` Truncate to a minimum value.
 Relative to the location argument `loc`, when one is given."
 rd_var_max_ <- "`numeric(1)` Truncate to a maximum value.
 Relative to the location argument `loc`, when one is given."
-rd_var_func_ <- "One of:
-* `character(1)` Name of a latent function;
+rd_var_func_ <- "Deterministic definition, one of:
+* `character(1)` Name of a latent function, its arguments in `...`;
+* a bare name, reading that definition as is;
 * an rlang expression."
 rd_var_proposal_ <- "`character(1)` Proposal used in the Monte Carlo.
 Random walks update the current value:
@@ -103,17 +108,10 @@ group risks and parameters the model carries.
 Two of them sharing a name cannot be read."
 rd_aug_status_ <- "`integer(1)` Infected status the definition is specific to.
 If `NA`, the definition applies to every infected member."
-rd_aug_val_ <- paste("`numeric(1)` | `character(1)`
-Value the definition is pinned to in simulations.
-In inference, it pins a constant or deterministic definition,
-and is ignored when the latent is sampled, with a `model` or a `proposal`.",
-                     rd_sources_)
-rd_obs_val_ <- paste("`numeric(1)` | `character(1)`
-Definition of the observation, depending on `level`:
+rd_obs_func_ <- paste("Deterministic definition of the observation,
+taking no `model`, depending on `level`:
 \\describe{
-  \\item{`\"member\"`}{without a `model`, the value computed for every member.
-  With a `model`, the datum the model is evaluated at,
-  the like-named data column when omitted;}
+  \\item{`\"member\"`}{the value computed for every member;}
   \\item{`\"house\"`}{one value for the whole household.
   The reductions `min()`, `max()`, `sum()` and `prod()` fold over the members
   a per-member value: a data column, a latent or a group risk.
@@ -135,12 +133,19 @@ rd_add_modes_ <- "There are three mutually exclusive definition modes:
   Supply a `name` to add a single definition using the explicit arguments;
   }
   \\item{multiple}{
-  Pass pairs `name = list()` (or `name = value`) for multiple definitions;
+  Pass pairs `name = list()` (or the shorthand `name = x`)
+  for multiple definitions;
   }
   \\item{import}{
   Pass a pre-built named list of definitions through `import`.
   }
 }"
+rd_dots_multi_ <- function(const = TRUE) {
+  paste("In mode 'multiple', the `name = list()` definitions,",
+        "or `name = x` for",
+        if (const) "`const = x` when `x` is a number, `func = x` otherwise."
+        else "`func = x`.")
+}
 rd_import_ <- "Named `list` of pre-built definitions to import.
 Cannot be combined with single or multiple definitions."
 rd_tmpl_import_ <- "Named `list` of pre-built definitions to import,
@@ -186,11 +191,9 @@ Rows keyed on different covariates form separate rule groups,
 whose risks multiply.
 Use `.reference` in `param_name` to designate the reference group.
 A rule group without it leaves the risk absolute.
-The reserved column `value` pins a stratum to that value in simulation,
-while it keeps its prior and is sampled in inference.
-The reserved column `const` fixes a pinned stratum in inference too,
-so that it carries no prior.
-The reference stratum takes neither.
+The reserved numeric column `const` pins a stratum to that value,
+in inference and simulation, so that it carries no prior.
+The reference stratum takes none.
 Mutually exclusive with `by`."
 rd_risk_params_ <- "`list` Per-parameter MCMC setups, named as in `param_name`.
 Overrides shared prior/args for parameters specified in the list.
@@ -581,7 +584,8 @@ add_template_defs_ <- function(holder, generator, family, append, key, dots,
 # * `import = "template"`, an `import` list, inline `...` pairs -> added
 #   through `$add_quo_list()`;
 # * single mode, `key` given -> `FALSE`, left to the caller,
-#   which captures its own arguments.
+#   which captures its own arguments, the definitions dropped first
+#   when not `append`.
 # @param call Caller's `match.call(expand.dots = FALSE)`.
 # @param listed `character()` Formals these modes read,
 # besides `...`, `import` and `append`.
@@ -600,6 +604,7 @@ add_listed_defs_ <- function(holder, generator, family, key, import, append,
     holder$add_quo_list(assert_bulk_defs_(family, dots, has_template),
                         append = append, ...)
   } else {
+    if (isFALSE(append)) holder$add_quo_list(list(), append = FALSE, ...)
     return(FALSE)
   }
   TRUE
@@ -612,12 +617,11 @@ add_listed_defs_ <- function(holder, generator, family, key, import, append,
 #' `r rd_add_modes_`
 #' @param hh_model `r rd_model_in_`
 #' @param name `r rd_var_name_`
-#' @param value `numeric(1)` `r rd_var_val_("prior")`
 #' @param const `r rd_var_const_`
 #' @param discr `r rd_var_discr_("prior", "the model requirements")`
 #' @param prior `r rd_var_prior_`
 #' @param ... `r rd_var_args_("prior", proposal = TRUE, func = TRUE)`
-#' In mode 'multiple', the `name = value` definitions.
+#' `r rd_dots_multi_()`
 #' @param min `r rd_var_min_`
 #' @param func `r rd_var_func_`
 #' @param max `r rd_var_max_`
@@ -632,8 +636,8 @@ add_listed_defs_ <- function(holder, generator, family, key, import, append,
 #'   # single: alpha, with a uniform prior and a lognormal random-walk proposal
 #'   add_parameter("alpha", prior = "uniform", proposal = "rw_log") |>
 #'   # single: beta, fixed to a constant
-#'   add_parameter("beta", value = 0.3, const = TRUE) |>
-#'   # inline bulk: several definitions as `name = value` pairs
+#'   add_parameter("beta", const = 0.3) |>
+#'   # inline bulk: several constants as `name = x` pairs
 #'   add_parameter(gamma = 1, hh_size_ref = 4)
 #'
 #' # list bulk: load a pre-built named list of definitions through `import`
@@ -649,8 +653,8 @@ add_listed_defs_ <- function(holder, generator, family, key, import, append,
 #' get_parameters(hh_model)
 #' @export
 add_parameter <- function(hh_model,
-                          name = NULL, value = NULL, ...,
-                          const = NA, discr = NA,
+                          name = NULL, ...,
+                          const = NULL, discr = NA,
                           prior = NA_character_,
                           func = NULL,
                           min = NULL, max = NULL,
@@ -666,8 +670,8 @@ add_parameter <- function(hh_model,
                         match.call(expand.dots = FALSE), "name",
                         has_template = TRUE)) {
     #> single mode
-    pvt$param_$add_quo(name = name, value = rlang::enquo(value),
-                       const = const, discr = discr,
+    pvt$param_$add_quo(name = name,
+                       const = rlang::enquo(const), discr = discr,
                        prior = prior, rlang::enquos(...),
                        func = rlang::enquo(func),
                        min = rlang::enquo(min), max = rlang::enquo(max),
@@ -691,15 +695,14 @@ add_parameter <- function(hh_model,
 #' such as the infection times of [template_case_ascertained].
 #' @param hh_model `r rd_model_in_`
 #' @param name `r rd_var_name_`
-#' @param value `r rd_aug_val_`
 #' @param status `r rd_aug_status_`
-#' @param const `r rd_var_const_`
+#' @param const `r rd_aug_const_`
 #' @param discr `r rd_var_discr_("model", "the model requirements")`
 #' @param func `r rd_var_func_`
 #' @param model `character(1)` Latent model distribution.
 #' Omitted for a latent the transmission model generates (see Details).
 #' @param ... `r rd_var_args_("model", proposal = TRUE, func = TRUE)`
-#' In mode 'multiple', the `name = value` definitions.
+#' `r rd_dots_multi_()`
 #' @param min `r rd_aug_min_` `r rd_lat_flat_bound_`
 #' @param max `r rd_aug_max_` `r rd_lat_flat_bound_`
 #' @param proposal `r rd_var_proposal_`
@@ -714,8 +717,8 @@ add_parameter <- function(hh_model,
 #'                 model = "gamma", shape = 2, scale = 1, max = 14)
 #' @export
 add_latent <- function(hh_model,
-                       name = NULL, value = NULL, ...,
-                       status = NA_integer_, const = NA, discr = NA,
+                       name = NULL, ...,
+                       status = NA_integer_, const = NULL, discr = NA,
                        func = NULL,
                        model = NA_character_,
                        min = NULL, max = NULL,
@@ -731,8 +734,9 @@ add_latent <- function(hh_model,
                         match.call(expand.dots = FALSE), c("name", "status"),
                         has_template = TRUE, status = status)) {
     #> single mode
-    pvt$augm_$add_quo(name = name, value = rlang::enquo(value),
-                      status = status, const = const, discr = discr,
+    pvt$augm_$add_quo(name = name,
+                      status = status, const = rlang::enquo(const),
+                      discr = discr,
                       func = rlang::enquo(func),
                       model = model, rlang::enquos(...),
                       min = rlang::enquo(min), max = rlang::enquo(max),
@@ -768,15 +772,14 @@ add_latent <- function(hh_model,
 #' @param model `character(1)` Observation model distribution.
 #' Reserved to member-level observations.
 #' @param ... `r rd_var_args_("observation")`
-#' In mode 'multiple', the `name = value` definitions.
+#' `r rd_dots_multi_(const = FALSE)`
 #' @param level `character(1)` Level the datum is observed at, one of:
 #' \describe{
 #'   \item{`"member"`}{one value per infected member;}
 #'   \item{`"house"`}{one value per household, reduced over its members.}
 #' }
 #' In mode 'multiple', applies to every entry not setting its own.
-#' @param value `r rd_obs_val_`
-#' @param func `r rd_var_func_`
+#' @param func `r rd_obs_func_`
 #' @param status `r rd_aug_status_`
 #' @param discr `r rd_var_discr_("model", rd_obs_discr_from_)`
 #' @param min `r rd_aug_min_`
@@ -798,12 +801,12 @@ add_latent <- function(hh_model,
 #'   add_observation("test_date", model = "normal",
 #'                   mean = onset_time, sd = 1, min = floor(onset_time)) |>
 #'   # house level: the earliest positive test among members
-#'   add_observation("first_test", value = min(test_date), level = "house")
+#'   add_observation("first_test", func = min(test_date), level = "house")
 #' get_observations(hh_model)
 #' @export
 add_observation <- function(hh_model, name = NULL,
                             model = NA_character_, ...,
-                            level = c("member", "house"), value = NULL,
+                            level = c("member", "house"),
                             func = NULL, status = NA_integer_, discr = NA,
                             min = NULL, max = NULL,
                             import = NULL, append = TRUE) {
@@ -820,8 +823,8 @@ add_observation <- function(hh_model, name = NULL,
                         c("name", "status", "level"),
                         status = status, .kind = level)) {
     #> single mode
-    pvt$augm_$add_quo(name = name, value = rlang::enquo(value),
-                      status = status, const = NA, discr = discr,
+    pvt$augm_$add_quo(name = name,
+                      status = status, discr = discr,
                       func = rlang::enquo(func), model = model,
                       rlang::enquos(...),
                       min = rlang::enquo(min), max = rlang::enquo(max),
@@ -1391,7 +1394,7 @@ wrap_inference_ <- function(hh_model, ran, i = 1L) {
 #' @param draws `r rd_draws_`
 #' @param nrep `r rd_nrep_`
 #' Without `draws`, the number of replicates,
-#' which share the pinned parameters and draw the others from their prior.
+#' which share the constant parameters and draw the others from their prior.
 #' If `NA`, one replicate.
 #' Once set, even to 1, the replicates are returned as a list.
 #' @param thin_ess `r rd_thin_ess_`
@@ -1426,7 +1429,7 @@ run_simulation <- function(hh_model,
 
 #' Simulate from `hh_model` as [run_simulation()] does.
 #' @return `list` Entries `wide` and `long`, one survey per replicate,
-#' and `parameters`, one row per replicate, pinned or drawn from the prior.
+#' and `parameters`, one row per replicate, given or drawn from the prior.
 #' @noRd
 simulate_with_parameters_ <- function(hh_model,
                                       draws = NULL,

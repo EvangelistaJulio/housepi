@@ -7,9 +7,8 @@
 add_parameter(
   hh_model,
   name = NULL,
-  value = NULL,
   ...,
-  const = NA,
+  const = NULL,
   discr = NA,
   prior = NA_character_,
   func = NULL,
@@ -25,10 +24,6 @@ add_parameter(
 
 \item{name}{\code{character(1)} Name used by internal calls.}
 
-\item{value}{\code{numeric(1)} Value the definition is pinned to in simulations.
-In inference, it pins a constant or deterministic definition,
-and is ignored when a \code{prior} is given.}
-
 \item{...}{Named arguments for the prior distribution, or for \code{func} when the definition is deterministic.
 Advanced Monte Carlo options may also be passed through \code{...},
 each prefixed \code{proposal_}.
@@ -38,19 +33,24 @@ If a positive number, it is fixed and never adapted.
 For independence sampling from a named distribution,
 the distribution parameters are passed the same way,
 e.g. \code{proposal_mean} and \code{proposal_sd}.
-In mode 'multiple', the \code{name = value} definitions.}
+In mode 'multiple', the \code{name = list()} definitions, or \code{name = x} for \code{const = x} when \code{x} is a number, \code{func = x} otherwise.}
 
-\item{const}{\code{logical(1)} Whether the definition is constant.
-If \code{TRUE}, Monte Carlo settings are ignored.}
+\item{const}{\code{numeric(1)} | \code{character(1)}
+Value the definition is pinned to, in inference and simulation.
+Either a number, or a data column, a constant parameter,
+or an arithmetic expression of them.
+Its prior, proposal and bounds are ignored.
+Cannot be combined with \code{func}.}
 
 \item{discr}{\code{logical(1)} Whether the prior definition is discrete, if applicable.
 If \code{NA}, inferred from the model requirements.}
 
 \item{prior}{\code{character(1)} Prior distribution.}
 
-\item{func}{One of:
+\item{func}{Deterministic definition, one of:
 \itemize{
-\item \code{character(1)} Name of a latent function;
+\item \code{character(1)} Name of a latent function, its arguments in \code{...};
+\item a bare name, reading that definition as is;
 \item an rlang expression.
 }}
 
@@ -98,7 +98,8 @@ There are three mutually exclusive definition modes:
 Supply a \code{name} to add a single definition using the explicit arguments;
 }
 \item{multiple}{
-Pass pairs \code{name = list()} (or \code{name = value}) for multiple definitions;
+Pass pairs \code{name = list()} (or the shorthand \code{name = x})
+for multiple definitions;
 }
 \item{import}{
 Pass a pre-built named list of definitions through \code{import}.
@@ -112,8 +113,8 @@ hh_model <- flu_1918_frederick |>
   # single: alpha, with a uniform prior and a lognormal random-walk proposal
   add_parameter("alpha", prior = "uniform", proposal = "rw_log") |>
   # single: beta, fixed to a constant
-  add_parameter("beta", value = 0.3, const = TRUE) |>
-  # inline bulk: several definitions as `name = value` pairs
+  add_parameter("beta", const = 0.3) |>
+  # inline bulk: several constants as `name = x` pairs
   add_parameter(gamma = 1, hh_size_ref = 4)
 
 # list bulk: load a pre-built named list of definitions through `import`

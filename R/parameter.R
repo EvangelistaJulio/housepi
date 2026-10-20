@@ -44,7 +44,7 @@ HousepiParameter <- R6::R6Class(
 
     # Add one definition, arguments as in add_parameter().
     add_quo = function(name, ...,
-                       value = NULL, const = NA, discr = NA,
+                       const = NULL, discr = NA,
                        prior = NA_character_,
                        func = NULL,
                        min = NULL, max = NULL,
@@ -53,7 +53,6 @@ HousepiParameter <- R6::R6Class(
                        .assert = FALSE) {
       # load non-quosures
       name <- housepi_smart_unwrap(name, "name")
-      const <- housepi_smart_unwrap(const, "const")
       discr <- housepi_smart_unwrap(discr, "discr")
       prior <- housepi_smart_unwrap(prior, "prior")
       proposal <- housepi_smart_unwrap(proposal, "proposal")
@@ -61,8 +60,9 @@ HousepiParameter <- R6::R6Class(
       assert_valid_law_name(proposal, "proposal")
 
       # load quosures
-      value <- housepi_extractor(!!value)
-      func <- housepi_extractor(!!func)
+      assert_const_value_(const, self$family, name)
+      const <- housepi_extractor(!!const)
+      func <- helper_load_func_(func)
       min <- housepi_extractor(!!min)
       max <- housepi_extractor(!!max)
 
@@ -74,41 +74,30 @@ HousepiParameter <- R6::R6Class(
       # check the name
       assert_valid_definition_name(name, self$family)
       assert_no_sibling_dist_arg(args, self$family, name)
-      if (all(is.null(c(value, func)), is.na(prior))) stop_h(
-        "Incomplete definition for parameter {.val {name}}.",
-        "Provide at least one of {.arg {c('value', 'prior', 'func')}}."
-      )
-      if (!is.null(func) && !is.na(prior)) stop_h(
-        "Wrong definition for parameter {.val {name}}.",
-        "Provide only one of {.arg {c('func', 'prior')}}."
-      )
-      if (!is.null(value) && !is.null(func)) stop_h(
-        "Wrong definition for parameter {.val {name}}.",
-        "Provide only one of {.arg {c('value', 'func')}}."
-      )
+      # a numeric func is a constant
+      if (is.null(const) && is.na(prior) &&
+            is.numeric(showcaser_extract_numeric(func))) {
+        const <- func
+        func <- NULL
+      }
+      assert_definition_core_(self$family, name, const, func, prior, proposal,
+                              bounded = !all(is.null(c(min, max))))
 
       opts <- list(name = as.character(name),
-                   value = NA_real_,
-                   const = as.logical(const),
+                   const = if (is.null(const)) NA_real_ else const,
                    discr = as.logical(discr),
-                   func = NA_character_,
+                   func = if (is.null(func)) NA_character_ else func,
                    prior = as.character(prior),
-                   min = NA_real_,
-                   max = NA_real_,
+                   min = if (is.null(min)) NA_real_ else min,
+                   max = if (is.null(max)) NA_real_ else max,
                    proposal = proposal)
 
       # drop any previous definition
       rmv_name <- self$remove(opts$name)
       warn_or_store_overwrite_(self, rmv_name, .warn_over)
 
-      opts <- helper_variable_core(opts, self$family, value, func)
-      opts <- helper_variable_args(opts, self$family, args, func)
+      opts <- helper_variable_args(opts, self$family, args)
       opts <- helper_variable_move(opts, self$family)
-
-      if (!isTRUE(const)) {
-        if (!is.null(min)) opts$min <- min
-        if (!is.null(max)) opts$max <- max
-      }
 
       # append definition(s)
       new_defs <- data.frame(opts)
@@ -122,7 +111,7 @@ HousepiParameter <- R6::R6Class(
     # Add definitions from a list of quosures.
     # * not `append` -> previous definitions dropped.
     add_quo_list = function(xquos, append = FALSE) {
-      housepi_load_defin_quos(self, "value", xquos, append)
+      housepi_load_defin_quos(self, "func", xquos, append)
       housepi_assert_args(self)
       invisible(self)
     },

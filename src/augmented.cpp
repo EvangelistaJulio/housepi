@@ -179,8 +179,7 @@ namespace housepi
             latent_definitions["status"].push_back(input.at("status")[r]);
             latent_definitions["func"].push_back(input.at("func")[r]);
             latent_definitions["fcumul"].push_back("false");
-            latent_definitions["value"].push_back("");
-            latent_definitions["const"].push_back("false");
+            latent_definitions["const"].push_back("");
             latent_definitions["discr"].push_back(str::format(discr));
             latent_definitions["model"].push_back("");
             latent_definitions["min"].push_back(input.at("min")[r]);
@@ -230,17 +229,12 @@ namespace housepi
         DefRow::DefRow(const str_table &input, size_t r)
             : name(input.at("name")[r]),
               kind(string_to_kind(input.at("kind")[r])),
-              value(input.at("value")[r]),
+              value(input.at("const")[r]),
               func(input.at("func")[r]),
               model(input.at("model")[r]),
               min(input.at("min")[r]),
               max(input.at("max")[r]),
               proposal(input.at("proposal")[r]),
-              has_value(!na::is(input.at("value")[r])),
-              has_func(!na::is(input.at("func")[r])),
-              has_model(!na::is(input.at("model")[r])),
-              has_proposal(!na::is(input.at("proposal")[r])),
-              is_const(str::tobool(input.at("const")[r])),
               is_discr(str::tobool(input.at("discr")[r])),
               is_fcumul(str::tobool(input.at("fcumul")[r]))
         {
@@ -252,16 +246,14 @@ namespace housepi
 
         std::vector<const parse::Definition *> DefRow::source_cols(bool simulation) const
         {
-            // any row but an override or a flat row reads every column in both runs
-            if (!is_sim_override() && !is_flat())
+            if (!is_bare())
             {
                 const auto all = source_cols();
                 return {all.begin(), all.end()};
             }
-            // simulation reads the value, inference the model and bounds
             if (simulation)
-                return {&value, &func};
-            return {&model, &func, &min, &max};
+                return {};
+            return {&min, &max};
         }
 
         void DefTable::append(const str_table &input)
@@ -281,7 +273,7 @@ namespace housepi
         bool DefTable::has_continuous_declaration(std::string_view name) const noexcept
         {
             for (const DefRow &row : rows)
-                if (row.name == name && (row.has_model || row.is_sampled()) && !row.is_discr)
+                if (row.name == name && (row.has_model() || row.is_sampled()) && !row.is_discr)
                     return true;
             return false;
         }
@@ -350,10 +342,10 @@ namespace housepi
         {
             const dag::prod_graph pgraph = producers(def, order, false);
 
-            // a flat row is keyed as its own consumer: its uniform log-ratio is zero, its log-pdf constant
+            // a bare row is keyed as its own consumer: its uniform log-ratio is zero, its log-pdf constant
             std::vector<std::string> without_model;
             for (size_t k : order)
-                if ((!def[k].has_model && !def[k].is_flat()) || def[k].kind == Kind::Member)
+                if ((!def[k].has_model() && !def[k].is_bare()) || def[k].kind == Kind::Member)
                     without_model.push_back(def[k].name);
 
             // walk the whole graph, so a chain through a modelless node keeps its edge
@@ -502,7 +494,7 @@ namespace housepi
                     continue;
 
                 // drawn, or computed from a draw, with the infection of each member
-                if (def[k].has_model || vect::contains(per_infection, k))
+                if (def[k].has_model() || vect::contains(per_infection, k))
                     msg::stop(
                         "Data " + msg::val(name) + " needs a value for every member, escaped ones included.\n" +
                         msg::alert(str::format(def[k].kind) + " " + msg::val(name) +
@@ -523,8 +515,7 @@ namespace housepi
                 if (row.kind != Kind::Latent)
                     continue;
 
-                // an override skips its model in simulation, see Binder::bind_member()
-                // a min, max or model cycling through a live observation is never evaluated, nor flagged
+                // the bounds of a bare row are never evaluated in simulation, nor flagged
                 for (const parse::Definition *col : row.source_cols(true))
                     for (const std::string &dstr : referred_data(*col, live_names))
                         msg::stop(
@@ -561,7 +552,7 @@ namespace housepi
                 // rule 1: a latent's model (distribution and support) reads no observation
                 // its producers are parameters and other latents only
                 // an observation's model may read another observation, drawn before it
-                if (def[k].kind == Kind::Latent && def[k].has_model)
+                if (def[k].kind == Kind::Latent && def[k].has_model())
                     for (const parse::Definition *col : {&def[k].model, &def[k].min, &def[k].max})
                         for (const std::string &dstr : referred_data(*col, obs_names))
                             msg::stop(
@@ -588,7 +579,7 @@ namespace housepi
             }
         }
 
-        void flat_rows(const DefTable &def,
+        void bare_rows(const DefTable &def,
                        const Parameter &param,
                        const std::vector<std::string> &transm)
         {
@@ -598,14 +589,14 @@ namespace housepi
                     continue;
                 const bool is_transm = vect::contains(transm, row.name);
 
-                if (row.has_model && row.is_sampled() && is_transm)
+                if (row.has_model() && row.is_sampled() && is_transm)
                     msg::stop(
                         "Latent " + msg::val(row.name) +
                         " is generated by the transmission model, which already gives its probability.\n" +
                         "Drop " + msg::arg("model") + ", and keep " + msg::arg("min") + " and " +
                         msg::arg("max") + " to sample it within.");
 
-                if (!row.is_flat())
+                if (!row.is_bare())
                     continue;
 
                 if (!is_transm)
@@ -614,7 +605,7 @@ namespace housepi
                         " has no model, and the transmission model does not generate it.\n" +
                         "Provide a " + msg::arg("model") + ".");
 
-                // the flat density 1 / (max - min) is left out: the bounds must not move with the draws
+                // the uniform density 1 / (max - min) is left out: the bounds must not move with the draws
                 for (const auto &[key, col] : {std::pair{"min", &row.min}, std::pair{"max", &row.max}})
                 {
                     std::string read;
@@ -630,51 +621,6 @@ namespace housepi
                             "Bound " + msg::arg(key) + " of latent " + msg::val(row.name) + " reads " + read +
                             ".\nWithout a model, bounds can read only data and observations.");
                 }
-            }
-        }
-
-        void no_sim_override_obs_read(const DefTable &def,
-                                      const std::vector<std::string> &obs_names)
-        {
-            // a simulation override (value of a sampled latent) is applied when its variable is first drawn
-            // sample_obs runs after draw_sample: an observation reached from the override is still undrawn
-            // an undrawn observation reads zero and leaves no trace
-            // deterministic definitions resolve through: the chain is walked, not the override's own column
-            // the walk stops at a sampled latent, whose read yields its own draw
-            if (obs_names.empty())
-                return;
-
-            // producer graph over the column each definition resolves through in simulation
-            dag::prod_graph pgraph;
-            for (const DefRow &row : def.rows)
-                if (row.kind == Kind::Latent)
-                {
-                    auto &producers = pgraph[row.name];
-                    for (const std::string &astr : row.sim_source().list_latent_producers())
-                        producers.insert(astr);
-                }
-
-            for (const DefRow &row : def.rows)
-            {
-                if (row.kind != Kind::Latent || !row.is_sim_override())
-                    continue;
-
-                for (const std::string &pstr :
-                     dag::transitive_producers(row.name, pgraph, ErrType::Latent))
-                    // a name spans several rows when statuses declare it apart
-                    for (const DefRow &prow : def.rows)
-                    {
-                        if (prow.kind != Kind::Latent || prow.name != pstr)
-                            continue;
-                        for (const std::string &dstr : referred_data(prow.sim_source(), obs_names))
-                            msg::stop(
-                                "Simulation override of " + msg::val(row.name) +
-                                " reads observation " + msg::val(dstr) +
-                                (pstr == row.name ? "" : " through " + msg::val(pstr)) +
-                                ".\nThe value of a sampled latent is applied during simulation, before " +
-                                msg::val(dstr) + " is generated; depend on data, parameters, or " +
-                                "latents that do not read it.");
-                    }
             }
         }
 
@@ -868,16 +814,8 @@ namespace housepi
                 for (size_t k : at_(s).order)
                     list_definition_(s, k, src);
 
-                // an override reads its value in simulation: its producers differ from inference
-                try
-                {
-                    at_(s).sim_order = sorted_rows(true);
-                }
-                catch (const std::exception &e)
-                {
-                    msg::stop(std::string(e.what()) +
-                              "\nSimulation reads the value of a sampled latent in place of its model and bounds.");
-                }
+                // simulation draws a member observation before its readers: its producers differ from inference
+                at_(s).sim_order = sorted_rows(true);
                 for (size_t k : at_(s).sim_order)
                 {
                     const size_t a = keys_.consult(def_[k].name);
@@ -927,20 +865,19 @@ namespace housepi
             bool is_to_export = true;
             bool is_to_draw = true;
 
-            if (def_[k].is_const)
+            if (def_[k].is_const())
             {
                 is_to_draw = false;
             }
-            // deterministic definition: a function, or a value neither sampled nor constant
-            // a value paired with a model or a proposal is a simulation-only override, see Binder::bind_member()
+            // deterministic definition: a function
             else if (!def_[k].is_sampled())
             {
-                if (!def_[k].has_func && !def_[k].has_value)
+                if (!def_[k].has_func())
                     msg::stop(
-                        "Impossible to initialize latent " + msg::val(astr) + " without a value or model");
+                        "Impossible to initialize latent " + msg::val(astr) + " without a constant, function or model");
                 std::tie(is_to_export, is_to_draw) = list_function_(s, k, src);
             }
-            else if (!def_[k].has_proposal)
+            else if (!def_[k].has_proposal())
             {
                 msg::stop(
                     "No proposal was provided for non-constant definition of latent " +
@@ -981,8 +918,7 @@ namespace housepi
             bool is_to_export = true;
             bool is_to_draw = true;
 
-            // a value definition has priority over a function
-            const parse::Definition &parser = def_[k].has_value ? def_[k].value : def_[k].func;
+            const parse::Definition &parser = def_[k].func;
 
             // raw data are equivalence-class covariates, unless produced
             for (const std::string &dstr : parser.list_data_wide_producers())
@@ -1018,7 +954,7 @@ namespace housepi
             for (size_t k = 0; k < def_.size(); ++k)
                 // household reduction or member-level definition carrying no model
                 if (def_[k].kind == Kind::House ||
-                    (def_[k].kind == Kind::Member && !def_[k].has_model))
+                    (def_[k].kind == Kind::Member && !def_[k].has_model()))
                     name_to_row[def_[k].name] = k;
 
             if (name_to_row.empty())
@@ -1035,7 +971,7 @@ namespace housepi
             // extract member-level live observations (with a model)
             std::unordered_set<std::string> live_names;
             for (const DefRow &row : def_.rows)
-                if (row.kind == Kind::Member && row.has_model)
+                if (row.kind == Kind::Member && row.has_model())
                     live_names.insert(row.name);
 
             // build list of surrogate data columns in order
@@ -1098,7 +1034,7 @@ namespace housepi
                         scheme_.list_obs_member.push_back(obs_key);
 
                     // a deterministic observation node carries no distribution
-                    if (!def_[k].has_model)
+                    if (!def_[k].has_model())
                         continue;
 
                     scheme_.is_any_obs_model_ = true;
@@ -1139,12 +1075,12 @@ namespace housepi
                 for (const auto &[astr, consumers] : model_consumers)
                     ss.consumers[keys_.consult(astr)] = keys_.consult(consumers);
 
-                // a flat row adds no density to the latent log-likelihood
-                std::vector<std::string> with_model = extract_keys(model_consumers), flat;
+                // a bare row adds no density to the latent log-likelihood
+                std::vector<std::string> with_model = extract_keys(model_consumers), bare;
                 for (size_t k : ss.order)
-                    if (def_[k].is_flat())
-                        flat.push_back(def_[k].name);
-                vect::remove(with_model, flat);
+                    if (def_[k].is_bare())
+                        bare.push_back(def_[k].name);
+                vect::remove(with_model, bare);
                 ss.latent_models = keys_.consult(with_model);
                 scheme_.is_any_latent_model_ |= !ss.latent_models.empty();
             }
@@ -1418,9 +1354,8 @@ namespace housepi
             const DefRow &row = def_[k];
             var.name(row.name, kind_to_err_type(row.kind));
 
-            // a deterministic definition is driven by its value, anything else by its function
-            // the value of a sampled row is a simulation-only override, applied before this
-            const parse::Definition &parser = row.is_sampled() || !row.has_value ? row.func : row.value;
+            // a constant is driven by its value, anything else by its function
+            const parse::Definition &parser = row.is_const() ? row.value : row.func;
 
             // a household definition binds no member: its per-member cells fold over them
             const Individual *indiv_ptr = row.kind == Kind::House ? nullptr : &anchor;
@@ -1444,7 +1379,7 @@ namespace housepi
 
             // a member surrogate materializes a data column for every member
             // where the cells it reads are empty, it has nothing to stand for
-            const bool is_surrogate = row.kind == Kind::Member && !row.has_model;
+            const bool is_surrogate = row.kind == Kind::Member && !row.has_model();
 
             bool is_defined = true;
             if (row.kind == Kind::House)
@@ -1483,7 +1418,7 @@ namespace housepi
 
             try
             {
-                if (row.is_const)
+                if (row.is_const())
                 {
                     // placeholder for observation node if generated by simulation
                     if (simulation && row.kind == Kind::Member)
@@ -1491,16 +1426,6 @@ namespace housepi
                     else
                         var.init_numeric(translator_.to_numeric(row.value.root, &indiv).value());
                     var.enforce_user_const(); // enforce user constant choice
-                }
-                // simulation-only override: a sampled latent carrying a value is pinned to it in simulation
-                // the inference model is a nuisance law, unfit to generate
-                // to_attribute binds the pin lazily: data, parameters and earlier latents resolve at read time
-                // a constant collapses back to a numeric
-                // no domain is attached, and the early return skips the model: the pin survives every draw
-                else if (simulation && row.is_sim_override())
-                {
-                    var.transfer(translator_.to_attribute(row.value.root, &indiv));
-                    return;
                 }
                 else
                     bind_variable(var, k, indiv, nullptr);
@@ -1530,8 +1455,8 @@ namespace housepi
                                  const Individual &indiv) const
         {
             const DefRow &row = def_[k];
-            // a flat row is uniform within its bounds, its density left out of the latent log-likelihood
-            var.init_distr(row.is_flat() ? std::string_view("uniform") : std::string_view(row.model.root.func),
+            // a bare row is uniform within its bounds, its density left out of the latent log-likelihood
+            var.init_distr(row.is_bare() ? std::string_view("uniform") : std::string_view(row.model.root.func),
                            row.is_discr);
 
             if (var.has_distr())
@@ -1663,11 +1588,10 @@ namespace housepi
         builder.init_transm(user_transm_vec_.empty() ? std::vector<std::string>{}
                                                      : transm_names_());
 
-        // no definition reads an obs entry column, no simulation override reads an observation
+        // no definition reads an obs entry column
         augm::check::no_obs_entry_collision(def_, consult(scheme_.list_obs_member));
-        augm::check::no_sim_override_obs_read(def_, consult(scheme_.list_obs_member));
-        // a flat latent is generated by transmission, a generated latent has no model
-        augm::check::flat_rows(def_, mcmc_->param, consult(user_transm_vec_));
+        // a bare latent is generated by transmission, a generated latent has no model
+        augm::check::bare_rows(def_, mcmc_->param, consult(user_transm_vec_));
     }
 
     void Augmented::build_restore_internal_()
@@ -2040,8 +1964,8 @@ namespace housepi
                     {
                         generated.push_back(a);
                         st.vec[a].set(0.);
-                        // flat: only transmission sets it
-                        if (!row.is_flat() || row.is_sim_override())
+                        // bare: only transmission sets it
+                        if (!row.is_bare())
                             binder.bind_member(block[a], k, indiv, true);
                         continue;
                     }

@@ -390,7 +390,7 @@ test_that("A free baseline under an absolute risk is pinned on real data", {
     "alpha.*turned.*reference"
   )
   params <- get_parameters(hh_model)
-  params$value[params$name == "alpha"] |> expect_equal(1)
+  params$const[params$name == "alpha"] |> expect_equal(1)
 
   # the contact table names a reference, so `beta` keeps its scale
   strata <- tibble::tribble(
@@ -407,7 +407,7 @@ test_that("A free baseline under an absolute risk is pinned on real data", {
     get_parameters() |>
     subset(name == "beta", "const") |>
     unlist() |>
-    expect_false()
+    expect_all_na()
 })
 
 test_that("Infection rates below the machine epsilon keep their probability", {

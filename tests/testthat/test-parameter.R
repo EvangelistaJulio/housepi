@@ -20,18 +20,13 @@ test_that("Default parameter definitions are correct", {
     add_parameter() |>
     expect_error("[Mm]issing.*empty.*definitions")
 
-  mk_param$model |>
-    add_parameter("rho", value = 3, const = FALSE) |>
-    expect_error("[Nn]o .prior. provided for parameter")
-
   # default sample framework
   param <- mk_param$model |>
-    add_parameter("rho", value = 3, prior = "uniform", max = 5) |>
+    add_parameter("rho", prior = "uniform", max = 5) |>
     get_parameters()
 
   param$name |> expect_identical("rho")
-  param$value |> expect_equal(3)
-  param$const |> expect_identical(FALSE)
+  param$const |> expect_all_na()
   param$discr |> expect_identical(FALSE)
   param$proposal |> expect_identical("rw")
   param$prior |> expect_identical("uniform")
@@ -40,7 +35,7 @@ test_that("Default parameter definitions are correct", {
 
   # bulk and single modes definitions should be identical
   mk_param$model |>
-    add_parameter(rho = list(value = 3, prior = "uniform", max = 5)) |>
+    add_parameter(rho = list(prior = "uniform", max = 5)) |>
     get_parameters() |>
     expect_identical(param)
 
@@ -74,8 +69,8 @@ test_that("The defining distribution of the sibling family is named as spare", {
 test_that("A func definition is deterministic", {
   # a plain number is a constant value, whichever argument carried it
   by_func <- mk_param$model |> add_parameter(rho = list(func = 21))
-  by_value <- mk_param$model |> add_parameter(rho = list(value = 21))
-  get_parameters(by_func) |> expect_identical(get_parameters(by_value))
+  by_const <- mk_param$model |> add_parameter(rho = list(const = 21))
+  get_parameters(by_func) |> expect_identical(get_parameters(by_const))
 
   # a deterministic definition accepts no proposal
   mk_param$model |>
@@ -83,7 +78,7 @@ test_that("A func definition is deterministic", {
     expect_error("[Dd]eterministic parameter.*rho.*cannot be sampled")
 
   # the spare arguments reach the function, whichever spelling declares it
-  hh_model <- mk_param$model |> add_parameter("rho_2", value = 2)
+  hh_model <- mk_param$model |> add_parameter("rho_2", const = 2)
   by_args <- hh_model |> add_parameter("rho", func = "log", x = rho_2)
   by_expr <- hh_model |> add_parameter(rho = log(rho_2))
   get_parameters(by_args) |> expect_identical(get_parameters(by_expr))
@@ -95,22 +90,22 @@ test_that("A parameter takes a single defining argument", {
     add_parameter("rho", func = "log", x = 2, prior = "uniform") |>
     expect_error("[Oo]nly one of .func. and .prior.")
   mk_param$model |>
-    add_parameter("rho", value = 2, func = "log", x = 1) |>
-    expect_error("[Oo]nly one of .value. and .func.")
+    add_parameter("rho", const = 2, func = "log", x = 1) |>
+    expect_error("[Oo]nly one of .const. and .func.")
 })
 
 test_that("Spare arguments reach the function they belong to", {
   # neither a prior nor a func takes them
   mk_param$model |>
-    add_parameter("rho", value = 3, mean = 1, sd = 2) |>
+    add_parameter("rho", const = 3, mean = 1, sd = 2) |>
     expect_error("2 spare arguments for parameter .rho.: .mean. and .sd.")
   mk_param$model |>
-    add_parameter("rho", value = 3, mean = 1) |>
+    add_parameter("rho", const = 3, mean = 1) |>
     expect_error("[Pp]rovide the .prior. or the .func. they belong to")
   # a func folded into a constant takes none either
   mk_param$model |>
     add_parameter("rho", func = log(3), mean = 1) |>
-    expect_error("[Ee]xpression already carries its arguments")
+    expect_error("1 spare argument for parameter .rho.: .mean.")
 
   # a parameter function is checked against the registry at declaration
   mk_param$model |>
@@ -175,26 +170,38 @@ test_that("Constant parameter definitions are correct", {
     expect_error("[Ii]ncomplete")
   mk_param$model |>
     add_parameter("rho", prior = "uniform", const = TRUE) |>
-    expect_error("[Mm]issing value")
+    expect_error(".const. of parameter .rho. must be the value")
 
   # bulk and single add should be coherent
   hh_model <- mk_param$model |> add_parameter(rho = 3)
-  hh_model_2 <- mk_param$model |> add_parameter("rho", value = 3)
+  hh_model_2 <- mk_param$model |> add_parameter("rho", const = 3)
   get_parameters(hh_model) |> expect_identical(get_parameters(hh_model_2))
 
   param <- get_parameters(hh_model)
   param$name |> expect_identical("rho")
-  param$value |> expect_equal(3)
-  param$const |> expect_identical(TRUE)
+  param$const |> expect_equal(3)
   param$proposal |> expect_equal(NA_real_)
 
-  expect_warning(
-    overwritten <- hh_model |>
-      add_parameter("rho", value = 3, prior = "uniform",
-                    min = 0, max = 5, const = TRUE),
-    "[Oo]verwriting"
-  )
-  get_parameters(overwritten) |> expect_identical(get_parameters(hh_model_2))
+  # a constant takes no prior, proposal or bounds
+  mk_param$model |>
+    add_parameter("rho", const = 3, prior = "uniform") |>
+    expect_error("[Oo]nly one of .const. and .prior.")
+  mk_param$model |>
+    add_parameter("rho", const = 3, proposal = "rw") |>
+    expect_error("[Cc]onstant parameter .rho. cannot be sampled")
+  mk_param$model |>
+    add_parameter("rho", const = 3, min = 0, max = 5) |>
+    expect_error("[Cc]onstant parameter .rho. has no distribution to bound")
+  # a numeric func alike
+  mk_param$model |>
+    add_parameter("rho", func = 3, proposal = "rw") |>
+    expect_error("[Cc]onstant parameter .rho. cannot be sampled")
+  mk_param$model |>
+    add_parameter("rho", func = 3, min = 0) |>
+    expect_error("[Cc]onstant parameter .rho. has no distribution to bound")
+  mk_param$model |>
+    add_parameter("rho", func = 3, prior = "uniform") |>
+    expect_error("[Oo]nly one of .func. and .prior.")
 })
 
 test_that("Parameter options typed as values refuse other types", {
@@ -202,8 +209,8 @@ test_that("Parameter options typed as values refuse other types", {
     add_parameter("rho", prior = sum) |>
     expect_error("[Aa]rgument .prior. must be character, numeric, or logical")
   mk_param$model |>
-    add_parameter("rho", value = 1, const = NULL) |>
-    expect_error("[Aa]rgument .const. must be character, numeric, or logical")
+    add_parameter("rho", prior = "uniform", discr = NULL) |>
+    expect_error("[Aa]rgument .discr. must be character, numeric, or logical")
   mk_param$model |>
     add_parameter(rho = list(prior = sum)) |>
     expect_error("[Aa]rgument .prior. must be character, numeric, or logical")
@@ -572,17 +579,19 @@ test_that("An unpinned parameter is drawn from its prior in simulation", {
   vapply(results$wide, \(x) x$hidden[1], numeric(1)) |> expect_equal(drawn)
 })
 
-test_that("A pinned parameter is returned at its pin in simulation", {
+test_that("A parameter is returned at its draws value in simulation", {
   hh_model <- data.frame(hh_id = "h1", id = c("m1", "m2"), status = 0) |>
     new_housepi_model("test") |>
-    add_parameter(rho = list(value = 0.3, prior = "uniform"),
+    add_parameter(rho = list(prior = "uniform"),
                   rho_2 = list(prior = "uniform"))
 
-  results <- simulate_with_parameters_(hh_model, nrep = 5)
+  # rho_2, without a column, is drawn from its prior
+  results <- simulate_with_parameters_(hh_model,
+                                       draws = data.frame(rho = rep(0.3, 5)))
   results$parameters |> expect_named(c("rho", "rho_2"), ignore.order = TRUE)
   results$parameters$rho |> expect_all_equal(0.3)
   # a single replicate returns one frame and a one-row table
-  results <- simulate_with_parameters_(hh_model)
+  results <- simulate_with_parameters_(hh_model, draws = data.frame(rho = 0.3))
   results$wide |> expect_length(1L)
   results$parameters |> expect_nrow(1L)
   results$parameters$rho |> expect_equal(0.3)

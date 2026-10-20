@@ -55,7 +55,7 @@ We check whether a dataset similar to the target one, simulated at the estimated
 # Recover the model parameters
 
 Passing the fit as `draws` simulates at its point estimates.
-Without it, the check simulates at the `value` pins of the parameter definitions, which is how to test values of your own choosing.
+A `data.frame` of values works the same way, which is how to test values of your own choosing.
 
 Each study is generated on households drawn with replacement from the attached data by `sample_house_structure()`, so it keeps the original household-size distribution, while the model draws who gets infected.
 Besides the observed number of households, we ask what a quarter, half and twice as many would give:

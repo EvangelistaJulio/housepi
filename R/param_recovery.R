@@ -8,30 +8,25 @@
 rd_recov_houses_ <- "`integer()` One or more household counts to sweep.
 If `NA`, the number of households carried by the attached data."
 rd_recov_draws_ <- "Values the surveys are simulated at,
-overriding the parameter pins of the model.
-Several draws are collapsed to their point estimate.
-If `NULL`, the pins."
+one for every estimated parameter.
+Several draws are collapsed to their point estimate."
 
 ########  Recovery  ########
 
-#' Simulation values: every pinned parameter, overridden by `draws`.
-#' The pins are those run_simulation() builds on its own,
-#' so the surveys are generated as an ordinary simulation would.
+#' Simulation values: the point estimate of `draws`, per declared parameter.
 #' @noRd
 recovery_pins_ <- function(hh_model, draws, point_estimate) {
-  pins <- sweep_pins_(hh_model)
-  if (!is.null(draws)) {
-    given <- recovery_collapse_truth_(draws, point_estimate)
-    hh_model$.__enclos_env__$private$assert_no_baseline_value_(given, "draws")
-    known <- intersect(names(given), names(pins))
-    pins[known] <- given[known]
-    unknown <- setdiff(names(given), names(pins))
-    if (length(unknown)) warn_h(
-      "No parameter named {.val {unknown}} in the model.",
-      `!` = "Its {.arg draws} value is ignored."
-    )
-  }
-  pins[!is.na(pins)]
+  if (is.null(draws)) return(numeric())
+  given <- recovery_collapse_truth_(draws, point_estimate)
+  hh_model$.__enclos_env__$private$assert_no_baseline_value_(given, "draws")
+  declared <- get_parameters(hh_model)[["name"]]
+  unknown <- setdiff(names(given), declared)
+  if (length(unknown)) warn_h(
+    "No parameter named {.val {unknown}} in the model.",
+    `!` = "Its {.arg draws} value is ignored."
+  )
+  given <- given[intersect(names(given), declared)]
+  given[!is.na(given)]
 }
 
 #' Collapse draws to one named vector of point estimates.
@@ -43,17 +38,15 @@ recovery_collapse_truth_ <- function(draws, point_estimate) {
 }
 
 #' Simulation values of the estimated parameters.
-#' * estimated parameter not pinned -> error, as a recovery check simulates
-#'   every replicate at the same known values.
+#' * estimated parameter without a value -> error,
+#' as a recovery check simulates every replicate at the same known values.
 #' @noRd
 recovery_truth_ <- function(hh_model, pins) {
   estimated <- sweep_estimated_(hh_model)
   unpinned <- setdiff(estimated, names(pins))
   if (length(unpinned)) stop_h(
     "No simulation value for parameter{?s} {.val {unpinned}}.",
-    paste("A recovery check simulates at known values: set {.arg value} on",
-          "{.fn add_parameter}, the {.field value} column of a strata table,",
-          "or pass {.arg draws}.")
+    "A recovery check simulates at known values: pass them as {.arg draws}."
   )
   pins[estimated]
 }
@@ -119,7 +112,8 @@ sample_house_structure <- function(data_wide, houses = NA_integer_) {
 #' recovery <- flu_1918_frederick |>
 #'   new_housepi_model("final-size") |>
 #'   add_parameter(import = "template") |>
-#'   check_recovery(nrep = 2, houses = 30, progress = FALSE)
+#'   check_recovery(data.frame(alpha = 0.15, beta = 0.2, gamma = 1),
+#'                  nrep = 2, houses = 30, progress = FALSE)
 #' recovery
 #' recovery$summary
 #' @docType class
@@ -347,7 +341,7 @@ HousepiRecoveryCheck <- R6::R6Class(
 #' The sweep is repeated at one or more household counts,
 #' which shows whether a bias shrinks with the size of the study.
 #'
-#' The surveys are simulated at the parameter pins of the model, or at `draws`,
+#' The surveys are simulated at `draws`,
 #' and the priors of the same model drive inference,
 #' so no separate simulation model is needed.
 #' @param hh_model `r rd_model_in_`
@@ -374,7 +368,8 @@ HousepiRecoveryCheck <- R6::R6Class(
 #' recovery <- flu_1918_frederick |>
 #'   new_housepi_model("final-size") |>
 #'   add_parameter(import = "template") |>
-#'   check_recovery(nrep = 2, houses = 30, progress = FALSE)
+#'   check_recovery(data.frame(alpha = 0.15, beta = 0.2, gamma = 1),
+#'                  nrep = 2, houses = 30, progress = FALSE)
 #' recovery$summary
 #' recovery$overview
 #' @export

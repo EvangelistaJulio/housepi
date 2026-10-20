@@ -122,20 +122,11 @@ test_that("Latent definition errors are recognized", {
 
 test_that("Undefined definitions are controlled", {
   mk_latent$model |>
-    add_latent("hidden", proposal = "forward", value = NA) |>
-    expect_error("[Nn]o .model. to sample from")
+    add_latent("hidden", const = NA) |>
+    expect_error(".const. of latent .hidden. must be the value")
   mk_latent$model |>
-    add_latent("hidden", value = NA) |>
-    expect_error("[Mm]issing value")
-  # a plain value declared variable has no model to draw from
-  mk_latent$model |>
-    add_latent("hidden", value = 3, const = FALSE) |>
-    expect_error("[Nn]o .model. to sample from")
-
-  defs <- mk_latent$model |>
-    add_latent("hidden", value = 3, const = TRUE, proposal = "forward") |>
-    get_latent()
-  defs$proposal |> expect_all_na()
+    add_latent("hidden", const = 3, proposal = "forward") |>
+    expect_error("[Cc]onstant latent .hidden. cannot be sampled")
 })
 
 test_that("A latent without a model is sampled within its bounds", {
@@ -144,38 +135,22 @@ test_that("A latent without a model is sampled within its bounds", {
     add_latent(infec_time = list(min = -1, max = end_date), append = FALSE) |>
     get_latent()
   latent$proposal |> expect_identical("rw")
-  latent$const |> expect_false()
+  latent$const |> expect_all_na()
   latent$model |> expect_all_na()
 
-  # a value next to a proposal pins the simulation only
-  latent <- mk_status$model |>
-    add_latent(infec_time = list(value = 0, min = -1, max = end_date,
-                                 proposal = "rw"),
+  # a constant has no distribution to bound
+  mk_status$model |>
+    add_latent(infec_time = list(const = 3, min = 0, max = 5),
                append = FALSE) |>
-    get_latent()
-  latent$value |> expect_identical(0)
-  latent$const |> expect_false()
-
-  # a constant value stays constant, whatever else the latent declares
-  latent <- mk_status$model |>
-    add_latent(infec_time = list(value = 3, const = TRUE, min = 0, max = 5,
-                                 proposal = "rw"),
-               append = FALSE) |>
-    get_latent()
-  latent$const |> expect_true()
-  latent$proposal |> expect_all_na()
+    expect_error("[Cc]onstant latent .infec_time. has no distribution to bound")
 })
 
 test_that("A latent without a model rejects incomplete definitions", {
-  # a value with bounds reads either as a constant or as a simulation value
-  mk_latent$model |>
-    add_latent(hidden = list(value = 0, min = 0, max = 5)) |>
-    expect_error("value and bounds, but no model or proposal")
   # a forward proposal draws from the model
   mk_latent$model |>
     add_latent(hidden = list(min = 0, max = 5, proposal = "forward")) |>
     expect_error("[Nn]o .model. to sample from")
-  # flat sampling needs both bounds
+  # a bare latent needs both bounds
   mk_latent$model |>
     add_latent(hidden = list(min = 0)) |>
     expect_error("[Nn]o .model. to sample from")
@@ -192,8 +167,8 @@ test_that("Passing a prior raises a hint on model", {
 test_that("A func definition is deterministic", {
   # a plain number is a constant value, whichever argument carried it
   by_func <- mk_latent$model |> add_latent(hidden = list(func = 21))
-  by_value <- mk_latent$model |> add_latent(hidden = list(value = 21))
-  get_latent(by_func) |> expect_identical(get_latent(by_value))
+  by_const <- mk_latent$model |> add_latent(hidden = list(const = 21))
+  get_latent(by_func) |> expect_identical(get_latent(by_const))
 
   # deterministic definitions reject model or proposal
   mk_latent$model |>
@@ -203,10 +178,10 @@ test_that("A func definition is deterministic", {
   mk_latent$model |>
     add_latent("hidden", func = "log", x = 2, proposal = "rw")   |>
     expect_error("[Dd]eterministic.*hidden.*cannot be sampled")
-  # nor a value alongside the function
+  # nor a constant alongside the function
   mk_latent$model |>
-    add_latent("hidden", value = 2, func = "log", x = 1) |>
-    expect_error("[Oo]nly one of .value. and .func.")
+    add_latent("hidden", const = 2, func = "log", x = 1) |>
+    expect_error("[Oo]nly one of .const. and .func.")
 })
 
 test_that("A name is resolved, not guessed", {
@@ -268,22 +243,21 @@ test_that("A status left without definitions names the status", {
 test_that("Latent variable definitions are correct", {
   # basic constant definition
   augm <- mk_latent$model |>
-    add_latent("hidden", value = 3) |>
+    add_latent("hidden", const = 3) |>
     get_latent()
   augm$name |> expect_identical("hidden")
   augm$status |> expect_equal(NA_real_)
-  augm$const |> expect_identical(TRUE)
+  augm$const |> expect_equal(3)
   augm$discr |> expect_identical(FALSE)
-  augm$value |> expect_equal(3)
   augm$proposal |> expect_equal(NA_real_)
-  # a bare value is the same constant
+  # a bare number is the same constant
   get_latent(add_latent(mk_latent$model, hidden = 3)) |> expect_identical(augm)
 
   # a model with no value is sampled by random walk
   augm <- mk_latent$model |>
     add_latent("hidden", model = "normal") |>
     get_latent()
-  augm$const |> expect_identical(FALSE)
+  augm$const |> expect_all_na()
   augm$proposal |> expect_identical("rw")
   # a misspelled family is caught at definition
   mk_latent$model |>
@@ -296,11 +270,11 @@ test_that("Latent variable definitions are correct", {
   augm <- mk_latent$model |>
     add_parameter("rho", prior = "uniform", min = 0, max = 9) |>
     add_latent("layer_1", model = "uniform", min = 0, max = 1) |>
-    add_latent("hidden", value = datum, model = "uniform",
+    add_latent("hidden", const = datum, model = "uniform",
                min = layer_1, max = rho) |>
     get_latent("hidden")
   augm$status |> expect_equal(NA_real_)
-  augm$value |> expect_identical("datum|D")
+  augm$const |> expect_identical("datum|D")
   augm$model |> expect_identical("uniform")
   augm$min |> expect_identical("layer_1|A")
   augm$max |> expect_identical("rho|P")
@@ -376,7 +350,7 @@ test_that("Latent function definition is correct", {
   augm <- hh_model |>
     add_latent("hidden", func = layer_1 - layer_2 - layer_3) |>
     get_latent("hidden")
-  augm$value |> expect_equal(NA_real_)
+  augm$const |> expect_all_na()
   augm$func |> expect_identical("+")
   augm$func_args[[1]] |>
     expect_identical(c(x = "layer_1|A",
@@ -429,7 +403,7 @@ test_that("Symbolic definitions are equivalent", {
       )
     )
 
-  get_latent(hh_model_2, "hidden")$value |>
+  get_latent(hh_model_2, "hidden")$const |>
     expect_equal(external_value)
   get_latent(hh_model_2, "hidden_2")$func |>
     expect_identical("log")
@@ -512,7 +486,7 @@ test_that("Nested latent definitions raise errors", {
   hh_model |>
     add_latent(layer_2 = list(model = "uniform"),
                layer_1 = list(model = "uniform", status = 1),
-               layer_1 = list(value = layer_2, status = c(2, 3, 4)),
+               layer_1 = list(func = layer_2, status = c(2, 3, 4)),
                hidden = layer_1) |>
     evaluate_log_lik() |>
     expect_all_finite()
@@ -533,7 +507,7 @@ test_that("Nested latent definitions raise errors", {
   hh_model |>
     add_latent(layer_2 = list(model = "lognormal", status = 2),
                layer_1 = list(model = "normal", status = 1),
-               layer_1 = list(value = layer_2, status = 2),
+               layer_1 = list(func = layer_2, status = 2),
                hidden = layer_1) |>
     evaluate_log_lik() |>
     expect_error("[Nn]o.*definition.*status")
@@ -542,7 +516,7 @@ test_that("Nested latent definitions raise errors", {
   hh_model |>
     add_latent(layer_2 = list(model = "lognormal", status = c(2, 3)),
                layer_1 = list(model = "normal", status = 1),
-               layer_1 = list(value = layer_2, status = c(2, 3, 4)),
+               layer_1 = list(func = layer_2, status = c(2, 3, 4)),
                hidden = layer_1,
                append = FALSE) |>
     evaluate_log_lik() |>
@@ -605,11 +579,11 @@ test_that("Column reads inherit the discretization of their column", {
                      datum_2 = rep(c(3.5, 5.5), 2),
                      status = 1) |>
     new_housepi_model("test") |>
-    add_latent(hidden = list(model = "normal", value = datum),
-               hidden_2 = list(model = "normal", value = datum_2)) |>
+    add_latent(hidden = list(model = "normal", const = datum),
+               hidden_2 = list(model = "normal", const = datum_2)) |>
     get_latent()
 
-  augm$value |> expect_identical(c("datum|D", "datum_2|D"))
+  augm$const |> expect_identical(c("datum|D", "datum_2|D"))
   # the date column is discrete, the double one is not
   augm$discr |> expect_identical(c(TRUE, FALSE))
 })
@@ -626,10 +600,9 @@ test_that("Observation definitions are encoded", {
     ) |>
     get_observations()
 
-  # marked as observation, data-bound and constant (never sampled)
+  # marked as observation, data-bound and never sampled
   obs[["level"]] |> expect_identical("member")
-  obs[["const"]] |> expect_true()
-  obs[["value"]] |> expect_identical("record|D")
+  obs[["const"]] |> expect_null()
   obs[["proposal"]] |> expect_all_na()
   # distribution carries the observation arguments
   obs[["model"]] |> expect_identical("normal")
@@ -644,7 +617,6 @@ test_that("Observation definitions are encoded", {
 
   obs[["level"]] |> expect_identical("member")
   obs[["model"]] |> expect_all_na()
-  obs[["value"]] |> expect_all_na()
   obs[["func"]] |> expect_match("floor")
 })
 
@@ -655,22 +627,26 @@ test_that("Observation node rejects conflicting options", {
                    "[Ii]gnored.*const.*proposal")
     get_observations(hh_model)
   }
-  obs <- ignored("record", model = "normal", const = FALSE,
+  obs <- ignored("record", model = "normal", const = 3,
                  proposal = "forward")
-  obs[["const"]] |> expect_true()
+  obs[["const"]] |> expect_null()
   obs[["proposal"]] |> expect_all_na()
 
   # a deterministic observation drops them alike
   obs <- ignored(record_2 = list(func = min(datum_2), status = 1,
-                                 const = TRUE, proposal = "rw"))
+                                 const = 3, proposal = "rw"))
   obs[["func"]] |> expect_identical("min")
-  obs[["const"]] |> expect_false()
+  obs[["const"]] |> expect_null()
   obs[["proposal"]] |> expect_all_na()
 
   # a decorator carrying no definition at all
   mk_latent$model |>
     add_observation() |>
     expect_error("[Mm]issing or empty observation definitions")
+  # an entry with neither model nor function
+  mk_latent$model |>
+    add_observation(record = list(status = 1)) |>
+    expect_error("[Ii]ncomplete definition for observation .record.")
 })
 
 test_that("Household observations reject a distribution", {
@@ -756,7 +732,7 @@ test_that("A name is declared under a single kind", {
 
   # a leading dot is reserved to the definitions housepi generates itself
   hh_model |>
-    add_latent(.status = list(value = 1, const = TRUE)) |>
+    add_latent(.status = list(const = 1)) |>
     expect_error("cannot start with a dot")
 
   # siblings of one kind stay legal: statuses of the same name, and overwrites
@@ -824,7 +800,7 @@ test_that("Level is set per definition, the argument being the bulk default", {
 
   # 'level' is meaningless outside observations
   mk_latent$model |>
-    add_latent(hidden = list(value = 1, level = "house")) |>
+    add_latent(hidden = list(const = 1, level = "house")) |>
     expect_error("reserved to observations")
 })
 
@@ -899,7 +875,7 @@ test_that("A missing observation leaves the likelihood", {
   mk <- function(x) {
     data.frame(id = c("m1", "m2"), hh_id = "h1", status = 1, record = x) |>
       new_housepi_model("test") |>
-      add_latent("hidden", value = 0.5) |>
+      add_latent("hidden", const = 0.5) |>
       add_observation("record", model = "uniform", loc = hidden,
                       min = -0.4, max = 0.4)
   }
@@ -941,7 +917,7 @@ test_that("A missing observation leaves the likelihood", {
   data.frame(id = c("m1", "m2"), hh_id = "h1",
              status = c(1, 2), record = c(NA, 0.5)) |>
     new_housepi_model("test") |>
-    add_latent("hidden", value = 0.5) |>
+    add_latent("hidden", const = 0.5) |>
     add_observation(record = list(model = "uniform", loc = hidden,
                                   min = -0.4, max = 0.4, status = 2)) |>
     evaluate_log_lik() |>
@@ -1010,27 +986,9 @@ test_that("Reading an observation in models and loops are rejected", {
   # depends on the reader) is circular
   data.frame(hh_id = "h1", status = 1, record = 0.5) |>
     new_housepi_model("test") |>
-    add_latent("hidden", value = record) |>
+    add_latent("hidden", func = record) |>
     add_observation("record", model = "uniform", min = hidden, max = 10) |>
     expect_error("[Cc]yclic")
-})
-
-test_that("A simulation override (value + model) rejects observation reads", {
-  hh_model <- data.frame(hh_id = "h1", status = 1, record = 0.5) |>
-    new_housepi_model("test") |>
-    add_observation("record", model = "uniform", min = 0, max = 1)
-
-  # the override is applied before the observation is generated
-  hh_model |>
-    add_latent("hidden", model = "normal", value = record) |>
-    expect_error("[Ss]imulation override.*observation")
-
-  # a deterministic readout does not make the observation available any earlier,
-  # so the same read one hop away is rejected too
-  hh_model |>
-    add_latent(layer_1 = record,
-               hidden = list(model = "normal", value = layer_1)) |>
-    expect_error("[Ss]imulation override.*record.*through.*layer_1")
 })
 
 test_that("A surrogate column reading latent is simulation only", {
@@ -1060,10 +1018,10 @@ test_that("A surrogate observation overwrites the corresponding data column", {
                          datum_2 = c(2, 6, NA), record_2 = rep(99, 3)) |>
     new_housepi_model("test") |>
     add_observation(
-      record_2 = list(value = min(datum_2), level = "house"),
+      record_2 = list(func = min(datum_2), level = "house"),
       record_3 = datum_2 + 1
     ) |>
-    add_latent(hidden = list(value = record_3 * 2))
+    add_latent(hidden = list(func = record_3 * 2))
 
   # the data view reports the derived value before evaluation
   unique(get_data_wide(hh_model)[["record_2"]]) |> expect_identical(2)
@@ -1095,7 +1053,7 @@ test_that("Surrogate columns of both levels build in dependency order", {
   hh_model <- hhdata |>
     new_housepi_model("test") |>
     add_observation(record = datum + 3,
-                    record_2 = list(value = max(record), level = "house"))
+                    record_2 = list(func = max(record), level = "house"))
 
   # every member carries a value regardless of status
   hhdata_2 <- get_data_wide(hh_model)
@@ -1117,7 +1075,7 @@ test_that("Reading only house observations casts member level to house", {
                        record_4 = 0, record_5 = 0, record_6 = 0)
   hh_model <- hhdata |>
     new_housepi_model("test") |>
-    add_observation(record = list(value = max(datum), level = "house"),
+    add_observation(record = list(func = max(datum), level = "house"),
                     record_2 = record + 1,
                     record_3 = record_2 * 2,
                     record_4 = datum + 1, # <- member level
@@ -1145,7 +1103,7 @@ test_that("A household reduction folds its argument over the members", {
   reduce <- function(defin, data = hhdata) {
     data |>
       new_housepi_model("test") |>
-      add_observation("record", value = !!defin, level = "house") |>
+      add_observation("record", func = !!defin, level = "house") |>
       get_data_wide() |>
       getElement("record") |>
       unique()
@@ -1187,7 +1145,7 @@ test_that("A household observation with no datum yet reads as NA", {
     new_housepi_model("case-ascertained") |>
     add_observation(
       onset_date = list(model = "normal", discr = TRUE, mean = 3, sd = 1),
-      end_date = list(value = max(onset_date), level = "house")
+      end_date = list(func = max(onset_date), level = "house")
     ) |>
     get_data_wide()
 
@@ -1204,7 +1162,7 @@ test_that("A surrogate column proves the requirement its model asks", {
                hh_id = c("h1", "h1", "h2", "h2"),
                status = c(1, 0, 1, 0), datum = 0.5, datum_2 = 16) |>
       new_housepi_model("case-ascertained") |>
-      add_observation("end_date", value = !!defin, level = level) |>
+      add_observation("end_date", func = !!defin, level = level) |>
       get_data_wide()
   }
 
@@ -1268,7 +1226,7 @@ test_that("Mixing integer and character status declarations is rejected", {
     add_latent(
       incub_period = list(model = "gamma", shape = 2, scale = 1,
                           status = "symptomatic"),
-      onset = list(value = 1, status = 1)
+      onset = list(const = 1, status = 1)
     ) |>
     evaluate_log_lik() |>
     expect_error("[Mm]ix")
@@ -1404,34 +1362,22 @@ test_that("Latent definitions are integrated in simulations", {
     expect_all_true()
 })
 
-test_that("A value paired with model overrides the draw in simulations only", {
-  hh_model <- data.frame(id = seq_len(100), hh_id = 1,
-                         status = 1, datum = 7, obs = 0) |>
-    new_housepi_model("test") |>
-    add_latent("hidden", model = "uniform", max = 100, value = datum) |>
-    helper_flat_sink(loc = hidden)
+test_that("A constant with a model is pinned, its density kept", {
+  mk <- function(max) {
+    data.frame(id = c("m1", "m2"), hh_id = "h1", status = 1, datum = 7,
+               obs = 0) |>
+      new_housepi_model("test") |>
+      add_latent("hidden", model = "uniform", max = !!max, const = datum) |>
+      helper_flat_sink(loc = hidden)
+  }
 
-  # simulation: pins the sampled variable to user value
-  run_simulation(hh_model)$hidden |> expect_all_equal(7)
-
-  # inference: the value does not pin the sampler and draws span the prior
-  draws <- hh_model |>
-    run_inference(steps = 40L, chains = 1L) |>
-    get_latent_draws() |>
-    suppressWarnings()
-  all(draws[["1_hidden"]] == 7) |> expect_false()
-
-  # a pin composed on another latent binds live: the relation holds member by
-  # member, and follows the draw rather than collapsing to a single value
-  simulated <- data.frame(id = seq_len(100), hh_id = 1,
-                          status = 1, datum = 7) |>
-    new_housepi_model("test") |>
-    add_latent(layer_1 = list(model = "gamma", shape = 2, scale = 1),
-               hidden = list(model = "uniform", max = 100,
-                             value = datum - layer_1)) |>
-    run_simulation()
-  simulated$hidden |> expect_equal(7 - simulated$layer_1)
-  length(unique(simulated$layer_1)) |> expect_gt(1)
+  # simulation reads the pin
+  run_simulation(mk(100))$hidden |> expect_all_equal(7)
+  # inference reads the density at the pin, one term per member
+  (evaluate_log_lik(mk(50)) - evaluate_log_lik(mk(100))) |>
+    expect_equal(2 * log(2))
+  # the bounds truncate the density
+  evaluate_log_lik(mk(5)) |> expect_equal(-Inf)
 })
 
 test_that("A latent without a model is one transmission generates", {
@@ -1446,7 +1392,7 @@ test_that("A latent without a model is one transmission generates", {
     expect_error("generated by the transmission model")
 })
 
-test_that("Bounds of a flat latent read neither draws nor free parameters", {
+test_that("Bounds of a bare latent read neither draws nor free parameters", {
   # a free parameter moves the bound with each draw
   mk_outbreak$model |>
     add_parameter(window = list(prior = "uniform", min = 1, max = 30)) |>
@@ -1479,7 +1425,7 @@ test_that("Bounds of a flat latent read neither draws nor free parameters", {
   get_log_lik_draws(results)$h1 |> expect_all_finite()
 })
 
-test_that("A flat latent is set by transmission, from the introduction on", {
+test_that("A bare latent is set by transmission, from the introduction on", {
   # transmission sets every infection, the introduction at the time origin
   # a reader follows the time transmission sets
   simulated <- mk_outbreak$model |>
@@ -1492,62 +1438,6 @@ test_that("A flat latent is set by transmission, from the introduction on", {
   any(simulated$infec_time > 0) |> expect_true()
   infected <- !is.na(simulated$infec_time)
   simulated$record[infected] |> expect_equal(simulated$infec_time[infected] + 1)
-})
-
-test_that("A simulation override orders its producers per run", {
-  hh_model <- data.frame(id = sprintf("m%s", 1:4), hh_id = "h1",
-                         status = 1, obs = 0) |>
-    new_housepi_model("test")
-
-  # simulation: hidden reads layer_1 through the value
-  # inference: layer_1 reads hidden through the model
-  # neither run closes a loop
-  hh_model_2 <- hh_model |>
-    add_latent(hidden = list(model = "normal", value = layer_1),
-               layer_1 = list(model = "normal", mean = hidden, sd = 1,
-                              value = 5)) |>
-    helper_flat_sink(loc = hidden + layer_1)
-  results <- run_simulation(hh_model_2)
-  results$hidden |> expect_all_equal(5)
-  results$layer_1 |> expect_all_equal(5)
-  draws <- hh_model_2 |>
-    run_inference(steps = 40L, chains = 1L) |>
-    get_latent_draws() |>
-    suppressWarnings()
-  all(draws[["m1_layer_1"]] == 5) |> expect_false()
-
-  # a support bound read by the model is an inference edge too
-  results <- hh_model |>
-    add_latent(hidden = list(model = "normal", value = layer_1),
-               layer_1 = list(model = "uniform", min = hidden - 1,
-                              max = hidden + 1, value = 2)) |>
-    helper_flat_sink(loc = hidden + layer_1) |>
-    run_simulation()
-  results$hidden |> expect_all_equal(2)
-
-  # simulation draws layer_2 before hidden reads it through the pin layer_1
-  # inference orders hidden before layer_2
-  results <- hh_model |>
-    add_latent(layer_1 = list(model = "normal", value = layer_2),
-               hidden = list(model = "normal", mean = layer_1, sd = 1e-3),
-               layer_3 = list(model = "normal", mean = hidden, sd = 1,
-                              value = 50),
-               layer_2 = list(model = "normal", mean = layer_3, sd = 1)) |>
-    helper_flat_sink(loc = hidden) |>
-    run_simulation()
-  (abs(results$hidden - results$layer_2) < 0.01) |> expect_all_true()
-
-  # a loop closed in simulation only
-  hh_model |>
-    add_latent(hidden = list(model = "normal", value = hidden_2),
-               hidden_2 = list(model = "normal", mean = hidden, sd = 1)) |>
-    expect_error("[Cc]yclic.*hidden.*[Ss]imulation reads the value")
-
-  # a loop closed in inference only
-  hh_model |>
-    add_latent(hidden = list(model = "normal", mean = hidden_2, value = 3),
-               hidden_2 = list(model = "normal", mean = hidden, sd = 1)) |>
-    expect_error("[Cc]yclic.*hidden")
 })
 
 test_that("Latent traces export only relevant variables", {
@@ -1763,7 +1653,7 @@ test_that("Observation-aware initialization", {
   # generic error
   hhdata |>
     new_housepi_model("test") |>
-    add_parameter("rho", value = 0.3) |>
+    add_parameter("rho", const = 0.3) |>
     add_latent("hidden", model = "uniform") |>
     add_observation("record", model = "uniform", min = -rho, max = rho) |>
     run_inference() |>
@@ -1781,7 +1671,7 @@ test_that("An unbounded observation density stops the run", {
                       loc = hidden)
   }
 
-  mk(value = 5) |>
+  mk(const = 5) |>
     evaluate_log_lik() |>
     expect_error("[Ll]og-likelihood is infinite")
 
@@ -1856,7 +1746,7 @@ test_that("Simulated columns carry the discretization of their definition", {
     add_observation(
       record = list(model = "normal", discr = TRUE, mean = hidden, sd = 1),
       record_2 = list(model = "normal", mean = hidden, sd = 1),
-      record_3 = list(value = min(record), level = "house")
+      record_3 = list(func = min(record), level = "house")
     )
 
   simulated <- run_simulation(hh_model)
@@ -1919,7 +1809,7 @@ test_that("A bare observation name reads its column in a house reduction", {
     add_data_wide(dplyr::select(mk_outbreak$data, -test_date)) |>
     add_observation(
       test_date = list(model = "normal", mean = infec_time + incub_period),
-      start_date = list(value = min(test_date), level = "house")
+      start_date = list(func = min(test_date), level = "house")
     ) |>
     run_simulation()
 
@@ -1944,9 +1834,9 @@ test_that("A household-bound member observation bounds every member", {
     ) |>
     add_observation(
       test_date = list(model = "normal", mean = infec_time + incub_period),
-      start_date = list(value = min(test_date), level = "house"),
+      start_date = list(func = min(test_date), level = "house"),
       end_date = start_date + 21,
-      start_date_2 = list(value = min(test_date + 1), level = "house")
+      start_date_2 = list(func = min(test_date + 1), level = "house")
     ) |>
     run_simulation()
 
@@ -1980,7 +1870,7 @@ test_that("Observation cyclic dependencies are captured", {
     add_latent(hidden = list(model = "lognormal"),
                hidden_2 = list(model = "uniform", max = record_2)) |>
     add_observation(record = list(model = "normal", mean = hidden, sd = 1)) |>
-    add_observation("record_2", value = min(record), level = "house") |>
+    add_observation("record_2", func = min(record), level = "house") |>
     run_simulation() |>
     expect_error("cyclic dependency")
 })
@@ -2074,7 +1964,7 @@ test_that("A household reduction folds a latent over the members", {
 
   # a latent outside any reduction has no household value
   hh_model |>
-    add_observation("record_2", value = hidden + 0, level = "house") |>
+    add_observation("record_2", func = hidden + 0, level = "house") |>
     run_simulation() |>
     expect_error("[Pp]er-member latent .hidden. is read outside a reduction")
 })
@@ -2186,22 +2076,6 @@ test_that("A latent reads a static data-bound household observation", {
   (record >= 4 & record <= 5) |> expect_all_true()
 })
 
-test_that("Simulation rejects a latent reading a live household observation", {
-  # simulation value of infec_time depends on start_date,
-  # but start_date is consumer of test_date: cycle get rejected
-  mk_outbreak$model |>
-    add_data_wide(dplyr::select(mk_outbreak$data, -test_date)) |>
-    add_latent(
-      infec_time = list(value = start_date - 1, min = start_date - 5,
-                        max = start_date + 5, proposal = "rw"),
-      append = FALSE
-    ) |>
-    add_observation("test_date", model = "normal", mean = infec_time, sd = 1) |>
-    add_observation(start_date = min(test_date), level = "house") |>
-    run_simulation() |>
-    expect_error("[Cc]yclic")
-})
-
 test_that("Data-bound household observation supplies a required data column", {
   # the dates of the dataset itself, where end_date is 21 days after the first
   # test date
@@ -2279,10 +2153,10 @@ test_that("Status-specific blocks alone cover every drawn status", {
 
   # every declared status carries its own block, so no generic one is needed
   covered <- mk(
-    infec_time = list(value = 0, status = 1),
+    infec_time = list(const = 0, status = 1),
     incub = list(model = "gamma", mean = 2, sd = 1, max = 14, status = 1),
     onset = list(func = infec_time + incub, status = 1),
-    infec_time = list(value = 0, status = 2),
+    infec_time = list(const = 0, status = 2),
     incub = list(model = "gamma", mean = 3, sd = 1, max = 14, status = 2),
     onset = list(func = infec_time + incub, status = 2)
   )
@@ -2292,7 +2166,7 @@ test_that("Status-specific blocks alone cover every drawn status", {
   # generic definition the model never had to declare. Every infected member
   # draws that status, so the report does not depend on how the draw falls
   uncovered <- mk(
-    infec_time = list(value = 0, status = 1),
+    infec_time = list(const = 0, status = 1),
     incub = list(model = "gamma", mean = 2, sd = 1, max = 14, status = 1),
     onset = list(func = infec_time + incub, status = 1),
     weights = c(0, 1)

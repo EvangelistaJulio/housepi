@@ -7,10 +7,9 @@
 add_latent(
   hh_model,
   name = NULL,
-  value = NULL,
   ...,
   status = NA_integer_,
-  const = NA,
+  const = NULL,
   discr = NA,
   func = NULL,
   model = NA_character_,
@@ -26,15 +25,6 @@ add_latent(
 
 \item{name}{\code{character(1)} Name used by internal calls.}
 
-\item{value}{\code{numeric(1)} | \code{character(1)}
-Value the definition is pinned to in simulations.
-In inference, it pins a constant or deterministic definition,
-and is ignored when the latent is sampled, with a \code{model} or a \code{proposal}. Either a plain value, the name of another definition,
-or an arithmetic expression combining them.
-A name is looked up among the latent variables, data columns, observations,
-group risks and parameters the model carries.
-Two of them sharing a name cannot be read.}
-
 \item{...}{Named arguments for the model distribution, or for \code{func} when the definition is deterministic.
 Advanced Monte Carlo options may also be passed through \code{...},
 each prefixed \code{proposal_}.
@@ -44,20 +34,29 @@ If a positive number, it is fixed and never adapted.
 For independence sampling from a named distribution,
 the distribution parameters are passed the same way,
 e.g. \code{proposal_mean} and \code{proposal_sd}.
-In mode 'multiple', the \code{name = value} definitions.}
+In mode 'multiple', the \code{name = list()} definitions, or \code{name = x} for \code{const = x} when \code{x} is a number, \code{func = x} otherwise.}
 
 \item{status}{\code{integer(1)} Infected status the definition is specific to.
 If \code{NA}, the definition applies to every infected member.}
 
-\item{const}{\code{logical(1)} Whether the definition is constant.
-If \code{TRUE}, Monte Carlo settings are ignored.}
+\item{const}{\code{numeric(1)} | \code{character(1)}
+Value the definition is pinned to, in inference and simulation.
+Either a number, or a data column, a constant parameter,
+or an arithmetic expression of them.
+Its prior, proposal and bounds are ignored.
+Cannot be combined with \code{func}.
+A latent with a \code{model} keeps its density at that value,
+truncated by \code{min} and \code{max}.
+A latent the transmission model generates is pinned in inference only:
+simulation sets it.}
 
 \item{discr}{\code{logical(1)} Whether the model definition is discrete, if applicable.
 If \code{NA}, inferred from the model requirements.}
 
-\item{func}{One of:
+\item{func}{Deterministic definition, one of:
 \itemize{
-\item \code{character(1)} Name of a latent function;
+\item \code{character(1)} Name of a latent function, its arguments in \code{...};
+\item a bare name, reading that definition as is;
 \item an rlang expression.
 }}
 
@@ -120,7 +119,8 @@ There are three mutually exclusive definition modes:
 Supply a \code{name} to add a single definition using the explicit arguments;
 }
 \item{multiple}{
-Pass pairs \code{name = list()} (or \code{name = value}) for multiple definitions;
+Pass pairs \code{name = list()} (or the shorthand \code{name = x})
+for multiple definitions;
 }
 \item{import}{
 Pass a pre-built named list of definitions through \code{import}.
@@ -131,11 +131,6 @@ Pass a pre-built named list of definitions through \code{import}.
 A latent with a \code{model} is sampled from it.
 A latent the transmission model generates takes no \code{model},
 such as the infection times of \link{template_case_ascertained}.
-Transmission gives its probability,
-and inference samples it flat within \code{min} and \code{max}.
-In simulation, transmission sets it,
-the first infection of a household included.
-Its definition serves inference only: simulation needs none, and ignores one.
 }
 \examples{
 hh_model <- dummy_household |>

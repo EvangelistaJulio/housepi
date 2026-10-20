@@ -26,11 +26,11 @@ ctr_cell <- function(snapshot, from, to, key = "member") {
 }
 
 # one pinned father-to-mother pair over `mk_house`
-pin_ctr_strata <- function(value = c(0.4, NA), const = c(TRUE, NA), ...) {
+pin_ctr_strata <- function(const = c(0.4, NA), ...) {
   strata <- tibble::tribble(
-    ~from_member, ~to_member, ~param_name,  ~value,   ~const,
-    "father",     "mother",   "ctr_fm",     value[1], const[1],
-    NA,           NA,         ".reference", value[2], const[2]
+    ~from_member, ~to_member, ~param_name,  ~const,
+    "father",     "mother",   "ctr_fm",     const[1],
+    NA,           NA,         ".reference", const[2]
   )
   mk_house$model  |>
     add_contact_risk(strata = strata, ...)
@@ -196,7 +196,7 @@ test_that("Absoluteness follows the reference across every definition mode", {
   # the default prior tracks whether a risk carries absolute values
   risk_prior <- function(...) {
     params <- get_parameters(add_contact_risk(mk_risk$model, ...))
-    unique(params$prior[!params$const])
+    unique(params$prior[is.na(params$const)])
   }
 
   # auto mode: absolute unless a reference is provided
@@ -370,7 +370,7 @@ test_that("Contact risk custom mode default behaves correctly", {
   )
   # a2c overridden as variable, c2a as constant, c2c left to the defaults
   overrides <- list(
-    a2c = list(value = 1, prior = "uniform", min = 1., max = 5.,
+    a2c = list(prior = "uniform", min = 1., max = 5.,
                proposal = "rw", proposal_scale = 0.5),
     c2a = 2.34
   )
@@ -399,8 +399,7 @@ test_that("Contact risk custom mode default behaves correctly", {
   variable$min |> expect_equal(1)
   # overrides as constant
   constant <- get_parameters(hh_model, "c2a")
-  constant$value |> expect_equal(2.34)
-  constant$const |> expect_true()
+  constant$const |> expect_equal(2.34)
 })
 
 test_that("A contact strata row without a param_name is refused", {
@@ -473,8 +472,7 @@ test_that("Custom mode fills the symmetric counterpart of a pair", {
     getElement("name") |>
     expect_setequal(c("a_to_c", "c_to_c"))
   a_to_c <- get_parameters(hh_model, "a_to_c")
-  a_to_c$value |> expect_equal(2)
-  a_to_c$const |> expect_true()
+  a_to_c$const |> expect_equal(2)
 
   # symmetric = FALSE does not fill gaps: child->adult pairs match no rule
   mk_risk$model |>
@@ -775,11 +773,11 @@ test_that("Infected members under different contact rules are kept apart", {
   # M-to-M: reference
   # F-to-F: variable confined to a window too narrow to move the likelihood
   strata <- tibble::tribble(
-    ~from_sex, ~to_sex, ~param_name, ~value, ~const,
-    "M",       "M",     ".reference", NA,    NA,
-    "M",       "F",     "mf",         2,     TRUE,
-    "F",       "M",     "fm",         3,     TRUE,
-    "F",       "F",     "ff",         NA,    NA
+    ~from_sex, ~to_sex, ~param_name, ~const,
+    "M",       "M",     ".reference", NA,
+    "M",       "F",     "mf",         2,
+    "F",       "M",     "fm",         3,
+    "F",       "F",     "ff",         NA
   )
   hhdata <- data.frame(id = c("m1", "m2", "m3", "m4"), hh_id = "h1",
                        status = 1L, sex = c("M", "F", "M", "F"))
@@ -789,7 +787,7 @@ test_that("Infected members under different contact rules are kept apart", {
       add_parameter(alpha = 0.15, beta = 0.2, gamma = 1, hh_size_ref = 4) |>
       add_contact_risk(
         strata = strata,
-        params = list(ff = list(value = ff, prior = "uniform",
+        params = list(ff = list(prior = "uniform",
                                 min = ff - 1e-6, max = ff + 1e-6))
       ) |>
       evaluate_log_lik()
@@ -804,37 +802,27 @@ test_that("Infected members under different contact rules are kept apart", {
   (abs(log_lik(hhdata, ff = 0.5) - ll) > 1e-2) |> expect_true()
 })
 
-test_that("A contact strata value pins the stratum and keeps its prior", {
-  pinned <- pin_ctr_strata(const = c(NA, NA)) |>
-    get_parameters("ctr_fm")
-  pinned$value |> expect_equal(0.4)
-  pinned$const |> expect_false()
-  pinned$prior |> expect_identical("lognormal")
-
-  # a fixed stratum is a constant parameter: it carries no prior
+test_that("A contact strata const pins the stratum, with no prior", {
   hh_model <- pin_ctr_strata()
   fixed <- get_parameters(hh_model, "ctr_fm")
-  fixed$value |> expect_equal(0.4)
-  fixed$const |> expect_true()
+  fixed$const |> expect_equal(0.4)
   fixed$prior |> expect_all_na()
 
-  # the read table keeps the columns typed
-  tidy <- get_contact_risks(hh_model)
-  tidy$value |> expect_type("double")
-  tidy$const |> expect_type("logical")
+  # the read table keeps the column typed
+  get_contact_risks(hh_model)$const |> expect_type("double")
 })
 
 test_that("Invalid contact strata pins are rejected", {
-  # a fixed stratum needs the value it is fixed at
-  pin_ctr_strata(value = rep(NA_real_, 2)) |>
-    expect_error("ctr_fm")
+  # a pin is the value the stratum is fixed at
+  pin_ctr_strata(const = c(TRUE, NA)) |>
+    expect_error("const.*of the strata table must be numeric")
   # an all-NA column pins nothing, whichever type it was written with
-  unpinned <- pin_ctr_strata(value = c(NA, NA), const = c(NA, NA)) |>
+  unpinned <- pin_ctr_strata(const = c(NA, NA)) |>
     get_parameters("ctr_fm")
-  unpinned$const |> expect_false()
+  unpinned$const |> expect_all_na()
   unpinned$prior |> expect_identical("lognormal")
   # the reference is 1 by definition
-  pin_ctr_strata(value = c(0.4, 0.9), const = c(NA, NA)) |>
+  pin_ctr_strata(const = c(0.4, 0.9)) |>
     expect_error("[Rr]eference")
   # a pinned stratum takes no entry in params
   pin_ctr_strata(params = list(ctr_fm = 2)) |>
@@ -842,14 +830,14 @@ test_that("Invalid contact strata pins are rejected", {
   # a stratum spread over two pairs carries a single pin, even when the data
   # carries no grandparent to keep the second pair
   strata <- tibble::tribble(
-    ~from_member, ~to_member,    ~param_name,  ~value,
+    ~from_member, ~to_member,    ~param_name,  ~const,
     "father",     "mother",      "ctr_fm",     0.4,
     "father",     "grandparent", "ctr_fm",     0.9,
     NA,           NA,            ".reference", NA
   )
   mk_house$model  |>
     add_contact_risk(strata = strata) |>
-    expect_error("[Cc]onflicting.*value.*ctr_fm.*rows 1 and 2")
+    expect_error("[Cc]onflicting.*const.*ctr_fm.*rows 1 and 2")
 })
 
 test_that("A symmetric pin reaches the mirrored pair", {

@@ -42,13 +42,6 @@ sweep_base_structure_ <- function(hh_model) {
   data[setdiff(names(data), written)]
 }
 
-#' Simulation value of every parameter, `NA` where it has none.
-#' @noRd
-sweep_pins_ <- function(hh_model) {
-  defs <- get_parameters(hh_model)
-  stats::setNames(defs[["value"]], defs[["name"]])
-}
-
 #' Simulation table: the parameters of `pins` holding a value,
 #' one row per replicate.
 #' * parameter without a column -> drawn from its prior.
@@ -60,12 +53,11 @@ sweep_param_table_ <- function(pins, nrep) {
   table
 }
 
-#' Parameters a check is about: the estimated ones, with a prior and free.
+#' Parameters a check is about: the estimated ones, with a prior.
 #' @noRd
 sweep_estimated_ <- function(hh_model) {
   defs <- get_parameters(hh_model)
-  estimated <- defs[["name"]][!is.na(defs[["prior"]]) &
-                                !defs[["const"]] %in% TRUE]
+  estimated <- defs[["name"]][!is.na(defs[["prior"]])]
   if (!length(estimated)) stop_h(
     "The model holds no parameter to estimate.",
     "The check needs a parameter carrying a prior and free to move."

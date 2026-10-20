@@ -332,9 +332,8 @@ HousepiCalibrationCheck <- R6::R6Class(
       private$houses_ <- sweep_houses_(structure, houses,
                                        is.null(structure_sampler), one = TRUE)
 
-      # an estimated parameter gets no column: simulation draws it anew
-      pins <- sweep_pins_(hh_model)
-      pins <- pins[setdiff(names(pins), private$variables_)]
+      # no column: simulation draws every parameter anew from its prior
+      pins <- numeric()
       fit_args <- list(steps = steps, burn = burn, thin = thin, adapt = adapt,
                        chains = chains)
       swept <- sweep_run_(

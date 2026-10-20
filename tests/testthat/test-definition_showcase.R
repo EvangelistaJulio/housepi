@@ -79,9 +79,9 @@ test_that("Showcase extract args extracts function arguments", {
 
 test_that("Housepi defininition showcaser converts encoded defs to readable", {
   # pure numeric column
-  defs <- data.frame(value = "3|N", stringsAsFactors = FALSE)
+  defs <- data.frame(const = "3|N", stringsAsFactors = FALSE)
   result <- housepi_defin_showcaser(defs)
-  result$value |> expect_equal(3)
+  result$const |> expect_equal(3)
 
   # function column gets split into name + args
   defs <- data.frame(func = "log|x|[alpha|A]", min = "0|N",
