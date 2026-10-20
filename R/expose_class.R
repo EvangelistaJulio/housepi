@@ -689,10 +689,6 @@ add_parameter <- function(hh_model,
 #' A latent with a `model` is sampled from it.
 #' A latent the transmission model generates takes no `model`,
 #' such as the infection times of [template_case_ascertained].
-#' Transmission gives its probability,
-#' and inference samples it flat within `min` and `max`.
-#' In simulation, transmission sets it, except where it does not,
-#' such as the first infection of a household, which takes `value`.
 #' @param hh_model `r rd_model_in_`
 #' @param name `r rd_var_name_`
 #' @param value `r rd_aug_val_`

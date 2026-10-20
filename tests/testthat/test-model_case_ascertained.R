@@ -12,11 +12,7 @@ mk_simulation <- local({
     dplyr::filter(hh_id %in% utils::head(unique(hh_id), 100)) |>
     dplyr::mutate(end_date = 21) |>
     new_housepi_model("case-ascertained") |>
-    add_infectivity_profile(import = "template") |>
-    add_latent(
-      incub_period = list(model = "gamma", shape = 2, scale = 1),
-      infec_time = -incub_period
-    )
+    add_infectivity_profile(import = "template")
   list(model = hh_model)
 })
 
@@ -133,25 +129,27 @@ get_latent_state <- function(latent_draws, index) {
     as.data.frame()
 }
 
-##################################################
-## CASE ASCERTAINED HH MODEL : SIMULATION       ##
-##################################################
+################################################
+##   CASE ASCERTAINED HH MODEL : SIMULATION   ##
+################################################
 
-test_that("Without transmission one random member per household is infected", {
-  report_onset <- function(hhdata) {
-    hhdata$onset_time <- hhdata$infec_time + hhdata$incub_period
-    hhdata
-  }
-  # the introduction is the only case, its onset_time at 0
-  simulated <- mk_simulation$model |>
-    add_parameter(alpha = 1e-12, beta = 0, gamma = 1, hh_size_ref = 4) |>
-    add_reporting_process(report_onset) |>
-    run_simulation()
-  length(unique(simulated$hh_id)) |>
-    expect_identical(sum(simulated$onset_time == 0, na.rm = TRUE))
+test_that("With no transmission only a random household member is infected", {
+  # the introduction is the only case, infected at the time origin
+  # transmission generates `infec_time`: simulation needs no definition
+  hh_model <- mk_simulation$model |>
+    add_parameter(alpha = 1e-12, beta = 0, gamma = 1, hh_size_ref = 4)
+  simulated <- hh_model |> run_simulation()
   infected <- simulated$status > 0
   as.vector(table(simulated$hh_id[infected])) |> expect_all_equal(1L)
+  simulated$infec_time[infected] |> expect_all_equal(0)
 
+  # inference fails without definition
+  nrow(get_latent(hh_model)) |> expect_identical(0L)
+  hh_model |>
+    evaluate_log_lik() |>
+    expect_error("[Mm]issing latent definition.*infec_time")
+
+  # definitions stay unchanged
   # over 100 households the introduction is not always the same member
   member <- ave(seq_along(simulated$hh_id), simulated$hh_id, FUN = seq_along)
   (length(unique(member[infected])) > 1) |> expect_true()
@@ -164,7 +162,6 @@ test_that("A saturated transmission infects every member", {
 
   (simulated$status > 0) |> expect_all_true()
   simulated$infec_time |> expect_no_na()
-  simulated$incub_period |> expect_no_na()
 })
 
 ##################################################

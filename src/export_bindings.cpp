@@ -1356,6 +1356,8 @@ namespace housepi
         MAKE_EXPORT_KEYS(key_Param_discrete, param.discrete_keys())
         MAKE_EXPORT_KEYS(key_Latent_discrete, augm.discrete_keys())
         MAKE_EXPORT_KEYS(key_Data_discrete, data.wide().discrete_keys())
+        // latents the model generates through transmission
+        MAKE_EXPORT_KEYS(key_Latent_transmission, augm.transmission_keys())
 
         /// Baselines the model anchors to risks, keyed by parameter name.
         Rcpp::List risk_anchors(Rcpp::XPtr<MCMC> mcmc_ptr)
@@ -1589,6 +1591,7 @@ RCPP_MODULE(housepi)
     Rcpp::function("key_Latent", &key_Latent);
     Rcpp::function("key_Param_discrete", &key_Param_discrete);
     Rcpp::function("key_Latent_discrete", &key_Latent_discrete);
+    Rcpp::function("key_Latent_transmission", &key_Latent_transmission);
     Rcpp::function("key_Data_discrete", &key_Data_discrete);
     Rcpp::function("risk_anchors", &risk_anchors);
     Rcpp::function("risk_status_stratified", &risk_status_stratified);

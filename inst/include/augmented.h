@@ -66,7 +66,6 @@ namespace housepi
         void clear_all();
         /// Hand member `m` the variables of its status scheme for simulation.
         /// * variable transmission set -> kept;
-        /// * flat latent transmission did not set -> error;
         /// * binding error of the scheme, kept by init_members_for_simulation() -> raised.
         void init_definitions_for_simulation(const Individual &m);
         /// Initialize latent dependencies and models.
@@ -130,6 +129,8 @@ namespace housepi
         const augm::DefTable &def() const noexcept { return def_; }
         /// Sampling schemes of every status, and what definitions produce.
         const augm::Scheme &scheme() const noexcept { return scheme_; }
+        /// Latents the model generates through transmission.
+        std::vector<std::string> transmission_keys() const { return consult(user_transm_vec_); }
 
         /// Variable of latent `a` for member `m`.
         Variable &at(size_t a, const Individual &m) noexcept { return state.of(m).vec[a]; }

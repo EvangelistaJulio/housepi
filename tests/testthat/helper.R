@@ -59,7 +59,11 @@ expect_na_share_ <- function(act, missing) {
 }
 
 # Expect number of row of `object` equal to `n`.
-expect_nrow <- \(object, n) testthat::expect_identical(nrow(object), n)
+expect_nrow <- function(object, n) {
+  testthat::expect_identical(nrow(object), n)
+}
 
 # convert draws to data.frame
-draws_to_frame <- \(x) as.data.frame(posterior::as_draws_matrix(x))
+draws_to_frame <- function(x) {
+  as.data.frame(posterior::as_draws_matrix(x))
+}

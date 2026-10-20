@@ -478,6 +478,11 @@ HousepiGenerator <- R6::R6Class(
       .engine$key_Latent_discrete(private$mcmc_ptr_)
     },
 
+    # `character()` Latent variables the model generates through transmission.
+    latent_transmission = function(value) {
+      .engine$key_Latent_transmission(private$mcmc_ptr_)
+    },
+
     # `character()` Data columns the model requires discrete.
     data_wide_discr_required = function(value) {
       .engine$key_Data_discrete(private$mcmc_ptr_)

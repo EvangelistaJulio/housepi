@@ -14,7 +14,7 @@
 HOUSEPI_OPEN_MODULE_NAMESPACE()
 
 /// Model ascertained cases with augmented infection times and a single introduction per household.
-/// Simulation draws the first infection uniformly among the members.
+/// Simulation infects a member drawn uniformly at the time origin, see ModelBase::set_introduction().
 /// Based on @cite cauchemez_bayesian_2004
 class Model final : public ModelBase
 {
@@ -349,7 +349,7 @@ public:
 #endif
 		//////  Generation 0: single introduction  //////
 
-		const MemberIdx i0 = helper_set_intro(house);
+		const MemberIdx i0 = set_introduction(house, Latent::infec_time);
 		Individual &indiv_0 = house.at(i0);
 
 		//////  Generation 1+: infection by the previous generation  //////
@@ -379,22 +379,6 @@ public:
 			if (!any_at_risk)
 				break;
 		}
-	}
-
-	/// Infect a member drawn uniformly, and set every other member escaped.
-	MemberIdx helper_set_intro(Household &house)
-	{
-		const MemberIdx i0 = uniform() * house.size();
-		Individual &indiv_0 = house.at(i0);
-		set_infected(house, indiv_0);
-		init_missing_latent(indiv_0);
-
-		// every other member escaped
-		for (Individual &indiv : house)
-			if (indiv != indiv_0)
-				set_escaped(house, indiv);
-
-		return i0;
 	}
 
 	/// Instantaneous risk of infection of `indiv_i` at time `t_infec_i`, in simulation.

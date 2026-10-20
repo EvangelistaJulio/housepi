@@ -731,6 +731,20 @@ HousepiModel <- R6::R6Class(
         }
       }
 
+      # transmission sets the latents it generates in simulation:
+      # an undeclared one gets a flat row, whose bounds simulation never reads
+      generated <- setdiff(private$gen_$latent_transmission,
+                           private$augm_$defs[["name"]])
+      if (length(generated)) {
+        declared_augm <- private$augm_$clone(deep = TRUE)
+        on.exit(private$augm_ <- declared_augm, add = TRUE)
+        flat <- rep(list(list(min = 0, max = 1)), length(generated))
+        private$augm_$add_quo_list(
+          convert_list_to_quosures(stats::setNames(flat, generated)),
+          append = TRUE, .kind = "latent"
+        )
+      }
+
       # internal build function
       private$build_full_(steps = nrep, simulating = TRUE, ...)
 

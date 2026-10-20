@@ -16,11 +16,7 @@ mk_outbreak <- local({
   hh_model <- hhdata |>
     new_housepi_model("case-ascertained") |>
     add_infectivity_profile(import = "template") |>
-    add_parameter(alpha = 1e-12, beta = 100, gamma = 1, hh_size_ref = 4) |>
-    add_latent(
-      incub_period = list(model = "gamma", shape = 2, scale = 1),
-      infec_time = -incub_period
-    )
+    add_parameter(alpha = 1e-12, beta = 100, gamma = 1, hh_size_ref = 4)
   list(data = hhdata, model = hh_model)
 })
 

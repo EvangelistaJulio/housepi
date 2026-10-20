@@ -890,10 +890,6 @@ test_that("A status stratum drives simulated transmission", {
     dplyr::mutate(status = NA, end_date = 21) |>
     new_housepi_model("case-ascertained", quiet = TRUE) |>
     add_infectivity_profile(import = "template") |>
-    add_latent(
-      incub_period = list(model = "gamma", shape = 2, scale = 1),
-      infec_time = -incub_period
-    ) |>
     add_status_process(symptomatic = 0.5, asymptomatic = 0.5) |>
     add_group_risk(infectivity = list(
       by = "status", reference = list(status = "symptomatic")

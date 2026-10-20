@@ -19,7 +19,7 @@ mk_outbreak <- local({
     add_parameter(alpha = 1e-12, beta = 100, gamma = 1, hh_size_ref = 4) |>
     add_latent(
       incub_period = list(model = "gamma", shape = 2, scale = 1),
-      infec_time = -incub_period
+      infec_time = list(min = -14, max = end_date)
     )
   list(data = hhdata, model = hh_model)
 })
@@ -1242,6 +1242,7 @@ test_that("A surrogate column proves the requirement its model asks", {
 test_that("Data-bound household observation rejects latent dependence", {
   # a household observation standing in for data resolves from data alone
   mk_outbreak$model |>
+    add_latent("infec_time", min = -14, max = end_date, append = FALSE) |>
     add_observation(start_date = min(test_date) + alpha,
                     level = "house") |>
     evaluate_log_lik() |>
@@ -1478,13 +1479,11 @@ test_that("Bounds of a flat latent read neither draws nor free parameters", {
   get_log_lik_draws(results)$h1 |> expect_all_finite()
 })
 
-test_that("A flat latent is set by transmission, else by its value", {
-  # transmission sets every infection but the first, which the value pins
-  # a reader follows the time transmission sets, not the value pin
+test_that("A flat latent is set by transmission, from the introduction on", {
+  # transmission sets every infection, the introduction at the time origin
+  # a reader follows the time transmission sets
   simulated <- mk_outbreak$model |>
-    add_latent(infec_time = list(value = 0, min = -14, max = end_date,
-                                 proposal = "rw"),
-               append = FALSE) |>
+    add_latent("infec_time", min = -14, max = end_date, append = FALSE) |>
     add_observation(record = infec_time + 1) |>
     run_simulation()
   tapply(simulated$infec_time, simulated$hh_id, min, na.rm = TRUE) |>
@@ -1493,12 +1492,6 @@ test_that("A flat latent is set by transmission, else by its value", {
   any(simulated$infec_time > 0) |> expect_true()
   infected <- !is.na(simulated$infec_time)
   simulated$record[infected] |> expect_equal(simulated$infec_time[infected] + 1)
-
-  # with no model and no value, the first infection has nothing to draw from
-  mk_outbreak$model |>
-    add_latent(infec_time = list(min = -14, max = end_date), append = FALSE) |>
-    run_simulation() |>
-    expect_error("[Nn]o .value. to simulate latent .infec_time.")
 })
 
 test_that("A simulation override orders its producers per run", {
@@ -1947,8 +1940,7 @@ test_that("A household-bound member observation bounds every member", {
     add_parameter(alpha = 1e-3, beta = 0.15, gamma = 1, hh_size_ref = 4) |>
     add_latent(
       incub_period = list(model = "gamma", mean = 2, sd = 1),
-      infec_time = list(value = 0, min = start_date - 8, max = end_date,
-                        proposal = "rw")
+      infec_time = list(min = start_date - 8, max = end_date)
     ) |>
     add_observation(
       test_date = list(model = "normal", mean = infec_time + incub_period),
@@ -2129,6 +2121,7 @@ test_that("Household observations aggregate a data column across members", {
 
   simulated <- mk_outbreak$model |>
     add_data_wide(hhdata) |>
+    add_latent(infec_time = list(min = -14, max = end_date), append = FALSE) |>
     add_observation(
       first_test = min(test_date),
       last_test = max(test_date),
@@ -2173,23 +2166,24 @@ test_that("Simulation leaves overwritten data columns pristine", {
 })
 
 test_that("A latent reads a static data-bound household observation", {
-  # start_date stands in for provided (static) test_date, read by infec_time
+  # start_date stands in for provided (static) test_date, read by incub_period
   simulated <- mk_outbreak$model |>
     add_data_wide(mk_outbreak$data |>
                     dplyr::mutate(test_date = 5, end_date = 26)) |>
     add_latent(
-      infec_time = list(value = start_date - 1, min = start_date - 5,
-                        max = start_date + 5, proposal = "rw"),
+      incub_period = list(model = "uniform", min = start_date - 1,
+                          max = start_date),
+      infec_time = list(min = start_date - 5, max = start_date + 5),
       append = FALSE
     ) |>
     add_observation(start_date = min(test_date), level = "house") |>
+    add_observation(record = incub_period + 0) |>
     run_simulation()
 
-  # start_date is materialized statically (= 5) before the index is pinned
+  # start_date is materialized statically (= 5) before incub_period is drawn
   simulated$start_date |> expect_all_equal(5)
-  tapply(simulated$infec_time, simulated$hh_id, min, na.rm = TRUE) |>
-    as.vector() |>
-    expect_all_equal(4)
+  record <- simulated$record[!is.na(simulated$record)]
+  (record >= 4 & record <= 5) |> expect_all_true()
 })
 
 test_that("Simulation rejects a latent reading a live household observation", {
@@ -2244,6 +2238,7 @@ test_that("Status process drives status-specific latent blocks", {
     # status-specific block: symptomatic incubation is longer
     add_latent(status = "symptomatic",
                incub_period = list(model = "gamma", shape = 8, scale = 1)) |>
+    add_observation(record = incub_period + 0) |>
     add_status_process(symptomatic = 0.5, asymptomatic = 0.5) |>
     run_simulation()
 
@@ -2259,10 +2254,6 @@ test_that("Escaped label is configurable", {
     new_housepi_model("case-ascertained", escaped = "healthy") |>
     add_infectivity_profile(import = "template") |>
     add_parameter(alpha = 1e-12, beta = 0.001, gamma = 1, hh_size_ref = 4) |>
-    add_latent(
-      incub_period = list(model = "gamma", shape = 2, scale = 1),
-      infec_time = -incub_period
-    ) |>
     add_status_process(symptomatic = 0.5, asymptomatic = 0.5) |>
     run_simulation()
 

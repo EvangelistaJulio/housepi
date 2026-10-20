@@ -1983,15 +1983,6 @@ namespace housepi
             if (avar.has_definition())
                 continue;
 
-            // only transmission sets a flat row, which has no block entry
-            if (!block[a].has_definition())
-                msg::stop(
-                    "No " + msg::arg("value") + " to simulate latent " + msg::val(def_[k].name) +
-                    ": it has no model, and transmission did not set it.\nProvide " +
-                    msg::arg("value") + " to set it in simulation." +
-                    "\nCheck " + avar.str() + " for " + mcmc_->data.wide().str(indiv) +
-                    " (status " + std::to_string(indiv.status()) + ").");
-
             avar.swap(block[a]);
             sm.swapped.push_back(a);
         }

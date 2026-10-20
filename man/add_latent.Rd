@@ -133,8 +133,9 @@ A latent the transmission model generates takes no \code{model},
 such as the infection times of \link{template_case_ascertained}.
 Transmission gives its probability,
 and inference samples it flat within \code{min} and \code{max}.
-In simulation, transmission sets it, except where it does not,
-such as the first infection of a household, which takes \code{value}.
+In simulation, transmission sets it,
+the first infection of a household included.
+Its definition serves inference only: simulation needs none, and ignores one.
 }
 \examples{
 hh_model <- dummy_household |>

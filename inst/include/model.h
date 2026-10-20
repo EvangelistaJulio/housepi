@@ -181,6 +181,27 @@ namespace housepi
 		/// Set latent `a` of member `m` to `x`; throw if not allowed.
 		void set_latent_value(size_t a, const Individual &m, double x) { mcmc_->augm.at(a, m).set(x); }
 
+		/// Introduce infection in `house` through latent `a`.
+		/// Set every other member to escaped.
+		/// * member: drawn uniformly;
+		/// * time: the time origin, 0.
+		/// @todo Generalize to user-choices other than uniform.
+		/// @note This procedure is validated by SBC on case-ascertained.
+		/// @return The member introducing the infection.
+		MemberIdx set_introduction(Household &house, size_t a)
+		{
+			const MemberIdx i0 = uniform() * house.size();
+			Individual &indiv_0 = house.at(i0);
+			set_infected(house, indiv_0);
+			set_latent_value(a, indiv_0, 0.);
+			init_missing_latent(indiv_0);
+
+			for (Individual &indiv : house)
+				if (indiv != indiv_0)
+					set_escaped(house, indiv);
+			return i0;
+		}
+
 		/// Initialize the latents and observations of member `indiv`.
 		/// * latent set by the user -> skipped.
 		/// @todo Allow order-dependent assignments in simulation.
