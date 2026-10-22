@@ -16,7 +16,7 @@ recovery <- flu_1918_frederick |>
   check_recovery(data.frame(alpha = 0.15, beta = 0.2, gamma = 1),
                  nrep = 2, houses = 30, progress = FALSE)
 recovery
-recovery$summary
+recovery$summarise()
 }
 \section{Active bindings}{
   \if{html}{\out{<div class="r6-active-bindings">}}
@@ -42,16 +42,6 @@ One row per household count and replicate
 \item{min_ess_bulk}{Smallest bulk effective sample size
 over the parameters of the fit;}
 \item{flagged}{Whether any parameter of the fit was flagged.}
-}}
-
-    \item{\code{summary}}{\code{data.frame}
-Recovery statistics per household count and parameter
-\describe{
-\item{bias, rel_bias}{Mean error, absolute and relative to the truth;}
-\item{rmse}{Root mean squared error;}
-\item{coverage}{Share of replicates whose interval covers the truth;}
-\item{cri_width}{Mean width of the credible interval;}
-\item{nrep, n_flagged}{Replicates aggregated, and those flagged.}
 }}
 
     \item{\code{overview}}{\code{data.frame}
@@ -86,6 +76,8 @@ Distinct warnings raised over the sweep, with their counts.}
 \subsection{Public methods}{
   \itemize{
     \item \href{#method-HousepiRecoveryCheck-initialize}{\code{HousepiRecoveryCheck$new()}}
+    \item \href{#method-HousepiRecoveryCheck-summarise}{\code{HousepiRecoveryCheck$summarise()}}
+    \item \href{#method-HousepiRecoveryCheck-summarize}{\code{HousepiRecoveryCheck$summarize()}}
     \item \href{#method-HousepiRecoveryCheck-print}{\code{HousepiRecoveryCheck$print()}}
     \item \href{#method-HousepiRecoveryCheck-clone}{\code{HousepiRecoveryCheck$clone()}}
   }
@@ -161,6 +153,44 @@ The bar prints as messages, which \code{\link[=suppressMessages]{suppressMessage
       \item{\code{...}}{Advanced configuration.}
     }
     \if{html}{\out{</div>}}
+  }
+}
+
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-HousepiRecoveryCheck-summarise"></a>}}
+\if{latex}{\out{\hypertarget{method-HousepiRecoveryCheck-summarise}{}}}
+\subsection{\code{HousepiRecoveryCheck$summarise()}}{
+  Compute the recovery statistics
+per household count and parameter.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{HousepiRecoveryCheck$summarise()}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Returns}{
+    \code{data.frame}
+\describe{
+\item{bias, rel_bias}{Mean error, absolute and relative to the truth;}
+\item{rmse}{Root mean squared error;}
+\item{coverage}{Share of replicates whose interval covers the truth;}
+\item{cri_width}{Mean width of the credible interval;}
+\item{nrep, n_flagged}{Replicates aggregated, and those flagged.}
+}
+  }
+}
+
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-HousepiRecoveryCheck-summarize"></a>}}
+\if{latex}{\out{\hypertarget{method-HousepiRecoveryCheck-summarize}{}}}
+\subsection{\code{HousepiRecoveryCheck$summarize()}}{
+  Same as \verb{$summarise()}.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{HousepiRecoveryCheck$summarize()}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Returns}{
+    See \verb{$summarise()}.
   }
 }
 

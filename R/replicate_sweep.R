@@ -32,13 +32,14 @@ Beyond `nrep`, the households of each fit share the threads left over."
 #' Status is kept as simulation receives it, drawn anew by transmission.
 #' @noRd
 sweep_base_structure_ <- function(hh_model) {
-  data <- hh_model$data_wide
+  data <- get_data_wide(hh_model)
   if (!NROW(data)) stop_h(
     "No data is attached to the model.",
     paste("The check generates its surveys on the structure of the",
           "attached data: add one with {.fn add_data_wide}.")
   )
-  written <- c(hh_model$observations[["name"]], hh_model$latent[["name"]])
+  written <- c(get_observations(hh_model)[["name"]],
+               get_latent(hh_model)[["name"]])
   data[setdiff(names(data), written)]
 }
 
@@ -263,7 +264,7 @@ sweep_fit_wave_ <- function(hh_model, wides, reps, houses, seeds, fit_args,
 #' Build the fit of one survey: its model and engine.
 #' @noRd
 sweep_prepare_one_ <- function(simulated, seed, hh_model, fit_args) {
-  kept <- setdiff(names(simulated), hh_model$latent[["name"]])
+  kept <- setdiff(names(simulated), get_latent(hh_model)[["name"]])
   model <- add_data_wide(hh_model, simulated[kept])
   ptr <- do.call(prepare_inference_, c(list(model), fit_args, seed = seed))
   list(model = model, ptr = ptr)

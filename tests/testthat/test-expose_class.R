@@ -388,11 +388,10 @@ test_that("Contact risk wrapper input branches", {
   # the wrapper returns a new model, leaving its input untouched
   hh_model <- mk_member$model |>
     add_contact_risk(strata = strata, params = list(ctr_student = 1.21))
-  mk_member$model$contact_risks |> expect_nrow(0L)
+  get_contact_risks(mk_member$model) |> expect_nrow(0L)
   nrow(get_contact_risks(hh_model)) |> expect_gt(0L)
   # the rebuilt parameter is exposed on the returned model
   ("ctr_student" %in% get_parameters(hh_model)$name) |> expect_true()
-  get_contact_risks(hh_model) |> expect_identical(hh_model$contact_risks)
 
   # second call warns about overwrite
   hh_model |>

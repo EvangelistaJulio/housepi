@@ -147,12 +147,12 @@ test_that("Spurious names of imported definitions are dropped", {
 test_that("A new profile overwrites the previous one", {
   hh_model <- mk_infec$model |>
     add_infectivity_profile(func = "gamma", shape = 2, scale = 1)
-  hh_model$infectivity_profiles$func |> expect_identical("gamma")
+  get_infectivity_profiles(hh_model)$func |> expect_identical("gamma")
   expect_warning(
     hh_model <- add_infectivity_profile(hh_model, func = "lognormal"),
     regexp = "Overwriting"
   )
-  hh_model$infectivity_profiles$func |> expect_identical("lognormal")
+  get_infectivity_profiles(hh_model)$func |> expect_identical("lognormal")
 })
 
 test_that("The domain minimum defaults to the first transmission day", {

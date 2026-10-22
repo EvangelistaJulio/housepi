@@ -113,12 +113,12 @@ The last row is the count of the equivalence classes, i.e. households that are i
 model (same size, statuses, risks, etc).
 The likelihood is then evaluated just once per class, and multiplied by the number of class members.
 
-At any moment we can re-export the full data by calling `$data_wide`.
+At any moment we can re-export the full data with `get_data_wide()`.
 
 ```{r}
 #| label: import-data
 # data was associated to the model at construction above
-head(hh_model$data_wide)
+head(get_data_wide(hh_model))
 ```
 
 # A collection of models

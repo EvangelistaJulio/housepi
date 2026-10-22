@@ -380,7 +380,8 @@ HousepiPredictiveCheck <- R6::R6Class(
       m_long <- list()
       if (!is.null(measures_long)) m_long <- list(measures_long)
 
-      if (length(m_long) && is.null(hh_model$reporting_process$long)) stop_h(
+      reporting <- get_reporting_process(hh_model)
+      if (length(m_long) && is.null(reporting$long)) stop_h(
         "Measures on {.code data_long} need a long reporting process.",
         "Add one with {.code add_reporting_process(long = )}."
       )
@@ -392,7 +393,7 @@ HousepiPredictiveCheck <- R6::R6Class(
       apply_wide <- NULL
       if (length(m_wide)) {
         observations <- c(
-          observations, lapply(m_wide, \(func) func(hh_model$data_wide))
+          observations, lapply(m_wide, \(func) func(get_data_wide(hh_model)))
         )
         apply_wide <- \(x) lapply(m_wide, \(func) func(x))
       }
@@ -400,7 +401,7 @@ HousepiPredictiveCheck <- R6::R6Class(
       apply_long <- NULL
       if (length(m_long)) {
         observations <- c(
-          observations, lapply(m_long, \(func) func(hh_model$data_long))
+          observations, lapply(m_long, \(func) func(get_data_long(hh_model)))
         )
         apply_long <- \(x) lapply(m_long, \(func) func(x))
       }
@@ -582,7 +583,7 @@ helper_combine_obs_pred <- function(obsdf, preddf) {
 #' results <- run_inference(hh_model, chains = 2, progress = FALSE)
 #'
 #' ppc <- check_predictive(hh_model, results, nrep = 50, progress = FALSE)
-#' ppc$formatted_attack_rate
+#' ppc$format_attack_rate()
 #' @docType class
 HousepiEpiPredictiveCheck <- R6::R6Class(
   classname = "HousepiEpiPredictiveCheck",
@@ -608,73 +609,6 @@ HousepiEpiPredictiveCheck <- R6::R6Class(
       if (!is.na(private$max_hh_size_))
         df <- df[df$hh_size <= private$max_hh_size_, ]
       df
-    }
-  ),
-
-  ####  Active  ####
-
-  active = list(
-    #' @field formatted_attack_rate `data.frame`
-    #' Observed and predicted attack rates by household size.
-    #' Sizes outside the set household size bounds are not returned.
-    formatted_attack_rate = function(value) {
-      assert_read_only_(value, "formatted_attack_rate")
-      # convert internal list to data.frame
-      output <- data.frame(
-        hh_size = self$attack_rate$observed$hh_size,
-        observed = self$attack_rate$observed$ar,
-        predicted = self$attack_rate$predicted$ar,
-        cri_lower = self$attack_rate$cri_lower$ar,
-        cri_upper = self$attack_rate$cri_upper$ar,
-        counts = private$house_counts_$total[
-          match(self$attack_rate$observed$hh_size,
-                private$house_counts_$hh_size)
-        ]
-      )
-      # filter to household size bounds if applicable
-      private$filter_hh_size_(output)
-    },
-
-    #' @field formatted_sec_attack_rate `data.frame`
-    #' Observed and predicted secondary attack rates by household size.
-    #' Sizes outside the set household size bounds are not returned.
-    formatted_sec_attack_rate = function(value) {
-      assert_read_only_(value, "formatted_sec_attack_rate")
-      # convert internal list to data.frame
-      output <- data.frame(
-        hh_size = self$sec_attack_rate$observed$hh_size,
-        observed = self$sec_attack_rate$observed$sar,
-        predicted = self$sec_attack_rate$predicted$sar,
-        cri_lower = self$sec_attack_rate$cri_lower$sar,
-        cri_upper = self$sec_attack_rate$cri_upper$sar,
-        counts = private$house_counts_$at_least_1_case[
-          match(self$sec_attack_rate$observed$hh_size,
-                private$house_counts_$hh_size)
-        ]
-      )
-      # filter to household size bounds if applicable
-      private$filter_hh_size_(output)
-    },
-
-    #' @field formatted_cases_count `data.frame`
-    #' Formatted observed and predicted cases by household size.
-    #' Sizes outside the set household size bounds are not returned.
-    formatted_cases_count = function(value) {
-      assert_read_only_(value, "formatted_cases_count")
-      # filter according to household size bounds
-      cases <- helper_filter_tables(self$cases_count,
-                                    private$min_hh_size_, private$max_hh_size_)
-
-      # empty frame as a placeholder for Credible Interval
-      na_df <- cases$observed
-      na_df[] <- lapply(na_df, \(col) if (is.numeric(col)) NA else col)
-      na_df$hh_size <- cases$observed$hh_size
-
-      list(
-        predicted = helper_combine_obs_pred(cases$observed, cases$predicted),
-        cri_lower = helper_combine_obs_pred(na_df, cases$cri_lower),
-        cri_upper = helper_combine_obs_pred(na_df, cases$cri_upper)
-      )
     }
   ),
 
@@ -710,7 +644,7 @@ HousepiEpiPredictiveCheck <- R6::R6Class(
       # * no wide reporting process, no custom measure -> frames stay
       #   engine-coded, the relabelling skipped once per replicate.
       esc <- hh_model$escaped
-      private$labelled_ <- !is.null(hh_model$reporting_process$wide) ||
+      private$labelled_ <- !is.null(get_reporting_process(hh_model)$wide) ||
         length(list(...))
 
       # initialize parent class HousepiPredictiveCheck
@@ -723,7 +657,7 @@ HousepiEpiPredictiveCheck <- R6::R6Class(
         nrep = nrep, thin_ess = thin_ess,
         threads = threads, progress = progress
       )
-      private$house_counts_ <- helper_house_counts(hh_model$data_wide, esc)
+      private$house_counts_ <- helper_house_counts(get_data_wide(hh_model), esc)
       self$set_min_hh_size(min_hh_size)
       self$set_max_hh_size(max_hh_size)
 
@@ -756,6 +690,68 @@ HousepiEpiPredictiveCheck <- R6::R6Class(
     drop_max_hh_size = function() {
       self$set_max_hh_size(NA_integer_)
       invisible(self)
+    },
+
+    #' @description Format observed and predicted attack rates
+    #' by household size.
+    #' Sizes outside the set household size bounds are not returned.
+    #' @return `data.frame`
+    format_attack_rate = function() {
+      # convert internal list to data.frame
+      output <- data.frame(
+        hh_size = self$attack_rate$observed$hh_size,
+        observed = self$attack_rate$observed$ar,
+        predicted = self$attack_rate$predicted$ar,
+        cri_lower = self$attack_rate$cri_lower$ar,
+        cri_upper = self$attack_rate$cri_upper$ar,
+        counts = private$house_counts_$total[
+          match(self$attack_rate$observed$hh_size,
+                private$house_counts_$hh_size)
+        ]
+      )
+      # filter to household size bounds if applicable
+      private$filter_hh_size_(output)
+    },
+
+    #' @description Format observed and predicted secondary attack rates
+    #' by household size.
+    #' Sizes outside the set household size bounds are not returned.
+    #' @return `data.frame`
+    format_sec_attack_rate = function() {
+      # convert internal list to data.frame
+      output <- data.frame(
+        hh_size = self$sec_attack_rate$observed$hh_size,
+        observed = self$sec_attack_rate$observed$sar,
+        predicted = self$sec_attack_rate$predicted$sar,
+        cri_lower = self$sec_attack_rate$cri_lower$sar,
+        cri_upper = self$sec_attack_rate$cri_upper$sar,
+        counts = private$house_counts_$at_least_1_case[
+          match(self$sec_attack_rate$observed$hh_size,
+                private$house_counts_$hh_size)
+        ]
+      )
+      # filter to household size bounds if applicable
+      private$filter_hh_size_(output)
+    },
+
+    #' @description Format observed and predicted cases by household size.
+    #' Sizes outside the set household size bounds are not returned.
+    #' @return `list` of `data.frame`: `predicted`, `cri_lower`, `cri_upper`.
+    format_cases_count = function() {
+      # filter according to household size bounds
+      cases <- helper_filter_tables(self$cases_count,
+                                    private$min_hh_size_, private$max_hh_size_)
+
+      # empty frame as a placeholder for Credible Interval
+      na_df <- cases$observed
+      na_df[] <- lapply(na_df, \(col) if (is.numeric(col)) NA else col)
+      na_df$hh_size <- cases$observed$hh_size
+
+      list(
+        predicted = helper_combine_obs_pred(cases$observed, cases$predicted),
+        cri_lower = helper_combine_obs_pred(na_df, cases$cri_lower),
+        cri_upper = helper_combine_obs_pred(na_df, cases$cri_upper)
+      )
     }
   )
 )

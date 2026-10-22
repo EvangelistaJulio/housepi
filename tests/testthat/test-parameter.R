@@ -371,7 +371,7 @@ test_that("Parameter defined as a function tracks its dependencies", {
   draws <- hh_model |>
     run_inference(steps = 100L, chains = 1L, adapt = 0L, thin = 1L) |>
     suppressWarnings() |>
-    getElement("parameter_draws") |>
+    get_parameter_draws() |>
     posterior::as_draws_df() |>
     as.data.frame()
   names(draws) |> expect_contains(c("gamma", "beta"))

@@ -220,7 +220,9 @@ assert_count_ <- function(x, what, allow_na = FALSE) {
 #' @noRd
 helper_read_param_table_ <- function(ptab, thin_ess = TRUE) {
   # extract parameter draws from table
-  if (inherits(ptab, "HousepiPosteriorDraws")) ptab <- ptab$parameter_draws
+  if (inherits(ptab, "HousepiPosteriorDraws")) {
+    ptab <- draws_block_(ptab, "param")
+  }
 
   if (posterior::is_draws(ptab)) {
     ptab <- posterior::as_draws_matrix(ptab)

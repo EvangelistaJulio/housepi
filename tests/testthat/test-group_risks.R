@@ -181,22 +181,22 @@ test_that("Group risks hold without data and re-derive on add_data_wide", {
     add_parameter(import = "template") |>
     # relative: the template's baseline stays free alongside the risk
     add_group_risk("susceptibility", by = "member", reference = ".auto")
-  hh_model$parameters$name |> expect_no_match("^sus_member")
+  get_parameters(hh_model)$name |> expect_no_match("^sus_member")
 
   # attaching data materialises the risk parameters and runs
   hh_model_2 <- add_data_wide(hh_model, mk_flu$data)
-  full_params <- hh_model_2$parameters$name
+  full_params <- get_parameters(hh_model_2)$name
   full_params |> expect_match("^sus_member", all = FALSE)
   evaluate_log_lik(hh_model_2) |> expect_all_finite()
 
   # replacing data re-derives: a single-level subset drops the stale risk params
   hh_model_3 <- add_data_wide(hh_model_2,
                               mk_flu$data[mk_flu$data$member == "student", ])
-  hh_model_3$parameters$name |> expect_no_match("^sus_member")
+  get_parameters(hh_model_3)$name |> expect_no_match("^sus_member")
   evaluate_log_lik(hh_model_3) |> expect_all_finite()
 
   # re-attaching the full data restores the exact original parameter set
-  add_data_wide(hh_model_3, mk_flu$data)$parameters$name |>
+  get_parameters(add_data_wide(hh_model_3, mk_flu$data))$name |>
     expect_setequal(full_params)
 })
 

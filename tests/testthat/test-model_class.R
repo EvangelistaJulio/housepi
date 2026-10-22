@@ -24,11 +24,7 @@ dig_ <- \(hh_model, what, ...) hh_model$.__enclos_env__$private[[what]](...)
 
 test_that("Active fields are read-only", {
   new_housepi_model(model = "test") |>
-    expect_read_only_field(
-      "data_wide", "data_long", "parameters", "latent", "observations",
-      "status_process", "infectivity_profiles", "group_risks", "contact_risks",
-      "reporting_process", "name", "setup", "escaped"
-    )
+    expect_read_only_field("name", "setup", "escaped")
 })
 
 test_that("Escaped label is readable back from the model", {
@@ -133,7 +129,7 @@ test_that("Wide data can be deferred and attached with add_data_wide", {
   # construct without data: no data exposed
   hh_model <- new_housepi_model(model = "final-size") |>
     add_parameter(import = "template")
-  hh_model$data_wide |> expect_null()
+  get_data_wide(hh_model) |> expect_null()
 
   # evaluate_/run_ refuse a data-less model
   hh_model |>
@@ -150,8 +146,8 @@ test_that("Wide data can be deferred and attached with add_data_wide", {
 
   # attach data later: populated and runnable
   hh_model <- add_data_wide(hh_model, flu_1918_frederick)
-  hh_model$data_wide |> expect_s3_class("data.frame")
-  hh_model$data_wide |> expect_nrow(nrow(flu_1918_frederick))
+  get_data_wide(hh_model) |> expect_s3_class("data.frame")
+  get_data_wide(hh_model) |> expect_nrow(nrow(flu_1918_frederick))
   evaluate_log_lik(hh_model) |> expect_all_finite()
 })
 
@@ -189,7 +185,7 @@ test_that("Model class 'test' calls", {
   hh_model <- new_housepi_model(model = "test")
 
   # 'test' default data wide format
-  hh_model$data_wide |> expect_equal(dummy_household)
+  get_data_wide(hh_model) |> expect_equal(dummy_household)
 
   # templates
   add_latent(hh_model, import = "template") |>
@@ -201,7 +197,7 @@ test_that("Model class 'test' calls", {
   # factorization round-trips through a fresh 'test' model
   hhdata <- sarscov2_2021_icofs
   hhdata$datum <- as.Date(runif(nrow(hhdata), max = 100))
-  new_housepi_model(hhdata, "test")$data_wide |> expect_equal(hhdata)
+  get_data_wide(new_housepi_model(hhdata, "test")) |> expect_equal(hhdata)
 
   # not existing household id
   hh_model |>
@@ -311,13 +307,13 @@ test_that("Data long format is correctly handled", {
     expect_error("before wide format")
 
   # correct data long format
-  hhdata <- data.frame(id = hh_model$data_wide$id[1],
+  hhdata <- data.frame(id = get_data_wide(hh_model)$id[1],
                        time = seq(3), measure = seq(3)**3)
   hh_model <- add_data_long(hh_model, hhdata)
   get_data_long(hh_model) |> expect_equal(hhdata)
 
   # inspect_house_state returns refactored data_long when present
-  inspect_house_state(hh_model, hh_model$data_wide$hh_id[1])$data_long |>
+  inspect_house_state(hh_model, get_data_wide(hh_model)$hh_id[1])$data_long |>
     expect_s3_class("data.frame")
 })
 
@@ -385,22 +381,22 @@ test_that("A copy is deep", {
   hh_model_2 <- hh_model$copy()
 
   # data
-  hh_model$data_wide |> expect_identical(hh_model_2$data_wide)
-  hh_model$data_long |> expect_identical(hh_model_2$data_long)
+  get_data_wide(hh_model) |> expect_identical(get_data_wide(hh_model_2))
+  get_data_long(hh_model) |> expect_identical(get_data_long(hh_model_2))
 
   # a copy's setup starts from the default configuration
   hh_model_2$setup |>
     expect_identical(new_housepi_model(house, "final-size")$setup)
 
   # definitions
-  hh_model$parameters |> expect_identical(hh_model_2$parameters)
-  hh_model$latent |> expect_identical(hh_model_2$latent)
-  hh_model$group_risks |> expect_identical(hh_model_2$group_risks)
+  get_parameters(hh_model) |> expect_identical(get_parameters(hh_model_2))
+  get_latent(hh_model) |> expect_identical(get_latent(hh_model_2))
+  get_group_risks(hh_model) |> expect_identical(get_group_risks(hh_model_2))
 
   # changes on the original do not reach the copy
   hh_model <- add_group_risk(hh_model, "susceptibility", by = "member") |>
     suppressWarnings() # suppress baseline collapse warning
-  isTRUE(all.equal(hh_model$group_risks, hh_model_2$group_risks)) |>
+  isTRUE(all.equal(get_group_risks(hh_model), get_group_risks(hh_model_2))) |>
     expect_false()
 })
 
@@ -655,7 +651,7 @@ test_that("Simulation reads undeclared parameters from draws", {
     run_simulation(draws = param_table) |>
     expect_length(2L)
   # the model holds the parameters of the last replicate
-  state <- hh_model |> inspect_house_state(hh_model$data_wide$hh_id[1])
+  state <- hh_model |> inspect_house_state(get_data_wide(hh_model)$hh_id[1])
   unlist(state$parameters[names(param_table)]) |>
     expect_equal(unlist(param_table[2, ]), ignore_attr = TRUE)
   # the table is not declared on the model

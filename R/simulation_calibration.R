@@ -140,7 +140,7 @@ calibration_ecdf_ <- function(estimates, size, threshold) {
 #'   add_parameter(import = "template") |>
 #'   check_calibration(nrep = 2, houses = 30, progress = FALSE)
 #' calibration
-#' calibration$summary
+#' calibration$summarise()
 #' @docType class
 HousepiCalibrationCheck <- R6::R6Class(
   classname = "HousepiCalibrationCheck",
@@ -219,37 +219,6 @@ HousepiCalibrationCheck <- R6::R6Class(
     replicates = function(value) {
       assert_read_only_(value, "replicates")
       private$replicates_
-    },
-
-    #' @field ecdf `data.frame`
-    #' Empirical CDF of the fractional ranks `(rank + 1) / (rank_draws + 1)`
-    #' per parameter, with its simultaneous band
-    #' \describe{
-    #'   \item{z}{Point the ECDF is evaluated at;}
-    #'   \item{ecdf}{Share of the ranks at or below `z`;}
-    #'   \item{lower, upper}{Band the ECDF of uniform ranks stays inside,
-    #'     at every `z` at once, with probability at least 0.95.}
-    #' }
-    ecdf = function(value) {
-      assert_read_only_(value, "ecdf")
-      calibration_ecdf_(private$estimates_, private$rank_draws_,
-                        private$threshold_)
-    },
-
-    #' @field summary `data.frame`
-    #' Uniformity of the ranks per parameter
-    #' \describe{
-    #'   \item{nrep, n_flagged}{Replicates ranked, and those flagged;}
-    #'   \item{log_gamma}{Logarithm of the uniformity statistic,
-    #'     twice the smallest binomial tail probability of the ECDF;}
-    #'   \item{log_gamma_threshold}{Value of `log_gamma` below which
-    #'     uniformity is rejected, at level 0.05;}
-    #'   \item{uniform}{Whether the ranks pass the test.}
-    #' }
-    summary = function(value) {
-      assert_read_only_(value, "summary")
-      calibration_summary_(private$estimates_, private$rank_draws_,
-                           private$threshold_)
     },
 
     #' @field overview `data.frame`
@@ -349,6 +318,40 @@ HousepiCalibrationCheck <- R6::R6Class(
       invisible(self)
     },
 
+    #' @description Test the uniformity of the ranks per parameter.
+    #' @return `data.frame`
+    #' \describe{
+    #'   \item{nrep, n_flagged}{Replicates ranked, and those flagged;}
+    #'   \item{log_gamma}{Logarithm of the uniformity statistic,
+    #'     twice the smallest binomial tail probability of the ECDF;}
+    #'   \item{log_gamma_threshold}{Value of `log_gamma` below which
+    #'     uniformity is rejected, at level 0.05;}
+    #'   \item{uniform}{Whether the ranks pass the test.}
+    #' }
+    summarise = function() {
+      calibration_summary_(private$estimates_, private$rank_draws_,
+                           private$threshold_)
+    },
+
+    #' @description Same as `$summarise()`.
+    #' @return See `$summarise()`.
+    summarize = function() self$summarise(),
+
+    #' @description Evaluate the empirical CDF of the fractional ranks
+    #' `(rank + 1) / (rank_draws + 1)` per parameter,
+    #' with its simultaneous band.
+    #' @return `data.frame`
+    #' \describe{
+    #'   \item{z}{Point the ECDF is evaluated at;}
+    #'   \item{ecdf}{Share of the ranks at or below `z`;}
+    #'   \item{lower, upper}{Band the ECDF of uniform ranks stays inside,
+    #'     at every `z` at once, with probability at least 0.95.}
+    #' }
+    evaluate_ecdf = function() {
+      calibration_ecdf_(private$estimates_, private$rank_draws_,
+                        private$threshold_)
+    },
+
     #' @description Print a summary of the sweep.
     print = function() {
       model <- spaced_choice(private$name_)
@@ -422,7 +425,7 @@ HousepiCalibrationCheck <- R6::R6Class(
 #'   new_housepi_model("final-size") |>
 #'   add_parameter(import = "template") |>
 #'   check_calibration(nrep = 2, houses = 30, progress = FALSE)
-#' calibration$summary
+#' calibration$summarise()
 #' calibration$overview
 #' @export
 check_calibration <- function(hh_model,

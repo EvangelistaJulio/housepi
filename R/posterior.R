@@ -115,6 +115,14 @@ empty_draws_ <- function() {
   tag_as_housepi_draws(posterior::as_draws_df(data.frame()))
 }
 
+# Stored draws of one block of a `HousepiPosteriorDraws`, empty when absent.
+# @param block `character(1)` `"param"`, `"latent"`, `"point_log_lik"`
+# or `"lprior"`.
+draws_block_ <- function(hhdraws, block) {
+  out <- hhdraws$.__enclos_env__$private$draws_[[block]]
+  if (is.null(out)) empty_draws_() else out
+}
+
 # Per-draw chain and iteration index implied by an MCMC `setup` list.
 draws_index_ <- function(setup) {
   counts <- setup[c("steps", "burn", "thin", "adapt", "chains")]
@@ -189,8 +197,8 @@ summarise_draws.HousepiPosteriorDraws <- function(
   .num_args = getOption("posterior.num_args", list()),
   .cores = 1
 ) {
-  params <- .x$parameter_draws
-  augm <- .x$latent_draws
+  params <- draws_block_(.x, "param")
+  augm <- draws_block_(.x, "latent")
   draws <- if (posterior::nvariables(augm) == 0) params
   else if (posterior::nvariables(params) == 0) augm
   else tag_as_housepi_draws(posterior::bind_draws(params, augm))
@@ -312,6 +320,8 @@ count_diagnostics_ <- function(blocks) {
 #' the joint log-prior (`lprior`)
 #' and the pointwise per-household log-likelihood (`log_lik`).
 #' If requested during inference, it also stores latent variables.
+#' Read them with [get_parameter_draws()], [get_latent_draws()],
+#' [get_log_lik_draws()] and [get_complete_draws()].
 #'
 #' For models with latent variables,
 #' the chain targets the joint (latent, parameter) posterior.
@@ -338,7 +348,7 @@ count_diagnostics_ <- function(blocks) {
 #'   add_parameter(import = "template") |>
 #'   run_inference(chains = 2, progress = FALSE)
 #' results
-#' results$parameter_draws
+#' get_parameter_draws(results)
 #' @docType class
 HousepiPosteriorDraws <- R6::R6Class(
   classname = "HousepiPosteriorDraws",
@@ -357,63 +367,6 @@ HousepiPosteriorDraws <- R6::R6Class(
   ####  Active  ####
 
   active = list(
-    #' @field parameter_draws `posterior::draws_df` Draws of parameters.
-    parameter_draws = function(value) {
-      assert_read_only_(value, "param_draws")
-      if (is.null(private$draws_$param)) return(empty_draws_())
-      private$draws_$param
-    },
-
-    #' @field latent_draws `posterior::draws_df`
-    #' Draws of the selected individuals' latent variables.
-    latent_draws = function(value) {
-      assert_read_only_(value, "latent_draws")
-      if (is.null(private$draws_$latent)) return(empty_draws_())
-      private$draws_$latent
-    },
-
-    #' @field log_lik_draws `posterior::draws_df`
-    #' Pointwise per-household log-likelihood
-    #' \eqn{
-    #'   \log p^\mathrm{obs}(x \mid z, \theta) +
-    #'   \log p^\mathrm{transm}(x \mid z, \theta) +
-    #'   \log p^\mathrm{lat}(z \mid \theta),
-    #' }
-    #' the observation, transmission, and latent model contributions.
-    #' `r rd_natural_log_`
-    log_lik_draws = function(value) {
-      assert_read_only_(value, "log_lik_draws")
-      private$draws_$point_log_lik
-    },
-
-    #' @field lprior_draws `posterior::draws_df`
-    #' Single column `lprior`, the parameter log-prior \eqn{\log p(\theta)}.
-    #' The latent-variable log-density enters `log_lik`, not `lprior`.
-    #' `r rd_natural_log_`
-    lprior_draws = function(value) {
-      assert_read_only_(value, "lprior_draws")
-      if (is.null(private$draws_$lprior)) return(empty_draws_())
-      private$draws_$lprior
-    },
-
-    #' @field complete_draws `posterior::draws_df`
-    #' Parameters, pointwise `log_lik` and the joint `lprior`.
-    #' `log_lik` and `lprior` are evaluated over the joint (latent, parameter)
-    #' posterior, see `log_lik_draws` and `lprior_draws`.
-    #' `r rd_natural_log_`
-    complete_draws = function(value) {
-      assert_read_only_(value, "complete_draws")
-      # rename the pointwise log-likelihood after the standard convention
-      aux <- private$draws_$point_log_lik
-      n_vars <- posterior::nvariables(aux)
-      names(aux)[1:n_vars] <- paste0("log_lik[", 1:n_vars, "]")
-      # bind parameters, pointwise log_lik and the parameter-only lprior
-      # bind_draws strips the tag, re-stamped
-      tag_as_housepi_draws(
-        posterior::bind_draws(private$draws_$param, aux, private$draws_$lprior)
-      )
-    },
-
     #' @field warnings `data.frame`
     #' Convergence diagnostics the run flagged
     #' \describe{
@@ -530,6 +483,30 @@ stopifnotdraws <- function(hhdraws) {
 #' @description Return a posterior draws data frame with the MCMC samples.
 #' `get_parameter_draws()` and `get_latent_draws()`
 #' warn and return an empty draws object when no such draws were stored.
+#' @details
+#' Write \eqn{x} for a single household's data,
+#' \eqn{\theta} for the parameter vector
+#' and \eqn{z} for that household's latent variables.
+#' \describe{
+#'   \item{`get_parameter_draws()`}{Draws of \eqn{\theta}.}
+#'   \item{`get_latent_draws()`}{Draws of \eqn{z}
+#'     for the individuals selected by `id_draws` in [run_inference()].}
+#'   \item{`get_log_lik_draws()`}{Pointwise per-household log-likelihood
+#'     \eqn{\log p^\mathrm{lat}(z \mid \theta)
+#'       + \log p^\mathrm{transm}(x \mid z, \theta)
+#'       + \log p^\mathrm{obs}(x \mid z, \theta)},
+#'     the latent, transmission and observation model contributions,
+#'     one column per household.}
+#'   \item{`get_complete_draws()`}{Parameters, the pointwise log-likelihood
+#'     renamed `log_lik[1]`, `log_lik[2]`, ... in household order,
+#'     and the single column `lprior`,
+#'     the parameter log-prior \eqn{\log p(\theta)}.
+#'     The latent-variable log-density enters `log_lik`, not `lprior`.
+#'     Both are evaluated along the joint (latent, parameter) chain.
+#'     `lprior` alone is read with `get_complete_draws(hhdraws, "lprior")`.}
+#' }
+#' See [HousepiPosteriorDraws] for how the joint log-density
+#' splits into `lprior` and `log_lik`.
 #' @param hhdraws `HousepiPosteriorDraws` Object returned by [run_inference()].
 #' @param variable `character()` Variables to return, all of them when `NULL`.
 #' A name also returns its indexed elements,
@@ -556,7 +533,7 @@ stopifnotdraws <- function(hhdraws) {
 #' @export
 get_parameter_draws <- function(hhdraws, variable = NULL) {
   stopifnotdraws(hhdraws)
-  out <- hhdraws$parameter_draws
+  out <- draws_block_(hhdraws, "param")
   if (posterior::nvariables(out) == 0) warn_h(
     "Empty draws: no parameter was defined in the model."
   )
@@ -567,7 +544,7 @@ get_parameter_draws <- function(hhdraws, variable = NULL) {
 #' @export
 get_latent_draws <- function(hhdraws, variable = NULL) {
   stopifnotdraws(hhdraws)
-  out <- hhdraws$latent_draws
+  out <- draws_block_(hhdraws, "latent")
   if (posterior::nvariables(out) == 0) warn_h(
     "Empty draws: latent variables were not defined or not stored.",
     "Set {.arg id_draws} in {.fn run_inference} to store latent draws."
@@ -579,12 +556,21 @@ get_latent_draws <- function(hhdraws, variable = NULL) {
 #' @export
 get_log_lik_draws <- function(hhdraws, variable = NULL) {
   stopifnotdraws(hhdraws)
-  subset_draws_(hhdraws$log_lik_draws, variable)
+  subset_draws_(draws_block_(hhdraws, "point_log_lik"), variable)
 }
 
 #' @rdname get_draws
 #' @export
 get_complete_draws <- function(hhdraws, variable = NULL) {
   stopifnotdraws(hhdraws)
-  subset_draws_(hhdraws$complete_draws, variable)
+  draws <- hhdraws$.__enclos_env__$private$draws_
+  # rename the pointwise log-likelihood after the standard convention
+  aux <- draws$point_log_lik
+  n_vars <- posterior::nvariables(aux)
+  names(aux)[1:n_vars] <- paste0("log_lik[", 1:n_vars, "]")
+  # bind parameters, pointwise log_lik and the parameter-only lprior
+  # bind_draws strips the tag, re-stamped
+  posterior::bind_draws(draws$param, aux, draws$lprior) |>
+    tag_as_housepi_draws() |>
+    subset_draws_(variable)
 }

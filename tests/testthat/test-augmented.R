@@ -1081,7 +1081,7 @@ test_that("Reading only house observations casts member level to house", {
                     record_6 = 18 / record)
 
   # a cast row is a household value to the rows reading it
-  obs <- hh_model$observations
+  obs <- get_observations(hh_model)
   names <- c("record_2", "record_3", "record_4", "record_5", "record_6")
   obs$level[match(names, obs$name)] |>
     expect_identical(c("house", "house", "member", "house", "house"))
@@ -1541,14 +1541,14 @@ test_that("Nested definitions works as expected", {
 
   # a flat observation on each chain leaves both posteriors equal to the model
   results <- hh_model |>
-    add_data_wide(transform(hh_model$data_wide, obs = 0, obs_norm = 0)) |>
+    add_data_wide(transform(get_data_wide(hh_model), obs = 0, obs_norm = 0)) |>
     helper_flat_sink(loc = z0) |>
     helper_flat_sink(loc = norm, column = "obs_norm") |>
     run_inference(steps = 1e5L, chains = 1L, adapt = 0L, thin = 1L)
   # no parameters nor priors, only latent
-  posterior::nvariables(results$parameter_draws) |> expect_identical(0L)
-  posterior::nvariables(results$latent_draws) |>
-    expect_identical(dim(hh_model$latent)[1])
+  get_parameter_draws(results) |> expect_warning("[Ee]mpty draws")
+  posterior::nvariables(get_latent_draws(results)) |>
+    expect_identical(dim(get_latent(hh_model))[1])
 
   # the S3 method of summarise_draws dispatches on the results
   out_vars <- posterior::summarise_draws(results)[["variable"]]
@@ -1556,8 +1556,8 @@ test_that("Nested definitions works as expected", {
 
   # empirical tests for goodness of Gaussian distribution
   probs <- c(0.025, 0.5, 0.975)
-  for (draws in list(results$latent_draws$tommy_norm,
-                     results$latent_draws$tommy_z0)) {
+  for (draws in list(get_latent_draws(results)$tommy_norm,
+                     get_latent_draws(results)$tommy_z0)) {
     mean(draws) |> expect_equal(0, tolerance = 0.05)
     sd(draws) |> expect_equal(1, tolerance = 0.05)
     unname(stats::quantile(draws, probs)) |>
@@ -1586,7 +1586,7 @@ test_that("Status-specific latent variables draw from per-status ranges", {
   # inference traces every member within its status support
   results <- hh_model |>
     run_inference(steps = 5L, thin = 1L, adapt = 2L,
-                  chains = 1L, id_draws = hh_model$data_wide$id) |>
+                  chains = 1L, id_draws = get_data_wide(hh_model)$id) |>
     suppressWarnings()
   draws <- as.data.frame(get_latent_draws(results))
   for (s in seq(4)) {

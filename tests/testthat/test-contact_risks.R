@@ -629,7 +629,7 @@ test_that("A catch-all rule survives a missing cell in its covariate column", {
     NA,           NA,         "ctr_any"
   )
   snapshot <- mk_house$model |>
-    add_data_wide(transform(mk_house$model$data_wide,
+    add_data_wide(transform(get_data_wide(mk_house$model),
                             member = c("father", "mother", "student", NA))) |>
     add_contact_risk(strata = strata, symmetric = FALSE,
                      params = list(ctr_fm = 2, ctr_any = 3)) |>
@@ -727,7 +727,7 @@ test_that("Contact risk definition work as expected", {
   snapshot$contact_risks |> expect_in(c(0, 1, params))
 
   # the template parameters added previously survive alongside the risk ones
-  hh_model$parameters$name |> expect_contains(c("alpha", "beta", "gamma"))
+  get_parameters(hh_model)$name |> expect_contains(c("alpha", "beta", "gamma"))
 })
 
 test_that("A contact risk keyed on an observation is rejected", {

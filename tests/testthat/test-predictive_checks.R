@@ -338,7 +338,7 @@ test_that("Household size bounds need the standard measures", {
     check_predictive(mk_ppc$results, overall = \(x) mean(x$status > 0),
                      max_hh_size = 3L, thin_ess = FALSE, nrep = 5) |>
     suppressWarnings()
-  (ppc$formatted_attack_rate$hh_size <= 3) |> expect_all_true()
+  (ppc$format_attack_rate()$hh_size <= 3) |> expect_all_true()
 })
 
 test_that("Custom measures are checked next to the standard ones", {
@@ -349,7 +349,7 @@ test_that("Custom measures are checked next to the standard ones", {
   class(ppc)[1] |> expect_identical("HousepiEpiPredictiveCheck")
   names(ppc$overall) |> expect_contains(c("observed", "predicted"))
   names(ppc$attack_rate) |> expect_contains(c("observed", "predicted"))
-  colnames(ppc$formatted_attack_rate) |> expect_contains("observed")
+  colnames(ppc$format_attack_rate()) |> expect_contains("observed")
   ppc |> expect_read_only_field("overall", "attack_rate")
   # the print links standard measures to their help page, custom ones stay plain
   withr::local_options(cli.hyperlink = TRUE, cli.hyperlink_run = TRUE)
@@ -365,7 +365,7 @@ test_that("Standard measures can be dropped", {
                      epi = FALSE, thin_ess = FALSE, nrep = 5) |>
     suppressWarnings()
   class(ppc)[1] |> expect_identical("HousepiPredictiveCheck")
-  ppc$formatted_attack_rate |> expect_null()
+  ppc$format_attack_rate |> expect_null()
   ppc$attack_rate |> expect_null()
   ppc$overall$observed |> expect_type("double")
 
@@ -389,7 +389,7 @@ test_that("Measure names are unique, given and free of the members", {
   ppc$attack_rate$observed |> expect_type("double")
   # a measure cannot take the name of a method or field of the check
   run(print = overall, epi = FALSE) |>  expect_error("reserved")
-  run(formatted_attack_rate = overall) |> expect_error("reserved")
+  run(format_attack_rate = overall) |> expect_error("reserved")
 })
 
 test_that("Measures on data_long need a long reporting process", {
@@ -443,39 +443,37 @@ test_that("Predicted cases by house size works as expected", {
   ppc <- check_predictive(mk_ppc$model, mk_ppc$results) |>
     suppressWarnings()
   class(ppc)[1] |> expect_identical("HousepiEpiPredictiveCheck")
-  counts <- helper_house_counts(mk_ppc$model$data_wide)
+  counts <- helper_house_counts(get_data_wide(mk_ppc$model))
 
   # formatted_attack_rate: counts are the raw house totals on the AR grid
-  ar <- ppc$formatted_attack_rate
+  ar <- ppc$format_attack_rate()
   colnames(ar) |> expect_contains(c("hh_size", "observed", "counts"))
   ar$counts |> expect_identical(counts$total[match(ar$hh_size, counts$hh_size)])
 
   # formatted_sec_attack_rate: counts are houses with at least one case
-  sar <- ppc$formatted_sec_attack_rate
+  sar <- ppc$format_sec_attack_rate()
   colnames(sar) |> expect_contains(c("hh_size", "observed"))
   sar$counts |>
     expect_identical(counts$at_least_1_case[match(sar$hh_size, counts$hh_size)])
 
   # formatted_cases_count
-  ppc$formatted_cases_count |> expect_length(3)
+  ppc$format_cases_count() |> expect_length(3)
 
   # subclass active fields and inherited dynamic measure fields are read-only
   ppc |>
     expect_read_only_field(
-      "formatted_attack_rate", "attack_rate",
-      "formatted_sec_attack_rate", "sec_attack_rate",
-      "formatted_cases_count", "cases_count"
+      "attack_rate", "sec_attack_rate", "cases_count"
     )
 
   # set_max_hh_size and drop
   ppc$set_max_hh_size(3)
-  (ppc$formatted_sec_attack_rate$hh_size <= 3) |> expect_all_true()
+  (ppc$format_sec_attack_rate()$hh_size <= 3) |> expect_all_true()
   ppc$drop_max_hh_size()
 
   # set_min_hh_size and drop
   ppc$set_min_hh_size(3)
-  (ppc$formatted_sec_attack_rate$hh_size >= 3) |> expect_all_true()
-  (ppc$formatted_attack_rate$hh_size >= 3) |> expect_all_true()
+  (ppc$format_sec_attack_rate()$hh_size >= 3) |> expect_all_true()
+  (ppc$format_attack_rate()$hh_size >= 3) |> expect_all_true()
   ppc$drop_min_hh_size()
 })
 
@@ -483,12 +481,12 @@ test_that("Epi PPC honours min/max_hh_size arguments", {
   ppc <- mk_ppc$model |>
     check_predictive(mk_ppc$results, min_hh_size = 2L, max_hh_size = 3L) |>
     suppressWarnings()
-  ppc$formatted_attack_rate$hh_size |> expect_in(2:3)
-  ppc$formatted_sec_attack_rate$hh_size |> expect_in(2:3)
+  ppc$format_attack_rate()$hh_size |> expect_in(2:3)
+  ppc$format_sec_attack_rate()$hh_size |> expect_in(2:3)
 })
 
 test_that("Epi PPC observed values are stable across calls and status codes", {
-  data_wide <- mk_ppc$model$data_wide
+  data_wide <- get_data_wide(mk_ppc$model)
   run_on <- function(hh_model = mk_ppc$model, ...) {
     hh_model |>
       check_predictive(mk_ppc$results, thin_ess = FALSE, nrep = 5, ...) |>
@@ -496,14 +494,14 @@ test_that("Epi PPC observed values are stable across calls and status codes", {
   }
   ppc <- run_on()
   # repeated PPC calls must not mutate the model's data_wide
-  mk_ppc$model$data_wide |> expect_identical(data_wide)
+  get_data_wide(mk_ppc$model) |> expect_identical(data_wide)
 
   # without a reporting process the replicates stay engine-coded
   observed <- measure_ar_by_hh_size(data_wide, mk_ppc$model$escaped)
-  ppc$formatted_attack_rate$observed |> expect_equal(observed$ar)
+  ppc$format_attack_rate()$observed |> expect_equal(observed$ar)
   # with one, they are relabelled before the measure sees them
   ppc_labelled <- run_on(add_reporting_process(mk_ppc$model, wide = identity))
-  ppc_labelled$formatted_attack_rate$observed |> expect_equal(observed$ar)
+  ppc_labelled$format_attack_rate()$observed |> expect_equal(observed$ar)
 
   # observed values agree across thread counts
   ppc_2 <- run_on(threads = 2L)

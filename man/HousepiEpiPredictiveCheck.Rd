@@ -16,27 +16,10 @@ hh_model <- flu_1918_frederick |>
 results <- run_inference(hh_model, chains = 2, progress = FALSE)
 
 ppc <- check_predictive(hh_model, results, nrep = 50, progress = FALSE)
-ppc$formatted_attack_rate
+ppc$format_attack_rate()
 }
 \section{Super class}{
 \code{\link[housepi:HousepiPredictiveCheck]{HousepiPredictiveCheck}} -> \code{HousepiEpiPredictiveCheck}
-}
-\section{Active bindings}{
-  \if{html}{\out{<div class="r6-active-bindings">}}
-  \describe{
-    \item{\code{formatted_attack_rate}}{\code{data.frame}
-Observed and predicted attack rates by household size.
-Sizes outside the set household size bounds are not returned.}
-
-    \item{\code{formatted_sec_attack_rate}}{\code{data.frame}
-Observed and predicted secondary attack rates by household size.
-Sizes outside the set household size bounds are not returned.}
-
-    \item{\code{formatted_cases_count}}{\code{data.frame}
-Formatted observed and predicted cases by household size.
-Sizes outside the set household size bounds are not returned.}
-  }
-  \if{html}{\out{</div>}}
 }
 \section{Methods}{
 \subsection{Public methods}{
@@ -46,6 +29,9 @@ Sizes outside the set household size bounds are not returned.}
     \item \href{#method-HousepiEpiPredictiveCheck-drop_min_hh_size}{\code{HousepiEpiPredictiveCheck$drop_min_hh_size()}}
     \item \href{#method-HousepiEpiPredictiveCheck-set_max_hh_size}{\code{HousepiEpiPredictiveCheck$set_max_hh_size()}}
     \item \href{#method-HousepiEpiPredictiveCheck-drop_max_hh_size}{\code{HousepiEpiPredictiveCheck$drop_max_hh_size()}}
+    \item \href{#method-HousepiEpiPredictiveCheck-format_attack_rate}{\code{HousepiEpiPredictiveCheck$format_attack_rate()}}
+    \item \href{#method-HousepiEpiPredictiveCheck-format_sec_attack_rate}{\code{HousepiEpiPredictiveCheck$format_sec_attack_rate()}}
+    \item \href{#method-HousepiEpiPredictiveCheck-format_cases_count}{\code{HousepiEpiPredictiveCheck$format_cases_count()}}
     \item \href{#method-HousepiEpiPredictiveCheck-clone}{\code{HousepiEpiPredictiveCheck$clone()}}
   }
 }
@@ -174,6 +160,56 @@ If \code{NA}, restore observed maximum.}
     \if{html}{\out{<div class="r">}}
     \preformatted{HousepiEpiPredictiveCheck$drop_max_hh_size()}
     \if{html}{\out{</div>}}
+  }
+}
+
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-HousepiEpiPredictiveCheck-format_attack_rate"></a>}}
+\if{latex}{\out{\hypertarget{method-HousepiEpiPredictiveCheck-format_attack_rate}{}}}
+\subsection{\code{HousepiEpiPredictiveCheck$format_attack_rate()}}{
+  Format observed and predicted attack rates
+by household size.
+Sizes outside the set household size bounds are not returned.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{HousepiEpiPredictiveCheck$format_attack_rate()}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Returns}{
+    \code{data.frame}
+  }
+}
+
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-HousepiEpiPredictiveCheck-format_sec_attack_rate"></a>}}
+\if{latex}{\out{\hypertarget{method-HousepiEpiPredictiveCheck-format_sec_attack_rate}{}}}
+\subsection{\code{HousepiEpiPredictiveCheck$format_sec_attack_rate()}}{
+  Format observed and predicted secondary attack rates
+by household size.
+Sizes outside the set household size bounds are not returned.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{HousepiEpiPredictiveCheck$format_sec_attack_rate()}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Returns}{
+    \code{data.frame}
+  }
+}
+
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-HousepiEpiPredictiveCheck-format_cases_count"></a>}}
+\if{latex}{\out{\hypertarget{method-HousepiEpiPredictiveCheck-format_cases_count}{}}}
+\subsection{\code{HousepiEpiPredictiveCheck$format_cases_count()}}{
+  Format observed and predicted cases by household size.
+Sizes outside the set household size bounds are not returned.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{HousepiEpiPredictiveCheck$format_cases_count()}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Returns}{
+    \code{list} of \code{data.frame}: \code{predicted}, \code{cri_lower}, \code{cri_upper}.
   }
 }
 

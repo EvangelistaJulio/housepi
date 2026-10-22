@@ -15,7 +15,7 @@ calibration <- flu_1918_frederick |>
   add_parameter(import = "template") |>
   check_calibration(nrep = 2, houses = 30, progress = FALSE)
 calibration
-calibration$summary
+calibration$summarise()
 }
 \section{Active bindings}{
   \if{html}{\out{<div class="r6-active-bindings">}}
@@ -40,27 +40,6 @@ One row per replicate
 \item{min_ess_bulk}{Smallest bulk effective sample size
 over the parameters of the fit;}
 \item{flagged}{Whether any parameter of the fit was flagged.}
-}}
-
-    \item{\code{ecdf}}{\code{data.frame}
-Empirical CDF of the fractional ranks \code{(rank + 1) / (rank_draws + 1)}
-per parameter, with its simultaneous band
-\describe{
-\item{z}{Point the ECDF is evaluated at;}
-\item{ecdf}{Share of the ranks at or below \code{z};}
-\item{lower, upper}{Band the ECDF of uniform ranks stays inside,
-at every \code{z} at once, with probability at least 0.95.}
-}}
-
-    \item{\code{summary}}{\code{data.frame}
-Uniformity of the ranks per parameter
-\describe{
-\item{nrep, n_flagged}{Replicates ranked, and those flagged;}
-\item{log_gamma}{Logarithm of the uniformity statistic,
-twice the smallest binomial tail probability of the ECDF;}
-\item{log_gamma_threshold}{Value of \code{log_gamma} below which
-uniformity is rejected, at level 0.05;}
-\item{uniform}{Whether the ranks pass the test.}
 }}
 
     \item{\code{overview}}{\code{data.frame}
@@ -89,6 +68,9 @@ Distinct warnings raised over the sweep, with their counts.}
 \subsection{Public methods}{
   \itemize{
     \item \href{#method-HousepiCalibrationCheck-initialize}{\code{HousepiCalibrationCheck$new()}}
+    \item \href{#method-HousepiCalibrationCheck-summarise}{\code{HousepiCalibrationCheck$summarise()}}
+    \item \href{#method-HousepiCalibrationCheck-summarize}{\code{HousepiCalibrationCheck$summarize()}}
+    \item \href{#method-HousepiCalibrationCheck-evaluate_ecdf}{\code{HousepiCalibrationCheck$evaluate_ecdf()}}
     \item \href{#method-HousepiCalibrationCheck-print}{\code{HousepiCalibrationCheck$print()}}
     \item \href{#method-HousepiCalibrationCheck-clone}{\code{HousepiCalibrationCheck$clone()}}
   }
@@ -156,6 +138,67 @@ The bar prints as messages, which \code{\link[=suppressMessages]{suppressMessage
       \item{\code{...}}{Advanced configuration.}
     }
     \if{html}{\out{</div>}}
+  }
+}
+
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-HousepiCalibrationCheck-summarise"></a>}}
+\if{latex}{\out{\hypertarget{method-HousepiCalibrationCheck-summarise}{}}}
+\subsection{\code{HousepiCalibrationCheck$summarise()}}{
+  Test the uniformity of the ranks per parameter.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{HousepiCalibrationCheck$summarise()}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Returns}{
+    \code{data.frame}
+\describe{
+\item{nrep, n_flagged}{Replicates ranked, and those flagged;}
+\item{log_gamma}{Logarithm of the uniformity statistic,
+twice the smallest binomial tail probability of the ECDF;}
+\item{log_gamma_threshold}{Value of \code{log_gamma} below which
+uniformity is rejected, at level 0.05;}
+\item{uniform}{Whether the ranks pass the test.}
+}
+  }
+}
+
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-HousepiCalibrationCheck-summarize"></a>}}
+\if{latex}{\out{\hypertarget{method-HousepiCalibrationCheck-summarize}{}}}
+\subsection{\code{HousepiCalibrationCheck$summarize()}}{
+  Same as \verb{$summarise()}.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{HousepiCalibrationCheck$summarize()}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Returns}{
+    See \verb{$summarise()}.
+  }
+}
+
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-HousepiCalibrationCheck-evaluate_ecdf"></a>}}
+\if{latex}{\out{\hypertarget{method-HousepiCalibrationCheck-evaluate_ecdf}{}}}
+\subsection{\code{HousepiCalibrationCheck$evaluate_ecdf()}}{
+  Evaluate the empirical CDF of the fractional ranks
+\code{(rank + 1) / (rank_draws + 1)} per parameter,
+with its simultaneous band.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{HousepiCalibrationCheck$evaluate_ecdf()}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Returns}{
+    \code{data.frame}
+\describe{
+\item{z}{Point the ECDF is evaluated at;}
+\item{ecdf}{Share of the ranks at or below \code{z};}
+\item{lower, upper}{Band the ECDF of uniform ranks stays inside,
+at every \code{z} at once, with probability at least 0.95.}
+}
   }
 }
 

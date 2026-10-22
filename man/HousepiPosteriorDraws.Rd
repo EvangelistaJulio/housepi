@@ -10,6 +10,8 @@ This class stores posterior draws of model parameters,
 the joint log-prior (\code{lprior})
 and the pointwise per-household log-likelihood (\code{log_lik}).
 If requested during inference, it also stores latent variables.
+Read them with \code{\link[=get_parameter_draws]{get_parameter_draws()}}, \code{\link[=get_latent_draws]{get_latent_draws()}},
+\code{\link[=get_log_lik_draws]{get_log_lik_draws()}} and \code{\link[=get_complete_draws]{get_complete_draws()}}.
 
 For models with latent variables,
 the chain targets the joint (latent, parameter) posterior.
@@ -37,37 +39,11 @@ results <- flu_1918_frederick |>
   add_parameter(import = "template") |>
   run_inference(chains = 2, progress = FALSE)
 results
-results$parameter_draws
+get_parameter_draws(results)
 }
 \section{Active bindings}{
   \if{html}{\out{<div class="r6-active-bindings">}}
   \describe{
-    \item{\code{parameter_draws}}{\code{posterior::draws_df} Draws of parameters.}
-
-    \item{\code{latent_draws}}{\code{posterior::draws_df}
-Draws of the selected individuals' latent variables.}
-
-    \item{\code{log_lik_draws}}{\code{posterior::draws_df}
-Pointwise per-household log-likelihood
-\eqn{
-  \log p^\mathrm{obs}(x \mid z, \theta) +
-  \log p^\mathrm{transm}(x \mid z, \theta) +
-  \log p^\mathrm{lat}(z \mid \theta),
-}
-the observation, transmission, and latent model contributions.
-Logarithms are natural (base \eqn{e}).}
-
-    \item{\code{lprior_draws}}{\code{posterior::draws_df}
-Single column \code{lprior}, the parameter log-prior \eqn{\log p(\theta)}.
-The latent-variable log-density enters \code{log_lik}, not \code{lprior}.
-Logarithms are natural (base \eqn{e}).}
-
-    \item{\code{complete_draws}}{\code{posterior::draws_df}
-Parameters, pointwise \code{log_lik} and the joint \code{lprior}.
-\code{log_lik} and \code{lprior} are evaluated over the joint (latent, parameter)
-posterior, see \code{log_lik_draws} and \code{lprior_draws}.
-Logarithms are natural (base \eqn{e}).}
-
     \item{\code{warnings}}{\code{data.frame}
 Convergence diagnostics the run flagged
 \describe{

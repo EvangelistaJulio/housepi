@@ -45,7 +45,7 @@ hh_model <- flu_1918_frederick |>
   new_housepi_model("final-size") |>
   add_parameter(import = "template")
 
-hh_model$parameters
+get_parameters(hh_model)
 ```
 
 The check needs no fit to the Frederick data.
@@ -136,17 +136,17 @@ bayesplot::ppc_pit_ecdf_grouped(
 A posterior that overestimates puts the curve above zero, since low ranks make the ECDF rise early, and one that underestimates puts it below.
 A posterior too narrow draws an S, above zero on the left and below on the right; one too wide draws the mirror image.
 
-`calibration$summary` reads the same test: `uniform` is `FALSE` when the ECDF leaves the band at any point, which happens to uniform ranks in at most 5% of checks.
+`calibration$summarise()` reads the same test: `uniform` is `FALSE` when the ECDF leaves the band at any point, which happens to uniform ranks in at most 5% of checks.
 
 ```{r}
 #| label: summary
-calibration$summary
+calibration$summarise()
 ```
 
 ```{r}
 #| label: verdict
 #| include: false
-verdict <- calibration$summary
+verdict <- calibration$summarise()
 n_uniform <- sum(verdict$uniform)
 ```
 
@@ -164,7 +164,8 @@ We repeat the check with two chains of 50 steps, the first 25 of each spent adap
 short <- hh_model |>
   check_calibration(nrep = 100, steps = 50, thin = 1, adapt = 25,
                     chains = 2, progress = FALSE)
-short$summary
+short_summary <- short$summarise()
+short_summary
 ```
 
 ```{r}
@@ -185,8 +186,8 @@ bayesplot::ppc_pit_ecdf_grouped(
 #| label: short-verdict
 #| include: false
 code_words <- \(x) knitr::combine_words(x, before = "`")
-failed <- short$summary$variable[!short$summary$uniform]
-passed <- short$summary$variable[short$summary$uniform]
+failed <- short_summary$variable[!short_summary$uniform]
+passed <- short_summary$variable[short_summary$uniform]
 extreme <- with(short$estimates,
                 tapply(rank %in% c(0, rank_draws), variable, mean))
 ```

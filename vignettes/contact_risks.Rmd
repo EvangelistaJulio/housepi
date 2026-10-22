@@ -157,7 +157,7 @@ model_strata |>
   get_contact_risks()
 
 # extract the first household with all classes
-hh_id <- model_strata$data_wide |>
+hh_id <- get_data_wide(model_strata) |>
   dplyr::filter(dplyr::n_distinct(member) > 2, .by = hh_id) |>
   dplyr::slice_head(n = 1) |>
   dplyr::pull(hh_id)

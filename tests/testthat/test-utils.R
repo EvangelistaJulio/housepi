@@ -201,8 +201,8 @@ test_that("A logical data column reads 0 and 1 in a definition", {
     new_housepi_model("test", quiet = TRUE) |>
     add_observation(datum_2 = list(func = datum * 2))
 
-  hh_model$data_wide$datum_2 |> expect_equal(c(2, 0, 2))
-  hh_model$data_wide$datum |> expect_identical(hhdata$datum)
+  get_data_wide(hh_model)$datum_2 |> expect_equal(c(2, 0, 2))
+  get_data_wide(hh_model)$datum |> expect_identical(hhdata$datum)
 })
 
 test_that("Data factorization codes a labelled status column", {
@@ -282,8 +282,8 @@ test_that("A data column R can only spell quoted, survives the round trip", {
 
   hh_model <- new_housepi_model(hhdata, "test")
   # the engine reports the column under the user's own spelling
-  colnames(hh_model$data_wide) |> expect_identical(colnames(hhdata))
-  hh_model$data_wide[["3"]] |> expect_equal(hhdata[["3"]])
+  colnames(get_data_wide(hh_model)) |> expect_identical(colnames(hhdata))
+  get_data_wide(hh_model)[["3"]] |> expect_equal(hhdata[["3"]])
   names(inspect_house_state(hh_model, "house")$data_wide) |>
     expect_identical(colnames(hhdata))
 

@@ -429,71 +429,108 @@ subset_definitions_ <- function(defs, name, col = "name") {
 #' @export
 get_data_wide <- function(hh_model) {
   stopifnothousepi(hh_model)
-  # @todo drop the active getter fields and move their logic here
-  hh_model$data_wide
+  pvt <- hh_model$.__enclos_env__$private
+  # no data attached yet (deferred until add_data_wide() or the wall)
+  if (!pvt$has_data_wide_()) return(NULL)
+  .engine$export_data_wide(pvt$mcmc_ptr_) |>
+    pvt$refactor_data_("data_wide")
 }
 
 #' @rdname get_definitions
 #' @export
 get_data_long <- function(hh_model) {
   stopifnothousepi(hh_model)
-  hh_model$data_long
+  pvt <- hh_model$.__enclos_env__$private
+  .engine$export_data_long(pvt$mcmc_ptr_) |>
+    pvt$refactor_data_("data_long")
 }
 
 #' @rdname get_definitions
 #' @export
 get_parameters <- function(hh_model, name = NA) {
   stopifnothousepi(hh_model)
-  subset_definitions_(hh_model$parameters, name)
+  hh_model$.__enclos_env__$private$resolved_param_() |>
+    housepi_defin_showcaser() |>
+    sort_definitions_() |>
+    subset_definitions_(name)
 }
 
 #' @rdname get_definitions
 #' @export
 get_latent <- function(hh_model, name = NA) {
   stopifnothousepi(hh_model)
-  subset_definitions_(hh_model$latent, name)
+  hh_model$.__enclos_env__$private$resolved_latent_() |>
+    augm_defs_of_kind("latent") |>
+    housepi_defin_showcaser() |>
+    sort_definitions_() |>
+    subset_definitions_(name)
 }
 
 #' @rdname get_definitions
 #' @export
 get_observations <- function(hh_model, name = NA) {
   stopifnothousepi(hh_model)
-  subset_definitions_(hh_model$observations, name)
+  resolved <- hh_model$.__enclos_env__$private$resolved_latent_()
+  do.call(rbind, lapply(c("member", "house"), function(level) {
+    out <- augm_defs_of_kind(resolved, level)
+    if (is.null(out)) return(NULL)
+    # pinned to its datum, the like-named column
+    out[["const"]] <- NULL
+    cbind(out, level = level)
+  })) |>
+    housepi_defin_showcaser() |>
+    sort_definitions_() |>
+    subset_definitions_(name)
 }
 
 #' @rdname get_definitions
 #' @export
 get_status_process <- function(hh_model) {
   stopifnothousepi(hh_model)
-  hh_model$status_process
+  pvt <- hh_model$.__enclos_env__$private
+  data_wide <- get_data_wide(hh_model)
+  levels <- if (!is.null(data_wide)) pvt$status_draw_levels_()
+  pvt$status_$tidy_table(data_wide, levels)
 }
 
 #' @rdname get_definitions
 #' @export
 get_group_risks <- function(hh_model, name = NA) {
   stopifnothousepi(hh_model)
-  subset_definitions_(hh_model$group_risks, name, "group_risk")
+  pvt <- hh_model$.__enclos_env__$private
+  pvt$group_risks_ |>
+    helper_show_risk_table(setdiff(risk_reserved_cols, risk_pin_cols),
+                           pvt$has_data_wide_()) |>
+    sort_definitions_("group_risk", by_status = FALSE) |>
+    subset_definitions_(name, "group_risk")
 }
 
 #' @rdname get_definitions
 #' @export
 get_contact_risks <- function(hh_model) {
   stopifnothousepi(hh_model)
-  hh_model$contact_risks
+  pvt <- hh_model$.__enclos_env__$private
+  pvt$contact_risks_ |>
+    helper_show_risk_table(c("param_name", "n", "rule_group"),
+                           pvt$has_data_wide_()) |>
+    sort_definitions_("param_name", by_status = FALSE)
 }
 
 #' @rdname get_definitions
 #' @export
 get_infectivity_profiles <- function(hh_model) {
   stopifnothousepi(hh_model)
-  hh_model$infectivity_profiles
+  pvt <- hh_model$.__enclos_env__$private
+  pvt$resolved_profile_() |>
+    pvt$infec_profile_$showcase() |>
+    sort_definitions_()
 }
 
 #' @rdname get_definitions
 #' @export
 get_reporting_process <- function(hh_model) {
   stopifnothousepi(hh_model)
-  hh_model$reporting_process
+  hh_model$.__enclos_env__$private$reporting_process_
 }
 
 ########  Definitions  ########
@@ -1353,7 +1390,7 @@ assert_posterior_memory_ <- function(hh_model, n_sample, id_draws) {
   n_latent_defs <- NROW(pvt$augm_$defs)
   # structural upper bound: each named or default household at its largest
   # size, status filtering left to the engine
-  hh_id <- hh_model$data_wide$hh_id
+  hh_id <- get_data_wide(hh_model)$hh_id
   max_hh_size <- if (!length(hh_id)) 1L else max(table(hh_id))
   n_members_upper <- length(unique(id_draws$id)) +
     length(unique(id_draws$hh_id)) * max_hh_size

@@ -132,33 +132,31 @@ test_that("Summarise-draws default columns track cri_level", {
 
 test_that("Active fields are read-only", {
   mk_draws$results |>
-    expect_read_only_field(
-      "parameter_draws", "latent_draws",
-      "log_lik_draws", "lprior_draws", "complete_draws",
-      "warnings", "inference_secs"
-    )
+    expect_read_only_field("warnings", "inference_secs")
 })
 
-test_that("Draws active fields are correct", {
+test_that("Draws getters return each block", {
   results <- mk_draws$results
-  posterior::is_draws(results$parameter_draws) |> expect_true()
-  posterior::niterations(results$parameter_draws) |> expect_identical(100L)
+  param <- get_parameter_draws(results)
+  posterior::is_draws(param) |> expect_true()
+  posterior::niterations(param) |> expect_identical(100L)
 
   # no latent is traced
-  posterior::is_draws(results$latent_draws) |> expect_true()
-  posterior::nvariables(results$latent_draws) |> expect_identical(0L)
+  get_latent_draws(results) |> expect_warning("[Ee]mpty draws")
 
-  posterior::is_draws(results$log_lik_draws) |> expect_true()
-  posterior::nvariables(results$log_lik_draws) |> expect_gt(0)
-
-  posterior::is_draws(results$lprior_draws) |> expect_true()
-  ("lprior" %in% posterior::variables(results$lprior_draws)) |> expect_true()
+  log_lik <- get_log_lik_draws(results)
+  posterior::is_draws(log_lik) |> expect_true()
+  posterior::nvariables(log_lik) |> expect_gt(0)
 
   # parameter names, log_lik[...] and lprior (loo / priorsense names)
-  posterior::is_draws(results$complete_draws) |> expect_true()
-  vars <- posterior::variables(results$complete_draws)
-  vars |> expect_match("log_lik\\[", all = FALSE)
-  ("lprior" %in% vars) |> expect_true()
+  complete <- get_complete_draws(results)
+  posterior::is_draws(complete) |> expect_true()
+  n_house <- posterior::nvariables(log_lik)
+  posterior::variables(complete) |>
+    expect_identical(c(posterior::variables(param),
+                       paste0("log_lik[", seq_len(n_house), "]"), "lprior"))
+  posterior::variables(get_complete_draws(results, "lprior")) |>
+    expect_identical("lprior")
 })
 
 test_that("Exported getter functions work correctly", {
@@ -245,7 +243,7 @@ test_that("Diagnostic warning fires on poor mixing", {
 })
 
 test_that("Pointwise log-lik is carried into the complete-draws bundle", {
-  # complete_draws renames the pointwise columns to the loo / priorsense
+  # get_complete_draws() renames the pointwise columns to the loo / priorsense
   # convention; their values must be the same pointwise log-likelihood
   expect_same_pointwise <- function(results) {
     pointwise <- draws_to_frame(get_log_lik_draws(results))
@@ -275,8 +273,7 @@ test_that("A model without parameters returns empty parameter draws", {
     suppressWarnings()
 
   print(results) |> expect_message("Latent: 1")
-  # nothing carries a prior: no lprior column, in its field or the bundle
-  posterior::nvariables(results$lprior_draws) |> expect_identical(0L)
+  # nothing carries a prior: no lprior column in the bundle
   posterior::variables(get_complete_draws(results)) |>
     expect_identical("log_lik[1]")
   get_parameter_draws(results) |>

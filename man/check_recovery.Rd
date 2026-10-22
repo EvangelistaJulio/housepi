@@ -107,6 +107,6 @@ recovery <- flu_1918_frederick |>
   add_parameter(import = "template") |>
   check_recovery(data.frame(alpha = 0.15, beta = 0.2, gamma = 1),
                  nrep = 2, houses = 30, progress = FALSE)
-recovery$summary
+recovery$summarise()
 recovery$overview
 }

@@ -152,8 +152,8 @@ test_that("Injected Date literals encode as numeric", {
   m_num <- new_housepi_model(model = "test") |>
     add_latent("hidden", model = "uniform",
                min = !!as.numeric(d_min), max = !!as.numeric(d_max))
-  m_date$latent$min |> expect_identical(m_num$latent$min)
-  m_date$latent$max |> expect_identical(m_num$latent$max)
+  get_latent(m_date)$min |> expect_identical(get_latent(m_num)$min)
+  get_latent(m_date)$max |> expect_identical(get_latent(m_num)$max)
 })
 
 test_that("Unquoted constant calls fold to their numeric value", {

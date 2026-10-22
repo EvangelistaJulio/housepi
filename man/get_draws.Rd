@@ -37,6 +37,31 @@ Return a posterior draws data frame with the MCMC samples.
 \code{get_parameter_draws()} and \code{get_latent_draws()}
 warn and return an empty draws object when no such draws were stored.
 }
+\details{
+Write \eqn{x} for a single household's data,
+\eqn{\theta} for the parameter vector
+and \eqn{z} for that household's latent variables.
+\describe{
+\item{\code{get_parameter_draws()}}{Draws of \eqn{\theta}.}
+\item{\code{get_latent_draws()}}{Draws of \eqn{z}
+for the individuals selected by \code{id_draws} in \code{\link[=run_inference]{run_inference()}}.}
+\item{\code{get_log_lik_draws()}}{Pointwise per-household log-likelihood
+\eqn{\log p^\mathrm{lat}(z \mid \theta)
+      + \log p^\mathrm{transm}(x \mid z, \theta)
+      + \log p^\mathrm{obs}(x \mid z, \theta)},
+the latent, transmission and observation model contributions,
+one column per household.}
+\item{\code{get_complete_draws()}}{Parameters, the pointwise log-likelihood
+renamed \code{log_lik[1]}, \code{log_lik[2]}, ... in household order,
+and the single column \code{lprior},
+the parameter log-prior \eqn{\log p(\theta)}.
+The latent-variable log-density enters \code{log_lik}, not \code{lprior}.
+Both are evaluated along the joint (latent, parameter) chain.
+\code{lprior} alone is read with \code{get_complete_draws(hhdraws, "lprior")}.}
+}
+See \link{HousepiPosteriorDraws} for how the joint log-density
+splits into \code{lprior} and \code{log_lik}.
+}
 \examples{
 results <- flu_1918_frederick |>
   new_housepi_model("final-size") |>

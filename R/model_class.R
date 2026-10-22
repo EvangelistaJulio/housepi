@@ -20,7 +20,7 @@
 #'   new_housepi_model("final-size") |>
 #'   add_parameter(import = "template")
 #' hh_model
-#' hh_model$parameters
+#' hh_model$name
 #' @docType class
 HousepiModel <- R6::R6Class(
   classname = "HousepiModel",
@@ -384,7 +384,7 @@ HousepiModel <- R6::R6Class(
 
       private$assert_no_obs_risk_collision_(module)
 
-      module$implement(self$data_wide, ...)
+      module$implement(get_data_wide(self), ...)
 
       # append parameter if missing
       new_parameters <- module$parameters
@@ -701,7 +701,7 @@ HousepiModel <- R6::R6Class(
     # @param derive `logical(1)` Whether to check the table against the data.
     push_status_process_ = function(status, derive = TRUE) {
       if (is.null(status)) return(invisible(self))
-      if (derive) private$status_$assert_fit(self$data_wide, status$levels)
+      if (derive) private$status_$assert_fit(get_data_wide(self), status$levels)
       .engine$import_status_process(private$mcmc_ptr_, status$table,
                                     length(status$levels))
       invisible(self)
@@ -777,7 +777,7 @@ HousepiModel <- R6::R6Class(
         nrep <- nrow(param_table)
         # an undeclared model builds on the table's first row: the engine
         # keeps it for the run, the caller's definitions stay as declared
-        if (!nrow(self$parameters)) {
+        if (!nrow(get_parameters(self))) {
           declared <- private$param_$clone(deep = TRUE)
           on.exit(private$param_ <- declared, add = TRUE)
           param_dummy_list <- as.list(utils::head(param_table, 1))
@@ -808,7 +808,7 @@ HousepiModel <- R6::R6Class(
       private$build_full_(steps = nrep, simulating = TRUE, ...)
 
       # there may be no parameters at all
-      if (!nrow(self$parameters)) return(nrep)
+      if (!nrow(get_parameters(self))) return(nrep)
 
       # no column: a parameter is drawn from its prior
       if (is.null(param_table))
@@ -891,101 +891,6 @@ HousepiModel <- R6::R6Class(
     setup = function(value) {
       assert_read_only_(value, "setup")
       .engine$export_setup(private$mcmc_ptr_)
-    },
-
-    #' @field data_wide `data.frame`
-    #' Individual-level data, one row per individual, indexed by ID.
-    data_wide = function(value) {
-      assert_read_only_(value, "data_wide")
-      # no data attached yet (deferred until add_data_wide() or the wall)
-      if (!private$has_data_wide_()) return(NULL)
-      .engine$export_data_wide(private$mcmc_ptr_) |>
-        private$refactor_data_("data_wide")
-    },
-
-    #' @field data_long `data.frame`
-    #' Additional data rows indexed by individual (long format).
-    data_long = function(value) {
-      assert_read_only_(value, "data_long")
-      .engine$export_data_long(private$mcmc_ptr_) |>
-        private$refactor_data_("data_long")
-    },
-
-    #' @field parameters `data.frame` Parameter definitions.
-    parameters = function(value) {
-      assert_read_only_(value, "parameters")
-      private$resolved_param_() |>
-        housepi_defin_showcaser() |>
-        sort_definitions_()
-    },
-
-    #' @field group_risks `data.frame` Group risk definitions.
-    group_risks = function(value) {
-      assert_read_only_(value, "group_risks")
-      private$group_risks_ |>
-        helper_show_risk_table(setdiff(risk_reserved_cols, risk_pin_cols),
-                               private$has_data_wide_()) |>
-        sort_definitions_("group_risk", by_status = FALSE)
-    },
-
-    #' @field contact_risks `data.frame` Contact risk definitions.
-    contact_risks = function(value) {
-      assert_read_only_(value, "contact_risks")
-      private$contact_risks_ |>
-        helper_show_risk_table(c("param_name", "n", "rule_group"),
-                               private$has_data_wide_()) |>
-        sort_definitions_("param_name", by_status = FALSE)
-    },
-
-    #' @field latent `data.frame` Latent definitions.
-    latent = function(value) {
-      assert_read_only_(value, "latent")
-      private$resolved_latent_() |>
-        augm_defs_of_kind("latent") |>
-        housepi_defin_showcaser() |>
-        sort_definitions_()
-    },
-
-    #' @field observations `data.frame`
-    #' Observation definitions.
-    #' Column 'level' tells member ("member") from household ("house") entries.
-    observations = function(value) {
-      assert_read_only_(value, "observations")
-      resolved <- private$resolved_latent_()
-      do.call(rbind, lapply(c("member", "house"), function(level) {
-        out <- augm_defs_of_kind(resolved, level)
-        if (is.null(out)) return(NULL)
-        # pinned to its datum, the like-named column
-        out[["const"]] <- NULL
-        cbind(out, level = level)
-      })) |>
-        housepi_defin_showcaser() |>
-        sort_definitions_()
-    },
-
-    #' @field status_process `data.frame`
-    #' Status process, one row per rule: its status, weight,
-    #' the members it applies to, its rule group and covariates.
-    status_process = function(value) {
-      assert_read_only_(value, "status_process")
-      data_wide <- self$data_wide
-      levels <- if (!is.null(data_wide)) private$status_draw_levels_()
-      private$status_$tidy_table(data_wide, levels)
-    },
-
-    #' @field infectivity_profiles `data.frame` Infectivity profile definitions.
-    infectivity_profiles = function(value) {
-      assert_read_only_(value, "infectivity_profiles")
-      private$resolved_profile_() |>
-        private$infec_profile_$showcase() |>
-        sort_definitions_()
-    },
-
-    #' @field reporting_process `list`
-    #' Reporting process: functions `wide` and `long`, `NULL` when absent.
-    reporting_process = function(value) {
-      assert_read_only_(value, "reporting_process")
-      private$reporting_process_
     }
   ),
 

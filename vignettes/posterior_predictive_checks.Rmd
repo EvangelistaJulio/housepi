@@ -64,7 +64,7 @@ To show both observed and predicted cases by size, we can extract the formatted 
 ppc$set_max_hh_size(5)
 
 # return a data.frame with observed and predicted cases
-cases_df <- ppc$formatted_cases_count
+cases_df <- ppc$format_cases_count()
 
 # format predicted cases
 combined <- cases_df$predicted
@@ -111,7 +111,7 @@ library(ggplot2)
 col_dict <- c(Predicted = "coral", Observed = "black")
 
 # extract values for secondary attack rate
-ggplot(ppc$formatted_sec_attack_rate,
+ggplot(ppc$format_sec_attack_rate(),
        aes(x = as.factor(hh_size), y = observed,
            label = sprintf("[%s]", counts))) +
   # predicted SAR

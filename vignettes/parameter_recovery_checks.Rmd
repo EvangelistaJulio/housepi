@@ -121,7 +121,7 @@ recovery$estimates |>
 ```{r}
 #| label: observed-size
 #| include: false
-observed <- subset(recovery$summary, houses == n_houses)
+observed <- subset(recovery$summarise(), houses == n_houses)
 rownames(observed) <- observed$variable
 ```
 
@@ -164,7 +164,7 @@ n_vars <- length(names(recovery$truth))
 cost <- recovery$overview |>
   dplyr::summarise(cost = 1000 * secs_per_ess, .by = "houses")
 
-recovery$summary |>
+recovery$summarise() |>
   dplyr::select(houses, variable, cri_width) |>
   tidyr::pivot_wider(names_from = variable, values_from = cri_width) |>
   dplyr::left_join(cost, by = "houses") |>
@@ -183,7 +183,7 @@ recovery$summary |>
 ```{r}
 #| label: doubling
 #| include: false
-width <- recovery$summary[c("houses", "variable", "cri_width")] |>
+width <- recovery$summarise()[c("houses", "variable", "cri_width")] |>
   tidyr::pivot_wider(names_from = houses, values_from = cri_width)
 narrower <- 1 - width[[as.character(2 * n_houses)]] /
   width[[as.character(n_houses)]]

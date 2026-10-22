@@ -115,7 +115,7 @@ sample_house_structure <- function(data_wide, houses = NA_integer_) {
 #'   check_recovery(data.frame(alpha = 0.15, beta = 0.2, gamma = 1),
 #'                  nrep = 2, houses = 30, progress = FALSE)
 #' recovery
-#' recovery$summary
+#' recovery$summarise()
 #' @docType class
 HousepiRecoveryCheck <- R6::R6Class(
   classname = "HousepiRecoveryCheck",
@@ -190,20 +190,6 @@ HousepiRecoveryCheck <- R6::R6Class(
     replicates = function(value) {
       assert_read_only_(value, "replicates")
       private$replicates_
-    },
-
-    #' @field summary `data.frame`
-    #' Recovery statistics per household count and parameter
-    #' \describe{
-    #'   \item{bias, rel_bias}{Mean error, absolute and relative to the truth;}
-    #'   \item{rmse}{Root mean squared error;}
-    #'   \item{coverage}{Share of replicates whose interval covers the truth;}
-    #'   \item{cri_width}{Mean width of the credible interval;}
-    #'   \item{nrep, n_flagged}{Replicates aggregated, and those flagged.}
-    #' }
-    summary = function(value) {
-      assert_read_only_(value, "summary")
-      recovery_summary_(private$estimates_)
     },
 
     #' @field overview `data.frame`
@@ -314,6 +300,22 @@ HousepiRecoveryCheck <- R6::R6Class(
       invisible(self)
     },
 
+    #' @description Compute the recovery statistics
+    #' per household count and parameter.
+    #' @return `data.frame`
+    #' \describe{
+    #'   \item{bias, rel_bias}{Mean error, absolute and relative to the truth;}
+    #'   \item{rmse}{Root mean squared error;}
+    #'   \item{coverage}{Share of replicates whose interval covers the truth;}
+    #'   \item{cri_width}{Mean width of the credible interval;}
+    #'   \item{nrep, n_flagged}{Replicates aggregated, and those flagged.}
+    #' }
+    summarise = function() recovery_summary_(private$estimates_),
+
+    #' @description Same as `$summarise()`.
+    #' @return See `$summarise()`.
+    summarize = function() self$summarise(),
+
     #' @description Print a summary of the sweep.
     print = function() {
       model <- spaced_choice(private$name_)
@@ -370,7 +372,7 @@ HousepiRecoveryCheck <- R6::R6Class(
 #'   add_parameter(import = "template") |>
 #'   check_recovery(data.frame(alpha = 0.15, beta = 0.2, gamma = 1),
 #'                  nrep = 2, houses = 30, progress = FALSE)
-#' recovery$summary
+#' recovery$summarise()
 #' recovery$overview
 #' @export
 check_recovery <- function(hh_model,

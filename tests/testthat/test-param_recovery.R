@@ -127,7 +127,7 @@ expect_recovered <- function(results) {
 
 test_that("Recovery results are read only", {
   mk_recov$results |>
-    expect_read_only_field("estimates", "replicates", "summary",
+    expect_read_only_field("estimates", "replicates",
                            "overview", "truth", "houses", "nrep",
                            "point_estimate", "cri_level", "warnings")
 })
@@ -159,7 +159,8 @@ test_that("Recovery sweeps every household count", {
   sort(unique(results$estimates$variable)) |>
     expect_identical(c("alpha", "beta", "gamma"))
   results$replicates |> expect_nrow(4L)
-  results$summary |> expect_nrow(6L)
+  results$summarise() |> expect_nrow(6L)
+  results$summarize() |> expect_identical(results$summarise())
   results$overview$houses |> expect_identical(c(20L, 40L))
   results$nrep |> expect_identical(2L)
   results$point_estimate |> expect_identical("median")
@@ -174,7 +175,7 @@ test_that("Each replicate reports its cost and its survey", {
     expect_equal(as.vector(tapply(estimates$ess_bulk,
                                   estimates[c("rep", "houses")], min)))
   (mk_recov$results$overview$secs_per_ess > 0) |> expect_all_true()
-  mk_recov$results$summary$coverage |> expect_in(c(0, 0.5, 1))
+  mk_recov$results$summarise()$coverage |> expect_in(c(0, 0.5, 1))
   replicates$seed |> expect_type("integer")
   replicates$seed |> expect_no_na()
   estimates$covers |>
@@ -183,7 +184,7 @@ test_that("Each replicate reports its cost and its survey", {
 })
 
 test_that("A failed replicate is named in the error", {
-  hhdata <- sample_house_structure(mk_recov$model$data_wide, houses = 20)
+  hhdata <- sample_house_structure(get_data_wide(mk_recov$model), houses = 20)
   # every status missing passes the model build and stops the engine before
   # any fit samples
   hhdata_2 <- hhdata
@@ -214,7 +215,7 @@ test_that("A failed replicate stops the fits sampled with it", {
     add_latent("hidden", model = "uniform") |>
     add_observation("record", model = "uniform", loc = hidden,
                     min = -0.1, max = 0.1)
-  hhdata <- hh_model$data_wide
+  hhdata <- get_data_wide(hh_model)
   hhdata_2 <- transform(hhdata, record = 5)
   # the fit of `hhdata` alone samples for minutes
   fit_args <- list(steps = 400000000L, burn = 0, thin = 100000L, adapt = 0,
@@ -254,7 +255,7 @@ test_that("Recovery leaves the model it was given untouched", {
   hh_model <- mk_recov$model
   fresh <- add_parameter(hh_model, import = "template", append = FALSE)
   get_parameters(hh_model) |> expect_identical(get_parameters(fresh))
-  hh_model$data_wide |> expect_nrow(nrow(flu_1918_frederick))
+  get_data_wide(hh_model) |> expect_nrow(nrow(flu_1918_frederick))
 })
 
 test_that("Every estimated parameter needs a simulation value", {

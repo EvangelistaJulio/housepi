@@ -102,7 +102,7 @@ mk_calib <- local({
 
 test_that("Calibration results are read only", {
   mk_calib$results |>
-    expect_read_only_field("estimates", "replicates", "ecdf", "summary",
+    expect_read_only_field("estimates", "replicates",
                            "overview", "houses", "nrep", "rank_draws",
                            "warnings")
 })
@@ -117,8 +117,9 @@ test_that("Every replicate is ranked at a value drawn from the prior", {
   unique(estimates$truth) |> expect_length(3L)
   (estimates$truth > -5 & estimates$truth < 5 & estimates$truth != 2) |>
     expect_all_true()
-  results$ecdf |> expect_nrow(9L)
-  results$summary$nrep |> expect_identical(3L)
+  results$evaluate_ecdf() |> expect_nrow(9L)
+  results$summarise()$nrep |> expect_identical(3L)
+  results$summarize() |> expect_identical(results$summarise())
   results$overview$nrep |> expect_identical(3L)
   results$houses |> expect_identical(30L)
   results$rank_draws |> expect_identical(9L)
@@ -181,6 +182,6 @@ test_that("Latent inference is calibrated against the prior", {
   results <- check_calibration(mk_calib$model, threads = 4, progress = FALSE) |>
     suppressWarnings()
   # a test at level 0.001, so a calibrated sampler fails one run in 1000
-  threshold <- calibration_log_threshold_(results$summary$nrep, 99, 0.001)
-  (results$summary$log_gamma >= threshold) |> expect_true()
+  threshold <- calibration_log_threshold_(results$summarise()$nrep, 99, 0.001)
+  (results$summarise()$log_gamma >= threshold) |> expect_true()
 })

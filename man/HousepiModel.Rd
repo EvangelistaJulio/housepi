@@ -14,7 +14,7 @@ hh_model <- flu_1918_frederick |>
   new_housepi_model("final-size") |>
   add_parameter(import = "template")
 hh_model
-hh_model$parameters
+hh_model$name
 }
 \section{Active bindings}{
   \if{html}{\out{<div class="r6-active-bindings">}}
@@ -25,33 +25,6 @@ hh_model$parameters
 Label for status code \code{0} in a character or factor \code{status} column.}
 
     \item{\code{setup}}{\code{list} Last setup used by the build process.}
-
-    \item{\code{data_wide}}{\code{data.frame}
-Individual-level data, one row per individual, indexed by ID.}
-
-    \item{\code{data_long}}{\code{data.frame}
-Additional data rows indexed by individual (long format).}
-
-    \item{\code{parameters}}{\code{data.frame} Parameter definitions.}
-
-    \item{\code{group_risks}}{\code{data.frame} Group risk definitions.}
-
-    \item{\code{contact_risks}}{\code{data.frame} Contact risk definitions.}
-
-    \item{\code{latent}}{\code{data.frame} Latent definitions.}
-
-    \item{\code{observations}}{\code{data.frame}
-Observation definitions.
-Column 'level' tells member ("member") from household ("house") entries.}
-
-    \item{\code{status_process}}{\code{data.frame}
-Status process, one row per rule: its status, weight,
-the members it applies to, its rule group and covariates.}
-
-    \item{\code{infectivity_profiles}}{\code{data.frame} Infectivity profile definitions.}
-
-    \item{\code{reporting_process}}{\code{list}
-Reporting process: functions \code{wide} and \code{long}, \code{NULL} when absent.}
   }
   \if{html}{\out{</div>}}
 }
