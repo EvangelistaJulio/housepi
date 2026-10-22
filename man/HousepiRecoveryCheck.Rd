@@ -59,7 +59,8 @@ Values the surveys were simulated at.}
 
     \item{\code{houses}}{\code{integer()} Household counts swept.}
 
-    \item{\code{nrep}}{\code{integer(1)} Replicates run at each household count.}
+    \item{\code{nrep}}{\code{integer()}
+Replicates run at each household count, in the order of \code{houses}.}
 
     \item{\code{point_estimate}}{\code{character(1)}
 Summary statistic taken as the posterior point estimate.}

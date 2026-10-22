@@ -33,7 +33,7 @@ or when its bulk effective sample size is below \code{rank_draws}.}
 }}
 
     \item{\code{replicates}}{\code{data.frame}
-One row per replicate
+One row per household count and replicate
 \describe{
 \item{seed}{Seed of the fit's random number generators;}
 \item{inference_secs}{Wall-clock of the sampling loop;}
@@ -43,7 +43,7 @@ over the parameters of the fit;}
 }}
 
     \item{\code{overview}}{\code{data.frame}
-Sweep cost, averaged over the replicates
+Sweep cost per household count, averaged over the replicates
 \describe{
 \item{nrep, n_flagged}{Replicates run, and those flagged;}
 \item{mean_inference_secs}{Mean wall-clock of a sampling loop;}
@@ -52,9 +52,10 @@ of the worst-mixing parameter, pooled over the replicates:
 a cost of this run, machine and thread count, not of the model.}
 }}
 
-    \item{\code{houses}}{\code{integer(1)} Household count of the surveys.}
+    \item{\code{houses}}{\code{integer()} Household counts swept.}
 
-    \item{\code{nrep}}{\code{integer(1)} Replicates run.}
+    \item{\code{nrep}}{\code{integer()}
+Replicates run at each household count, in the order of \code{houses}.}
 
     \item{\code{rank_draws}}{\code{integer(1)}
 Posterior draws each simulating value is ranked among.}

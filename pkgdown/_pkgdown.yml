@@ -78,6 +78,7 @@ reference:
   - HousepiRecoveryCheck
   - check_calibration
   - HousepiCalibrationCheck
+  - combine_checks
   - sample_house_structure
 
 - title: "Auxiliary tools"

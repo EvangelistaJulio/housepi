@@ -138,7 +138,7 @@ test_that("Recovery results print their settings", {
   # printing returns the object itself
   printed |> expect_identical(results)
   lines[1] |> expect_match("[Pp]arameter recovery check.*final size")
-  lines |> expect_contains(c("Households: 20 and 40", "Replicates each: 2",
+  lines |> expect_contains(c("Households: 20 and 40", "Replicates: 4",
                              "Point estimate: median",
                              "Credible interval: 90%"))
   # the count is that of the flagged replicates
@@ -162,7 +162,7 @@ test_that("Recovery sweeps every household count", {
   results$summarise() |> expect_nrow(6L)
   results$summarize() |> expect_identical(results$summarise())
   results$overview$houses |> expect_identical(c(20L, 40L))
-  results$nrep |> expect_identical(2L)
+  results$nrep |> expect_identical(c(2L, 2L))
   results$point_estimate |> expect_identical("median")
   results$cri_level |> expect_equal(0.9)
 })
@@ -312,6 +312,64 @@ test_that("Recovery refuses a sweep it cannot run", {
                            progress = FALSE) |>
     expect_error("[Tt]hin.*cannot be greater than.*steps")
   conditionMessage(failed) |> expect_no_match("[Rr]eplicate")
+})
+
+test_that("Recovery checks of one model pool their replicates", {
+  results <- mk_recov$results
+  # the model built anew, as in another session, the defaults spelled out
+  results_2 <- flu_1918_frederick |>
+    new_housepi_model("final-size") |>
+    add_parameter(import = "template") |>
+    check_recovery(mk_recov$draws, nrep = 1, houses = c(40, 60),
+                   steps = 50, chains = 1, progress = FALSE,
+                   adapt_window = 50, time_step = 0.05) |>
+    suppressWarnings()
+  combined <- c(results, results_2)
+
+  combined |> expect_s3_class("HousepiRecoveryCheck")
+  combined$houses |> expect_identical(c(20L, 40L, 60L))
+  combined$nrep |> expect_identical(c(2L, 3L, 1L))
+  # replicates at 40 households follow those of the first check
+  with(combined$replicates, rep[houses == 40L]) |> expect_identical(1:3)
+  combined$estimates |> expect_nrow(18L)
+  combined$summarise()$nrep |> expect_identical(rep(c(2L, 3L, 1L), each = 3L))
+  sum(combined$warnings$count) |>
+    expect_identical(sum(results$warnings$count, results_2$warnings$count))
+  # the checks combined are left as they were
+  results$nrep |> expect_identical(c(2L, 2L))
+})
+
+test_that("Recovery checks of different runs do not combine", {
+  results <- mk_recov$results
+  rerun <- function(hh_model = mk_recov$model, draws = mk_recov$draws,
+                    steps = 50, ...) {
+    check_recovery(hh_model, draws, nrep = 1, houses = 20, steps = steps,
+                   chains = 1, progress = FALSE, ...) |>
+      suppressWarnings()
+  }
+
+  c(results, results) |> expect_error("[Rr]epeat a replicate.*20")
+  c(results, rerun(steps = 60)) |> expect_error("[Dd]iffer in.*steps")
+  c(rerun(time_step = 0.5), rerun(time_step = 1)) |>
+    expect_error("[Dd]iffer in.*time_step")
+  c(results, rerun(draws = transform(mk_recov$draws, gamma = 0.9))) |>
+    expect_error("[Dd]iffer in.*truth")
+  hh_model <- mk_recov$model |>
+    add_parameter("beta", prior = "uniform", min = 0, max = 2, append = TRUE) |>
+    suppressWarnings()
+  c(results, rerun(hh_model)) |> expect_error("[Dd]iffer in.*parameters")
+  # one body, different captured probability
+  miss_cases <- function(p) {
+    function(data_wide) {
+      missed <- data_wide$status > 0 & stats::runif(nrow(data_wide)) < p
+      data_wide$status[missed] <- 0L
+      data_wide
+    }
+  }
+  report <- \(p) add_reporting_process(mk_recov$model, wide = miss_cases(p))
+  c(rerun(report(0)), rerun(report(0.5))) |>
+    expect_error("[Dd]iffer in.*reporting_process")
+  c(results, data.frame()) |> expect_error("cannot be combined")
 })
 
 test_that("Latent inference recovers the simulating parameter", {

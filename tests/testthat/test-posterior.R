@@ -4,27 +4,29 @@ library(testthat)
 
 # one short inference run, quiet, holding the warnings it raised
 mk_draws <- local({
-  results <- flu_1918_frederick |>
+  hh_model <- flu_1918_frederick |>
     new_housepi_model("final-size") |>
-    add_parameter(import = "template") |>
+    add_parameter(import = "template")
+  results <- hh_model |>
     run_inference(steps = 100L, chains = 1L, adapt = 0L, thin = 1L,
                   warn = FALSE)
-  list(results = results)
+  list(model = hh_model, results = results)
 })
 
 # two parameters and a latent traced on one member
 mk_latent_draws <- local({
-  results <- data.frame(hh_id = 1, id = c("m1", "m2"),
-                        status = c(1, 0), obs = 0) |>
+  hh_model <- data.frame(hh_id = 1, id = c("m1", "m2"),
+                         status = c(1, 0), obs = 0) |>
     new_housepi_model("test") |>
     add_parameter(rho = list(prior = "uniform"),
                   rho_2 = list(prior = "uniform")) |>
     add_latent(hidden = list(model = "uniform")) |>
-    helper_flat_sink(loc = hidden) |>
+    helper_flat_sink(loc = hidden)
+  results <- hh_model |>
     run_inference(steps = 5L, chains = 1L, adapt = 0L, thin = 1L,
                   id_draws = "m1") |>
     suppressWarnings()
-  list(results = results)
+  list(model = hh_model, results = results)
 })
 
 ####  Definitions  ####
@@ -311,4 +313,69 @@ test_that("Draws accessors subset the variables they return", {
   # the subset stays a housepi draws object, so summarise_draws still dispatches
   get_parameter_draws(results, "rho") |> expect_s3_class("housepi_draws")
   get_complete_draws(results, "lprior") |> expect_s3_class("housepi_draws")
+})
+
+test_that("Runs of one model bind their chains", {
+  results <- mk_draws$results
+  # the model built anew, as in another session
+  results_2 <- flu_1918_frederick |>
+    new_housepi_model("final-size") |>
+    add_parameter(import = "template") |>
+    run_inference(steps = 100L, chains = 2L, adapt = 0L, thin = 1L,
+                  warn = FALSE)
+  # diagnostics run again over the chains bound, and warn as a run does
+  combined <- c(results, results_2) |> suppressWarnings()
+
+  combined |> expect_s3_class("HousepiPosteriorDraws")
+  param <- get_parameter_draws(combined)
+  posterior::nchains(param) |> expect_identical(3L)
+  posterior::niterations(param) |> expect_identical(100L)
+  # the chains of the second run follow those of the first
+  posterior::subset_draws(param, chain = 2:3)$alpha |>
+    expect_identical(get_parameter_draws(results_2)$alpha)
+  posterior::nchains(get_log_lik_draws(combined)) |> expect_identical(3L)
+  combined$inference_secs |>
+    expect_equal(results$inference_secs + results_2$inference_secs)
+  combined$warnings$message |>
+    expect_match("[Ss]ample size was below", all = FALSE)
+  # the runs combined are left as they were
+  posterior::nchains(get_parameter_draws(results)) |> expect_identical(1L)
+})
+
+test_that("Runs of different settings, data or members do not combine", {
+  results <- mk_draws$results
+  run <- function(hh_model, steps = 100L, ...) {
+    run_inference(hh_model, steps = steps, chains = 1L, adapt = 0L,
+                  thin = 1L, warn = FALSE, ...)
+  }
+  c(results, results) |> expect_error("[Rr]epeat a seed")
+  c(results, run(mk_draws$model, steps = 50L)) |>
+    expect_error("[Dd]iffer in.*steps")
+  hh_model <- flu_1918_frederick[-1L, ] |>
+    new_housepi_model("final-size") |>
+    add_parameter(import = "template")
+  c(results, run(hh_model)) |> expect_error("[Dd]iffer in.*data_wide")
+  hh_model <- mk_draws$model |>
+    add_parameter("beta", prior = "uniform", min = 0, max = 2, append = TRUE) |>
+    suppressWarnings()
+  c(results, run(hh_model)) |> expect_error("[Dd]iffer in.*parameters")
+  # `[^.]` keeps to the fields, the hint names the model too
+  c(results, mk_latent_draws$results) |>
+    expect_error("[Dd]iffer in[^.]*model")
+  results_2 <- run(mk_latent_draws$model, steps = 5L, id_draws = "m2")
+  c(mk_latent_draws$results, results_2) |>
+    expect_error("[Dd]iffer in.*id_draws")
+  # a default run traces one household at random, among two here:
+  # one of twenty runs traces the other one but once in 500,000 suites
+  hh_model <- data.frame(hh_id = c("h1", "h1", "h2", "h2"),
+                         id = c("m1", "m2", "m3", "m4"),
+                         status = c(1, 0, 1, 0), obs = 0) |>
+    new_housepi_model("test") |>
+    add_parameter(rho = list(prior = "uniform")) |>
+    add_latent(hidden = list(model = "uniform")) |>
+    helper_flat_sink(loc = hidden)
+  traced <- \(x) posterior::variables(get_latent_draws(x))
+  runs <- replicate(20L, run(hh_model, steps = 5L), simplify = FALSE)
+  other <- Find(\(x) !identical(traced(x), traced(runs[[1L]])), runs)
+  c(runs[[1L]], other) |> expect_error("[Dd]ifferent variables")
 })

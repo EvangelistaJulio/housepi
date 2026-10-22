@@ -149,15 +149,10 @@ HousepiCalibrationCheck <- R6::R6Class(
 
   private = list(
     name_ = NA_character_,
-    nrep_ = NA_integer_,
-    houses_ = NULL,
     rank_draws_ = NA_integer_,
     variables_ = NULL,
-    estimates_ = NULL,
-    replicates_ = NULL,
-    warnings_ = NULL,
-    secs_ = NA_real_,
-    thresholds_ = list(),
+    # `HousepiSweep` Replicates fitted.
+    sweep_ = NULL,
 
     # Rank the simulating value of every estimated parameter,
     # with the convergence diagnostics of the fit.
@@ -176,15 +171,14 @@ HousepiCalibrationCheck <- R6::R6Class(
                  rank = unname(rank), diag, row.names = NULL)
     },
 
-    # Log-threshold of the uniformity test at `n` replicates, computed once.
-    threshold_ = function(n) {
-      key <- as.character(n)
-      if (is.null(private$thresholds_[[key]]))
-        private$thresholds_[[key]] <- calibration_log_threshold_(
-          n, private$rank_draws_, calibration_alpha_
-        )
-
-      private$thresholds_[[key]]
+    # Log-threshold of the uniformity test, one per number of replicates.
+    # @return `function` Log-threshold of `n` replicates.
+    threshold_ = function() {
+      n <- unique(self$nrep)
+      log_threshold <- vapply(n, calibration_log_threshold_, numeric(1L),
+                              size = private$rank_draws_,
+                              alpha = calibration_alpha_)
+      \(m) log_threshold[[match(m, n)]]
     }
   ),
 
@@ -204,11 +198,11 @@ HousepiCalibrationCheck <- R6::R6Class(
     #' }
     estimates = function(value) {
       assert_read_only_(value, "estimates")
-      private$estimates_
+      private$sweep_$estimates
     },
 
     #' @field replicates `data.frame`
-    #' One row per replicate
+    #' One row per household count and replicate
     #' \describe{
     #'   \item{seed}{Seed of the fit's random number generators;}
     #'   \item{inference_secs}{Wall-clock of the sampling loop;}
@@ -218,11 +212,11 @@ HousepiCalibrationCheck <- R6::R6Class(
     #' }
     replicates = function(value) {
       assert_read_only_(value, "replicates")
-      private$replicates_
+      private$sweep_$replicates
     },
 
     #' @field overview `data.frame`
-    #' Sweep cost, averaged over the replicates
+    #' Sweep cost per household count, averaged over the replicates
     #' \describe{
     #'   \item{nrep, n_flagged}{Replicates run, and those flagged;}
     #'   \item{mean_inference_secs}{Mean wall-clock of a sampling loop;}
@@ -232,19 +226,20 @@ HousepiCalibrationCheck <- R6::R6Class(
     #' }
     overview = function(value) {
       assert_read_only_(value, "overview")
-      sweep_overview_(private$replicates_)
+      private$sweep_$overview
     },
 
-    #' @field houses `integer(1)` Household count of the surveys.
+    #' @field houses `integer()` Household counts swept.
     houses = function(value) {
       assert_read_only_(value, "houses")
-      private$houses_
+      private$sweep_$houses
     },
 
-    #' @field nrep `integer(1)` Replicates run.
+    #' @field nrep `integer()`
+    #' Replicates run at each household count, in the order of `houses`.
     nrep = function(value) {
       assert_read_only_(value, "nrep")
-      private$nrep_
+      private$sweep_$nrep
     },
 
     #' @field rank_draws `integer(1)`
@@ -258,7 +253,7 @@ HousepiCalibrationCheck <- R6::R6Class(
     #' Distinct warnings raised over the sweep, with their counts.
     warnings = function(value) {
       assert_read_only_(value, "warnings")
-      private$warnings_
+      private$sweep_$warnings
     }
   ),
 
@@ -287,7 +282,7 @@ HousepiCalibrationCheck <- R6::R6Class(
                           thin = 5L, adapt = 500L,
                           chains = 4L, threads = 1L,
                           progress = TRUE, ...) {
-      private$nrep_ <- assert_count_(nrep, "Number of replicates")
+      nrep <- assert_count_(nrep, "Number of replicates")
       private$rank_draws_ <- assert_count_(rank_draws, "Number of ranked draws")
       stored <- resolve_setup_(steps, burn, thin, adapt, chains)$total
       if (stored < rank_draws) stop_h(
@@ -298,23 +293,19 @@ HousepiCalibrationCheck <- R6::R6Class(
       private$name_ <- hh_model$.__enclos_env__$private$compiled_$name
       private$variables_ <- sweep_estimated_(hh_model)
       structure <- sweep_base_structure_(hh_model)
-      private$houses_ <- sweep_houses_(structure, houses,
-                                       is.null(structure_sampler), one = TRUE)
+      houses <- sweep_houses_(structure, houses, is.null(structure_sampler),
+                              one = TRUE)
 
       # no column: simulation draws every parameter anew from its prior
       pins <- numeric()
       fit_args <- list(steps = steps, burn = burn, thin = thin, adapt = adapt,
                        chains = chains)
-      swept <- sweep_run_(
-        hh_model, structure, structure_sampler, private$houses_, private$nrep_,
+      private$sweep_ <- HousepiSweep$new(
+        hh_model, structure, structure_sampler, houses, nrep,
         pins, fit_args, threads, list(...), private$summarise_ranks_,
         progress, "Calibration replicates"
       )
-      private$estimates_ <- swept$estimates
-      private$replicates_ <- swept$replicates
-      private$warnings_ <- swept$warnings
-      private$secs_ <- swept$secs
-      sweep_report_warnings_(private$warnings_, "Simulation calibration")
+      sweep_report_warnings_(private$sweep_$warnings, "Simulation calibration")
       invisible(self)
     },
 
@@ -329,8 +320,8 @@ HousepiCalibrationCheck <- R6::R6Class(
     #'   \item{uniform}{Whether the ranks pass the test.}
     #' }
     summarise = function() {
-      calibration_summary_(private$estimates_, private$rank_draws_,
-                           private$threshold_)
+      calibration_summary_(private$sweep_$estimates, private$rank_draws_,
+                           private$threshold_())
     },
 
     #' @description Same as `$summarise()`.
@@ -348,23 +339,17 @@ HousepiCalibrationCheck <- R6::R6Class(
     #'     at every `z` at once, with probability at least 0.95.}
     #' }
     evaluate_ecdf = function() {
-      calibration_ecdf_(private$estimates_, private$rank_draws_,
-                        private$threshold_)
+      calibration_ecdf_(private$sweep_$estimates, private$rank_draws_,
+                        private$threshold_())
     },
 
     #' @description Print a summary of the sweep.
     print = function() {
       model <- spaced_choice(private$name_)
-      flagged <- sum(private$replicates_[["flagged"]])
-      fit_secs <- mean(private$replicates_[["inference_secs"]])
-      print_rows_("Simulation calibration check of model {.val {model}}.", c(
-        Households = "{private$houses_}",
-        Replicates = "{private$nrep_}",
-        `Posterior draws ranked among` = "{private$rank_draws_}",
-        `Flagged by diagnostics` = "{flagged}",
-        `Run time` = "{format_secs_(private$secs_)}",
-        `Inference time per fit` = "{format_secs_(fit_secs)}"
-      ))
+      private$sweep_$print_rows(
+        "Simulation calibration check of model {.val {model}}.",
+        c(`Posterior draws ranked among` = "{private$rank_draws_}")
+      )
       invisible(self)
     }
   )

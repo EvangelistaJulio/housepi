@@ -47,6 +47,9 @@ HousepiModel <- R6::R6Class(
       data_long = list(cols = character())
     ),
 
+    # `character()` Hash of the factorized data attached, keyed as `coding_`.
+    data_hash_ = c(data_wide = NA_character_, data_long = NA_character_),
+
     param_ = NULL,
     augm_ = NULL,
     group_risks_ = NULL,
@@ -55,6 +58,8 @@ HousepiModel <- R6::R6Class(
     infec_profile_ = NULL,
     reporting_process_ = NULL,
     collapse_seen_ = character(),
+    # hashes of the data and definitions of the last push at the wall
+    fingerprint_ = NULL,
 
     ####  Requirements  ####
 
@@ -438,12 +443,13 @@ HousepiModel <- R6::R6Class(
       invisible(self)
     },
 
-    # Factorize data for the engine, recording its coding.
+    # Factorize data for the engine, recording its coding and hash.
     # @param format `character(1)` `"data_wide"` or `"data_long"`.
     # @return `data.frame` Factorized data, for the engine to import.
     embed_data_ = function(data, format) {
       embed <- cpp_data_factorize(data, private$escaped_)
       private$coding_[[format]] <- embed[names(embed) != "data"]
+      private$data_hash_[[format]] <- rlang::hash(embed$data)
       embed$data
     },
 
@@ -666,6 +672,8 @@ HousepiModel <- R6::R6Class(
       # unresolved definitions wait for completeness or for the wall
       if (wall || private$latent_declaration_complete_(payload$latent))
         .engine$import_latent(mcmc_ptr, payload$latent)
+      if (wall) private$fingerprint_ <- c(as.list(private$data_hash_),
+                                          lapply(payload, rlang::hash))
 
       invisible(self)
     },
@@ -948,7 +956,7 @@ HousepiModel <- R6::R6Class(
       for (field in c("compiled_", "param_", "augm_", "group_risks_",
                       "contact_risks_", "status_", "infec_profile_",
                       "reporting_process_", "collapse_seen_", "escaped_",
-                      "coding_")) {
+                      "coding_", "data_hash_")) {
         obj_priv[[field]] <- helper_clone(private[[field]])
       }
       obj_priv$mcmc_ptr_ <- create_mcmc_runner_(obj_priv$compiled_)

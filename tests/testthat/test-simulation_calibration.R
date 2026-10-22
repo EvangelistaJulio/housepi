@@ -176,6 +176,47 @@ test_that("Calibration refuses a sweep it cannot rank", {
     expect_error("[Nn]o parameter to estimate")
 })
 
+test_that("Calibration checks of one model pool their replicates", {
+  rerun <- function(nrep = 2, rank_draws = 9, structure_sampler = NULL, ...) {
+    check_calibration(mk_calib$model, nrep = nrep,
+                      structure_sampler = structure_sampler,
+                      rank_draws = rank_draws, steps = 400, thin = 1,
+                      chains = 1, progress = FALSE, ...) |>
+      suppressWarnings()
+  }
+  results <- mk_calib$results
+  combined <- c(results, rerun())
+
+  combined$nrep |> expect_identical(5L)
+  combined$estimates$rep |> expect_identical(1:5)
+  # the uniformity test reads the pooled replicates
+  combined$summarise()$nrep |> expect_identical(5L)
+  combined$summarise()$log_gamma_threshold |>
+    expect_equal(calibration_log_threshold_(5, 9, 0.05))
+  combined$evaluate_ecdf() |> expect_nrow(9L)
+  results$nrep |> expect_identical(3L)
+  c(results, results) |> expect_error("[Rr]epeat a replicate.*30")
+  c(results, rerun(nrep = 1, rank_draws = 8)) |>
+    expect_error("[Dd]iffer in.*rank_draws")
+
+  # one count per check, several once pooled
+  resampled <- \(nrep, houses) {
+    rerun(nrep, structure_sampler = sample_house_structure, houses = houses)
+  }
+  results_2 <- resampled(2, 30)
+  combined <- c(results_2, resampled(1, 40), resampled(1, 30))
+  combined$houses |> expect_identical(c(30L, 40L))
+  combined$nrep |> expect_identical(c(3L, 1L))
+  # the third check follows the first at their shared count
+  with(combined$replicates, rep[houses == 30L]) |> expect_identical(1:3)
+  # each count is tested at its own number of replicates
+  combined$summarise()$log_gamma_threshold |>
+    expect_equal(c(calibration_log_threshold_(3, 9, 0.05),
+                   calibration_log_threshold_(1, 9, 0.05)))
+  combined$evaluate_ecdf() |> expect_nrow(18L)
+  c(results, results_2) |> expect_error("[Dd]iffer in.*structure_sampler")
+})
+
 test_that("Latent inference is calibrated against the prior", {
   skip_on_cran()
   # a replicate flagged by convergence diagnostics warns

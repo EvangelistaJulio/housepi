@@ -1422,7 +1422,7 @@ wrap_inference_ <- function(hh_model, ran, i = 1L) {
   if (!is.null(ran$error)) with_cpp_conditions(stop(ran$error))
   pvt <- hh_model$.__enclos_env__$private
   HousepiPosteriorDraws$new(pvt$compiled_$name, pvt$mcmc_ptr_,
-                            ran$seconds[[i]])
+                            ran$seconds[[i]], pvt$fingerprint_)
 }
 
 #' @title Simulate a household survey from a housepi model

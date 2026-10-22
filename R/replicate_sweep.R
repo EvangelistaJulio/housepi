@@ -106,6 +106,206 @@ sweep_stack_ <- function(parts, cols) {
   out
 }
 
+#' Household counts of a sweep, each with its number of replicates.
+#' @noRd
+sweep_cells_ <- function(replicates) {
+  counts <- table(replicates[["houses"]])
+  list(houses = as.integer(names(counts)), nrep = as.vector(counts))
+}
+
+#' Fingerprint of what the surveys are generated and fitted with:
+#' * household structure the surveys are drawn from -> hashed;
+#' * definitions as the engine imports them -> hashed per family;
+#' * structure sampler and `wide` reporting process -> kept whole.
+#' @noRd
+sweep_fingerprint_ <- function(hh_model, structure, sampler) {
+  pvt <- hh_model$.__enclos_env__$private
+  c(list(household_data = rlang::hash(structure)),
+    lapply(pvt$payload_(), rlang::hash),
+    list(structure_sampler = sampler,
+         reporting_process = pvt$reporting_process_$wide))
+}
+
+#' Sweep of a recovery or calibration check: the replicates
+#' sweep_run_() fits, held in the private field `sweep_` of the check.
+#' @noRd
+HousepiSweep <- R6::R6Class(
+  classname = "HousepiSweep",
+
+  ####  Private  ####
+
+  private = list(
+    # sampler settings of the fits
+    settings_ = NULL,
+    # hashes of the data and definitions the surveys are generated with
+    fingerprint_ = NULL,
+    estimates_ = NULL,
+    replicates_ = NULL,
+    warnings_ = NULL,
+    secs_ = NA_real_
+  ),
+
+  ####  Active  ####
+
+  active = list(
+    # `data.frame` One row per household count, replicate and parameter.
+    estimates = function(value) {
+      assert_read_only_(value, "estimates")
+      private$estimates_
+    },
+
+    # `data.frame` One row per household count and replicate.
+    replicates = function(value) {
+      assert_read_only_(value, "replicates")
+      private$replicates_
+    },
+
+    # `data.frame` Distinct warnings, with their counts.
+    warnings = function(value) {
+      assert_read_only_(value, "warnings")
+      private$warnings_
+    },
+
+    # `numeric(1)` Wall-clock of the sweep.
+    secs = function(value) {
+      assert_read_only_(value, "secs")
+      private$secs_
+    },
+
+    # `data.frame` Sweep cost per household count.
+    overview = function(value) {
+      assert_read_only_(value, "overview")
+      sweep_overview_(private$replicates_)
+    },
+
+    # `integer()` Household counts swept.
+    houses = function(value) {
+      assert_read_only_(value, "houses")
+      sweep_cells_(private$replicates_)$houses
+    },
+
+    # `integer()` Replicates at each household count, in the order of `houses`.
+    nrep = function(value) {
+      assert_read_only_(value, "nrep")
+      sweep_cells_(private$replicates_)$nrep
+    }
+  ),
+
+  ####  Public  ####
+
+  public = list(
+    # Run the sweep, arguments as in sweep_run_().
+    initialize = function(...) {
+      swept <- sweep_run_(...)
+      private$settings_ <- swept$settings
+      private$fingerprint_ <- swept$fingerprint
+      private$estimates_ <- swept$estimates
+      private$replicates_ <- swept$replicates
+      private$warnings_ <- swept$warnings
+      private$secs_ <- swept$secs
+    },
+
+    # Print `header`, the household counts and replicates, `rows`,
+    # then the diagnostics and run times.
+    # @param rows `character()` Rows of the check, glued in `.envir`.
+    # Shared rows read this sweep as `sweep`.
+    print_rows = function(header, rows, .envir = parent.frame()) {
+      env <- list2env(list(sweep = self), parent = .envir)
+      print_rows_(header, c(
+        Households = "{sweep$houses}",
+        Replicates = "{nrow(sweep$replicates)}",
+        rows,
+        `Flagged by diagnostics` = "{sum(sweep$replicates[['flagged']])}",
+        `Run time` = "{format_secs_(sweep$secs)}",
+        `Inference time per fit` =
+          "{format_secs_(mean(sweep$replicates[['inference_secs']]))}"
+      ), .envir = env)
+    }
+  )
+)
+
+#' Combine checks of one class into a clone of the first one,
+#' their sweeps pooled by sweep_pool_().
+#' * any other field differs -> error, see combine_r6_().
+#' @param checks `list` Checks to combine, in order.
+#' @noRd
+sweep_combine_ <- function(checks) {
+  comb <- combine_r6_(checks, "sweep_", "checks")
+  comb$pvt$sweep_ <- sweep_pool_(lapply(comb$privs, `[[`, "sweep_"))
+  comb$out
+}
+
+#' Pool sweeps into a clone of the first one.
+#' Replicates pool, numbered in sequence per household count,
+#' warning counts and run times add up.
+#' * settings or fingerprint differ -> error, see combine_r6_();
+#' * seed repeated at one household count -> error.
+#' @param sweeps `list` Sweeps to pool, in order.
+#' @noRd
+sweep_pool_ <- function(sweeps) {
+  pooled <- c("estimates_", "replicates_", "warnings_", "secs_")
+  comb <- combine_r6_(sweeps, pooled, "checks")
+  privs <- comb$privs
+  # each check numbers 1..n per count, offset by earlier checks at that count
+  shift <- function(d, i) {
+    earlier <- unlist(lapply(privs[seq_len(i - 1L)], \(p) p$replicates_$houses))
+    offset <- vapply(d[["houses"]], \(h) sum(earlier == h), integer(1L))
+    d[["rep"]] <- d[["rep"]] + offset
+    d
+  }
+  shifted <- \(field) Map(\(p, i) shift(p[[field]], i), privs, seq_along(privs))
+  replicates <- sweep_stack_(shifted("replicates_"), c("houses", "rep"))
+  repeated <- duplicated(replicates[c("houses", "seed")])
+  if (any(repeated)) {
+    # nolint next: object_usage_linter. read by the cli glue below
+    houses <- unique(replicates[["houses"]][repeated])
+    stop_h(
+      "The checks repeat a replicate at {.val {houses}} households.",
+      "Checks run after the same {.fn set.seed} call draw the same replicates."
+    )
+  }
+  comb$pvt$estimates_ <- sweep_stack_(shifted("estimates_"), c("houses", "rep"))
+  comb$pvt$replicates_ <- replicates
+  comb$pvt$warnings_ <- sweep_warning_counts_(lapply(privs, `[[`, "warnings_"))
+  comb$out
+}
+
+#' @title Combine checks of one model
+#' @description
+#' Pool the replicates of several recovery checks,
+#' or of several calibration checks,
+#' so a check grows without running its replicates again.
+#' @param ... Objects of class [HousepiRecoveryCheck],
+#' or of class [HousepiCalibrationCheck].
+#' @return A check of the same class, holding the replicates of all checks.
+#' @details
+#' The checks must share the model, its definitions, the attached data,
+#' the structure sampler, the reporting process and the sampler settings.
+#' Recovery checks must also share the values the surveys are simulated at.
+#' A sampler or a reporting process created inside another function
+#' combines only with itself, within one R session.
+#' Household counts may differ.
+#' Replicates continue the numbering of their household count.
+#' Checks run after the same `set.seed()` call draw the same replicates,
+#' and do not combine.
+#' @examples
+#' hh_model <- flu_1918_frederick |>
+#'   new_housepi_model("final-size") |>
+#'   add_parameter(import = "template")
+#' draws <- data.frame(alpha = 0.15, beta = 0.2, gamma = 1)
+#' recovery <- check_recovery(hh_model, draws, nrep = 2, houses = 30,
+#'                            progress = FALSE)
+#' more <- check_recovery(hh_model, draws, nrep = 2, houses = 30,
+#'                        progress = FALSE)
+#' c(recovery, more)$nrep
+#' @name combine_checks
+#' @export
+c.HousepiRecoveryCheck <- function(...) sweep_combine_(list(...))
+
+#' @rdname combine_checks
+#' @export
+c.HousepiCalibrationCheck <- function(...) sweep_combine_(list(...))
+
 #' Household counts of the sweep, one cell each.
 #' @param one `logical(1)` Demand a single count.
 #' @noRd
@@ -205,10 +405,15 @@ sweep_run_ <- function(hh_model, structure, sampler, houses, nrep, pins,
   do.call(resolve_setup_, c(fit_args, adapt))
   # fits read the wide survey only
   hh_model <- add_reporting_process(hh_model, long = NULL)
+  fingerprint <- sweep_fingerprint_(hh_model, structure, sampler)
+  time_step <- dots[names(dots) == "time_step"]
+  # a copy carries no setup: it reads the engine defaults
+  advanced <- utils::modifyList(hh_model$setup[c("adapt_window", "time_step")],
+                                c(adapt, time_step))
+  settings <- lapply(c(fit_args, advanced), as.numeric)
   # one simulation call per household count yields the whole cell,
   # the pins repeated one row per replicate
-  sim_args <- c(list(draws = sweep_param_table_(pins, nrep)),
-                dots[names(dots) == "time_step"])
+  sim_args <- c(list(draws = sweep_param_table_(pins, nrep)), time_step)
   workers <- sweep_split_(nrep, threads)
   fit_args <- c(fit_args, adapt, threads = workers$inner, id_draws = ".none")
   waves <- split(seq_len(nrep), (seq_len(nrep) - 1L) %/% workers$outer)
@@ -237,7 +442,8 @@ sweep_run_ <- function(hh_model, structure, sampler, houses, nrep, pins,
   list(estimates = sweep_stack_(field("estimates"), c("houses", "rep")),
        replicates = sweep_stack_(field("replicate"), c("houses", "rep")),
        warnings = sweep_warning_counts_(field("warnings")),
-       secs = proc.time()[["elapsed"]] - start)
+       secs = proc.time()[["elapsed"]] - start,
+       settings = settings, fingerprint = fingerprint)
 }
 
 #' Run one wave: the surveys of `wides` built in order,

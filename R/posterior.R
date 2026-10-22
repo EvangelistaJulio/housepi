@@ -359,9 +359,24 @@ HousepiPosteriorDraws <- R6::R6Class(
     name_ = NA_character_,
     draws_ = list(),
     secs_ = NA_real_,
+    # engine setup of the run, seed, threads and chains aside
+    settings_ = NULL,
+    # hashes of the data and definitions the run was fitted on
+    fingerprint_ = NULL,
+    # engine seed of each run the chains come from
+    seed_ = NA_real_,
     warnings_ = NULL,
     # per-parameter R-hat, Bulk ESS and convergence verdict
-    diagnostics_ = NULL
+    diagnostics_ = NULL,
+
+    # Record Stan-style diagnostics of the draws, then report them.
+    # * quiet run -> warnings held back, record kept.
+    diagnose_ = function() {
+      diag <- check_diagnostics_(private$draws_)
+      private$diagnostics_ <- diag$param
+      private$warnings_ <- count_diagnostics_(diag$blocks)
+      for (block in diag$blocks) warn_h(block)
+    }
   ),
 
   ####  Active  ####
@@ -399,12 +414,18 @@ HousepiPosteriorDraws <- R6::R6Class(
     #' @param name Model name.
     #' @param ptr Internal engine handle.
     #' @param secs Wall-clock the engine timed the sampling loop at.
-    initialize = function(name, ptr, secs = NA_real_) {
+    #' @param fingerprint Hashes of the data and definitions fitted.
+    initialize = function(name, ptr, secs = NA_real_, fingerprint = NULL) {
       # inherit model name
       private$name_ <- as.character(name)
       private$secs_ <- as.numeric(secs)
+      private$fingerprint_ <- fingerprint
+      setup <- .engine$export_setup(ptr)
+      private$seed_ <- setup$seed
+      private$settings_ <-
+        setup[setdiff(names(setup), c("seed", "threads", "chains"))]
       # per-draw chain/iteration index from the inference setup
-      idx <- draws_index_(.engine$export_setup(ptr))
+      idx <- draws_index_(setup)
 
       # store cpp draws converted to posterior
       tag <- \(df) tag_rcpp_draws_(df, idx)
@@ -415,14 +436,7 @@ HousepiPosteriorDraws <- R6::R6Class(
         latent = tag(.engine$flush_latent_draws(ptr)),
         point_log_lik = tag(.engine$flush_house_log_lik_draws(ptr))
       )
-
-      # Stan-style automatic diagnostics, recorded and reported alike:
-      # a quiet run holds the warnings back, the record stands either way
-      diag <- check_diagnostics_(private$draws_)
-      private$diagnostics_ <- diag$param
-      private$warnings_ <- count_diagnostics_(diag$blocks)
-      for (block in diag$blocks) warn_h(block)
-
+      private$diagnose_()
       invisible()
     },
 
@@ -449,6 +463,61 @@ HousepiPosteriorDraws <- R6::R6Class(
     }
   )
 )
+
+#' @title Combine posterior draws of one model
+#' @description
+#' Bind the chains of several runs of [run_inference()],
+#' so a run grows without sampling its chains again.
+#' @param ... Objects of class [HousepiPosteriorDraws].
+#' @return An object of class [HousepiPosteriorDraws]
+#' holding the chains of all runs, numbered in sequence.
+#' @details
+#' The runs must share the model, its definitions, the attached data,
+#' and the sampler settings other than the number of chains.
+#' They must also store the latent draws of the same members,
+#' see `id_draws` in [run_inference()].
+#' Convergence diagnostics are computed again over all chains,
+#' and reported as [run_inference()] reports them.
+#' Runs after the same `set.seed()` call draw the same chains,
+#' and do not combine.
+#' @examples
+#' hh_model <- flu_1918_frederick |>
+#'   new_housepi_model("final-size") |>
+#'   add_parameter(import = "template")
+#' results <- run_inference(hh_model, chains = 2, progress = FALSE)
+#' more <- run_inference(hh_model, chains = 2, progress = FALSE)
+#' c(results, more)
+#' @name combine_draws
+#' @export
+c.HousepiPosteriorDraws <- function(...) {
+  runs <- list(...)
+  pooled <- c("draws_", "secs_", "seed_", "warnings_", "diagnostics_")
+  comb <- combine_r6_(runs, pooled, "runs")
+  privs <- comb$privs
+  seeds <- unlist(lapply(privs, `[[`, "seed_"))
+  if (anyDuplicated(seeds)) stop_h(
+    "The runs repeat a seed.",
+    "Runs after the same {.fn set.seed} call draw the same chains."
+  )
+  # chains bound per block of draws
+  bind <- function(block) {
+    parts <- lapply(privs, \(pvt) pvt$draws_[[block]])
+    if (is.null(parts[[1L]])) return(NULL)
+    vars <- lapply(parts, posterior::variables)
+    if (!all(vapply(vars, identical, logical(1L), vars[[1L]]))) stop_h(
+      "The runs store draws of different variables.",
+      "Pass the same {.arg id_draws} to {.fn run_inference}."
+    )
+    tag_as_housepi_draws(
+      do.call(posterior::bind_draws, c(parts, along = "chain"))
+    )
+  }
+  pvt <- comb$pvt
+  pvt$draws_ <- lapply(stats::setNames(nm = names(pvt$draws_)), bind)
+  pvt$seed_ <- seeds
+  pvt$diagnose_()
+  comb$out
+}
 
 ########  Getters  ########
 

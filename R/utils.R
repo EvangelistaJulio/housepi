@@ -456,6 +456,50 @@ char_data_input_ <- function(df) {
   else data.frame(lapply(df, as.character), check.names = FALSE)
 }
 
+#' Combine R6 `objects` into a clone of the first one.
+#' Functions compare by arguments, body and enclosing environment.
+#' * classes differ -> error;
+#' * private field outside `pooled` differs -> error naming it,
+#'   down to the entry of a named list;
+#' * `secs_` pooled -> run times add up, other pooled fields left to the caller.
+#' @param pooled `character()` Private fields the combination pools.
+#' @param what `character(1)` Plural noun of the objects, for the error.
+#' @return `list` The clone `out`, its private environment `pvt`,
+#' and the private environment of each object `privs`.
+#' @noRd
+combine_r6_ <- function(objects, pooled, what) {
+  classes <- unique(vapply(objects, \(x) class(x)[[1L]], character(1L)))
+  if (length(classes) > 1L) stop_h(
+    "Objects of class{?es} {.cls {classes}} cannot be combined.",
+    "Combine {what} of one kind at a time."
+  )
+  privs <- lapply(objects, \(x) x$.__enclos_env__$private)
+  first <- privs[[1L]]
+  fields <- setdiff(names(Filter(Negate(is.function), as.list(first))), pooled)
+  # name of the field, or of its entries, `x` and `y` differ in
+  differ_in <- function(field, x, y) {
+    a <- x[[field]]
+    b <- y[[field]]
+    entries <- is.list(a) && !is.data.frame(a) && !is.null(names(a)) &&
+      identical(names(a), names(b))
+    if (entries) return(names(a)[!mapply(identical, a, b)])
+    if (identical(a, b)) return()
+    if (field == "name_") "model" else sub("_$", "", field)
+  }
+  differ <- unique(unlist(lapply(privs[-1L], function(other) {
+    lapply(fields, differ_in, x = first, y = other)
+  })))
+  if (length(differ)) stop_h(
+    "The {what} differ in {.field {differ}}.",
+    "Only {what} of the same model, data and settings combine."
+  )
+  out <- objects[[1L]]$clone()
+  pvt <- out$.__enclos_env__$private
+  if ("secs_" %in% pooled)
+    pvt$secs_ <- sum(vapply(privs, `[[`, numeric(1L), "secs_"))
+  list(out = out, pvt = pvt, privs = privs)
+}
+
 #' Resolve the character `status =` labels of latent definitions
 #' to codes 1..K against the model status dictionary.
 #' * integer code -> passes through;

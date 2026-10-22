@@ -124,15 +124,11 @@ HousepiRecoveryCheck <- R6::R6Class(
 
   private = list(
     name_ = NA_character_,
-    nrep_ = NA_integer_,
-    houses_ = NULL,
     truth_ = NULL,
     point_estimate_ = NA_character_,
     cri_level_ = NA_real_,
-    estimates_ = NULL,
-    replicates_ = NULL,
-    warnings_ = NULL,
-    secs_ = NA_real_,
+    # `HousepiSweep` Replicates fitted.
+    sweep_ = NULL,
 
     # Summarise the draws per parameter: point estimate, posterior sd,
     # credible interval, whether it covers `truth`, convergence diagnostics.
@@ -175,7 +171,7 @@ HousepiRecoveryCheck <- R6::R6Class(
     #' }
     estimates = function(value) {
       assert_read_only_(value, "estimates")
-      private$estimates_
+      private$sweep_$estimates
     },
 
     #' @field replicates `data.frame`
@@ -189,7 +185,7 @@ HousepiRecoveryCheck <- R6::R6Class(
     #' }
     replicates = function(value) {
       assert_read_only_(value, "replicates")
-      private$replicates_
+      private$sweep_$replicates
     },
 
     #' @field overview `data.frame`
@@ -203,7 +199,7 @@ HousepiRecoveryCheck <- R6::R6Class(
     #' }
     overview = function(value) {
       assert_read_only_(value, "overview")
-      sweep_overview_(private$replicates_)
+      private$sweep_$overview
     },
 
     #' @field truth named `numeric()`
@@ -216,13 +212,14 @@ HousepiRecoveryCheck <- R6::R6Class(
     #' @field houses `integer()` Household counts swept.
     houses = function(value) {
       assert_read_only_(value, "houses")
-      private$houses_
+      private$sweep_$houses
     },
 
-    #' @field nrep `integer(1)` Replicates run at each household count.
+    #' @field nrep `integer()`
+    #' Replicates run at each household count, in the order of `houses`.
     nrep = function(value) {
       assert_read_only_(value, "nrep")
-      private$nrep_
+      private$sweep_$nrep
     },
 
     #' @field point_estimate `character(1)`
@@ -243,7 +240,7 @@ HousepiRecoveryCheck <- R6::R6Class(
     #' Distinct warnings raised over the sweep, with their counts.
     warnings = function(value) {
       assert_read_only_(value, "warnings")
-      private$warnings_
+      private$sweep_$warnings
     }
   ),
 
@@ -274,7 +271,7 @@ HousepiRecoveryCheck <- R6::R6Class(
                           thin = 5L, adapt = 500L,
                           chains = 4L, threads = 1L,
                           progress = TRUE, ...) {
-      private$nrep_ <- assert_count_(nrep, "Number of replicates")
+      nrep <- assert_count_(nrep, "Number of replicates")
       private$point_estimate_ <- get_global_point_estimate()
       private$cri_level_ <- get_global_cri_level()
       private$name_ <- hh_model$.__enclos_env__$private$compiled_$name
@@ -282,21 +279,16 @@ HousepiRecoveryCheck <- R6::R6Class(
       pins <- recovery_pins_(hh_model, draws, private$point_estimate_)
       private$truth_ <- recovery_truth_(hh_model, pins)
       structure <- sweep_base_structure_(hh_model)
-      private$houses_ <- sweep_houses_(structure, houses,
-                                       is.null(structure_sampler))
+      houses <- sweep_houses_(structure, houses, is.null(structure_sampler))
 
       fit_args <- list(steps = steps, burn = burn, thin = thin, adapt = adapt,
                        chains = chains)
-      swept <- sweep_run_(
-        hh_model, structure, structure_sampler, private$houses_, private$nrep_,
+      private$sweep_ <- HousepiSweep$new(
+        hh_model, structure, structure_sampler, houses, nrep,
         pins, fit_args, threads, list(...), private$summarise_draws_,
         progress, "Recovery replicates"
       )
-      private$estimates_ <- swept$estimates
-      private$replicates_ <- swept$replicates
-      private$warnings_ <- swept$warnings
-      private$secs_ <- swept$secs
-      sweep_report_warnings_(private$warnings_, "Parameter recovery")
+      sweep_report_warnings_(private$sweep_$warnings, "Parameter recovery")
       invisible(self)
     },
 
@@ -310,7 +302,7 @@ HousepiRecoveryCheck <- R6::R6Class(
     #'   \item{cri_width}{Mean width of the credible interval;}
     #'   \item{nrep, n_flagged}{Replicates aggregated, and those flagged.}
     #' }
-    summarise = function() recovery_summary_(private$estimates_),
+    summarise = function() recovery_summary_(private$sweep_$estimates),
 
     #' @description Same as `$summarise()`.
     #' @return See `$summarise()`.
@@ -319,17 +311,11 @@ HousepiRecoveryCheck <- R6::R6Class(
     #' @description Print a summary of the sweep.
     print = function() {
       model <- spaced_choice(private$name_)
-      flagged <- sum(private$replicates_[["flagged"]])
-      fit_secs <- mean(private$replicates_[["inference_secs"]])
-      print_rows_("Parameter recovery check of model {.val {model}}.", c(
-        Households = "{private$houses_}",
-        `Replicates each` = "{private$nrep_}",
-        `Point estimate` = "{private$point_estimate_}",
-        `Credible interval` = "{round(100 * private$cri_level_)}%",
-        `Flagged by diagnostics` = "{flagged}",
-        `Run time` = "{format_secs_(private$secs_)}",
-        `Inference time per fit` = "{format_secs_(fit_secs)}"
-      ))
+      private$sweep_$print_rows(
+        "Parameter recovery check of model {.val {model}}.",
+        c(`Point estimate` = "{private$point_estimate_}",
+          `Credible interval` = "{round(100 * private$cri_level_)}%")
+      )
       invisible(self)
     }
   )

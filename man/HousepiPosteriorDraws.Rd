@@ -76,7 +76,7 @@ leaving out the model build and the conversion of the draws.}
 Use \code{\link[=run_inference]{run_inference()}} instead of calling \verb{$new()}.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
-    \preformatted{HousepiPosteriorDraws$new(name, ptr, secs = NA_real_)}
+    \preformatted{HousepiPosteriorDraws$new(name, ptr, secs = NA_real_, fingerprint = NULL)}
     \if{html}{\out{</div>}}
   }
   \subsection{Arguments}{
@@ -85,6 +85,7 @@ Use \code{\link[=run_inference]{run_inference()}} instead of calling \verb{$new(
       \item{\code{name}}{Model name.}
       \item{\code{ptr}}{Internal engine handle.}
       \item{\code{secs}}{Wall-clock the engine timed the sampling loop at.}
+      \item{\code{fingerprint}}{Hashes of the data and definitions fitted.}
     }
     \if{html}{\out{</div>}}
   }
