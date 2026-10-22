@@ -1,5 +1,7 @@
 library(testthat)
 
+####  Helpers  ####
+
 # model over two covariates
 mk_risk <- local({
   hh_model <- data.frame(hh_id = 1L, status = 0L,
@@ -36,9 +38,7 @@ pin_ctr_strata <- function(const = c(0.4, NA), ...) {
     add_contact_risk(strata = strata, ...)
 }
 
-#################################
-## CONTACT RISKS : PAIR COUNTS ##
-#################################
+####  Pair counts  ####
 
 test_that("Contact risks pair counts are computed correctly", {
   tbl <- data.frame(hh_id = c(rep("h1", 2L), rep("h2", 2L)),
@@ -70,9 +70,7 @@ test_that("Pair counts drop the member meeting itself", {
   count("adult", "child") |> expect_identical(2L)
 })
 
-######################################
-## CONTACT RISKS : AUTO DEFINITIONS ##
-######################################
+####  Auto definitions  ####
 
 test_that("Auto mode imposes symmetric contacts by default", {
   risks_of <- function(...) {
@@ -355,9 +353,7 @@ test_that("Contact risks expand on their own covariates only", {
   risks |> expect_named(c("param_name", "n", "rule_group"))
 })
 
-########################################
-## CONTACT RISKS : CUSTOM DEFINITIONS ##
-########################################
+####  Custom definitions  ####
 
 test_that("Contact risk custom mode default behaves correctly", {
   # logic table
@@ -562,9 +558,7 @@ test_that("An automatic definition takes no params list", {
     expect_warning("[Bb]aseline.*constant reference")
 })
 
-########################################
-###  CONTACT RISKS : PAIRED COLUMNS  ###
-########################################
+####  Paired columns  ####
 
 test_that("A contact column without its partner is refused", {
   strata <- tibble::tribble(~from_age, ~param_name,
@@ -583,9 +577,7 @@ test_that("A contact column without its partner is refused", {
     expect_setequal(c("rho", ".reference"))
 })
 
-####################################
-###  CONTACT RISKS : END-TO-END  ###
-####################################
+####  End-to-end  ####
 
 test_that("Most-specific rule wins over reference (single covariate)", {
   # one specific pair gets a non-reference param; everything else falls
@@ -764,9 +756,7 @@ test_that("Contact risks raise an error for incompatible models", {
     expect_error("[Nn]ot supported")
 })
 
-#####################################
-###  CONTACT RISKS : STRATA PINS  ###
-#####################################
+####  Strata pins  ####
 
 test_that("Infected members under different contact rules are kept apart", {
   # same-group members whose self-contacts differ in kind:

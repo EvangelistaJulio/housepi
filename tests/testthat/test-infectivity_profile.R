@@ -1,5 +1,7 @@
 library(testthat)
 
+####  Helpers  ####
+
 # model carrying no infectivity profile of its own
 mk_infec <- local({
   hh_model <- sarscov2_2021_icofs |>
@@ -40,9 +42,7 @@ mk_house_discr <- local({
   list(model = hh_model)
 })
 
-####################################
-## INFECTIVITY PROFILE : DEFINITIONS ##
-####################################
+####  Definitions  ####
 
 test_that("Infectivity profile definition errors are recognized", {
   # missing function name
@@ -211,9 +211,7 @@ test_that("A profile dependency reached through 'min' is reported", {
     expect_error("datum")
 })
 
-###################################
-## INFECTIVITY PROFILE : END-TO-END ##
-###################################
+####  End-to-end  ####
 
 test_that("Declaration order does not matter", {
   # the profile folds into the latent build, so it reads parameters that

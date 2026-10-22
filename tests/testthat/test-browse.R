@@ -1,8 +1,6 @@
 library(testthat)
 
-################################################################################
-###################################  HELPERS  ##################################
-################################################################################
+####  Helpers  ####
 
 trapezoid <- \(x, y) 0.5 * sum(diff(x) * (y[-length(x)] + y[-1]))
 
@@ -116,9 +114,14 @@ expect_head_exact <- function(name, args, ref, x) {
   distr$log_pdf(x) |> expect_equal(log(pmf))
 }
 
-################################################################################
-####################################  TESTS  ###################################
-################################################################################
+# Rd source of a template help page:
+# man/ under load_all, help db when installed
+template_rd <- function(name) {
+  topic <- paste0("template_", name, ".Rd")
+  src <- system.file("man", topic, package = "housepi")
+  if (nzchar(src)) return(paste(readLines(src), collapse = "\n"))
+  paste(as.character(tools::Rd_db("housepi")[[topic]]), collapse = "")
+}
 
 test_that("Available names listing is stable", {
   # "uniform" is carried by both distribution registries and must be listed once
@@ -145,9 +148,7 @@ test_that("Browsed functions do not leak memory", {
   (mem_used_mb() - mem_before) |> expect_lt(5)
 })
 
-######################################
-## BROWSE INTERNAL : METHOD SURFACE ##
-######################################
+####  Method surface  ####
 
 test_that("Exposed fields are read only", {
   distr <- browse_distributions("normal", mean = 0, sd = 1)
@@ -287,9 +288,7 @@ test_that("Strict positivity follows the support", {
   browse_functions("max", x2 = -5, x3 = -1)$is_positive |> expect_false()
 })
 
-#################################
-## BROWSE INTERNAL : FUNCTIONS ##
-#################################
+####  Functions  ####
 
 test_that("Function arguments are validated", {
   x <- seq(0.1, 10, 0.1)
@@ -381,9 +380,7 @@ test_that("Variadic kernels return NA on an NA operand", {
   }
 })
 
-#####################################
-## BROWSE INTERNAL : DISTRIBUTIONS ##
-#####################################
+####  Distributions  ####
 
 test_that("Truncated discrete mass is normalised on the bins of the support", {
   # a lower bound drops the zero bin from the normalization
@@ -479,7 +476,7 @@ test_that("Discretizing an already discrete law keeps its mass", {
     expect_equal(dbinom(0:6, 6, 0.3))
 
   weights <- c(a = 2, b = 1, c = 7)
-  browse_distributions("categorical", as.list(weights), discr = TRUE)$pdf(0:2) |>
+  browse_distributions("categorical", weights, discr = TRUE)$pdf(0:2) |>
     expect_equal(unname(weights) / sum(weights))
 })
 
@@ -931,9 +928,7 @@ test_that("rand() is reproducible and plausible for all distributions", {
   }
 })
 
-############################################
-## BROWSE INTERNAL : INFECTIVITY PROFILES ##
-############################################
+####  Infectivity profiles  ####
 
 test_that("Ferretti20 infectivity profile integrates and discretizes", {
   x <- seq(0, 15, 0.001)
@@ -975,9 +970,7 @@ test_that("Discretized Ferretti20 stays finite far in the upper tail", {
     expect_equal(log(ccdf(x) - ccdf(x + 1)) - log1p(-distr$cumul(1)))
 })
 
-####################################
-## BROWSE INTERNAL : PRINT METHOD ##
-####################################
+####  Print method  ####
 
 test_that("Exposed object print behavior is stable", {
   print(browse_functions("pow", x2 = 3)) |>
@@ -998,4 +991,105 @@ test_that("Exposed object print behavior is stable", {
   # a continuous definition reports the argument and no grid
   print(browse_distributions("gamma", shape = 2, scale = 1, loc = 3)) |>
     expect_snapshot()
+})
+
+####  Template models  ####
+
+test_that("Template name normalization", {
+  misstypes <- c("Final-Size", "final_size", " final siZe ", "FINAL SIZE")
+  for (f in misstypes) spaced_choice(f) |> expect_identical("final size")
+
+  find_closest_template_name("final siz") |>
+    expect_match("[Dd]id you mean", all = FALSE)
+  find_closest_template_name("") |>
+    expect_match("browse_template", all = FALSE)
+})
+
+test_that("browse_templates branches inform correctly", {
+  browse_templates(42) |> expect_error("not a character")
+  browse_templates("unknown") |> expect_error("not a known template")
+  browse_templates("final siz") |> expect_error("[Dd]id you mean")
+
+  # print existing templates
+  browse_templates() |> expect_snapshot()
+})
+
+test_that("browse_templates triggers help preview when path is NA", {
+  # mock the internal helper so the test never spawns a real previewer
+  called_with <- NULL
+  with_mocked_bindings(
+    open_model_helper_ = function(path) {
+      called_with <<- path
+      invisible()
+    },
+    code = browse_templates("final-size")
+  )
+  called_with |> expect_identical("final_size")
+})
+
+test_that("Every template has a help page", {
+  for (name in list.files(template_models_dir())) {
+    template_rd(name) |> expect_match("\\\\name\\{template_")
+  }
+})
+
+test_that("browse_templates copies template to a new path", {
+  dest <- tempfile("template_")
+  on.exit(unlink(dest, recursive = TRUE), add = TRUE)
+  model_cpp <- file.path(dest, "model.cpp")
+
+  # first copy: creates the model sources
+  browse_templates("final-size", path = dest)
+  file.exists(model_cpp) |> expect_true()
+  file.exists(file.path(dest, "param.R")) |> expect_true()
+  # final_size has no latent file: nothing should be copied
+  file.exists(file.path(dest, "latent.R")) |> expect_false()
+  shipped <- readLines(model_cpp)
+
+  # second copy without replace: warns and does not overwrite
+  writeLines("edited", model_cpp)
+  browse_templates("final-size", path = dest) |>
+    expect_warning("already exists")
+  readLines(model_cpp) |> expect_identical("edited")
+
+  # with replace = TRUE: overwrites silently
+  browse_templates("final-size", path = dest, replace = TRUE)
+  readLines(model_cpp) |> expect_identical(shipped)
+})
+
+test_that("browse_templates rejects '.' as destination path", {
+  sandbox <- tempfile("sandbox_")
+  dir.create(sandbox)
+  on.exit(unlink(sandbox, recursive = TRUE), add = TRUE)
+  withr::with_dir(sandbox, {
+    browse_templates("final-size", path = ".") |>
+      expect_warning("current directory")
+    # helper redirects "." to a folder named after the template
+    dir.exists("final-size") |> expect_true()
+  })
+})
+
+test_that("Model help pages name the keys the engine registers", {
+  modules <- c(Data = "Data", Param = "Parameters",
+               Latent = "Latent", GroupRisk = "Group Risks")
+  for (name in c("final_size", "case_ascertained")) {
+    cpp <- system.file("models", name, "model.cpp", package = "housepi") |>
+      readLines() |>
+      paste(collapse = "\n")
+    rd <- template_rd(name)
+    # loop over all modules
+    for (k in names(modules)) {
+      # EMPTY_KEYS declarations match nothing and register no key
+      fmt <- "(?<=REGISTER_KEYS\\(%s,)[^)]*"
+      decl <- regmatches(cpp, regexpr(sprintf(fmt, k), cpp, perl = TRUE))
+      keys <- trimws(unlist(strsplit(decl, ",")))
+      # section body up to the next section: its \code{} items are the keys
+      fmt <- "^.*\\\\section\\{%s\\}\\{(.*?)\\\\section.*$"
+      section <- sub(sprintf(fmt, modules[[k]]), "\\1", rd)
+      if (identical(section, rd)) section <- ""
+      pattern <- "(?<=\\\\item \\\\code\\{)[^}]+"
+      listed <- regmatches(section, gregexpr(pattern, section, perl = TRUE))
+      listed[[1]] |> expect_setequal(keys)
+    }
+  }
 })

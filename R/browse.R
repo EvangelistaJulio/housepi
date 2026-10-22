@@ -361,3 +361,113 @@ browse_infectivity_profiles <- function(name = NA_character_, ...,
   obj <- .engine$expose_infec_profile(name, unlist(list(...)), min, max, discr)
   HousepiExposedProfile$new(obj, name)
 }
+
+# Directory of all housepi template models.
+template_models_dir <- function() {
+  system.file("models", package = "housepi")
+}
+
+#' Directory of template model `x`.
+#' @param x `character(1)` Template name.
+#' @noRd
+get_template_dir <- function(x) {
+  flat_choice <- spaced_choice(x)
+  path_to_options <- list.files(template_models_dir(), full.names = TRUE)
+  flat_options <- spaced_choice(basename(path_to_options))
+  # extract path if present (unique since folder name)
+  mask <- flat_options == flat_choice
+  if (any(mask)) return(path_to_options[mask])
+  NA_character_
+}
+
+#' Suggest the closest template name to a mistyped `x`, as "did you mean".
+#' @noRd
+find_closest_template_name <- function(x) {
+  flat_choice <- spaced_choice(x)
+  options <- list.files(template_models_dir(), full.names = FALSE)
+  flat_options <- spaced_choice(options)
+  # no suggestion for trivial mistakes
+  sms <- find_closest_match(flat_choice, flat_options)
+  if (endsWith(sms, "?") && nchar(flat_choice) > 3) return(sms)
+  c("Show available templates calling {.fn browse_templates}.")
+}
+
+#' Show the names of the available template models.
+#' @noRd
+show_model_names <- function() {
+  model_names <- list.files(template_models_dir())
+  links <- vapply(
+    tolower(gsub("-| |_", "_", model_names)),
+    \(m) inline_cli_("{.run [{m}](housepi::browse_templates(\"{m}\"))}"),
+    character(1), USE.NAMES = FALSE
+  )
+  cli::cli_inform(c(i = "Available template models:",
+                    paste(cli::symbol$bullet, links)))
+}
+
+#' Copy template model `name` to directory `path`.
+#' @noRd
+copy_template_to_path <- function(name, path) {
+  # avoid current directory
+  if (path == ".") {
+    path <- name
+    warn_h("Using current directory is not allowed for copying a template.",
+           `!` = "Creating folder {.file {path}} instead.")
+  }
+  dir.create(path, recursive = TRUE, showWarnings = FALSE)
+  if (!dir.exists(path)) raise_permissions_error()
+
+  # source cpp is always present
+  required <- "model.cpp"
+  # definition templates are optional
+  optional <- unname(template_def_files)
+  for (f in c(required, optional)) {
+    from_file <- file.path(get_template_dir(name), f)
+    if (file.exists(from_file)) overwrite(from_file, file.path(path, f))
+    else if (f %in% required) stop_h(
+      "Template {.val {name}} is missing required file {.file {f}}."
+    )
+  }
+}
+
+#' Open the help page of template model `name`.
+#' @noRd
+open_model_helper_ <- function(name) {
+  print(utils::help(paste0("template_", name), package = "housepi"))
+  invisible()
+}
+
+#' @title Navigate through household model templates
+#' @description Print the list of available templates,
+#' get their descriptions or copy their source code to a custom path.
+#' @param name `character(1)` Template name.
+#' If `NA`, print the list of available templates.
+#' @param path `character(1)` Path to copy the template scripts to.
+#' If `NA` and `name` is not, open the template help page.
+#' @param replace `logical(1)` Whether to replace the content of `path`.
+#' @return `NULL`, invisibly.
+#' The function prints the templates, opens a description or copies the files.
+#' @examples
+#' # list all available templates
+#' browse_templates()
+#' @export
+browse_templates <- function(name = NA_character_,
+                             path = NA_character_,
+                             replace = FALSE) {
+  if (is.na(name)) show_model_names()
+  else if (!is.character(name)) stop_h("Model name is not a character.")
+  else if (is.na(get_template_dir(name))) stop_h(
+    "Model {.val {name}} was not a known template.",
+    find_closest_template_name(name)
+  )
+  # asking for template model description
+  else if (is.na(path)) open_model_helper_(basename(get_template_dir(name)))
+  # asking for copying template to folder with model
+  else if (file.exists(file.path(path, "model.cpp")) && !replace) warn_h(
+    "A model already exists in the specified folder.",
+    "To replace it, run again with option {.code replace = TRUE}."
+  )
+  # asking for copying template to empty folder
+  else copy_template_to_path(name, path)
+  invisible()
+}

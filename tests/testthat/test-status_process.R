@@ -1,5 +1,7 @@
 library(testthat)
 
+####  Helpers  ####
+
 # model carrying the data columns the definition blocks refer to
 mk_latent <- local({
   hh_model <- data.frame(hh_id = "h1", status = 1, datum = 1,
@@ -40,9 +42,7 @@ mk_pinned <- local({
   list(model = hh_model)
 })
 
-######################################
-###  STATUS PROCESS : DEFINITIONS  ###
-######################################
+####  Definitions  ####
 
 test_that("A status process needs probabilities, within the status storage", {
   mk_latent$model |>
@@ -190,9 +190,7 @@ test_that("Status is a constant in inference", {
     expect_equal(evaluate_log_lik(hh_model))
 })
 
-#####################################
-###  STATUS PROCESS : END-TO-END  ###
-#####################################
+####  End-to-end  ####
 
 test_that("Status process generates a labelled status factor in simulation", {
   simulated <- mk_outbreak$model |>

@@ -1,5 +1,7 @@
 library(testthat)
 
+####  Helpers  ####
+
 # Model over two covariates. Covariate columns stay character on purpose:
 # levels follow order of first appearance, which fixes the reference stratum.
 mk_risk <- local({
@@ -76,9 +78,7 @@ pin_strata <- function(const = c(NA, 1.2, 0.5)) {
   )
 }
 
-########################################
-###  GROUP RISKS : HELPER FUNCTIONS  ###
-########################################
+####  Logic table  ####
 
 test_that("Group risks logic table computes combinations and counts", {
   tbl <- group_risk_logic_table(mk_risk$data, c("age", "sex"))
@@ -135,9 +135,7 @@ test_that("Custom strata logic table is validated", {
     expect_error("[Rr]eserved")
 })
 
-######################################
-###  GROUP RISKS : STANDARD CALLS  ###
-######################################
+####  Standard calls  ####
 
 test_that("Group risks integrate with data", {
   hh_model <- mk_risk$model |>
@@ -376,9 +374,7 @@ test_that("Load list works as expected", {
   tidy$param_name |> expect_match("^sus_", all = FALSE)
 })
 
-#################################################
-###  GROUP RISKS : CUSTOM STRATA DEFINITIONS  ###
-#################################################
+####  Custom strata definitions  ####
 
 test_that("Group risks deal with custom logic table correctly", {
   hh_model <- mk_risk$model |>
@@ -579,9 +575,7 @@ test_that("Rules tied at equal specificity are refused", {
     expect_error("[Gg]roup risk .community. has tied rules")
 })
 
-###################################
-###  GROUP RISKS : STRATA PINS  ###
-###################################
+####  Strata pins  ####
 
 test_that("A strata const pins the stratum, with no prior", {
   hh_model <- mk_flu$model |>
@@ -643,9 +637,7 @@ test_that("A pinned stratum takes no entry in params", {
     expect_error("sus_mum")
 })
 
-#####################################
-###  GROUP RISKS : STATUS STRATA  ###
-#####################################
+####  Status strata  ####
 
 test_that("Status is accepted as a stratification axis", {
   # both gates let 'status' through for a group risk
@@ -908,9 +900,7 @@ test_that("Status strata count the infected members only", {
   as.character(tbl$status) |> expect_setequal(c("1", "2"))
 })
 
-##############################
-## GROUP RISKS : END-TO-END ##
-##############################
+####  End-to-end  ####
 
 test_that("An absolute risk collapses the baseline it scales", {
   # alpha is never declared: the community risk carries the whole rate
@@ -1170,9 +1160,7 @@ test_that("A catch-all stratum survives a missing covariate cell", {
   risks$n[risks$param_name == "sus_rest"] |> expect_identical(sum(risk == 3))
 })
 
-#########################################
-## GROUP RISKS : OBSERVATION COLLISION ##
-#########################################
+####  Observation collision  ####
 
 test_that("A group risk keyed on an observation is rejected", {
   # the risk feeds the transmission model the observation is generated from

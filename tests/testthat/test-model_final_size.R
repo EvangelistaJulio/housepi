@@ -1,5 +1,7 @@
 library(testthat)
 
+####  Helpers  ####
+
 # infected member in class `a`, escaped member in class `b`: the homogeneous
 # branch (single risk partition). Class `a` is the reference class.
 mk_homo <- local({
@@ -201,9 +203,7 @@ escape_probas <- function(house, par, ctr) {
   )
 }
 
-######################################
-###  FINAL SIZE HH MODEL : GUARDS  ###
-######################################
+####  Guards  ####
 
 test_that("Chain binomial guards against misusage", {
   # not discretizable
@@ -243,9 +243,7 @@ test_that("A household with too many risk partitions to evaluate is refused", {
     expect_true()
 })
 
-##############################################
-###  FINAL SIZE HH MODEL : LOG-LIKELIHOOD  ###
-##############################################
+####  Log-likelihood  ####
 
 test_that("Single infected member log-likelihood is correct", {
   build_house_model(mk_homo$house, mk_homo$par,
@@ -449,9 +447,7 @@ test_that("Chain binomial raises if the log-likelihood is not a number", {
     expect_error("[Nn]ot a number")
 })
 
-################################################
-###  FINAL SIZE HH MODEL : MODEL QUANTITIES  ###
-################################################
+####  Model quantities  ####
 
 test_that("Escape probabilities follow the transmission formulas per member", {
   # `h2` lists the members of `h1` in another order: one equivalence class

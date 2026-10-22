@@ -282,10 +282,10 @@ HousepiAugmented <- R6::R6Class(
       # unused latents -> warning, observations excluded as never required
       if (isTRUE(warn_unused)) {
         non_obs <- defined[self$defs[["kind"]] == "latent"]
-        template_not_used_warn(required, non_obs, self$family)
+        definition_not_used_warn(required, non_obs, self$family)
       }
       # missing latents -> error, or messages returned
-      sms <- template_missing_stop(required, defined, self$family)
+      sms <- definition_missing_stop(required, defined, self$family)
       wall_or_return_(sms, wall)
     }
   )

@@ -326,7 +326,7 @@ HousepiCalibrationCheck <- R6::R6Class(
         paste("Raise {.arg steps} or {.arg chains}, or lower {.arg thin} or",
               "{.arg rank_draws}.")
       )
-      private$name_ <- hh_model$.__enclos_env__$private$gen_$raw_name
+      private$name_ <- hh_model$.__enclos_env__$private$compiled_$name
       private$variables_ <- sweep_estimated_(hh_model)
       structure <- sweep_base_structure_(hh_model)
       private$houses_ <- sweep_houses_(structure, houses,

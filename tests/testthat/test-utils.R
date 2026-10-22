@@ -1,5 +1,7 @@
 library(testthat)
 
+####  Helpers  ####
+
 # data frame carrying one column of each storage type the engine encodes
 mk_types <- local({
   hhdata <- data.frame(id = c("m1", "m2"),
@@ -27,9 +29,7 @@ as_cpp_frame <- function(factored) {
   cpp_data
 }
 
-#########################
-###  UTILS : HELPERS  ###
-#########################
+####  Utilities  ####
 
 test_that("Overwrite is a no-op on the same path and raises on failure", {
   # no-op on identical paths
@@ -154,9 +154,7 @@ test_that("ESS thinning reads the chains apart", {
     expect_lt(10L)
 })
 
-###############################
-###  UTILS : FACTORIZATION  ###
-###############################
+####  Factorization  ####
 
 test_that("Data factorization handles default types", {
   result <- cpp_data_factorize(mk_types$data)

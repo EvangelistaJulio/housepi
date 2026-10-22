@@ -1,5 +1,7 @@
 library(testthat)
 
+####  Helpers  ####
+
 # three members over `datum`, two of them sharing a value
 mk_strata <- local({
   hhdata <- data.frame(datum = c("a", "a", "b"))
@@ -13,9 +15,7 @@ fit_datum <- function(tbl, cells = mk_strata$cells) {
                      "param_name", "The table", "unit")
 }
 
-##############################
-###  STRATA : DEFINITIONS  ###
-##############################
+####  Definitions  ####
 
 test_that("A strata table needs rows and its required columns", {
   assert_strata_shape_(list(datum = "a"), "datum", "The table", "") |>
@@ -69,9 +69,7 @@ test_that("Rule groups follow the maximal patterns of the table", {
     expect_error("[Aa]mbiguous rule 3 .*rho_3.*fitting 2")
 })
 
-#############################
-###  STRATA : RESOLUTION  ###
-#############################
+####  Resolution  ####
 
 test_that("Member cells hold each covariate combination once", {
   hhdata <- data.frame(datum = c("a", "a", "b", NA))
@@ -126,9 +124,7 @@ test_that("A member counts once per rule across the infected statuses", {
   rule_counts_(tbl, cells, "rule_group") |> expect_identical(c(3L, 2L))
 })
 
-#############################
-###  STRATA : FIT CHECKS  ###
-#############################
+####  Fit checks  ####
 
 test_that("The fit check names the table and the unit it fails", {
   data.frame(datum = "a", param_name = "rho") |>
@@ -159,9 +155,7 @@ test_that("The unmatched hint defaults to adding a covering rule", {
     expect_error("[Tt]he table leaves 2 units.*Rename \\{datum\\}")
 })
 
-################################
-###  STRATA : ENGINE CODING  ###
-################################
+####  Engine coding  ####
 
 test_that("Covariates code as data levels, labelled statuses as engine codes", {
   tbl <- data.frame(datum = c("b", NA), status = c("asymptomatic", NA))

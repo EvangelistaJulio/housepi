@@ -1,5 +1,7 @@
 library(testthat)
 
+####  Helpers  ####
+
 # model with no data of its own beyond the 'test' default
 mk_wrapper <- local({
   list(model = new_housepi_model(model = "test"))
@@ -16,9 +18,7 @@ mk_member <- local({
   list(model = hh_model)
 })
 
-###################################
-## EXPOSE CLASS : DISPATCH       ##
-###################################
+####  Dispatch  ####
 
 test_that("Wrappers reject objects that are not a housepi model", {
   obj <- "not a model"
@@ -326,9 +326,7 @@ test_that("Progress bar prints every `progress` seconds until interrupted", {
   diff(secs) |> expect_all_equal(1L)
 })
 
-######################################
-###  EXPOSE CLASS : RISK WRAPPERS  ###
-######################################
+####  Risk wrappers  ####
 
 test_that("Group risk wrapper input branches", {
   hh_model <- add_group_risk(mk_member$model, "community", by = "member")
@@ -392,9 +390,9 @@ test_that("Contact risk wrapper input branches", {
     add_contact_risk(strata = strata, params = list(ctr_student = 1.21))
   mk_member$model$contact_risks |> expect_nrow(0L)
   nrow(get_contact_risks(hh_model)) |> expect_gt(0L)
-  get_contact_risks(hh_model) |> expect_identical(hh_model$contact_risks)
   # the rebuilt parameter is exposed on the returned model
   ("ctr_student" %in% get_parameters(hh_model)$name) |> expect_true()
+  get_contact_risks(hh_model) |> expect_identical(hh_model$contact_risks)
 
   # second call warns about overwrite
   hh_model |>

@@ -1,13 +1,6 @@
 library(testthat)
 
-# generator of the 'test' model, whose engine surface no model wraps
-mk_generator <- local({
-  list(generator = HousepiGenerator$new("test"))
-})
-
-########################################
-###  MODEL GENERATOR : CONSTRUCTION  ###
-########################################
+####  Construction  ####
 
 test_that("assert_household_data validates inputs", {
   assert_household_data("not a frame", NA_character_) |>
@@ -23,7 +16,7 @@ test_that("assert_household_data validates inputs", {
     expect_s3_class("data.frame")
 })
 
-test_that("Model generator inconsistent calls are caught", {
+test_that("Inconsistent model choices are caught", {
   # helper suggests correct template name
   new_housepi_model(model = "case ascertaned") |>
     expect_error("you mean.*case ascertained")
@@ -109,110 +102,38 @@ test_that("A custom model directory without model.cpp is rejected", {
   new_housepi_model(model = path) |> expect_error("empty_model.*was not found")
 })
 
-######################################
-## MODEL GENERATOR : ENGINE SURFACE ##
-######################################
+test_that("A build cache that cannot be created is reported", {
+  path <- file.path(tempfile(), "squatted_model")
+  dir.create(path, recursive = TRUE)
+  # the build cache is named after the model folder, under tempdir()
+  cache <- file.path(tempdir(), "squatted_model")
+  file.create(cache)
+  on.exit(unlink(c(dirname(path), cache), recursive = TRUE), add = TRUE)
 
-test_that("Active fields expose state", {
-  generator <- mk_generator$generator
-
-  generator$raw_name |> expect_identical("test")
-  generator$name |> expect_identical("test")
-  generator$is_test_model() |> expect_true()
-  dir.exists(generator$source_dir) |> expect_true()
-  generator$cols_data_wide |> expect_identical(character())
-  generator$info_data_wide |> expect_null()
-  generator$infec_status_set |> expect_identical(integer())
-  generator$status_data_labels |> expect_identical(character())
-  generator$escaped |> expect_identical("escaped")
-  is.null(generator$mcmc_ptr) |> expect_false()
+  new_housepi_model(model = path) |> expect_error("[Ff]ailed to generate")
 })
 
-test_that("Required keys reflect the underlying template", {
-  generator <- mk_generator$generator
-  generator$data_required |> expect_length(0L)
-  generator$group_risks_required |> expect_length(0L)
-  generator$latent_required |> expect_length(0L)
-
-  generator <- HousepiGenerator$new("case ascertained")
-  generator$data_required |>
-    expect_setequal("end_date")
-  generator$param_required |>
-    expect_setequal(c("alpha", "beta", "gamma", "hh_size_ref"))
-  generator$group_risks_required |>
-    expect_setequal(c("community", "susceptibility", "infectivity"))
-  generator$latent_required |>
-    expect_setequal("infec_time")
-
-  # every entry is tagged as coming from the transmission model
-  generator$param_required |>
-    names() |>
-    unique() |>
-    expect_identical("model")
-})
-
-test_that("Risk anchors reflect the baselines the model declares", {
-  anchors <- HousepiGenerator$new("final-size")$risk_anchors
-  names(anchors) |> expect_setequal(c("alpha", "beta"))
-
-  # the community risk scales alpha alone, no contact involved
-  anchors$alpha$risks |> expect_identical("community")
-  anchors$alpha$contacts |> expect_false()
-
-  # susceptibility and infectivity scale beta, alongside contact risks
-  anchors$beta$risks |> expect_setequal(c("susceptibility", "infectivity"))
-  anchors$beta$contacts |> expect_true()
-
-  # a model without risks declares no anchor
-  mk_generator$generator$risk_anchors |> expect_length(0L)
-})
-
-test_that("Wide data is factorized and refactored by the generator", {
-  generator <- HousepiGenerator$new("test")
-
-  generator$factorize_data_wide(dummy_household)
-  generator$cols_data_wide |> expect_setequal(colnames(dummy_household))
-  generator$infec_status_set |> expect_identical(1L)
-  generator$info_data_wide |> expect_type("list")
-
-  # round-trip refactor keeps the original character columns intact
-  refactored <- generator$refactor_data_wide(dummy_household)
-  refactored$id |> expect_identical(dummy_household$id)
-  refactored$hh_id |> expect_identical(dummy_household$hh_id)
-
-  # data long format
-  generator$import_data_long(list(a = 1)) |> expect_error("data.frame")
-})
-
-test_that("init_pointers is a no-op when pointers already exist", {
-  generator <- HousepiGenerator$new("test")
-  ptr_before <- generator$mcmc_ptr
-  is.null(ptr_before) |> expect_false()
-  generator$init_pointers()
-  generator$mcmc_ptr |> expect_identical(ptr_before)
-})
+####  Runner  ####
 
 test_that("Model has no leaks", {
   mem_used_mb <- \() gc()["Vcells", "(Mb)"]
 
-  generator <- HousepiGenerator$new("case ascertained")
-  rm(generator)
+  hhmodel <- new_housepi_model(model = "case ascertained")
+  rm(hhmodel)
   invisible(gc())
   mem_before <- mem_used_mb()
 
   # allocation loop
   for (i in seq_len(50)) {
-    generator <- HousepiGenerator$new("case ascertained")
-    rm(generator)
+    hhmodel <- new_housepi_model(model = "case ascertained")
+    rm(hhmodel)
     if (i %% 10 == 0) gc()
   }
   invisible(gc())
   (mem_used_mb() - mem_before) |> expect_lt(5)
 })
 
-########################################
-## MODEL GENERATOR : RUNTIME COMPILES ##
-########################################
+####  Runtime compiles  ####
 
 test_that("A model compiling at run time requires a compiler", {
   path <- tempfile("no_compiler")
@@ -227,9 +148,12 @@ test_that("A model compiling at run time requires a compiler", {
 })
 
 test_that("A session template compiles user flags and warns when they change", {
-  path <- file.path(tempdir(), "session_template")
+  # a fresh name each run: a template loaded by an earlier run stays loaded
+  path <- tempfile("session_template")
   on.exit(unlink(path, recursive = TRUE), add = TRUE)
   browse_templates("case-ascertained", path, replace = TRUE)
+  # dll of an earlier session, not loaded in this one: replaced, no warning
+  writeLines("stale", template_dll_file(path))
 
   # build + load a discrete template: user paths, flags and libs reach the
   # compile command as one token each, spaces included, and the flags are

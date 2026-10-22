@@ -890,7 +890,7 @@ HousepiGroupRisk <- R6::R6Class(
     # Assert the model reads every group risk defined.
     # * required risk left undefined -> 1 for every member.
     assert = function(required) {
-      notused <- template_not_used_find(required, names(self$defs))
+      notused <- definition_not_used_find(required, names(self$defs))
       if (length(notused)) stop_h(
         "Unused group risk{?s}: {.val {notused}}.",
         "The model reads no group risk of that name.",

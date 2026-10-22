@@ -1,5 +1,7 @@
 library(testthat)
 
+####  Helpers  ####
+
 # templated chain-binomial model and one short inference run on it
 mk_ppc <- local({
   hh_model <- flu_1918_frederick |>
@@ -21,9 +23,7 @@ mk_houses <- local({
   list(data = hhdata)
 })
 
-######################################
-###  PREDICTIVE CHECKS : MEASURES  ###
-######################################
+####  Measures  ####
 
 test_that("Measures require the columns they aggregate over", {
   mk_houses$data[c("id", "hh_id")] |>
@@ -135,9 +135,7 @@ test_that("Measures decode a labelled status column", {
     expect_equal(ref_ar)
 })
 
-##########################################
-## PREDICTIVE CHECKS : SUMMARY HELPERS  ##
-##########################################
+####  Summary helpers  ####
 
 test_that("Credible interval level is validated", {
   validate_cri_level(0.95) |> expect_equal(0.95)
@@ -327,9 +325,7 @@ test_that("Observed entries outside the interval are flagged", {
   result$label |> expect_identical(c(FALSE, FALSE))
 })
 
-##########################################
-## PREDICTIVE CHECKS : END-TO-END       ##
-##########################################
+####  End-to-end  ####
 
 test_that("Household size bounds need the standard measures", {
   mk_ppc$model |>

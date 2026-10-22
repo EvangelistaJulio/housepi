@@ -123,10 +123,10 @@ HousepiParameter <- R6::R6Class(
       defined <- self$defs[["name"]]
       # unused parameters -> warning
       if (isTRUE(warn_unused))
-        template_not_used_warn(required, defined, self$family)
+        definition_not_used_warn(required, defined, self$family)
 
       # missing parameters -> error, or messages returned
-      sms <- template_missing_stop(required, defined, self$family)
+      sms <- definition_missing_stop(required, defined, self$family)
       wall_or_return_(sms, wall)
     }
   )

@@ -1,5 +1,7 @@
 library(testthat)
 
+####  Helpers  ####
+
 # transmission model over real data, bare and with its template parameters
 mk_frederick <- local({
   hh_model <- new_housepi_model(flu_1918_frederick, "final-size")
@@ -18,9 +20,7 @@ mk_sources <- local({
 # the dictionary and its assertion are private: reach them through the object
 dig_ <- \(hh_model, what, ...) hh_model$.__enclos_env__$private[[what]](...)
 
-##################################
-## MODEL CLASS : STANDARD CALLS ##
-##################################
+####  Standard calls  ####
 
 test_that("Active fields are read-only", {
   new_housepi_model(model = "test") |>
@@ -404,9 +404,7 @@ test_that("A copy is deep", {
     expect_false()
 })
 
-#################################
-## MODEL CLASS : SOURCE LOOKUP ##
-#################################
+####  Source lookup  ####
 
 test_that("Every declared name maps to the source declaring it", {
   # the reserved columns are not addressable as data, the others are
@@ -454,9 +452,7 @@ test_that("An unresolved source is reported softly and at the wall", {
     expect_error("[Cc]ould not resolve the source of .unknown.")
 })
 
-##################################
-## MODEL CLASS : DATA SUMMARIES ##
-##################################
+####  Data summaries  ####
 
 test_that("Flu 2014 Matsumoto is correctly pre-processed", {
   hh_model <- new_housepi_model(flu_2014_matsumoto, "final-size")
@@ -481,9 +477,7 @@ test_that("Flu 2014 Matsumoto is correctly pre-processed", {
     expect_identical(454L)
 })
 
-######################################
-## MODEL CLASS : POSTERIOR SAMPLING ##
-######################################
+####  Posterior sampling  ####
 
 test_that("Model class inconsistent inference throw errors", {
   # inference without definitions
@@ -600,9 +594,7 @@ test_that("A followed household without infected members warns", {
     suppressWarnings()
 })
 
-##################################
-## MODEL CLASS : SIMULATION RUN ##
-##################################
+####  Simulation run  ####
 
 test_that("Simulation rejects wrong arguments", {
   hh_model <- new_housepi_model(model = "test")

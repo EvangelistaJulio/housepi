@@ -301,3 +301,108 @@ assert_valid_status <- function(status) {
   )
   invisible()
 }
+
+########  Missing definitions  ########
+
+# Name every element of a vector alike.
+set_source_name_ <- function(x, name = NA_character_) {
+  if (isTRUE(nzchar(name, keepNA = TRUE)) && length(x))
+    names(x) <- rep(name, length(x))
+  x
+}
+
+#' Required definitions missing from `defined`.
+#' @noRd
+definition_missing_find <- function(required, defined) {
+  miss <- unlist(required)
+  if (length(defined)) miss <- setdiff(miss, unlist(defined))
+  if (length(miss)) sort(miss)
+  else NULL
+}
+
+#' Messages on the required definitions missing from `defined`.
+#' @param holder `character(1)` Name of the definition holder.
+#' @param noun `character(1)` Word naming the missing entries.
+#' @param style `character(1)` cli markup class wrapping each entry.
+#' @return `character()` | `NULL` Messages, `NULL` when none is missing.
+#' @noRd
+definition_missing_stop <- function(required, defined, holder,
+                                    noun = "definition", style = "val") {
+  miss <- definition_missing_find(required, defined)
+  if (!length(miss)) return(NULL)
+  # find sources of missing definitions
+  sources <- unique(names(required[required %in% miss]))
+  sources <- ifelse(sources == "model", "transmission model",
+                    paste(sources, "definitions"))
+  c(inline_cli_("{cli::qty(miss)}There {?was/were} {length(miss)} missing ",
+                "{holder} {noun}{cli::qty(miss)}{?s}: {.", style,
+                " {miss}}."),
+    inline_cli_("Required by {sources}."))
+}
+
+#' Warn on the definitions `all_rmv` overwrote.
+#' @param all_rmv `character()` Removed definitions.
+#' @param holder `character(1)` Name of the definition holder.
+#' @noRd
+definition_overwrite_warn <- function(all_rmv, holder) {
+  len_rmv <- length(all_rmv)
+  if (len_rmv > 0) warn_h(paste(
+    "Overwriting {len_rmv} {holder} definition{cli::qty(len_rmv)}{?s}",
+    "for: {.val {all_rmv}}."
+  ))
+}
+
+#' Warn about overwritten definitions now, or cache them on the holder.
+#' @param self Definition holder with `family` and `store_warn_over`.
+#' @param rmv_name `character()` Removed definitions.
+#' @param warn `logical(1)` Warn now instead of caching.
+#' @noRd
+warn_or_store_overwrite_ <- function(self, rmv_name, warn) {
+  if (warn) definition_overwrite_warn(rmv_name, self$family)
+  else self$store_warn_over <- c(self$store_warn_over, rmv_name)
+}
+
+########  Unused definitions  ########
+
+#' Definitions in `defined` that are not required.
+#' @noRd
+definition_not_used_find <- function(required, defined) {
+  unused <- unlist(defined)
+  if (length(required)) unused <- setdiff(unused, unlist(required))
+  if (length(unused)) sort(unused)
+  else NULL
+}
+
+#' Warn on the definitions in `defined` that are not required.
+#' @param holder `character(1)` Name of the definition holder.
+#' @noRd
+definition_not_used_warn <- function(required, defined, holder) {
+  notused <- definition_not_used_find(required, defined)
+  len_unused <- length(notused)
+  if (len_unused > 0) warn_h(paste(
+    "{cli::qty(len_unused)}There {?was/were} {len_unused} unused {holder}",
+    "definition{cli::qty(len_unused)}{?s}: {.val {notused}}."
+  ))
+  invisible()
+}
+
+#' Format an assertion message as a `cli::cli_bullets()` block.
+#' * headline -> named after its severity: `x` error, `!` minor, `v` satisfied;
+#' * continuation line -> named `" "`, indented under it.
+#' @param section `character(1)` Section name.
+#' @param sms `character()` Messages to format.
+#' @param minor `logical(1)` Whether to format as minor message.
+#' @noRd
+fmt_assert_cli <- function(section, sms, minor = FALSE) {
+  sms <- gsub(sms, pattern = " were ", replacement = " are ")
+  sms <- gsub(sms, pattern = " was ", replacement = " is ")
+  # colour the section name to match its bullet
+  if (!length(sms)) return(stats::setNames(cli::col_green(section), "v"))
+  col <- if (minor) cli::col_yellow else cli::col_red
+  if (minor) sms <- sub(sms, pattern = "^Required by ",
+                        replacement = "Can be specified for ")
+  head <- paste0(col(section), ": ", tolower(substr(sms[1], 1, 1)),
+                 substr(sms[1], 2, nchar(sms[1])))
+  stats::setNames(c(head, sms[-1]),
+                  c(if (minor) "!" else "x", rep(" ", length(sms) - 1)))
+}

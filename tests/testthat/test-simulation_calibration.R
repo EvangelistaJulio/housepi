@@ -1,8 +1,6 @@
 library(testthat)
 
-####################################################
-###  SIMULATION-BASED CALIBRATION : DEFINITIONS  ###
-####################################################
+####  Definitions  ####
 
 # ranks of four replicates of two parameters, readable by hand
 mk_calib_frame <- local({
@@ -85,9 +83,7 @@ test_that("The calibration summary reads one verdict per parameter", {
   summary$uniform |> expect_identical(c(TRUE, FALSE))
 })
 
-#############################################
-###  SIMULATION CALIBRATION : END-TO-END  ###
-#############################################
+####  End-to-end  ####
 
 # a sweep short enough for the suite, every fit too short to pass the
 # diagnostics, and the attached households are surveyed as they are

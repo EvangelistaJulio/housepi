@@ -165,3 +165,96 @@ test_that("Constant arguments and bounds are checked at definition", {
     get_latent()
   augm$args[[1]] |> expect_identical(c(sd = "rho|P", mean = "0"))
 })
+
+test_that("set_source_name_ assigns names to vector", {
+  result <- set_source_name_(c("a", "b"), "param")
+  names(result) |> expect_identical(c("param", "param"))
+  unname(result) |> expect_identical(c("a", "b"))
+
+  # NULL input: returns NULL
+  set_source_name_(NULL, "param") |> expect_null()
+  # NA name: unchanged
+  names(set_source_name_(c("a", "b"), NA)) |> expect_null()
+  # empty string name: unchanged
+  names(set_source_name_(c("a"), "")) |> expect_null()
+})
+
+test_that("Missing definitions are found and reported", {
+  required <- c(A = "a", B = "b", C = "c")
+  defined <- c("a", "b")
+
+  # partial overlap
+  definition_missing_find(required, defined) |>
+    expect_identical("c")
+  # all defined
+  definition_missing_find(defined, defined) |>
+    expect_null()
+  # no required
+  definition_missing_find(character(0), c("a")) |>
+    expect_null()
+  # no defined: returns all required sorted
+  definition_missing_find(rev(defined), character(0)) |>
+    expect_identical(defined)
+
+  results <- definition_missing_stop(required, defined, "parameter")
+  results |> expect_match("missing", all = FALSE)
+
+  # no missing: empty output
+  definition_missing_stop(c("a"), c("a"), "parameter") |>
+    expect_null()
+})
+
+test_that("Unused definitions are found and warned about", {
+  required <- c(A = "a")
+  defined <- c("a", "b", "c")
+
+  # all used
+  definition_not_used_find(defined, defined) |>
+    expect_null()
+  # all used: no warning
+  definition_not_used_warn(defined, defined, "parameter") |>
+    expect_no_warning()
+
+  # partial overlap
+  definition_not_used_find(required, defined) |>
+    expect_identical(c("b", "c"))
+  # no required: returns all defined sorted
+  definition_not_used_find(character(0), rev(defined)) |>
+    expect_identical(defined)
+  # no defined
+  definition_not_used_find(c("a"), character(0)) |>
+    expect_null()
+
+  # warning for unused
+  definition_not_used_warn(c("a"), defined, "parameter") |>
+    expect_warning("unused")
+})
+
+test_that("Overwritten definitions are warned about", {
+  # empty: no warning
+  definition_overwrite_warn(character(0), "parameter") |>
+    expect_no_warning()
+
+  definition_overwrite_warn(c("x"), "parameter") |>
+    expect_warning("Overwriting")
+
+  # warn handles many elements
+  definition_overwrite_warn(letters[1:10], "parameter") |>
+    expect_warning("Overwriting 10 parameter definitions.*j")
+})
+
+test_that("fmt_assert_cli formats messages correctly", {
+  # with messages (non-minor): rewrites "were" to "are"
+  result <- fmt_assert_cli(
+    "Parameters", c("There were 2 missing parameter definitions: 'a', 'b'.")
+  )
+  result |> expect_match("Parameters", all = FALSE)
+  result |> expect_match("are", all = FALSE)
+
+  # minor mode: rewrites "Required by" to "Can be specified for"
+  result <- fmt_assert_cli(
+    "Parameters", c("There was 1 definition.", "Required by ..."),
+    minor = TRUE
+  )
+  result |> expect_match("Can be specified", all = FALSE)
+})

@@ -1,5 +1,7 @@
 library(testthat)
 
+####  Helpers  ####
+
 # model carrying the data columns the definition blocks refer to
 mk_latent <- local({
   hh_model <- data.frame(hh_id = "h1", status = 1, datum = 1,
@@ -59,9 +61,7 @@ on_integer_lattice <- function(x) {
 # draws of a run as a data frame of its latent traces
 latent_frame <- \(x) draws_to_frame(get_latent_draws(x))
 
-##############################
-###  LATENT : DEFINITIONS  ###
-##############################
+####  Latent definitions  ####
 
 test_that("Latent definition errors are recognized", {
   # a decorator carrying no definition at all
@@ -588,9 +588,7 @@ test_that("Column reads inherit the discretization of their column", {
   augm$discr |> expect_identical(c(TRUE, FALSE))
 })
 
-###################################
-###  OBSERVATION : DEFINITIONS  ###
-###################################
+####  Observation definitions  ####
 
 test_that("Observation definitions are encoded", {
   obs <- mk_latent$model |>
@@ -1207,9 +1205,7 @@ test_that("Data-bound household observation rejects latent dependence", {
     expect_error("must resolve from data alone")
 })
 
-############################
-## STATUS : DEFINITIONS   ##
-############################
+####  Status definitions  ####
 
 test_that("Escaped label colliding with an infected status is rejected", {
   mk_status$data |>
@@ -1232,9 +1228,7 @@ test_that("Mixing integer and character status declarations is rejected", {
     expect_error("[Mm]ix")
 })
 
-#############################
-###  LATENT : END-TO-END  ###
-#############################
+####  Latent end-to-end  ####
 
 test_that("Independence proposal inherits the model location shift", {
   results <- data.frame(id = c("m1", "m2"), hh_id = "h1",
@@ -1612,9 +1606,7 @@ test_that("Evaluating a model allocates its latent storage", {
   ("hidden" %in% colnames(augmented)) |> expect_true()
 })
 
-##################################
-###  OBSERVATION : END-TO-END  ###
-##################################
+####  Observation end-to-end  ####
 
 test_that("Observation-aware initialization", {
   window <- 0.1
@@ -2103,9 +2095,7 @@ test_that("Data-bound household observation supplies a required data column", {
     expect_equal(log_lik)
 })
 
-###########################
-## STATUS : END-TO-END   ##
-###########################
+####  Status end-to-end  ####
 
 test_that("Status process drives status-specific latent blocks", {
   simulated <- mk_outbreak$model |>

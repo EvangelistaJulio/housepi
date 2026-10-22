@@ -1,8 +1,6 @@
 library(testthat)
 
-######################################
-###  PARAM RECOVERY : DEFINITIONS  ###
-######################################
+####  Definitions  ####
 
 # households of two sizes, the covariate constant within each one
 mk_recov_data <- local({
@@ -99,9 +97,7 @@ test_that("A table of values collapses to its point estimate", {
     expect_equal(c(rho = 3, rho_2 = 1))
 })
 
-#####################################
-###  PARAM RECOVERY : END-TO-END  ###
-#####################################
+####  End-to-end  ####
 
 # a sweep short enough for the suite: every fit is too short to diagnose,
 # so the whole run is flagged and its one aggregated warning is asserted below

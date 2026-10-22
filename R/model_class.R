@@ -30,7 +30,23 @@ HousepiModel <- R6::R6Class(
   ####  Private  ####
 
   private = list(
-    gen_ = NULL,
+    # `list` The compiled transmission model, as compile_model_() returns it.
+    compiled_ = NULL,
+
+    # Rcpp pointer to the MCMC runner.
+    mcmc_ptr_ = NULL,
+
+    # `character(1)` Label of status code 0, outside declared infected statuses.
+    escaped_ = "escaped",
+
+    # `list` Engine coding of the attached data, `data_wide` and `data_long`,
+    # as cpp_data_factorize() returns it without the data.
+    coding_ = list(
+      data_wide = list(cols = character(), status = integer(),
+                       status_labels = character()),
+      data_long = list(cols = character())
+    ),
+
     param_ = NULL,
     augm_ = NULL,
     group_risks_ = NULL,
@@ -62,15 +78,20 @@ HousepiModel <- R6::R6Class(
                                   private$infec_profile_$family))
     },
 
+    # Names the transmission model requires, from its engine `key` getter.
+    required_of_model_ = function(key) {
+      set_source_name_(key(private$mcmc_ptr_), "model")
+    },
+
     # Latent variables required by the model and by other definitions.
     get_required_latent_ = function() {
-      c(private$gen_$latent_required,      # by the model
+      c(private$required_of_model_(.engine$key_Latent), # by the model
         private$required_of_declaration_("A"))   # by the latent declaration
     },
 
     # Data columns required by the model and by other definitions.
     get_required_data_wide_ = function() {
-      c(private$gen_$data_required,        # by the model
+      c(private$required_of_model_(.engine$key_Data), # by the model
         private$group_risks_$data_required,      # by group risks
         private$contact_risks_$data_required,    # by contact risks
         private$required_of_declaration_("D"))   # by the latent declaration
@@ -78,13 +99,13 @@ HousepiModel <- R6::R6Class(
 
     # Group risks required by the model and by other definitions.
     get_required_group_risks_ = function() {
-      c(private$gen_$group_risks_required, # by the model
+      c(private$required_of_model_(.engine$key_GroupRisk), # by the model
         private$required_of_declaration_("G"))   # by the latent declaration
     },
 
     # Parameters required by the model and by other definitions.
     get_required_parameters_ = function() {
-      c(private$gen_$param_required,       # by the model
+      c(private$required_of_model_(.engine$key_Param), # by the model
         find_required_definitions(private$resolved_param_(), "P",
                                   c("const", "func", "min", "max"),
                                   private$param_$family), # by param functions
@@ -97,7 +118,12 @@ HousepiModel <- R6::R6Class(
 
     # Whether household data is attached.
     has_data_wide_ = function() {
-      length(private$gen_$cols_data_wide) > 0
+      length(private$coding_$data_wide$cols) > 0
+    },
+
+    # Whether the model steps one whole day at once.
+    is_discrete_time_ = function() {
+      "_HOUSEPI_DISCRETE_TIME" %in% private$compiled_$flags
     },
 
     # Assert the required latents are defined.
@@ -106,7 +132,7 @@ HousepiModel <- R6::R6Class(
       private$augm_$assert(
         private$get_required_latent_(),
         wall = wall,
-        warn_unused = warn_unused && !private$gen_$is_test_model()
+        warn_unused = warn_unused && !is_test_model_(private$compiled_$name)
       )
     },
 
@@ -127,12 +153,12 @@ HousepiModel <- R6::R6Class(
       }
 
       # a deterministic observation produces a surrogate data column
-      cols <- private$gen_$cols_data_wide
+      cols <- private$coding_$data_wide$cols
       surrogate <- private$augm_$surrogate_names
       cols <- c(cols, intersect(surrogate, required))
 
-      sms <- template_missing_stop(required, cols, "data",
-                                   noun = "column", style = "field")
+      sms <- definition_missing_stop(required, cols, "data",
+                                     noun = "column", style = "field")
       wall_or_return_(sms, wall)
     },
 
@@ -156,7 +182,7 @@ HousepiModel <- R6::R6Class(
     # * baseline defined as a function -> not pinned, user's own scale.
     # @return `list` of `character()` Risks pinning each baseline.
     baseline_pins_ = function() {
-      anchors <- private$gen_$risk_anchors
+      anchors <- .engine$risk_anchors(private$mcmc_ptr_)
       defs <- private$param_$defs
       pins <- list()
       for (name in names(anchors)) {
@@ -270,8 +296,19 @@ HousepiModel <- R6::R6Class(
       private$effective_param_()$assert(
         private$get_required_parameters_(),
         wall = wall,
-        warn_unused = warn_unused && !private$gen_$is_test_model()
+        warn_unused = warn_unused && !is_test_model_(private$compiled_$name)
       )
+    },
+
+    # Assert that escaped status matches the dictionary.
+    assert_status_ = function() {
+      if (private$escaped_ %in% private$status_dictionary_()) stop_h(
+        paste("Infected status {.val {private$escaped_}} collides",
+              "with the escaped-status label",
+              "({.val {private$escaped_}})."),
+        "Rename the status or define a different {.code escaped =} label."
+      )
+      invisible(self)
     },
 
     # Assert every reference names one declared definition, scanning the
@@ -313,7 +350,7 @@ HousepiModel <- R6::R6Class(
     # Assert an infectivity profile is defined when the model needs one.
     # * `wall` -> error, else the messages are returned.
     assert_infec_profile_ = function(wall = TRUE) {
-      if (!private$gen_$has_infec_profile ||
+      if (!.engine$has_infec_profile(private$mcmc_ptr_) ||
             length(private$infec_profile_$defs)) return(character())
       sms <- c("Missing infectivity profile definition.",
                "Define it with {.fn add_infectivity_profile}.")
@@ -368,7 +405,7 @@ HousepiModel <- R6::R6Class(
       private$assert_group_risks_()
       private$helper_build_risks_(
         private$group_risks_, status_codes, wall,
-        stratified = private$gen_$risk_status_stratified
+        stratified = .engine$risk_status_stratified(private$mcmc_ptr_)
       )
     },
 
@@ -380,12 +417,44 @@ HousepiModel <- R6::R6Class(
     # Factorize and push wide-format data to the engine.
     # The data is validated, and the caller rebuilds definitions via rebuild_().
     set_data_wide_ = function(data) {
-      data_factorized <- private$gen_$factorize_data_wide(data)
+      data <- private$embed_data_(data, "data_wide")
       # soft check: data may be intentionally incomplete
       # hard check at the wall
       private$assert_data_wide_(wall = FALSE)
-      .engine$import_data_wide(private$gen_$mcmc_ptr, data_factorized)
+      .engine$import_data_wide(private$mcmc_ptr_, data)
       invisible(self)
+    },
+
+    # Validate, factorize and push long-format data to the engine.
+    set_data_long_ = function(data_long) {
+      if (!is.data.frame(data_long)) stop_h(
+        "Data-long should be an object of class {.cls data.frame}.",
+        format_type_error(data_long)
+      )
+      assert_valid_data_columns(colnames(data_long), "id")
+
+      .engine$import_data_long(private$mcmc_ptr_,
+                               private$embed_data_(data_long, "data_long"))
+      invisible(self)
+    },
+
+    # Factorize data for the engine, recording its coding.
+    # @param format `character(1)` `"data_wide"` or `"data_long"`.
+    # @return `data.frame` Factorized data, for the engine to import.
+    embed_data_ = function(data, format) {
+      embed <- cpp_data_factorize(data, private$escaped_)
+      private$coding_[[format]] <- embed[names(embed) != "data"]
+      embed$data
+    },
+
+    # Refactor a data.frame back to user levels,
+    # the status to the model dictionary.
+    # @param format `character(1)` `"data_wide"` or `"data_long"`.
+    # @todo drop the refactoring of variant data
+    refactor_data_ = function(x, format) {
+      coding <- private$coding_[[format]]
+      cpp_data_refactor(x, coding$info, coding$cols,
+                        private$status_dictionary_(), private$escaped_)
     },
 
     # Drop the risk-derived parameters, re-derived after a data change.
@@ -437,7 +506,7 @@ HousepiModel <- R6::R6Class(
     # * status process order;
     # * character labels declared on latent definitions.
     status_dictionary_ = function() {
-      data_lab <- private$gen_$status_data_labels
+      data_lab <- private$coding_$data_wide$status_labels
       if (length(data_lab)) return(data_lab)
       if (length(private$status_$labels)) return(private$status_$labels)
       private$augm_$status_labels
@@ -450,18 +519,18 @@ HousepiModel <- R6::R6Class(
     status_codes_ = function() {
       dict <- private$status_dictionary_()
       if (length(dict)) return(stats::setNames(seq_along(dict), dict))
-      codes <- sort(union(as.integer(private$gen_$infec_status_set),
+      codes <- sort(union(as.integer(private$coding_$data_wide$status),
                           private$status_$codes))
       stats::setNames(codes, as.character(codes))
     },
 
     # Declared names under each source, keyed by its source letter.
     source_sets_ = function() {
-      gen <- private$gen_
-      live <- !is.null(gen) && !is.null(gen$mcmc_ptr)
+      ptr <- private$mcmc_ptr_
+      live <- !is.null(ptr)
       # what the transmission model declares it needs, whether or not the
       # matching column or parameter has landed yet
-      needs <- \(field) if (live) unname(gen[[field]]) else character()
+      needs <- \(key) if (live) key(ptr) else character()
 
       defs <- private$augm_$defs
       latent <- character()
@@ -472,15 +541,16 @@ HousepiModel <- R6::R6Class(
         obs <- defs[["name"]][kind %in% c("member", "house")]
       }
       cols <- character()
-      if (live) cols <- setdiff(gen$cols_data_wide, data_reserved_cols)
+      if (live)
+        cols <- setdiff(private$coding_$data_wide$cols, data_reserved_cols)
 
       sets <- list(
         # an observation stands for a column, at either level:
         # datum in inference, generated value in simulation
-        D = c(cols, needs("data_required"), obs),
-        G = c(names(private$group_risks_$defs), needs("group_risks_required")),
-        P = c(private$param_$defs[["name"]], needs("param_required")),
-        A = c(latent, needs("latent_required"))
+        D = c(cols, needs(.engine$key_Data), obs),
+        G = c(names(private$group_risks_$defs), needs(.engine$key_GroupRisk)),
+        P = c(private$param_$defs[["name"]], needs(.engine$key_Param)),
+        A = c(latent, needs(.engine$key_Latent))
       )
       # latent shadowing the like-named column -> no ambiguity,
       # as a simulated output fed back as data
@@ -509,7 +579,7 @@ HousepiModel <- R6::R6Class(
       resolve_discr_flags_(
         resolve_source_types_(private$effective_param_()$defs,
                               private$source_dictionary_()),
-        private$gen_$param_discr_required,
+        .engine$key_Param_discrete(private$mcmc_ptr_),
         is_prior = TRUE
       )
     },
@@ -524,9 +594,9 @@ HousepiModel <- R6::R6Class(
           resolve_source_types_(private$augm_$defs,
                                 private$source_dictionary_())
         ),
-        private$gen_$latent_discr_required,
-        discr_col_types = private$gen_$discr_data_wide,
-        discr_req_cols = private$gen_$data_wide_discr_required
+        .engine$key_Latent_discrete(private$mcmc_ptr_),
+        discr_col_types = private$coding_$data_wide$discr,
+        discr_req_cols = .engine$key_Data_discrete(private$mcmc_ptr_)
       )
     },
 
@@ -566,22 +636,14 @@ HousepiModel <- R6::R6Class(
     # @param derive `logical(1)` Whether to re-derive the risk tables.
     push_definitions_ = function(wall = FALSE, derive = TRUE) {
       # no data attached -> no risk to derive
-      if (!length(private$gen_$cols_data_wide)) return(invisible(self))
+      if (!private$has_data_wide_()) return(invisible(self))
 
-      # settle the status dictionary first, read by the risks stratifying on it
-      # and by the latent status codes below
-      status_dict <- private$status_dictionary_()
-      if (private$gen_$escaped %in% status_dict) stop_h(
-        paste("Infected status {.val {private$gen_$escaped}} collides",
-              "with the escaped-status label",
-              "({.val {private$gen_$escaped}})."),
-        "Rename the status or define a different {.code escaped =} label."
-      )
+      # settle the status dictionary first
+      private$assert_status_()
 
       # risks derive from their own covariates (they append to param_$defs)
       if (derive && length(private$group_risks_$defs))
         private$build_group_risks_(wall)
-
       if (derive && length(private$contact_risks_$defs))
         private$build_contact_risks_()
 
@@ -594,57 +656,54 @@ HousepiModel <- R6::R6Class(
       if (!wall && length(private$assert_sources_(FALSE)) > 0)
         return(invisible(self))
 
-      mcmc_ptr <- private$gen_$mcmc_ptr
-      info_wide <- private$gen_$info_data_wide
-
-      # parameters
-      .engine$import_param(mcmc_ptr, private$resolved_param_())
-
-      # group risks
-      .engine$import_group_risk(
-        mcmc_ptr,
-        private$group_risks_$expose_to_cpp(info_wide, private$status_codes_())
-      )
-
-      # contact risks
-      .engine$import_contact_risk(
-        mcmc_ptr,
-        private$contact_risks_$expose_to_cpp(info_wide)
-      )
-
-      # infectivity profile
-      .engine$import_infec_profile(mcmc_ptr, private$resolved_profile_())
-
-      # status process
-      private$push_status_process_(derive)
-
-      # latent
-      latent_defs <- resolve_status_codes_(private$resolved_latent_(),
-                                           status_dict)
+      mcmc_ptr <- private$mcmc_ptr_
+      payload <- private$payload_()
+      .engine$import_param(mcmc_ptr, payload$parameters)
+      .engine$import_group_risk(mcmc_ptr, payload$group_risks)
+      .engine$import_contact_risk(mcmc_ptr, payload$contact_risks)
+      .engine$import_infec_profile(mcmc_ptr, payload$infectivity_profile)
+      private$push_status_process_(payload$status_process, derive)
       # unresolved definitions wait for completeness or for the wall
-      if (wall || private$latent_declaration_complete_(latent_defs))
-        .engine$import_latent(mcmc_ptr, latent_defs)
-
-      # status dictionary drives the factor refactoring of the status column
-      private$gen_$set_status_levels(status_dict)
+      if (wall || private$latent_declaration_complete_(payload$latent))
+        .engine$import_latent(mcmc_ptr, payload$latent)
 
       invisible(self)
     },
 
-    # Check the status-process table against the data, then push it coded.
+    # Encode every definition for the engine, one entry per family.
+    # Latent status labels are coded against the model dictionary.
+    # Status process:
     # * labelled statuses -> read the model dictionary;
-    # * codes -> stand for themselves.
-    # @param derive `logical(1)` Whether to check the table against the data.
-    push_status_process_ = function(derive = TRUE) {
-      if (!private$status_$is_defined) return(invisible(self))
-      levels <- private$status_draw_levels_()
-      if (derive) private$status_$assert_fit(self$data_wide, levels)
-      .engine$import_status_process(
-        private$gen_$mcmc_ptr,
-        private$status_$expose_to_cpp(private$gen_$info_data_wide,
-                                      private$status_codes_()),
-        length(levels)
+    # * codes -> stand for themselves;
+    # * undefined -> `NULL`.
+    # @return `list` Tables the engine imports.
+    payload_ = function() {
+      info_wide <- private$coding_$data_wide$info
+      codes <- private$status_codes_()
+      status <- private$status_
+      list(
+        parameters = private$resolved_param_(),
+        group_risks = private$group_risks_$expose_to_cpp(info_wide, codes),
+        contact_risks = private$contact_risks_$expose_to_cpp(info_wide),
+        infectivity_profile = private$resolved_profile_(),
+        status_process = if (status$is_defined) list(
+          table = status$expose_to_cpp(info_wide, codes),
+          levels = private$status_draw_levels_()
+        ),
+        latent = resolve_status_codes_(private$resolved_latent_(),
+                                       private$status_dictionary_())
       )
+    },
+
+    # Check the status-process table against the data, then push it.
+    # * `NULL` -> nothing pushed.
+    # @param status `list` Status-process entry of payload_().
+    # @param derive `logical(1)` Whether to check the table against the data.
+    push_status_process_ = function(status, derive = TRUE) {
+      if (is.null(status)) return(invisible(self))
+      if (derive) private$status_$assert_fit(self$data_wide, status$levels)
+      .engine$import_status_process(private$mcmc_ptr_, status$table,
+                                    length(status$levels))
       invisible(self)
     },
 
@@ -659,7 +718,7 @@ HousepiModel <- R6::R6Class(
     # * status process -> every level it draws, whatever the data carries;
     # * otherwise -> the ones observed in the data.
     carried_statuses_ = function() {
-      if (!private$status_$is_defined) return(private$gen_$infec_status_set)
+      if (!private$status_$is_defined) return(private$coding_$data_wide$status)
       seq_along(private$status_draw_levels_())
     },
 
@@ -674,7 +733,7 @@ HousepiModel <- R6::R6Class(
         id_draws <- list(id = character(), hh_id = character())
 
       .engine$import_setup(
-        private$gen_$mcmc_ptr,
+        private$mcmc_ptr_,
         char_setup_input_(c(list(
           steps = steps,
           adapt = adapt,
@@ -731,8 +790,10 @@ HousepiModel <- R6::R6Class(
 
       # transmission sets the latents it generates in simulation:
       # an undeclared one gets a bare row, whose bounds simulation never reads
-      generated <- setdiff(private$gen_$latent_transmission,
-                           private$augm_$defs[["name"]])
+      generated <- setdiff(
+        .engine$key_Latent_transmission(private$mcmc_ptr_),
+        private$augm_$defs[["name"]]
+      )
       if (length(generated)) {
         declared_augm <- private$augm_$clone(deep = TRUE)
         on.exit(private$augm_ <- declared_augm, add = TRUE)
@@ -753,7 +814,7 @@ HousepiModel <- R6::R6Class(
       if (is.null(param_table))
         param_table <- data.frame(row.names = seq_len(nrep))
       # attach table with parameters
-      .engine$import_param_table(private$gen_$mcmc_ptr, param_table)
+      .engine$import_param_table(private$mcmc_ptr_, param_table)
 
       nrep
     },
@@ -775,10 +836,9 @@ HousepiModel <- R6::R6Class(
     #   for consumers reading `hh_id` and `status` only.
     # @todo drop the relabelling of variant data
     helper_reporting_wide_ = function(labelled = TRUE) {
-      gen <- private$gen_
       wide <- private$reporting_process_$wide
-      if (is.function(wide)) \(x) wide(gen$refactor_data_wide(x))
-      else if (labelled) \(x) gen$refactor_data_wide(x)
+      if (is.function(wide)) \(x) wide(private$refactor_data_(x, "data_wide"))
+      else if (labelled) \(x) private$refactor_data_(x, "data_wide")
     },
 
     # Run a measure function on posterior simulations.
@@ -798,13 +858,13 @@ HousepiModel <- R6::R6Class(
       private$build_full_(steps = nsim, threads = threads)
 
       # attach param_table
-      .engine$import_param_table(private$gen_$mcmc_ptr, param_table)
+      .engine$import_param_table(private$mcmc_ptr_, param_table)
 
       long <- private$reporting_process_$long
       apply_long_func <-
         if (is.null(apply_long)) NULL else \(x) apply_long(long(x))
       with_progress_(progress, "simulate", 1, function(bar) {
-        .engine$run_simulation(private$gen_$mcmc_ptr,
+        .engine$run_simulation(private$mcmc_ptr_,
                                private$helper_reporting_wide_(labelled),
                                apply_wide, apply_long_func, bar)
       })
@@ -817,20 +877,20 @@ HousepiModel <- R6::R6Class(
     #' @field name `character(1)` Model name.
     name = function(value) {
       assert_read_only_(value, "name")
-      private$gen_$name
+      spaced_choice(private$compiled_$name)
     },
 
     #' @field escaped `character(1)`
     #' Label for status code `0` in a character or factor `status` column.
     escaped = function(value) {
       assert_read_only_(value, "escaped")
-      private$gen_$escaped
+      private$escaped_
     },
 
     #' @field setup `list` Last setup used by the build process.
     setup = function(value) {
       assert_read_only_(value, "setup")
-      .engine$export_setup(private$gen_$mcmc_ptr)
+      .engine$export_setup(private$mcmc_ptr_)
     },
 
     #' @field data_wide `data.frame`
@@ -838,17 +898,17 @@ HousepiModel <- R6::R6Class(
     data_wide = function(value) {
       assert_read_only_(value, "data_wide")
       # no data attached yet (deferred until add_data_wide() or the wall)
-      if (!length(private$gen_$cols_data_wide)) return(NULL)
-      .engine$export_data_wide(private$gen_$mcmc_ptr) |>
-        private$gen_$refactor_data_wide()
+      if (!private$has_data_wide_()) return(NULL)
+      .engine$export_data_wide(private$mcmc_ptr_) |>
+        private$refactor_data_("data_wide")
     },
 
     #' @field data_long `data.frame`
     #' Additional data rows indexed by individual (long format).
     data_long = function(value) {
       assert_read_only_(value, "data_long")
-      .engine$export_data_long(private$gen_$mcmc_ptr) |>
-        private$gen_$refactor_data_long()
+      .engine$export_data_long(private$mcmc_ptr_) |>
+        private$refactor_data_("data_long")
     },
 
     #' @field parameters `data.frame` Parameter definitions.
@@ -951,14 +1011,20 @@ HousepiModel <- R6::R6Class(
 
       # check the data, NULL allowed and attached later with add_data_wide()
       data <- assert_household_data(data, model)
+      if (length(escaped) != 1 || !is.character(escaped)) stop_h(
+        "{.arg escaped} must be a non-empty {.cls character}.",
+        format_type_error(escaped)
+      )
+      private$escaped_ <- escaped
 
       # initialize internal fields
       private$reset_definitions_()
-      # generate model wrapper
-      private$gen_ <- HousepiGenerator$new(
+      # compile the transmission model, then create its runner
+      private$compiled_ <- compile_model_(
         model = model, as_template = as_template,
-        force = force, quiet = quiet, escaped = escaped, ...
+        force = force, quiet = quiet, ...
       )
+      private$mcmc_ptr_ <- create_mcmc_runner_(private$compiled_)
       # import data, if provided (no user definitions to rebuild yet)
       if (!is.null(data)) private$set_data_wide_(data)
 
@@ -973,29 +1039,18 @@ HousepiModel <- R6::R6Class(
       obj <- HousepiModel$new()
       obj_priv <- obj$.__enclos_env__$private
 
-      # clone definition fields
-      for (field in c("param_", "augm_", "group_risks_", "contact_risks_",
-                      "status_", "infec_profile_", "reporting_process_",
-                      "collapse_seen_")) {
+      # clone every field but the runner, created afresh
+      for (field in c("compiled_", "param_", "augm_", "group_risks_",
+                      "contact_risks_", "status_", "infec_profile_",
+                      "reporting_process_", "collapse_seen_", "escaped_",
+                      "coding_")) {
         obj_priv[[field]] <- helper_clone(private[[field]])
       }
-
-      # clone the generator (private fields except mcmc_ptr_)
-      # then, re-init pointers
-      new_gen <- HousepiGenerator$new()
-      new_gen_priv <- new_gen$.__enclos_env__$private
-      src_gen_priv <- private$gen_$.__enclos_env__$private
-      for (field in names(new_gen_priv)) {
-        val <- src_gen_priv[[field]]
-        if (field != "mcmc_ptr_" && !is.function(val))
-          new_gen_priv[[field]] <- helper_clone(val)
-      }
-      new_gen$init_pointers()
-      obj_priv$gen_ <- new_gen
+      obj_priv$mcmc_ptr_ <- create_mcmc_runner_(obj_priv$compiled_)
 
       # setup is not copied, build_full_() resupplies it at every run
       # share the data store, copy-on-write
-      .engine$share_data_store(new_gen$mcmc_ptr, private$gen_$mcmc_ptr)
+      .engine$share_data_store(obj_priv$mcmc_ptr_, private$mcmc_ptr_)
 
       # fresh pointer needs definitions pushed to the engine
       # cloned risk tables derive from the shared data, not re-derived
@@ -1010,14 +1065,14 @@ HousepiModel <- R6::R6Class(
       header <- "Household transmission model {.val {self$name}}"
 
       # append link to template documentation if any
-      if (!is.na(get_template_dir(private$gen_$raw_name)))
+      if (!is.na(get_template_dir(private$compiled_$name)))
         header <- paste(header,
           "({.run [template](housepi::browse_templates(\"{self$name}\"))})"
         )
       header <- c(i = paste0(header, "."))
 
       # @todo rationalize if more options are added
-      if (private$gen_$is_discrete_time)
+      if (private$is_discrete_time_())
         header <- c(header, "Model is set to {.emph discrete time} mode.")
 
       # each section is a self-contained cli_bullets block (headline + subs)
@@ -1041,13 +1096,13 @@ HousepiModel <- R6::R6Class(
       )
 
       # inform about optional risks if dataset is suitable
-      cols_extra <- setdiff(private$gen_$cols_data_wide,
+      cols_extra <- setdiff(private$coding_$data_wide$cols,
                             data_reserved_cols)
       if (length(cols_extra)) {
         # group risks (optional: default when definitions are absent)
         risks <- private$get_required_group_risks_()
         if (length(risks)) {
-          risks <- intersect(risks, template_missing_find(
+          risks <- intersect(risks, definition_missing_find(
             risks, names(private$group_risks_$defs)
           ))
           blocks <- c(blocks, list(fmt_assert_cli(
@@ -1060,7 +1115,7 @@ HousepiModel <- R6::R6Class(
           )))
         }
         # contact risks (optional)
-        if (private$gen_$has_contact_risk) {
+        if (.engine$has_contact_risk(private$mcmc_ptr_)) {
           blocks <- c(blocks, list(fmt_assert_cli(
             "Contact risks",
             if (!private$contact_risks_$assert()) "Using default contact risks."
@@ -1071,7 +1126,7 @@ HousepiModel <- R6::R6Class(
       }
 
       # infectivity profile (required by the model, or defined anyway)
-      if (private$gen_$has_infec_profile ||
+      if (.engine$has_infec_profile(private$mcmc_ptr_) ||
             length(private$infec_profile_$defs)) blocks <- c(blocks,
         list(fmt_assert_cli("Infectivity profile",
                             private$assert_infec_profile_(FALSE)))
@@ -1106,7 +1161,7 @@ HousepiModel <- R6::R6Class(
     #' @description
     #' Open the help page of the template model.
     help = function() {
-      dir <- get_template_dir(private$gen_$raw_name)
+      dir <- get_template_dir(private$compiled_$name)
       if (is.na(dir)) stop_h(
         "Model {.val {self$name}} is not a template and has no help page."
       )
@@ -1127,34 +1182,30 @@ export_to_cpp_standalone <- function(hh_model, outpath = "inst/standalone/") {
     "The standalone build reads no status process.",
     "Export a model without {.fn add_status_process}."
   )
-  status_codes <- pvt$status_codes_()
   pvt$build_group_risks_()
   pvt$build_contact_risks_()
 
-  gen <- pvt$gen_
-  info_wide <- gen$info_data_wide
   # the definitions as the engine imports them, with their sources resolved
-  latent_defs <- resolve_status_codes_(pvt$resolved_latent_(),
-                                       pvt$status_dictionary_())
-  utils::write.csv(latent_defs,
+  payload <- pvt$payload_()
+  utils::write.csv(payload$latent,
                    file.path(outpath, "latent.csv"),
                    quote = FALSE, row.names = FALSE)
-  utils::write.csv(pvt$contact_risks_$expose_to_cpp(info_wide),
+  utils::write.csv(payload$contact_risks,
                    file.path(outpath, "contact_risks.csv"),
                    quote = FALSE, row.names = FALSE)
-  utils::write.csv(.engine$export_data_wide(gen$mcmc_ptr),
+  utils::write.csv(.engine$export_data_wide(pvt$mcmc_ptr_),
                    file.path(outpath, "data_wide.csv"),
                    quote = FALSE, row.names = FALSE)
-  utils::write.csv(.engine$export_data_long(gen$mcmc_ptr),
+  utils::write.csv(.engine$export_data_long(pvt$mcmc_ptr_),
                    file.path(outpath, "data_long.csv"),
                    quote = FALSE, row.names = FALSE)
-  utils::write.csv(pvt$group_risks_$expose_to_cpp(info_wide, status_codes),
+  utils::write.csv(payload$group_risks,
                    file.path(outpath, "group_risks.csv"),
                    quote = FALSE, row.names = FALSE)
-  utils::write.csv(pvt$resolved_profile_(),
+  utils::write.csv(payload$infectivity_profile,
                    file.path(outpath, "infec.csv"),
                    quote = FALSE, row.names = FALSE)
-  utils::write.csv(pvt$resolved_param_(),
+  utils::write.csv(payload$parameters,
                    file.path(outpath, "param.csv"),
                    quote = FALSE, row.names = FALSE)
   utils::write.csv(char_setup_input_(hh_model$setup),

@@ -1,5 +1,7 @@
 library(testthat)
 
+####  Helpers  ####
+
 # one short inference run, quiet, holding the warnings it raised
 mk_draws <- local({
   results <- flu_1918_frederick |>
@@ -25,9 +27,7 @@ mk_latent_draws <- local({
   list(results = results)
 })
 
-##############################
-## POSTERIOR : DEFINITIONS  ##
-##############################
+####  Definitions  ####
 
 test_that("Invalid posterior summary settings are rejected", {
   set_housepi_summary(cri_level = 0.5) |>
@@ -128,9 +128,7 @@ test_that("Summarise-draws default columns track cri_level", {
   (c("q2.5", "q97.5", "q10", "q90") %in% plain_cols) |> expect_all_false()
 })
 
-#############################
-## POSTERIOR : END-TO-END  ##
-#############################
+####  End-to-end  ####
 
 test_that("Active fields are read-only", {
   mk_draws$results |>

@@ -291,7 +291,7 @@ HousepiRecoveryCheck <- R6::R6Class(
       private$nrep_ <- assert_count_(nrep, "Number of replicates")
       private$point_estimate_ <- get_global_point_estimate()
       private$cri_level_ <- get_global_cri_level()
-      private$name_ <- hh_model$.__enclos_env__$private$gen_$raw_name
+      private$name_ <- hh_model$.__enclos_env__$private$compiled_$name
 
       pins <- recovery_pins_(hh_model, draws, private$point_estimate_)
       private$truth_ <- recovery_truth_(hh_model, pins)

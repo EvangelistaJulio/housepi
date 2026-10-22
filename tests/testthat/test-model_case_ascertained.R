@@ -1,5 +1,7 @@
 library(testthat)
 
+####  Helpers  ####
+
 # Over budget: the likelihood test builds the discrete-time model, a DLL
 # compile the infectivity-profile tests then find cached.
 
@@ -129,9 +131,7 @@ get_latent_state <- function(latent_draws, index) {
     as.data.frame()
 }
 
-################################################
-##   CASE ASCERTAINED HH MODEL : SIMULATION   ##
-################################################
+####  Simulation  ####
 
 test_that("With no transmission only a random household member is infected", {
   # the introduction is the only case, infected at the time origin
@@ -164,9 +164,7 @@ test_that("A saturated transmission infects every member", {
   simulated$infec_time |> expect_no_na()
 })
 
-##################################################
-## CASE ASCERTAINED HH MODEL : LOG-LIKELIHOOD   ##
-##################################################
+####  Log-likelihood  ####
 
 test_that("Sentinel against no introduction throws error", {
   data.frame(id = seq(2), hh_id = "h1", status = 0,

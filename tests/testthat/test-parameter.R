@@ -1,5 +1,7 @@
 library(testthat)
 
+####  Helpers  ####
+
 # model carrying no parameter of its own
 mk_param <- local({
   list(model = new_housepi_model(model = "test"))
@@ -11,9 +13,7 @@ mk_final_size <- local({
   list(model = model, template = model |> add_parameter(import = "template"))
 })
 
-##############################
-## PARAMETER : DEFINITIONS  ##
-##############################
+####  Definitions  ####
 
 test_that("Default parameter definitions are correct", {
   mk_param$model |>
@@ -216,9 +216,7 @@ test_that("Parameter options typed as values refuse other types", {
     expect_error("[Aa]rgument .prior. must be character, numeric, or logical")
 })
 
-############################
-## PARAMETER : END-TO-END ##
-############################
+####  End-to-end  ####
 
 test_that("Unsupported parameter definitions throw errors", {
   # eager rebuild: errors surface at definition, not at run_inference

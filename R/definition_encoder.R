@@ -300,7 +300,7 @@ housepi_load_defin_quos <- function(self, implicit_name, xquos,
       )
     }
   }
-  template_overwrite_warn(self$store_warn_over, self$family)
+  definition_overwrite_warn(self$store_warn_over, self$family)
   self$store_warn_over <- character()
 }
 
