@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "tools/logproba.h"
+#include "tools/vector.h"
 #include "data/household.h"
 #include "data/individual.h"
 #include "function.h"
@@ -16,8 +17,8 @@
 
 namespace housepi::data
 {
-#define MAKE_HOUSEPI_CACHE_ACCESSOR(TYPE, NAME)                                                                          \
-    TYPE &cache_##NAME(const Household &house, size_t e) noexcept { return current_[house.eq_class()].NAME[e]; }             \
+#define MAKE_HOUSEPI_CACHE_ACCESSOR(TYPE, NAME)                                                                  \
+    TYPE &cache_##NAME(const Household &house, size_t e) noexcept { return current_[house.eq_class()].NAME[e]; } \
     const TYPE &cache_##NAME(const Household &house, size_t e) const noexcept { return current_[house.eq_class()].NAME[e]; }
 
     struct Wide;
@@ -88,16 +89,16 @@ namespace housepi::data
         /// Cached double vector.
         MAKE_HOUSEPI_CACHE_ACCESSOR(std::vector<double>, double_vector)
         /// Cached double matrix.
-        MAKE_HOUSEPI_CACHE_ACCESSOR(std::vector<std::vector<double>>, double_matrix)
+        MAKE_HOUSEPI_CACHE_ACCESSOR(matrix, double_matrix)
 
     private:
         /// Model cache of one equivalence class, by cache key.
         struct Cache_
         {
-            std::vector<MemberIdx> member = {};                               /// Member values.
-            std::vector<std::vector<MemberIdx>> member_vector = {};           /// Member vectors.
-            std::vector<std::vector<double>> double_vector = {};              /// Double vectors.
-            std::vector<std::vector<std::vector<double>>> double_matrix = {}; /// Double matrices.
+            std::vector<MemberIdx> member = {};                     /// Member values.
+            std::vector<std::vector<MemberIdx>> member_vector = {}; /// Member vectors.
+            std::vector<std::vector<double>> double_vector = {};    /// Double vectors.
+            std::vector<matrix> double_matrix = {};                 /// Double matrices.
         };
 
         std::vector<std::vector<Attribute>> readcell_ = {}; /// Read-cells, by member index and column.

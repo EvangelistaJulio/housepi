@@ -11,7 +11,6 @@ check_recovery(
   houses = NA_integer_,
   structure_sampler = sample_house_structure,
   steps = 1000L,
-  burn = 0L,
   thin = 5L,
   adapt = 500L,
   chains = 4L,
@@ -46,17 +45,14 @@ Sampler of the household structure the surveys are generated on,
 called as \code{structure_sampler(data_wide, houses)}.
 If \code{NULL}, the attached structure is reused verbatim and \code{houses} ignored.}
 
-\item{steps}{\code{integer(1)} Number of MCMC iterations per chain.}
+\item{steps}{\code{integer(1)} Number of MCMC steps per chain.}
 
-\item{burn}{\code{integer(1)}
-Number of iterations per chain discarded before \code{steps}.
-Run after adaptation.}
+\item{thin}{\code{integer(1)} Keep one step every \code{thin} of \code{steps}.}
 
-\item{thin}{\code{integer(1)} Keep one iteration every \code{thin} of \code{steps}.}
-
-\item{adapt}{\code{integer(1)} Number of iterations to adapt proposal scales.
+\item{adapt}{\code{integer(1)} Number of steps to adapt proposal scales
+and the joint moves of latent variables and parameters.
 Run first and not stored as draws.
-If no proposal is adaptable, run as burn-in when \code{burn = 0}, else dropped.}
+If nothing is adaptable, run as burn-in instead.}
 
 \item{chains}{\code{integer(1)} Number of independent MCMC chains to run.}
 
@@ -64,14 +60,15 @@ If no proposal is adaptable, run as burn-in when \code{burn = 0}, else dropped.}
 Up to \code{threads} replicates are fitted at once.
 Beyond \code{nrep}, the households of each fit share the threads left over.}
 
-\item{progress}{\code{integer(1)} | \code{logical(1)} Control the progress bar,
+\item{progress}{\code{numeric(1)} | \code{logical(1)} Control the progress bar,
 one of:
 \describe{
-\item{\code{integer}}{seconds between prints, a shorter run printing nothing;}
+\item{\code{numeric}}{seconds between prints, a shorter run printing nothing;}
 \item{\code{TRUE}}{one print per second;}
 \item{\code{FALSE} or \code{0}}{no progress bar.}
 }
-The bar prints as messages, which \code{\link[=suppressMessages]{suppressMessages()}} silences.}
+The bar prints as messages, which \code{\link[=suppressMessages]{suppressMessages()}} silences.
+In a knitted document, only its closing line prints.}
 
 \item{...}{Advanced configuration.}
 }

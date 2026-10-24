@@ -6,7 +6,6 @@
 #include <algorithm>
 #include <cmath>
 #include <memory>
-#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -30,24 +29,24 @@ namespace housepi
         public:
             /// Intern `name`, returning its index.
             /// * index 0 -> empty name, NA.
-            NameIndex intern(std::string_view name)
+            NameIdx intern(std::string_view name)
             {
                 auto it = lut_.find(name); // heterogeneous lookup: no std::string built
                 if (it != lut_.end())
                     return it->second;
 
-                NameIndex id = static_cast<NameIndex>(pool_.size());
+                NameIdx id = static_cast<NameIdx>(pool_.size());
                 pool_.emplace_back(name);
                 lut_.emplace(name, id);
                 return id;
             }
 
             /// Return a copy of the name at index `id`.
-            std::string at(NameIndex id) const { return pool_[id]; }
+            std::string at(NameIdx id) const { return pool_[id]; }
 
         private:
             std::vector<std::string> pool_ = {""}; /// Interned names.
-            dict<NameIndex> lut_ = {{"", 0}};      /// Index of each name.
+            dict<NameIdx> lut_ = {{"", 0}};        /// Index of each name.
         };
 
         /// Return the process-global name pool.
@@ -246,8 +245,8 @@ namespace housepi
           is_user_const_(other.is_user_const_),
           name_id_(other.name_id_),
           value_(other.value_),
-          pAttr_(other.pAttr_),
-          pFunc_(other.pFunc_ ? other.pFunc_->clone() : nullptr) {}
+          attr_(other.attr_),
+          func_(other.func_ ? other.func_->clone() : nullptr) {}
 
     Attribute::Attribute(Attribute &&) noexcept = default;
 
@@ -264,8 +263,8 @@ namespace housepi
         std::swap(is_user_const_, other.is_user_const_);
         std::swap(name_id_, other.name_id_);
         std::swap(value_, other.value_);
-        std::swap(pAttr_, other.pAttr_);
-        std::swap(pFunc_, other.pFunc_);
+        std::swap(attr_, other.attr_);
+        std::swap(func_, other.func_);
     }
 
     bool Attribute::operator==(const Attribute &other) const noexcept
@@ -278,8 +277,8 @@ namespace housepi
             return false;
 
         MAKE_ATTR_MODE(value_ == other.value_,
-                       pAttr_ == other.pAttr_,
-                       pFunc_ == other.pFunc_,
+                       attr_ == other.attr_,
+                       func_ == other.func_,
                        true)
     }
 
@@ -289,7 +288,7 @@ namespace housepi
     std::string Attribute::str_val() const
     {
         MAKE_ATTR_MODE(str::format(value_),
-                       pAttr_->str_val(),
+                       attr_->str_val(),
                        "<>",
                        str::format(na::DOUBLE))
     }
@@ -297,29 +296,29 @@ namespace housepi
     // @todo Fix the formatting of is_constant().
     bool Attribute::is_constant() const noexcept {
         MAKE_ATTR_MODE(is_user_const_,
-                       pAttr_ -> is_constant(),
-                       pFunc_->is_constant(),
+                       attr_ -> is_constant(),
+                       func_->is_constant(),
                        false)}
 
     Codomain Attribute::codomain() const noexcept
     {
         MAKE_ATTR_MODE(numeric_codomain_(value_),
-                       pAttr_->codomain(),
-                       pFunc_->codomain(),
+                       attr_->codomain(),
+                       func_->codomain(),
                        Codomain())
     }
     bool Attribute::is_na() const noexcept
     {
         MAKE_ATTR_MODE(na::is(value_),
-                       pAttr_->is_na(),
+                       attr_->is_na(),
                        false,
                        true)
     }
     bool Attribute::is_callable() const noexcept
     {
         MAKE_ATTR_MODE(!na::is(value_),
-                       pAttr_->is_callable(),
-                       pFunc_->is_callable_implicitly(),
+                       attr_->is_callable(),
+                       func_->is_callable_implicitly(),
                        false)
     }
 
@@ -334,8 +333,8 @@ namespace housepi
 
         mode_ = Mode::Numeric;
         value_ = x;
-        pAttr_ = nullptr;
-        pFunc_ = nullptr;
+        attr_ = nullptr;
+        func_ = nullptr;
         is_user_const_ = true;
     }
 
@@ -346,8 +345,8 @@ namespace housepi
 
         mode_ = Mode::Pointer;
         value_ = na::DOUBLE;
-        pAttr_ = y;
-        pFunc_ = nullptr;
+        attr_ = y;
+        func_ = nullptr;
         is_user_const_ = false;
     }
 
@@ -359,8 +358,8 @@ namespace housepi
             name(std::string(f->name()));
         mode_ = Mode::Function;
         value_ = na::DOUBLE;
-        pAttr_ = nullptr;
-        pFunc_ = std::move(f);
+        attr_ = nullptr;
+        func_ = std::move(f);
         is_user_const_ = false;
     }
 
@@ -396,12 +395,12 @@ namespace housepi
         if (is_pointer() && pointer()->is_function())
             init_function(pointer()->function()->clone());
         if (is_function())
-            pFunc_->finalize();
+            func_->finalize();
     }
 
     void Attribute::init_func_attr(std::string_view key, const Attribute &attr)
     {
-        pFunc_->init_attr(key, attr);
+        func_->init_attr(key, attr);
     }
 
     //////////////////////////////  Function  //////////////////////////////

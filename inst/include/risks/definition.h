@@ -5,6 +5,7 @@
 
 #pragma once
 
+#include <algorithm>
 #include <cstddef>
 #include <map>
 #include <string>
@@ -30,13 +31,27 @@ namespace housepi::risks
 {
     constexpr double VALUE_REFERENCE = 1.0; /// Risk value of the reference.
 
+    /// Read the units each rule resolves, NA when the table gives none or it is unknown.
+    inline std::vector<double> read_row_units(const str_table &input)
+    {
+        std::vector<double> units(count_rows(input), na::DOUBLE);
+        if (const auto it = input.find("n"); it != input.end())
+            for (size_t r = 0; r < units.size(); ++r)
+                if (!na::is(it->second[r]))
+                    units[r] = str::tod(it->second[r]);
+        return units;
+    }
+
     /// Read the scale anchoring of every rule group.
-    /// * a rule naming the reference -> anchors its group;
-    /// * any other rule -> a risk its group applies.
+    /// * a rule naming the reference -> anchors its group, its units those of the reference;
+    /// * any other rule -> a risk its group applies, its units added to the risk's.
     /// @param row_param Parameter key per rule, NA for the reference.
+    /// @param row_units Units resolved by each rule, NA if unknown.
     /// @param key_of Rule-group key of row `r`.
     template <class Key, class KeyFn>
-    std::map<Key, ScaleAnchor> read_scale_anchors(const std::vector<size_t> &row_param, KeyFn key_of)
+    std::map<Key, ScaleAnchor> read_scale_anchors(const std::vector<size_t> &row_param,
+                                                  const std::vector<double> &row_units,
+                                                  KeyFn key_of)
     {
         std::map<Key, ScaleAnchor> anchors;
         for (size_t r = 0; r < row_param.size(); ++r)
@@ -44,9 +59,19 @@ namespace housepi::risks
             ScaleAnchor &anchor = anchors[key_of(r)];
             const size_t p = row_param[r];
             if (na::is(p))
+            {
                 anchor.anchored = true;
-            else if (!vect::contains(anchor.scaling_params, p))
+                anchor.n_reference += row_units[r];
+                continue;
+            }
+            auto it = std::find(anchor.scaling_params.begin(), anchor.scaling_params.end(), p);
+            if (it == anchor.scaling_params.end())
+            {
                 anchor.scaling_params.push_back(p);
+                anchor.n_params.push_back(0.);
+                it = anchor.scaling_params.end() - 1;
+            }
+            anchor.n_params[it - anchor.scaling_params.begin()] += row_units[r];
         }
         return anchors;
     }
@@ -119,13 +144,12 @@ namespace housepi::risks
               rules(input, vect::concatenate(prefixed_(input, "from_"), prefixed_(input, "to_"))),
               row_param(param.find(input.at("param_name"))) {}
 
-        /// Resolve the risks the pair `indiv_from` to `indiv_to` multiplies.
+        /// Resolve the parameters of the risks the pair `indiv_from` to `indiv_to` multiplies.
         /// * per rule group -> the most specific matching rule;
         /// * across groups -> the product, the reference left out.
-        std::vector<const Attribute *> associate_param_ptrs(const data::Wide &data_wide,
-                                                            const Parameter &param,
-                                                            const Individual &indiv_from,
-                                                            const Individual &indiv_to) const
+        std::vector<size_t> associate_params(const data::Wide &data_wide,
+                                             const Individual &indiv_from,
+                                             const Individual &indiv_to) const
         {
             std::vector<double> probe(2 * keys.size());
             for (size_t i = 0; i < keys.size(); ++i)
@@ -133,12 +157,12 @@ namespace housepi::risks
                 probe[i] = data_wide.raw(keys[i], indiv_from);
                 probe[keys.size() + i] = data_wide.raw(keys[i], indiv_to);
             }
-            std::vector<const Attribute *> param_ptrs;
+            std::vector<size_t> params;
             for (auto &[gid, r] : rules.resolve<size_t>(probe, [&](size_t row)
                                                         { return rules.row_gid[row]; }))
                 if (const size_t p = row_param[r]; !na::is(p))
-                    param_ptrs.push_back(param.at(p).pointer());
-            return param_ptrs;
+                    params.push_back(p);
+            return params;
         }
 
     private:
@@ -158,6 +182,7 @@ namespace housepi::risks
     /// Risks an ordered pair of covariate classes multiplies, resolved on first encounter.
     struct PairRisk
     {
+        std::vector<size_t> params = {};                /// Parameter keys of the risks the pair applies.
         std::vector<const Attribute *> param_ptrs = {}; /// Risks the pair applies.
         bool resolved = false;                          /// Whether the pair was resolved.
     };

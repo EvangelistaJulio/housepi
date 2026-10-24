@@ -11,7 +11,6 @@
 #include <functional>
 #include <memory>
 #include <random>
-#include <stdexcept>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -37,11 +36,11 @@
 #include "infec_profile.h"
 #include "mcmc.h"
 #include "mcmc/base.h"
+#include "mcmc/settings.h"
 #include "model.h"
 #include "parameter.h"
 #include "registry.h"
 #include "risks.h"
-#include "mcmc/setup.h"
 #include "translator.h"
 #include "variable.h"
 
@@ -53,8 +52,8 @@ namespace housepi
     {
         RegModels &RegModels::instance()
         {
-            static RegModels _inst;
-            return _inst;
+            static RegModels models;
+            return models;
         }
 
         std::unique_ptr<ModelBase> RegModels::create(std::string_view name) const
@@ -311,7 +310,7 @@ namespace housepi
                                                                       const data::Wide &data_wide,
                                                                       const std::vector<std::string> &id_draws,
                                                                       const std::vector<std::string> &house_draws,
-                                                                      rnd_gen &prng)
+                                                                      RndGen &prng)
         {
             if (id_draws.size() == 1 && id_draws[0] == ".none" && house_draws.empty())
                 return {};
@@ -378,7 +377,7 @@ namespace housepi
 
     /// Initialize the parameter draws of the posterior.
     void Posterior::init_param_draws_(const Parameter &param,
-                                      std::uint64_t sample_size)
+                                      Settings::Step sample_size)
     {
         for (size_t p : param.scheme().sample)
         {
@@ -391,7 +390,7 @@ namespace housepi
     }
 
     void Posterior::init_house_draws_(const data::Wide &data_wide,
-                                      std::uint64_t sample_size)
+                                      Settings::Step sample_size)
     {
         house_log_lik.cols.assign(data_wide.eq_class_size(), std::vector<double>(sample_size, na::DOUBLE));
 
@@ -406,11 +405,11 @@ namespace housepi
     /// Initialize the latent draws of the posterior.
     void Posterior::init_latent_draws_(const Augmented &augm,
                                        const data::Wide &data_wide,
-                                       const Setup &setup,
-                                       std::uint64_t sample_size)
+                                       const Settings &settings,
+                                       Settings::Step sample_size)
     {
         tracked_indivs = helper_init_individual_sample(
-            augm, data_wide, setup.id_draws, setup.house_draws, setup.prng());
+            augm, data_wide, settings.id_draws, settings.house_draws, settings.prng());
 
         for (const Individual *indiv : tracked_indivs)
             for (size_t a : augm.list_draws(*indiv))
@@ -425,17 +424,17 @@ namespace housepi
         house_log_lik = {};
         tracked_indivs.clear();
 
-        const Setup &setup = mcmc.setup;
-        const std::uint64_t sample_size = setup.c_sample_size * setup.n_chains;
+        const Settings &settings = mcmc.settings;
+        const Settings::Step sample_size = settings.c_sample_size * settings.n_chains;
 
         init_param_draws_(mcmc.param, sample_size);
         init_house_draws_(mcmc.data.wide(), sample_size);
-        init_latent_draws_(mcmc.augm, mcmc.data.wide(), setup, sample_size);
+        init_latent_draws_(mcmc.augm, mcmc.data.wide(), settings, sample_size);
     }
 
-    void Posterior::store(MCMCBase &mcmc, std::uint64_t chain_id, std::uint64_t local)
+    void Posterior::store(MCMCBase &mcmc, Settings::Chain chain_id, Settings::Step local)
     {
-        const size_t col = chain_id * mcmc.setup.c_sample_size + local;
+        const size_t col = chain_id * mcmc.settings.c_sample_size + local;
 
         // parameter values and priors
         const Parameter &param = mcmc.param;
@@ -478,9 +477,9 @@ namespace housepi
 
     MCMCBase::MCMCBase(const ModelBase &model)
         : data(model),
-          param(model.key_Param()),
-          risks(model.key_GroupRisk()),
-          augm(this, model.key_Latent()),
+          param(model.param_keys()),
+          risks(model.group_risk_keys()),
+          augm(this, model.latent_keys()),
           translator(param, augm, data, risks.group()) {}
     MCMCBase::~MCMCBase() = default;
 
@@ -568,67 +567,7 @@ namespace housepi
                 }
     }
 
-    //////  MCMCBase : Monte Carlo  //////
-
-    void MCMCBase::init_monte_carlo_()
-    {
-        // check there is something to sample
-        if (!param.is_any_sample() && !augm.scheme().is_any_sample())
-            msg::stop(
-                "Nothing to sample.\nCheck your parameter and latent definitions.");
-
-        // whether adaptation is required
-        bool is_adaptive = !param.scheme().adaptive.empty() || augm.scheme().is_any_adaptive();
-        // initialize setup for mcmc
-        setup.init_mcmc_configuration(is_adaptive);
-    }
-
-    void MCMCBase::init_monte_carlo_chain_()
-    {
-        param.restart(setup.prng()); // reset parameters
-        augm.restart(setup.prng());  // reset latent
-
-        // re-initialize the adaptable proposal of every variable
-        for (size_t p : param.scheme().adaptive)
-            param.at(p).init_proposal();
-        if (augm.scheme().is_any_adaptive())
-            for (const Household &house : data.wide())
-                for (const Individual &indiv : house.infected_indivs())
-                    for (size_t a : augm.list_adaptive(indiv))
-                        augm.at(a, indiv).init_proposal();
-    }
-
-    void MCMCBase::recover_total_log_lik_(bool with_cache,
-                                          bool with_latent_ll,
-                                          bool with_obs_ll)
-    {
-        tot_transm_log_lik.recover();
-        if (with_obs_ll)
-            tot_obs_log_lik.recover();
-        if (with_latent_ll)
-            tot_latent_log_lik.recover();
-
-        // recover old log-likelihood values for households
-        for (size_t R = 0; R < data.wide().eq_class_size(); ++R)
-        {
-            const Household &house = data.wide().eq_class_head(R);
-            recover_transm_log_lik_(house);
-
-            // recover from commit_total_log_posterior_
-            if (with_latent_ll)
-                for (const Individual &indiv : house.infected_indivs())
-                    recover_latent_log_lik_(indiv);
-            if (with_obs_ll)
-                for (const Individual &indiv : house.infected_indivs())
-                    recover_obs_log_lik_(indiv);
-        }
-
-        if (with_cache)
-        {
-            data.state.recover_cache();
-            infec_profile.recover();
-        }
-    }
+    //////  MCMCBase : Getter  //////
 
     std::vector<std::string> MCMCBase::get_static_data_names() const
     {
@@ -641,31 +580,6 @@ namespace housepi
             if (surr.is_own_column())
                 produced.push_back(augm.def()[surr.row].name);
         return vect::difference(data.wide().all(), produced);
-    }
-
-    std::vector<size_t> MCMCBase::get_row_offsets() const
-    {
-        size_t n_houses = data.wide().report_house.total;
-        std::vector<size_t> output(n_houses + 1, 0);
-        for (size_t H = 0; H < n_houses; ++H)
-            output[H + 1] = output[H] + data.wide().at(H).size();
-        return output;
-    }
-
-    double MCMCBase::house_obs_log_lik(const Household &house) const
-    {
-        double obs = 0.;
-        for (const Individual &indiv : house.infected_indivs())
-            obs += obs_log_lik_(indiv).value();
-        return obs;
-    }
-
-    double MCMCBase::house_latent_log_lik(const Household &house) const
-    {
-        double model = 0.;
-        for (const Individual &indiv : house.infected_indivs())
-            model += latent_log_lik_(indiv).value();
-        return model;
     }
 
     std::vector<std::string> MCMCBase::get_col_names() const
@@ -689,6 +603,15 @@ namespace housepi
             if (surr.is_own_column())
                 output.push_back(augm.def()[surr.row].name);
 
+        return output;
+    }
+
+    std::vector<size_t> MCMCBase::get_row_offsets() const
+    {
+        size_t n_houses = data.wide().report_house.total;
+        std::vector<size_t> output(n_houses + 1, 0);
+        for (size_t H = 0; H < n_houses; ++H)
+            output[H + 1] = output[H] + data.wide().at(H).size();
         return output;
     }
 
@@ -718,34 +641,67 @@ namespace housepi
 
     double MCMC::evaluate_log_lik(std::string_view hh_id)
     {
-        setup.n_chains = 0; // using '0 chains' as a state variable
+        settings.n_chains = 0; // using '0 chains' as a state variable
         init_for_evaluation_();
-        param.draw_sample(setup.prng());
-        augm.draw_sample(setup.prng());
+        param.draw_sample(settings.prng());
+        augm.draw_sample(settings.prng());
 
-        // evaluation at current state
-        LogLikAccumulator acc;
+        // complete-data log-likelihood at current state: observation + transmission + latent model
         if (na::is(hh_id))
         {
             // evaluation across all households
-            commit_total_log_posterior_(true);
+            commit_total_log_posterior_(all_terms_());
             data.state.set_evaluated(true);
-            acc.obs_ll = tot_obs_log_lik.value();
-            acc.transm_ll = tot_transm_log_lik.value();
-            acc.latent_ll = tot_latent_log_lik.value();
-        }
-        else
-        {
-            // single household evaluation
-            const Household &house = data.wide().at(hh_id);
-            infec_profile.update_cache();
-            acc = commit_house_log_posterior_(
-                house, true, augm.scheme().is_any_latent_model(), augm.scheme().is_any_obs_model());
-            data.state.set_evaluated(house);
+            return tot_log_lik.value();
         }
 
-        // complete-data household log-likelihood: observation + transmission + latent model
-        return acc.obs_ll + acc.transm_ll + acc.latent_ll;
+        // single household evaluation
+        const Household &house = data.wide().at(hh_id);
+        infec_profile.update_cache();
+        const double output = commit_house_log_posterior_(house, all_terms_()).value();
+        data.state.set_evaluated(house);
+        return output;
+    }
+
+    //////  Inference  //////
+
+    void MCMC::prepare_inference()
+    {
+        init_monte_carlo_();
+        init_for_evaluation_();
+        init_param_routes_();
+        posterior.init(*this);
+        settings.n_done = 0;
+    }
+
+    double MCMC::sample()
+    {
+        const auto start = std::chrono::steady_clock::now();
+
+        // run multiple MCMC chains
+        for (Settings::Chain chain_id = 0; chain_id < settings.n_chains; ++chain_id)
+        {
+            init_monte_carlo_chain_();
+            init_guarded_commit_total_();
+            run_chain_(chain_id);
+        }
+        data.state.set_evaluated(true);
+        return std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count();
+    }
+
+    //////  Setup  //////
+
+    void MCMC::init_monte_carlo_()
+    {
+        // check there is something to sample
+        if (!param.is_any_sample() && !augm.scheme().is_any_sample())
+            msg::stop(
+                "Nothing to sample.\nCheck your parameter and latent definitions.");
+
+        // whether adaptation is required
+        bool is_adaptive = !param.scheme().adaptive.empty() || augm.scheme().is_any_adaptive();
+        // initialize settings for mcmc
+        settings.init_mcmc_configuration(is_adaptive);
     }
 
     void MCMC::init_for_evaluation_()
@@ -775,66 +731,496 @@ namespace housepi
             model->init_house_for_evaluation(data_wide.eq_class_head(R));
     }
 
-    void MCMC::commit_total_log_posterior_(bool with_cache,
-                                           bool with_latent_ll,
-                                           bool with_obs_ll)
+    void MCMC::init_param_routes_()
+    {
+        const data::Wide &data_wide = data.wide();
+        const augm::Scheme &as = augm.scheme();
+        routes_.assign(param.size(), {});
+
+        const std::vector<std::vector<HouseIdx>> houses_of = risks.list_houses_of_param(param.size());
+        for (size_t p : param.scheme().sample)
+        {
+            ParamRoute &route = routes_[p];
+            route.terms.transm = vect::contains(param.scheme().sample_cached, p);
+            route.terms.latent = as.is_any_latent_model() && as.param_produces_latent_log_lik(p);
+            route.terms.obs = as.is_any_obs_model() && as.param_produces_obs_log_lik(p);
+
+            // read by risks alone -> the classes reading it
+            if (route.terms.latent || route.terms.obs || houses_of[p].empty() || !param.is_risk_only(p))
+                continue;
+            for (HouseIdx H : houses_of[p])
+                route.classes.push_back(data_wide.get_eq_class(H));
+            vect::sort_unique(route.classes);
+            // every class reads it -> no gain
+            if (route.classes.size() == data_wide.eq_class_size())
+                route.classes.clear();
+        }
+        init_param_blocks_();
+    }
+
+    void MCMC::init_param_blocks_()
+    {
+        pblocks_.clear();
+        in_pblock_.assign(param.size(), 0);
+        for (std::vector<size_t> &keys : risks.list_param_blocks(param))
+        {
+            ParamBlock block;
+            block.keys = std::move(keys);
+            bool is_sparse = true;
+            for (size_t p : block.keys)
+            {
+                in_pblock_[p] = 1;
+                const ParamRoute &route = routes_[p];
+                block.route.terms |= route.terms;
+                is_sparse = is_sparse && !route.classes.empty();
+                block.route.classes.insert(block.route.classes.end(), route.classes.begin(), route.classes.end());
+            }
+            // a member recomputing every class -> the block does
+            vect::sort_unique(block.route.classes);
+            if (!is_sparse || block.route.classes.size() == data.wide().eq_class_size())
+                block.route.classes.clear();
+            pblocks_.push_back(std::move(block));
+        }
+    }
+
+    //////  Log-posterior  //////
+
+    void MCMC::commit_total_log_posterior_(const LogLikTerms &terms)
     {
         data::Wide &data_wide = this->data.wide();
 
-        if (with_cache)
+        if (terms.transm)
         {
             data.state.save_cache();
             infec_profile.update_cache();
         }
 
         // with a latent or observation model, equivalence classes coincide with households
-        const bool do_latent = with_latent_ll && augm.scheme().is_any_latent_model();
-        const bool do_obs = with_obs_ll && augm.scheme().is_any_obs_model();
-        LogLikAccumulator acc = parallel::for_reduce<LogLikAccumulator>(
+        LogLik ll = parallel::for_reduce<LogLik>(
             data_wide.eq_class_size(),
-            [&](size_t R) -> LogLikAccumulator
+            [&](size_t R) -> LogLik
             {
-                return commit_house_log_posterior_(data_wide.eq_class_head(R), with_cache, do_latent, do_obs)
-                    .scaled(data_wide.eq_class_weight(R));
+                return commit_house_log_posterior_(data_wide.eq_class_head(R), terms) * data_wide.eq_class_weight(R);
             },
-            setup.budget.inner);
-        set_total_log_lik_(acc, do_obs, do_latent);
+            settings.budget.inner);
+        tot_log_lik.set(ll, terms);
     }
 
-    void MCMC::set_total_log_lik_(const LogLikAccumulator &acc, bool do_obs, bool do_latent)
+    LogLik MCMC::commit_house_log_posterior_(const Household &house, const LogLikTerms &terms)
     {
-        tot_transm_log_lik.set(acc.transm_ll);
-        if (do_obs)
-            tot_obs_log_lik.set(acc.obs_ll);
-        if (do_latent)
-            tot_latent_log_lik.set(acc.latent_ll);
-    }
-
-    LogLikAccumulator MCMC::commit_house_log_posterior_(const Household &house,
-                                                        bool with_cache,
-                                                        bool with_latent_ll,
-                                                        bool with_obs_ll)
-    {
-        LogLikAccumulator acc;
+        LogLik ll;
 
         // re-compute transmission cached quantities before the commit
-        if (with_cache)
+        if (terms.transm)
             model->update_house_transmission_cache(house);
 
         // transmission
-        acc.transm_ll = commit_transm_log_lik_(house);
+        ll.transm = commit_transm_log_lik_(house);
         // observation
-        if (with_obs_ll)
+        if (terms.obs)
             for (const Individual &indiv : house.infected_indivs())
-                acc.obs_ll += augm.commit_obs_log_lik(indiv);
+                ll.obs += augm.commit_obs_log_lik(indiv);
         // latent
-        if (with_latent_ll)
+        if (terms.latent)
             for (const Individual &indiv : house.infected_indivs())
-                acc.latent_ll += augm.commit_latent_log_lik(indiv);
-        return acc;
+                ll.latent += augm.commit_latent_log_lik(indiv);
+        return ll;
     }
 
-    //////  Metropolis-Hastings  //////
+    void MCMC::recover_total_log_lik_(const LogLikTerms &terms)
+    {
+        tot_log_lik.recover(terms);
+
+        // recover old log-likelihood values for households
+        for (size_t R = 0; R < data.wide().eq_class_size(); ++R)
+        {
+            const Household &house = data.wide().eq_class_head(R);
+            recover_transm_log_lik_(house);
+
+            // recover from commit_total_log_posterior_
+            if (terms.latent)
+                for (const Individual &indiv : house.infected_indivs())
+                    recover_latent_log_lik_(indiv);
+            if (terms.obs)
+                for (const Individual &indiv : house.infected_indivs())
+                    recover_obs_log_lik_(indiv);
+        }
+
+        if (terms.transm)
+        {
+            data.state.recover_cache();
+            infec_profile.recover();
+        }
+    }
+
+    //////  Chain  //////
+
+    void MCMC::init_monte_carlo_chain_()
+    {
+        param.restart(settings.prng()); // reset parameters
+        augm.restart(settings.prng());  // reset latent
+
+        // re-initialize the adaptable proposal of every variable, latent block factors from default scales
+        for (size_t p : param.scheme().adaptive)
+            param.at(p).init_proposal();
+        if (augm.scheme().is_any_sample())
+            for (const Household &house : data.wide())
+                for (const Individual &indiv : house.infected_indivs())
+                {
+                    for (size_t a : augm.list_adaptive(indiv))
+                        augm.at(a, indiv).init_proposal();
+                    if (block_rw::Factor *factor = augm.block_factor(indiv))
+                    {
+                        std::vector<double> scales = {};
+                        for (size_t a : augm.list_block(indiv))
+                            scales.push_back(augm.at(a, indiv).block_scale());
+                        factor->init(scales);
+                    }
+                }
+    }
+
+    void MCMC::init_guarded_commit_total_()
+    {
+        data.state.save_cache();
+        infec_profile.update_cache();
+
+        // single serial pass
+        LogLik ll;
+        for (size_t R = 0; R < data.wide().eq_class_size(); ++R)
+            ll += init_guarded_commit_house_(data.wide().eq_class_head(R)) * data.wide().eq_class_weight(R);
+
+        tot_log_lik.set(ll, all_terms_());
+    }
+
+    LogLik MCMC::init_guarded_commit_house_(Household &house)
+    {
+        LogLik ll;
+
+        // observation
+        // resample each individual variable upon failure
+        if (augm.scheme().is_any_obs_model())
+            for (const Individual &indiv : house.infected_indivs())
+            {
+                if (augm.list_obs_models(indiv).empty())
+                    continue;
+
+                size_t attempt = 0;
+                while (!std::isfinite(augm.eval_log_obs(indiv)))
+                {
+                    ++attempt;
+                    if (!augm.scheme().is_any_sample() || attempt >= N_INIT_ATTEMPTS)
+                        augm.throw_obs_init_error(indiv);
+                    augm.restart(indiv, settings.prng());
+                }
+                ll.obs += augm.commit_obs_log_lik(indiv);
+            }
+
+        // transmission, on the latents the observations accepted
+        model->update_house_transmission_cache(house);
+        ll.transm = commit_transm_log_lik_(house);
+        if (!std::isfinite(ll.transm))
+            msg::stop(
+                "Initial transmission log-likelihood returned infinity for " +
+                data.wide().str(house) + ".");
+
+        // latent
+        if (augm.scheme().is_any_latent_model())
+            for (const Individual &indiv : house.infected_indivs())
+            {
+                if (augm.list_latent_models(indiv).empty())
+                    continue;
+
+                ll.latent += augm.commit_latent_log_lik(indiv);
+                if (!std::isfinite(ll.latent))
+                    msg::stop(
+                        "Initial latent log-likelihood returned infinity for " +
+                        data.wide().str(indiv) + ".");
+            }
+
+        return ll;
+    }
+
+    void MCMC::run_chain_(Settings::Chain chain_id)
+    {
+        //////  Adaptation  //////
+
+        // latent blocks move one latent at a time over the warm-up, its second half shapes their factors
+        const auto n_warm = static_cast<Settings::Step>(block_rw::WARMUP * settings.n_adapt);
+        for (ParamBlock &block : pblocks_)
+        {
+            std::vector<double> scales = {};
+            for (size_t p : block.keys)
+                scales.push_back(param.at(p).block_scale());
+            block.factor.init(scales);
+        }
+        // moment windows after the warm-up, doubling from WINDOW steps, the last running to the end
+        Settings::Step window = block_rw::WINDOW, window_end = n_warm;
+        const auto next_window = [&]
+        {
+            window_end += window;
+            window *= 2;
+            if (window_end + window > settings.n_adapt)
+                window_end = settings.n_adapt;
+        };
+        next_window();
+        for (Settings::Step i = 0; i < settings.n_adapt; ++i)
+        {
+            is_warm_ = i < n_warm;
+            // drop the moments of the first warm-up half and of each window, where a chain may still drift
+            if ((n_warm > 0 && i == n_warm / 2) || i == window_end)
+            {
+                for (block_rw::Factor &factor : augm.state.block_factors)
+                    factor.forget();
+                for (ParamBlock &block : pblocks_)
+                    block.factor.forget();
+                if (i == window_end)
+                    next_window();
+            }
+            // gains falling linearly to 0 at the end of the adaptation, the block one from the end of the warm-up
+            gain_ = 1. - static_cast<double>(i) / settings.n_adapt;
+            block_gain_ = is_warm_ ? 0. : 1. - static_cast<double>(i - n_warm) / (settings.n_adapt - n_warm);
+            move_all_<true>();
+        }
+
+        //////  Burn-in  //////
+
+        for (Settings::Step i = 0; i < settings.n_burn; ++i)
+            move_all_<false>();
+
+        //////  Posterior sampling  //////
+
+        for (Settings::Step i = 0; i < settings.c_sample_size; ++i)
+        {
+            for (Settings::Step t = 1; t <= settings.n_thin; ++t)
+                move_all_<false>();
+            posterior.store(*this, chain_id, i);
+        }
+    }
+
+    template <bool Adapt>
+    void MCMC::move_all_()
+    {
+        // move latent variables to sample, if any
+        move_all_latent_<Adapt>();
+
+        // move standard model parameters, then those with cached dependencies
+        // block members move together after the warm-up, one move per member
+        const bool is_block = !pblocks_.empty() && !(Adapt && is_warm_);
+        for (size_t p : param.scheme().sample_standard)
+            if (!(is_block && in_pblock_[p]))
+                move_single_parameter_<Adapt>(p);
+        for (size_t p : param.scheme().sample_cached)
+            if (!(is_block && in_pblock_[p]))
+                move_single_parameter_<Adapt>(p);
+        for (ParamBlock &block : pblocks_)
+            if (is_block)
+                for (size_t q = 0; q < block.keys.size(); ++q)
+                    move_param_block_<Adapt>(block);
+            else if (Adapt)
+                observe_param_block_(block);
+        settings.count_step();
+    }
+
+    //////  Parameter moves  //////
+
+    template <bool Adapt>
+    void MCMC::move_single_parameter_(size_t p)
+    {
+        Variable &this_par = param.at(p);
+        const ParamRoute &route = routes_[p];
+        // set new value of the parameter and store the old to buffer
+        this_par.propose(settings.prng());
+
+        // proceed only if the new value is consistent, else refuse the move
+        if (this_par.is_valid_move())
+        {
+            commit_param_move_(route);
+
+            // Metropolis-Hastings acceptance log-ratio
+            const double r = tot_log_lik.ratio(route.terms) + this_par.get_move_log_ratio();
+
+            if constexpr (Adapt)
+                this_par.adapt_proposal(accept_probability(r), gain_);
+            if (settings.exponential() > -r)
+                return;
+
+            // else move is refused and log-likelihood recovered
+            recover_param_move_(route);
+        }
+        else if constexpr (Adapt)
+            this_par.adapt_proposal(0., gain_);
+        this_par.restore();
+    }
+
+    template <bool Adapt>
+    void MCMC::move_param_block_(ParamBlock &block)
+    {
+        if constexpr (Adapt)
+            block.factor.reshape();
+        block.factor.propose(settings.prng());
+
+        // move every member by its jump, the log-ratio starting from their Jacobians
+        double r = 0.;
+        for (size_t i = 0; i < block.keys.size(); ++i)
+            r -= param.at(block.keys[i]).block_jump(block.factor.jump[i]);
+
+        // a jump rounded onto a bound -> refused before the likelihood
+        const bool is_evaluated = r > -inf::DOUBLE;
+        bool is_accepted = false;
+        if (is_evaluated)
+        {
+            for (size_t p : block.keys)
+                r += param.at(p).log_ratio();
+            commit_param_move_(block.route);
+            r += tot_log_lik.ratio(block.route.terms);
+            is_accepted = settings.exponential() > -r;
+        }
+        if constexpr (Adapt)
+            block.factor.adapt(is_evaluated ? accept_probability(r) : 0., block_gain_);
+        if (!is_accepted)
+        {
+            if (is_evaluated)
+                recover_param_move_(block.route);
+            for (size_t p : block.keys)
+                param.at(p).restore();
+        }
+        if constexpr (Adapt)
+            observe_param_block_(block);
+    }
+
+    //////  Latent moves  //////
+
+    template <bool Adapt>
+    void MCMC::move_all_latent_()
+    {
+        if (!augm.scheme().is_any_sample())
+            return;
+
+        // run per-house latent moves, and accumulate accepted log-density deltas
+        LogLik ll = parallel::for_reduce<LogLik>(
+            data.wide().report_house.total,
+            [&](size_t H) -> LogLik
+            { return move_latent_single_house_<Adapt>(H); },
+            settings.budget.inner);
+        tot_log_lik.increment(ll);
+    }
+
+    template <bool Adapt>
+    LogLik MCMC::move_latent_single_house_(size_t H)
+    {
+        const Household &house = data.wide().at(H);
+
+        LogLik ll;
+        for (const Individual &indiv : house.infected_indivs())
+        {
+            // a latent block moves together, one latent at a time over the warm-up
+            block_rw::Factor *factor = augm.block_factor(indiv);
+            const bool is_block = factor && !(Adapt && is_warm_);
+            for (size_t a : is_block ? augm.list_sample_alone(indiv) : augm.list_sample(indiv))
+                ll += move_latent_single_variable_<Adapt>(house, indiv, a);
+            if (is_block)
+                ll += move_latent_block_<Adapt>(house, indiv, *factor);
+            else if (Adapt && factor)
+                observe_latent_block_(indiv, *factor);
+        }
+        return ll;
+    }
+
+    template <bool Adapt>
+    LogLik MCMC::move_latent_single_variable_(const Household &house,
+                                              const Individual &indiv,
+                                              size_t a)
+    {
+        Variable &avar = augm.at(a, indiv);
+
+        // track model consumers, whose densities shift when `a` moves
+        const bool has_consumers = augm.has_model_consumers(indiv, a);
+        double cons_ll_old = 0.;
+        if (has_consumers)
+            cons_ll_old = augm.sum_guarded_latent_log_lik(indiv, a);
+
+        // whether `a` produces transmission, or its cache
+        const bool produces_transm = augm.produces_transm(indiv, a);
+
+        avar.propose(settings.prng()); // propose new value and save old
+        if (avar.is_valid_move())      // proceed only if new value is valid
+        {
+            // recompute the cached quantities consuming this member
+            if (produces_transm)
+                update_member_transm_cache_(house, indiv);
+
+            const double d_latent =
+                has_consumers
+                    ? augm.commit_latent_log_lik_ratio_with_consumers(indiv, a, cons_ll_old)
+                    : augm.commit_latent_log_lik_ratio(indiv, a);
+            const double d_obs = augm.commit_obs_log_lik_ratio(indiv, a);
+            const double d_transm = produces_transm ? commit_transm_log_lik_ratio_(house) : 0.;
+
+            const double r = d_obs + d_transm + d_latent - avar.proposal_log_ratio();
+            if constexpr (Adapt)
+                avar.adapt_proposal(accept_probability(r), gain_);
+            if (settings.exponential() > -r)
+                return {d_obs, d_transm, d_latent};
+
+            recover_member_move_(house, indiv, {augm.produces_obs(indiv, a), produces_transm, true});
+        }
+        else if constexpr (Adapt)
+            avar.adapt_proposal(0., gain_);
+        avar.restore();
+
+        return {0., 0., 0.};
+    }
+
+    template <bool Adapt>
+    LogLik MCMC::move_latent_block_(const Household &house,
+                                    const Individual &indiv,
+                                    block_rw::Factor &factor)
+    {
+        const std::vector<size_t> &keys = augm.list_block(indiv);
+        const LogLikTerms &terms = augm.block_terms(indiv);
+        if constexpr (Adapt)
+            factor.reshape();
+        factor.propose(settings.prng());
+
+        // move every latent by its jump, the log-ratio starting from their Jacobians
+        double r = 0.;
+        for (size_t i = 0; i < keys.size(); ++i)
+            r -= augm.at(keys[i], indiv).block_jump(factor.jump[i]);
+
+        // a jump rounded onto a bound -> refused before the likelihood
+        LogLik ll;
+        const bool is_evaluated = r > -inf::DOUBLE;
+        if (is_evaluated)
+        {
+            if (terms.transm)
+                update_member_transm_cache_(house, indiv);
+
+            // member log-likelihoods recomputed whole, model consumers included
+            if (terms.latent)
+                ll.latent = commit_member_latent_log_lik_ratio_(indiv);
+            if (terms.obs)
+                ll.obs = commit_member_obs_log_lik_ratio_(indiv);
+            if (terms.transm)
+                ll.transm = commit_transm_log_lik_ratio_(house);
+            r += ll.value();
+        }
+        const bool is_accepted = is_evaluated && settings.exponential() > -r;
+        if constexpr (Adapt)
+            factor.adapt(is_evaluated ? accept_probability(r) : 0., block_gain_);
+        if (!is_accepted)
+        {
+            if (is_evaluated)
+                recover_member_move_(house, indiv, terms);
+            for (size_t a : keys)
+                augm.at(a, indiv).restore();
+            ll = {};
+        }
+        if constexpr (Adapt)
+            observe_latent_block_(indiv, factor);
+        return ll;
+    }
+
+    //////////////////////////////  run_inference  //////////////////////////////
 
     namespace
     {
@@ -852,7 +1238,7 @@ namespace housepi
             void bind_(const std::atomic<bool> *flag) const
             {
                 for (MCMC *engine : mcmc_ptrs_)
-                    engine->setup.stop_flag = flag;
+                    engine->settings.stop_flag = flag;
             }
         };
 
@@ -869,12 +1255,12 @@ namespace housepi
                 workers, inner, stop_flag);
         }
 
-        /// Return the sum over engines of the fraction of iterations done.
-        double fraction_iter(const std::vector<MCMC *> &engines)
+        /// Return the sum over engines of the fraction of steps done.
+        double fraction_done(const std::vector<MCMC *> &engines)
         {
             double done = 0.;
             for (const MCMC *engine : engines)
-                done += engine->setup.fraction_iter();
+                done += engine->settings.fraction_done();
             return done;
         }
     }
@@ -891,7 +1277,7 @@ namespace housepi
             try
             {
                 mcmc_vec[i]->prepare_inference();
-                inner = std::max(inner, mcmc_vec[i]->setup.budget.inner);
+                inner = std::max(inner, mcmc_vec[i]->settings.budget.inner);
             }
             catch (const std::exception &)
             {
@@ -899,7 +1285,7 @@ namespace housepi
                 return run;
             }
 
-        // the first error stops every engine at its next iteration
+        // the first error stops every engine at its next step
         std::atomic<bool> stop_flag{false};
         const StopFlagBinding binding(mcmc_vec, stop_flag);
 
@@ -907,271 +1293,8 @@ namespace housepi
             [&]
             { return sample_engines(mcmc_vec, run.seconds, workers, inner, stop_flag); },
             [&]
-            { monitor(fraction_iter(mcmc_vec)); },
+            { monitor(fraction_done(mcmc_vec)); },
             stop_flag);
         return run;
-    }
-
-    void MCMC::prepare_inference()
-    {
-        init_monte_carlo_();
-        init_for_evaluation_();
-        posterior.init(*this);
-        setup.n_iter = 0;
-    }
-
-    double MCMC::sample()
-    {
-        const auto start = std::chrono::steady_clock::now();
-
-        // run multiple MCMC chains
-        for (std::uint64_t chain_id = 0; chain_id < setup.n_chains; ++chain_id)
-        {
-            init_chain_();
-            run_chain_(chain_id);
-        }
-        data.state.set_evaluated(true);
-        return std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count();
-    }
-
-    void MCMC::init_guarded_commit_total_()
-    {
-        data.state.save_cache();
-        infec_profile.update_cache();
-
-        // single serial pass
-        LogLikAccumulator acc;
-        for (size_t R = 0; R < data.wide().eq_class_size(); ++R)
-            acc += init_guarded_commit_house_(data.wide().eq_class_head(R))
-                       .scaled(data.wide().eq_class_weight(R));
-
-        set_total_log_lik_(acc, augm.scheme().is_any_obs_model(), augm.scheme().is_any_latent_model());
-    }
-
-    LogLikAccumulator MCMC::init_guarded_commit_house_(Household &house)
-    {
-        LogLikAccumulator acc;
-
-        // observation
-        // resample each individual variable upon failure
-        if (augm.scheme().is_any_obs_model())
-            for (const Individual &indiv : house.infected_indivs())
-            {
-                if (augm.list_obs_models(indiv).empty())
-                    continue;
-
-                size_t attempt = 0;
-                while (!std::isfinite(augm.eval_log_obs(indiv)))
-                {
-                    ++attempt;
-                    if (!augm.scheme().is_any_sample() || attempt >= N_INIT_ATTEMPTS_)
-                        augm.throw_obs_init_error(indiv);
-                    augm.restart(indiv, setup.prng());
-                }
-                acc.obs_ll += augm.commit_obs_log_lik(indiv);
-            }
-
-        // transmission, on the latents the observations accepted
-        model->update_house_transmission_cache(house);
-        acc.transm_ll = commit_transm_log_lik_(house);
-        if (data.state.transm_log_lik(house).is_inf())
-            msg::stop(
-                "Initial transmission log-likelihood returned infinity for " +
-                data.wide().str(house) + ".");
-
-        // latent
-        if (augm.scheme().is_any_latent_model())
-            for (const Individual &indiv : house.infected_indivs())
-            {
-                if (augm.list_latent_models(indiv).empty())
-                    continue;
-
-                acc.latent_ll += augm.commit_latent_log_lik(indiv);
-                if (latent_log_lik_(indiv).is_inf())
-                    msg::stop(
-                        "Initial latent log-likelihood returned infinity for " +
-                        data.wide().str(indiv) + ".");
-            }
-
-        return acc;
-    }
-
-    void MCMC::run_mc_finite_adaptation_()
-    {
-        for (std::uint64_t i = 0; i < setup.n_adapt; ++i)
-        {
-            move_all_<true>();
-
-            // fraction of the adaptation budget spent, for vanishing adaptation
-            const double ratio = static_cast<double>(i) / setup.n_adapt;
-
-            for (size_t p : param.scheme().adaptive)
-                param.at(p).adapt_proposal(ratio);
-            if (augm.scheme().is_any_adaptive())
-                for (const Household &house : data.wide())
-                    for (const Individual &indiv : house.infected_indivs())
-                        for (size_t a : augm.list_adaptive(indiv))
-                            augm.at(a, indiv).adapt_proposal(ratio);
-        }
-    }
-
-    void MCMC::run_mc_posterior_sampling_(std::uint64_t chain_id)
-    {
-        for (std::uint64_t i = 0; i < setup.n_burn; ++i)
-            move_all_<false>();
-
-        for (std::uint64_t i = 0; i < setup.c_sample_size; ++i)
-        {
-            for (std::uint64_t t = 1; t <= setup.n_thin; ++t)
-                move_all_<false>();
-            posterior.store(*this, chain_id, i);
-        }
-    }
-
-    template <bool Adapt>
-    void MCMC::move_all_()
-    {
-        // move latent variables to sample, if any
-        move_all_latent_<Adapt>();
-
-        // move standard model parameters
-        for (size_t p : param.scheme().sample_standard)
-            move_single_parameter_<Adapt>(p, false);
-        // move parameters with cached dependencies
-        for (size_t p : param.scheme().sample_cached)
-            move_single_parameter_<Adapt>(p, true);
-        setup.count_iter();
-    }
-
-    template <bool Adapt>
-    void MCMC::move_single_parameter_(size_t p, bool with_cache)
-    {
-        Variable &this_par = param.at(p);
-        // set new value of the parameter and store the old to buffer
-        this_par.propose(setup.prng());
-
-        // proceed only if the new value is consistent, else refuse the move
-        if (this_par.is_valid_move())
-        {
-            const bool with_latent_ll = augm.scheme().is_any_latent_model() &&
-                                        augm.scheme().param_produces_latent_log_lik(p);
-
-            //////  Metropolis-Hastings  //////
-
-            const bool with_obs_ll = augm.scheme().is_any_obs_model() &&
-                                     augm.scheme().param_produces_obs_log_lik(p);
-
-            commit_total_log_posterior_(with_cache, with_latent_ll, with_obs_ll);
-
-            // Metropolis-Hastings acceptance log-ratio
-            double r = tot_transm_log_lik.ratio();
-            if (with_obs_ll)
-                r += tot_obs_log_lik.ratio();
-            if (with_latent_ll)
-                r += tot_latent_log_lik.ratio();
-            r += this_par.get_move_log_ratio();
-
-            if (setup.exponential() > -r)
-            {
-                if constexpr (Adapt)
-                    this_par.commit_proposal_move(setup.adapt_smoothing);
-                return;
-            }
-
-            // else move is refused and log-likelihood recovered
-            recover_total_log_lik_(with_cache, with_latent_ll, with_obs_ll);
-        }
-        this_par.restore();
-        if constexpr (Adapt)
-            this_par.refuse_proposal_move(setup.adapt_smoothing);
-    }
-
-    template <bool Adapt>
-    void MCMC::move_all_latent_()
-    {
-        if (!augm.scheme().is_any_sample())
-            return;
-
-        // run per-house latent moves, and accumulate accepted log-density deltas
-        LogLikAccumulator acc = parallel::for_reduce<LogLikAccumulator>(
-            data.wide().report_house.total,
-            [&](size_t H) -> LogLikAccumulator
-            { return move_latent_single_house_<Adapt>(H); },
-            setup.budget.inner);
-        if (augm.scheme().is_any_obs_model())
-            tot_obs_log_lik.increment(acc.obs_ll);
-        tot_transm_log_lik.increment(acc.transm_ll);
-        tot_latent_log_lik.increment(acc.latent_ll);
-    }
-
-    template <bool Adapt>
-    LogLikAccumulator MCMC::move_latent_single_house_(size_t H)
-    {
-        const Household &house = data.wide().at(H);
-
-        LogLikAccumulator acc;
-        for (const Individual &indiv : house.infected_indivs())
-            for (size_t a : augm.list_sample(indiv))
-                acc += move_latent_single_variable_<Adapt>(house, indiv, a);
-        return acc;
-    }
-
-    template <bool Adapt>
-    LogLikAccumulator MCMC::move_latent_single_variable_(const Household &house,
-                                                         const Individual &indiv,
-                                                         size_t a)
-    {
-        Variable &avar = augm.at(a, indiv);
-
-        // track model consumers, whose densities shift when `a` moves
-        const bool has_consumers = augm.has_model_consumers(indiv, a);
-        double cons_ll_old = 0.;
-        if (has_consumers)
-            cons_ll_old = augm.sum_guarded_latent_log_lik(indiv, a);
-
-        // whether `a` produces transmission, or its cache
-        const bool produces_transm = augm.produces_transm(indiv, a);
-
-        avar.propose(setup.prng()); // propose new value and save old
-        if (avar.is_valid_move())   // proceed only if new value is valid
-        {
-            // recompute the cached quantities consuming this member
-            if (produces_transm)
-            {
-                data.state.save_member_cache(house, indiv);
-                model->update_member_transmission_cache(house, indiv);
-            }
-
-            //////  Metropolis-Hastings  //////
-
-            const double d_latent = has_consumers
-                                        ? augm.commit_latent_log_lik_ratio_with_consumers(indiv, a, cons_ll_old)
-                                        : commit_latent_log_lik_ratio(indiv, a);
-
-            const double d_obs = commit_obs_log_lik_ratio(indiv, a);
-            const double d_transm = produces_transm ? commit_transm_log_lik_ratio_(house) : 0.;
-
-            const double r = d_obs + d_transm + d_latent - avar.proposal_log_ratio();
-            if (setup.exponential() > -r)
-            {
-                if constexpr (Adapt)
-                    avar.commit_proposal_move(setup.adapt_smoothing);
-                return {d_obs, d_transm, d_latent};
-            }
-
-            if (augm.produces_obs(indiv, a))
-                recover_obs_log_lik_(indiv);
-            if (produces_transm)
-                recover_transm_log_lik_(house);
-            recover_latent_log_lik_(indiv);
-
-            if (produces_transm)
-                data.state.recover_member_cache(house, indiv);
-        }
-        avar.restore();
-        if constexpr (Adapt)
-            avar.refuse_proposal_move(setup.adapt_smoothing);
-
-        return {0., 0., 0.};
     }
 }

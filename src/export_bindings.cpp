@@ -6,10 +6,10 @@
 #ifndef _STANDALONE
 #include <algorithm>
 #include <cmath>
+#include <exception>
 #include <limits>
 #include <memory>
 #include <numeric>
-#include <exception>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -24,20 +24,20 @@
 #include "tools/progressbar.h"
 #include "tools/string.h"
 #include "tools/vector.h"
-#include "mcmc.h"
-#include "measures.h"
-#include "mcmc/posterior.h"
-#include "registry.h"
 #include "augmented.h"
 #include "chain_binom.h"
 #include "data.h"
-#include "data/wide.h"
 #include "data/long.h"
+#include "data/wide.h"
 #include "distribution.h"
 #include "function.h"
-#include "risks.h"
 #include "infec_profile.h"
+#include "mcmc.h"
+#include "mcmc/posterior.h"
+#include "measures.h"
 #include "parameter.h"
+#include "registry.h"
+#include "risks.h"
 #include "variable.h"
 
 //////////////////////////////  msg  //////////////////////////////
@@ -124,7 +124,7 @@ namespace housepi
         /// * value beyond the int range -> `input` returned unchanged.
         SEXP rcpp_typed_column(const Rcpp::NumericVector &input, bool discr)
         {
-            constexpr int machine_max_int = std::numeric_limits<int>::max();
+            constexpr int MACHINE_MAX_INT = std::numeric_limits<int>::max();
 
             if (!discr)
                 return input;
@@ -133,7 +133,7 @@ namespace housepi
             {
                 if (ISNAN(input[i]))
                     out[i] = NA_INTEGER;
-                else if (std::abs(input[i]) > machine_max_int)
+                else if (std::abs(input[i]) > MACHINE_MAX_INT)
                     return input;
                 else
                     out[i] = static_cast<int>(input[i]);
@@ -225,19 +225,19 @@ namespace housepi
 
             //////  Setter  //////
 
-            void init(SEXP args_, double min, double max, bool is_discr)
+            void init(SEXP args, double min, double max, bool is_discr)
             {
-                if (args_ != R_NilValue)
+                if (args != R_NilValue)
                 {
-                    Rcpp::List args(args_);
-                    Rcpp::CharacterVector arg_names(args.size());
-                    if (args.hasAttribute("names"))
-                        arg_names = args.names();
+                    Rcpp::List arg_list(args);
+                    Rcpp::CharacterVector arg_names(arg_list.size());
+                    if (arg_list.hasAttribute("names"))
+                        arg_names = arg_list.names();
 
-                    for (R_xlen_t i = 0; i < args.size(); ++i)
+                    for (R_xlen_t i = 0; i < arg_list.size(); ++i)
                         ptr_->init_attr(
                             Rcpp::as<std::string>(arg_names[i]),
-                            Attribute(Rcpp::as<double>(args[i])));
+                            Attribute(Rcpp::as<double>(arg_list[i])));
                 }
 
                 if (!na::is(min))
@@ -388,7 +388,7 @@ namespace housepi
                     std::uint32_t seed = static_cast<std::uint32_t>(
                         R::unif_rand() * std::numeric_limits<std::uint32_t>::max());
 
-                    rnd_gen prng(seed);
+                    RndGen prng(seed);
                     Rcpp::NumericVector y(n);
                     for (int i = 0; i < n; ++i)
                         y[i] = distr_()->rand(prng);
@@ -475,10 +475,10 @@ namespace housepi
         // their build() paths raise housepi::TrustedException through msg::stop
         // Rcpp forwards it to R with its class
         // no import needs its own try/catch conversion
-        // every import but setup clears the evaluated flag (class rebuilds clear it on reallocation)
-        void import_setup(Rcpp::XPtr<MCMC> mcmc_ptr, SEXP input)
+        // every import but settings clears the evaluated flag (class rebuilds clear it on reallocation)
+        void import_settings(Rcpp::XPtr<MCMC> mcmc_ptr, SEXP input)
         {
-            mcmc_ptr->setup.build(rdataframe_to<str_table>(input));
+            mcmc_ptr->settings.build(rdataframe_to<str_table>(input));
         }
 
         void import_param(Rcpp::XPtr<MCMC> mcmc_ptr, SEXP input)
@@ -539,22 +539,21 @@ namespace housepi
 
         //////////////////////////////  MCMC : exports to Rcpp  //////////////////////////////
 
-        /// Export the current setup to an R list.
-        Rcpp::List export_setup(Rcpp::XPtr<MCMC> mcmc_ptr)
+        /// Export the current settings to an R list.
+        Rcpp::List export_settings(Rcpp::XPtr<MCMC> mcmc_ptr)
         {
-            const Setup &setup = mcmc_ptr->setup;
+            const Settings &settings = mcmc_ptr->settings;
 
             return Rcpp::List::create(
-                Rcpp::_["steps"] = setup.n_steps,
-                Rcpp::_["burn"] = setup.n_burn,
-                Rcpp::_["thin"] = setup.n_thin,
-                Rcpp::_["adapt"] = setup.n_adapt,
-                Rcpp::_["adapt_window"] = setup.n_adapt_window,
-                Rcpp::_["chains"] = setup.n_chains,
-                Rcpp::_["threads"] = setup.n_threads,
-                Rcpp::_["id_draws"] = setup.id_draws,
-                Rcpp::_["seed"] = setup.seed,
-                Rcpp::_["time_step"] = setup.time_step);
+                Rcpp::_["steps"] = settings.n_steps,
+                Rcpp::_["burn"] = settings.n_burn,
+                Rcpp::_["thin"] = settings.n_thin,
+                Rcpp::_["adapt"] = settings.n_adapt,
+                Rcpp::_["chains"] = settings.n_chains,
+                Rcpp::_["threads"] = settings.n_threads,
+                Rcpp::_["id_draws"] = settings.id_draws,
+                Rcpp::_["seed"] = settings.seed,
+                Rcpp::_["time_step"] = settings.time_step);
         }
 
         //////  MCMC : member ranges  //////
@@ -1023,11 +1022,132 @@ namespace housepi
             return output;
         }
 
-        /// Export every snapshot of household `hh_id`, for debugging.
-        Rcpp::List export_house_snapshot(Rcpp::XPtr<MCMC> mcmc_ptr, const std::string &hh_id)
+        /// Snapshot how the sampled variables move, one row per variable and one entry per block.
+        /// * `house` -> adds the latents of its infected members and their blocks;
+        /// * nothing sampled -> empty list.
+        /// A scale is the jump scale of the proposal, and for a block member the marginal sd of its jump.
+        /// Absent proposal and coordinate names, and the owner of a parameter, are empty strings.
+        Rcpp::List rcpp_snapshot_sampler(Rcpp::XPtr<MCMC> mcmc_ptr, const Household *house)
+        {
+            MCMC &engine = *mcmc_ptr;
+
+            std::vector<std::string> name, member, proposal, coord;
+            std::vector<double> scale;
+            std::vector<int> block;
+            // `f` and its member position `i` set the scale and block `block_id` of a variable moving in a block
+            const auto add_move = [&](const std::string &var, const std::string &owner, const Variable &v,
+                                      const block_rw::Factor *f, size_t i, int block_id)
+            {
+                name.push_back(var);
+                member.push_back(owner);
+                proposal.push_back(v.proposal_name());
+                coord.push_back(v.proposal_coord());
+                scale.push_back(f ? f->jump_sd(i) : v.proposal_scale());
+                block.push_back(f ? block_id : NA_INTEGER);
+            };
+
+            std::vector<std::string> b_member;
+            std::vector<double> b_log_scale;
+            Rcpp::List b_cov;
+            // add a block of variables `names` moving with `f`
+            // @return Its 1-based id
+            const auto add_block = [&](const std::string &owner, const block_rw::Factor &f,
+                                       const std::vector<std::string> &names)
+            {
+                const size_t d = names.size();
+                Rcpp::NumericMatrix cov(d, d);
+                for (size_t i = 0; i < d; ++i)
+                    for (size_t j = 0; j < d; ++j)
+                        cov(i, j) = f.jump_cov(i, j);
+                Rcpp::CharacterVector dn = Rcpp::wrap(names);
+                Rcpp::rownames(cov) = dn;
+                Rcpp::colnames(cov) = dn;
+                b_member.push_back(owner);
+                b_log_scale.push_back(f.log_scale);
+                b_cov.push_back(cov);
+                return static_cast<int>(b_member.size());
+            };
+
+            // parameters, shared by every household
+            const Parameter &param = engine.param;
+            std::vector<int> block_ids; // table id of each parameter block, NA while its factor is unset
+            for (size_t b = 0; b < engine.n_param_blocks(); ++b)
+            {
+                std::vector<std::string> names;
+                for (size_t p : engine.param_block_keys(b))
+                    names.push_back(param.consult(p));
+                const block_rw::Factor &f = engine.param_block_factor(b);
+                block_ids.push_back(f.lower.empty() ? NA_INTEGER : add_block("", f, names));
+            }
+            for (size_t p : param.scheme().sample)
+            {
+                const block_rw::Factor *f = nullptr;
+                size_t pos = 0;
+                int block_id = NA_INTEGER;
+                for (size_t b = 0; b < engine.n_param_blocks() && !f; ++b)
+                {
+                    const std::vector<size_t> &keys = engine.param_block_keys(b);
+                    const auto it = std::find(keys.begin(), keys.end(), p);
+                    if (it == keys.end() || block_ids[b] == NA_INTEGER)
+                        continue;
+                    f = &engine.param_block_factor(b);
+                    pos = static_cast<size_t>(it - keys.begin());
+                    block_id = block_ids[b];
+                }
+                add_move(param.consult(p), "", param.at(p), f, pos, block_id);
+            }
+
+            // latents of the infected members of `house`
+            Augmented &augm = engine.augm;
+            if (house && augm.is_allocated() && augm.scheme().is_any_sample())
+                for (const Individual &indiv : house->infected_indivs())
+                {
+                    const std::string owner = std::string(engine.data.wide().id(indiv));
+                    const std::vector<size_t> &keys = augm.list_block(indiv);
+                    const block_rw::Factor *f = augm.block_factor(indiv);
+                    int block_id = NA_INTEGER;
+                    if (f && !f->lower.empty())
+                        block_id = add_block(owner, *f, augm.consult(keys));
+                    else
+                        f = nullptr;
+                    for (size_t a : augm.list_sample(indiv))
+                    {
+                        const auto it = std::find(keys.begin(), keys.end(), a);
+                        const bool in_block = f && it != keys.end();
+                        add_move(augm.consult(a), owner, augm.at(a, indiv),
+                                 in_block ? f : nullptr, static_cast<size_t>(it - keys.begin()), block_id);
+                    }
+                }
+
+            if (name.empty())
+                return Rcpp::List::create();
+            return Rcpp::List::create(
+                Rcpp::_["moves"] = Rcpp::List::create(
+                    Rcpp::_["name"] = Rcpp::wrap(name),
+                    Rcpp::_["member"] = Rcpp::wrap(member),
+                    Rcpp::_["proposal"] = Rcpp::wrap(proposal),
+                    Rcpp::_["coord"] = Rcpp::wrap(coord),
+                    Rcpp::_["scale"] = Rcpp::wrap(scale),
+                    Rcpp::_["block"] = Rcpp::wrap(block)),
+                Rcpp::_["blocks"] = Rcpp::List::create(
+                    Rcpp::_["block"] = Rcpp::seq_len(b_member.size()),
+                    Rcpp::_["member"] = Rcpp::wrap(b_member),
+                    Rcpp::_["log_scale"] = Rcpp::wrap(b_log_scale),
+                    Rcpp::_["jump_cov"] = b_cov));
+        }
+
+        /// Export the state of the model, and of household `hh_id` unless `NA`, for inspection.
+        /// * no household -> the parameters and the sampler;
+        /// * household -> its variables, then the sampler.
+        Rcpp::List export_state(Rcpp::XPtr<MCMC> mcmc_ptr, const std::string &hh_id)
         {
             try
             {
+                if (na::is(hh_id))
+                    return Rcpp::List::create(
+                        Rcpp::_["parameters"] = rcpp_snapshot_param(mcmc_ptr),
+                        Rcpp::_[".sampler"] = rcpp_snapshot_sampler(mcmc_ptr, nullptr));
+
                 if (mcmc_ptr->data.wide().is_empty())
                     return Rcpp::List::create();
 
@@ -1046,7 +1166,8 @@ namespace housepi
                     Rcpp::_["latent_log_lik"] = rcpp_snapshot_log_lik(mcmc_ptr, house, augm.scheme().list_latent_export),
                     Rcpp::_["observation_log_lik"] = rcpp_snapshot_log_lik(mcmc_ptr, house, augm.scheme().list_obs_member),
                     Rcpp::_["transmission_log_lik"] = state.is_evaluated(house) ? hsp_to_rcpp(state.transm_log_lik(house).value()) : NA_REAL,
-                    Rcpp::_["model_quantities"] = rcpp_snapshot_model_quantities(mcmc_ptr, house));
+                    Rcpp::_["model_quantities"] = rcpp_snapshot_model_quantities(mcmc_ptr, house),
+                    Rcpp::_[".sampler"] = rcpp_snapshot_sampler(mcmc_ptr, &house));
             }
             catch (const housepi::TrustedException &e)
             {
@@ -1120,13 +1241,13 @@ namespace housepi
                             msg::stop(msg::join(e.what(), "for " + data_wide.str(data_wide.at(H))));
                         }
                     },
-                    engine.setup.budget.inner);
+                    engine.settings.budget.inner);
             }
 
             /// Record parameter values per repetition, one column per parameter.
             struct ParamTrace
             {
-                ParamTrace(const Parameter &param, size_t n_rep)
+                ParamTrace(const Parameter &param, Settings::Step n_rep)
                     : param_(param)
                 {
                     for (const std::string &name : param.all())
@@ -1134,7 +1255,7 @@ namespace housepi
                 }
 
                 /// Record the current parameter values as repetition `r`.
-                void record(size_t r)
+                void record(Settings::Step r)
                 {
                     for (size_t p = 0; p < draws_.cols.size(); ++p)
                         draws_.cols[p][r] = param_.at(p).value();
@@ -1209,12 +1330,13 @@ namespace housepi
 
         /// Open progress bar `name` over `total` units, printed every `pace` seconds.
         /// @param width Symbols in a full bar.
+        /// @param is_document Whether the output is a knitted document.
         /// @param symbol Character filling the bar.
         Rcpp::XPtr<ProgressBar> progress_open(std::string name, double total, double pace, unsigned width,
-                                              bool is_interactive, std::string symbol)
+                                              bool is_interactive, bool is_document, std::string symbol)
         {
             return Rcpp::XPtr<ProgressBar>(
-                new ProgressBar(name, total, pace, width, is_interactive, symbol), true);
+                new ProgressBar(name, total, pace, width, is_interactive, is_document, symbol), true);
         }
 
         /// Close progress bar `ptr` with its closing line.
@@ -1231,7 +1353,7 @@ namespace housepi
         {
             const Progress report(progress);
             MCMC &engine = *mcmc_ptr;
-            Setup &setup = engine.setup;
+            Settings &settings = engine.settings;
             const Augmented &augm = engine.augm;
             const data::Wide &data_wide = engine.data.wide();
             engine.data.state.set_evaluated(false); // simulation overwrites the evaluated state
@@ -1263,10 +1385,10 @@ namespace housepi
 
                 //////  Initialization  //////
 
-                Rcpp::List out_wide(setup.n_steps); // allocate memory for wide results
-                Rcpp::List out_long;                // long results are optional
+                Rcpp::List out_wide(settings.n_steps); // allocate memory for wide results
+                Rcpp::List out_long;                   // long results are optional
                 if (f_long)
-                    out_long = Rcpp::List(setup.n_steps);
+                    out_long = Rcpp::List(settings.n_steps);
 
                 const std::vector<std::string> static_cols = engine.get_static_data_names();
                 RcppFrame shared_frame(n_wide_cols(static_cols.size(), false));
@@ -1281,16 +1403,16 @@ namespace housepi
                 // flags for discrete columns, set once variables are bound after the first repetition
                 std::vector<bool> discr_cols(augm.n_export_cols(), false);
 
-                simulate::ParamTrace param_trace(engine.param, setup.n_steps);
+                simulate::ParamTrace param_trace(engine.param, settings.n_steps);
 
                 //////  Simulations  //////
 
-                for (size_t r = 0; r < setup.n_steps; ++r)
+                for (Settings::Step r = 0; r < settings.n_steps; ++r)
                 {
                     engine.augm.clear_all();
                     engine.data.wide().recover_all_status();
                     engine.param.load_sample_values(r);
-                    engine.param.draw_sample(setup.prng()); // draw parameters with no pinned value
+                    engine.param.draw_sample(settings.prng()); // draw parameters with no pinned value
                     param_trace.record(r);
 
                     // this repetition's own columns: status, exported latents, observations and surrogates
@@ -1321,7 +1443,7 @@ namespace housepi
                     if (f_long)
                         out_long[r] = (*f_long)(simulated);
 
-                    report((r + 1.) / setup.n_steps);
+                    report((r + 1.) / settings.n_steps);
                 }
                 report.advance(1.);
                 simulate::restore(engine);
@@ -1346,18 +1468,18 @@ namespace housepi
         return Rcpp::wrap(mcmc_ptr->expr);                \
     }
 
-        // keys the model declares through HOUSEPI_DECLARE_REGISTER_KEYS
-        MAKE_EXPORT_KEYS(key_Data, model->key_Data())
-        MAKE_EXPORT_KEYS(key_Long, model->key_Long())
-        MAKE_EXPORT_KEYS(key_Param, model->key_Param())
-        MAKE_EXPORT_KEYS(key_GroupRisk, model->key_GroupRisk())
-        MAKE_EXPORT_KEYS(key_Latent, model->key_Latent())
+        // keys the model declares through HOUSEPI_DECLARE_<SLOT>_KEYS
+        MAKE_EXPORT_KEYS(data_keys, model->data_keys())
+        MAKE_EXPORT_KEYS(long_keys, model->long_keys())
+        MAKE_EXPORT_KEYS(param_keys, model->param_keys())
+        MAKE_EXPORT_KEYS(group_risk_keys, model->group_risk_keys())
+        MAKE_EXPORT_KEYS(latent_keys, model->latent_keys())
         // keys the model requests as discrete
-        MAKE_EXPORT_KEYS(key_Param_discrete, param.discrete_keys())
-        MAKE_EXPORT_KEYS(key_Latent_discrete, augm.discrete_keys())
-        MAKE_EXPORT_KEYS(key_Data_discrete, data.wide().discrete_keys())
+        MAKE_EXPORT_KEYS(discrete_param_keys, param.discrete_keys())
+        MAKE_EXPORT_KEYS(discrete_latent_keys, augm.discrete_keys())
+        MAKE_EXPORT_KEYS(discrete_data_keys, data.wide().discrete_keys())
         // latents the model generates through transmission
-        MAKE_EXPORT_KEYS(key_Latent_transmission, augm.transmission_keys())
+        MAKE_EXPORT_KEYS(transmission_latent_keys, augm.transmission_keys())
 
         /// Baselines the model anchors to risks, keyed by parameter name.
         Rcpp::List risk_anchors(Rcpp::XPtr<MCMC> mcmc_ptr)
@@ -1412,7 +1534,7 @@ namespace housepi
         /// Run inference on every engine of `engine_list`, `workers` of them at once.
         ///
         /// * main thread -> checks user interrupts and refreshes `progress`;
-        /// * first error or user interrupt -> every engine stops at its next iteration.
+        /// * first error or user interrupt -> every engine stops at its next step.
         /// @param progress Progress handle filled one unit per engine, or R `NULL`.
         /// @return List of `seconds` per engine, the `error` that stopped the run and the engine that `failed`.
         Rcpp::List run_inference_list(Rcpp::List engine_list, int workers, SEXP progress)
@@ -1584,15 +1706,15 @@ RCPP_MODULE(housepi)
     Rcpp::function("list_distributions", &list_options_<ExposeDistribution>);
     Rcpp::function("list_infec_profiles", &list_options_<ExposeInfecProfile>);
 
-    Rcpp::function("key_Data", &key_Data);
-    Rcpp::function("key_Long", &key_Long);
-    Rcpp::function("key_Param", &key_Param);
-    Rcpp::function("key_GroupRisk", &key_GroupRisk);
-    Rcpp::function("key_Latent", &key_Latent);
-    Rcpp::function("key_Param_discrete", &key_Param_discrete);
-    Rcpp::function("key_Latent_discrete", &key_Latent_discrete);
-    Rcpp::function("key_Latent_transmission", &key_Latent_transmission);
-    Rcpp::function("key_Data_discrete", &key_Data_discrete);
+    Rcpp::function("data_keys", &data_keys);
+    Rcpp::function("long_keys", &long_keys);
+    Rcpp::function("param_keys", &param_keys);
+    Rcpp::function("group_risk_keys", &group_risk_keys);
+    Rcpp::function("latent_keys", &latent_keys);
+    Rcpp::function("discrete_param_keys", &discrete_param_keys);
+    Rcpp::function("discrete_latent_keys", &discrete_latent_keys);
+    Rcpp::function("transmission_latent_keys", &transmission_latent_keys);
+    Rcpp::function("discrete_data_keys", &discrete_data_keys);
     Rcpp::function("risk_anchors", &risk_anchors);
     Rcpp::function("risk_status_stratified", &risk_status_stratified);
 
@@ -1615,7 +1737,7 @@ RCPP_MODULE(housepi)
     Rcpp::function("share_data_store", &share_data_store);
     Rcpp::function("import_group_risk", &import_group_risk);
     Rcpp::function("import_contact_risk", &import_contact_risk);
-    Rcpp::function("import_setup", &import_setup);
+    Rcpp::function("import_settings", &import_settings);
     Rcpp::function("import_param", &import_param);
     Rcpp::function("import_infec_profile", &import_infec_profile);
     Rcpp::function("import_latent", &import_latent);
@@ -1626,12 +1748,12 @@ RCPP_MODULE(housepi)
     Rcpp::function("export_data_wide", &export_data_wide);
     Rcpp::function("export_data_long", &export_data_long);
     Rcpp::function("summarise_house_cases", &summarise_house_cases);
-    Rcpp::function("export_setup", &export_setup);
+    Rcpp::function("export_settings", &export_settings);
     Rcpp::function("export_augmented_data_wide", &export_augmented_data_wide);
     Rcpp::function("flush_param_draws", &flush_posterior_<&Posterior::param_values>);
     Rcpp::function("flush_param_log_prior_draws", &flush_posterior_<&Posterior::param_priors>);
     Rcpp::function("flush_latent_draws", &flush_posterior_<&Posterior::latent_values>);
     Rcpp::function("flush_house_log_lik_draws", &flush_posterior_<&Posterior::house_log_lik>);
-    Rcpp::function("export_house_snapshot", &export_house_snapshot);
+    Rcpp::function("export_state", &export_state);
 }
 #endif

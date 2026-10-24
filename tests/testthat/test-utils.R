@@ -4,22 +4,22 @@ library(testthat)
 
 # data frame carrying one column of each storage type the engine encodes
 mk_types <- local({
-  hhdata <- data.frame(id = c("m1", "m2"),
-                       hh_id = c("h1", "h1"),
-                       status = c(1, 0),
-                       date_col = as.Date(c("2024-01-01", "2024-01-02")),
-                       char_col = c("male", "female"),
-                       logic_col = c(TRUE, FALSE),
-                       int_col = c(3L, 5L),
-                       whole_col = c(3, 5),
-                       num_col = c(1.5, 2.5),
-                       empty_int = c(NA_integer_, NA_integer_),
-                       empty_col = c(NA_real_, NA_real_),
-                       datum = c("a", NA),
-                       datum_2 = c(TRUE, NA),
-                       datum_3 = NA_character_,
-                       stringsAsFactors = FALSE)
-  list(data = hhdata)
+  hh_data <- data.frame(id = c("m1", "m2"),
+                        hh_id = c("h1", "h1"),
+                        status = c(1, 0),
+                        date_col = as.Date(c("2024-01-01", "2024-01-02")),
+                        char_col = c("male", "female"),
+                        logic_col = c(TRUE, FALSE),
+                        int_col = c(3L, 5L),
+                        whole_col = c(3, 5),
+                        num_col = c(1.5, 2.5),
+                        empty_int = c(NA_integer_, NA_integer_),
+                        empty_col = c(NA_real_, NA_real_),
+                        datum = c("a", NA),
+                        datum_2 = c(TRUE, NA),
+                        datum_3 = NA_character_,
+                        stringsAsFactors = FALSE)
+  list(data = hh_data)
 })
 
 # factorized data coerced to the numeric frame the engine hands back
@@ -88,15 +88,15 @@ test_that("Deep clone helper work as expected on default types", {
   cloned$a$x[1] |> expect_equal(99)
 })
 
-test_that("Setup options are formatted as character", {
+test_that("Settings are formatted as character", {
   # id_draws with multiple values
-  result <- char_setup_input_(list(steps = 100, burnin = 10, thin = 1,
-                                   chains = 1, id_draws = c("m1", "m2")))
+  result <- char_settings_input_(list(steps = 100, adapt = 10, thin = 1,
+                                      chains = 1, id_draws = c("m1", "m2")))
   result |> expect_s3_class("data.frame")
   result$id_draws |> expect_identical("m1:m2")
   vapply(result, is.character, logical(1)) |> expect_all_true()
   # id_draws are dropped if NULL
-  char_setup_input_(list(steps = 100L, id_draws = NULL)) |>
+  char_settings_input_(list(steps = 100L, id_draws = NULL)) |>
     getElement("id_draws") |>
     expect_identical("")
 })
@@ -117,11 +117,11 @@ test_that("Char data input handles NULL and data.frame", {
 
 test_that("Draws are thinned evenly, first and last kept", {
   helper_thin_even_(seq(10), 4) |> expect_identical(c(1L, 4L, 7L, 10L))
-  hhdata <- data.frame(datum = seq(10))
-  helper_thin_even_(hhdata, 4)$datum |> expect_identical(c(1L, 4L, 7L, 10L))
+  hh_data <- data.frame(datum = seq(10))
+  helper_thin_even_(hh_data, 4)$datum |> expect_identical(c(1L, 4L, 7L, 10L))
   # fewer draws than asked, or no target: every draw kept
   helper_thin_even_(seq(3), 4) |> expect_identical(seq(3))
-  helper_thin_even_(hhdata, NA) |> expect_identical(hhdata)
+  helper_thin_even_(hh_data, NA) |> expect_identical(hh_data)
 })
 
 test_that("A count is a whole positive number", {
@@ -194,35 +194,35 @@ test_that("Data refactor restores original types", {
 })
 
 test_that("A logical data column reads 0 and 1 in a definition", {
-  hhdata <- data.frame(id = c("m1", "m2", "m3"), hh_id = "h1",
-                       status = c(1, 0, 0), datum = c(TRUE, FALSE, TRUE),
-                       datum_2 = 0)
-  hh_model <- hhdata |>
+  hh_data <- data.frame(id = c("m1", "m2", "m3"), hh_id = "h1",
+                        status = c(1, 0, 0), datum = c(TRUE, FALSE, TRUE),
+                        datum_2 = 0)
+  hh_model <- hh_data |>
     new_housepi_model("test", quiet = TRUE) |>
     add_observation(datum_2 = list(func = datum * 2))
 
   get_data_wide(hh_model)$datum_2 |> expect_equal(c(2, 0, 2))
-  get_data_wide(hh_model)$datum |> expect_identical(hhdata$datum)
+  get_data_wide(hh_model)$datum |> expect_identical(hh_data$datum)
 })
 
 test_that("Data factorization codes a labelled status column", {
-  hhdata <- data.frame(id = paste0("m", 1:4),
-                       hh_id = rep(c("h1", "h2"), each = 2),
-                       status = c("positive", rep("negative", 3)),
-                       stringsAsFactors = FALSE)
+  hh_data <- data.frame(id = paste0("m", 1:4),
+                        hh_id = rep(c("h1", "h2"), each = 2),
+                        status = c("positive", rep("negative", 3)),
+                        stringsAsFactors = FALSE)
 
   # the negative level is unnamed: every individual reads as a case
-  cpp_data_factorize(hhdata) |> expect_warning("escaped label")
-  cpp_data_factorize(hhdata) |> expect_warning('escaped = "negative"')
+  cpp_data_factorize(hh_data) |> expect_warning("escaped label")
+  cpp_data_factorize(hh_data) |> expect_warning('escaped = "negative"')
 
   # naming it silences the guard and recovers the intended coding
-  result <- cpp_data_factorize(hhdata, escaped = "negative")
+  result <- cpp_data_factorize(hh_data, escaped = "negative")
   as.integer(result$data$status) |> expect_identical(c(1L, 0L, 0L, 0L))
   result$status |> expect_identical(1L)
   result$status_labels |> expect_identical("positive")
 
   # a round-tripped factor declares the escaped level even with no escaped row
-  round_trip <- hhdata
+  round_trip <- hh_data
   round_trip$status <- factor(c("symptomatic", "symptomatic",
                                 "asymptomatic", "symptomatic"),
                               levels = c("escaped", "symptomatic",
@@ -231,20 +231,20 @@ test_that("Data factorization codes a labelled status column", {
   as.integer(result$data$status) |> expect_identical(c(1L, 1L, 2L, 1L))
 
   # no recognised negative label: the hint falls back to the generic line
-  unknown <- hhdata
+  unknown <- hh_data
   unknown$status <- c("red", "blue", "blue", "blue")
   cpp_data_factorize(unknown) |>
     expect_warning("Name the value carried by individuals")
 
   # integer statuses follow the documented convention and are left untouched
-  coded <- hhdata
+  coded <- hh_data
   coded$status <- c(1L, 2L, 2L, 2L)
   result <- cpp_data_factorize(coded)
   result$status |> expect_identical(c(1L, 2L))
   result$status_labels |> expect_identical(character())
 
   # an all-missing column carries no outcome, so it says nothing
-  missing <- hhdata
+  missing <- hh_data
   missing$status <- NA_character_
   expect_no_warning(result <- cpp_data_factorize(missing))
   result$data$status |> expect_all_na()
@@ -276,23 +276,23 @@ test_that("Data factorization leaves a missing cell missing", {
 })
 
 test_that("A data column R can only spell quoted, survives the round trip", {
-  hhdata <- dummy_household
-  hhdata[["3"]] <- c(42L, 7L)
-  hhdata[["if"]] <- c(1L, 2L)
+  hh_data <- dummy_household
+  hh_data[["3"]] <- c(42L, 7L)
+  hh_data[["if"]] <- c(1L, 2L)
 
-  hh_model <- new_housepi_model(hhdata, "test")
+  hh_model <- new_housepi_model(hh_data, "test")
   # the engine reports the column under the user's own spelling
-  colnames(get_data_wide(hh_model)) |> expect_identical(colnames(hhdata))
-  get_data_wide(hh_model)[["3"]] |> expect_equal(hhdata[["3"]])
-  names(inspect_house_state(hh_model, "house")$data_wide) |>
-    expect_identical(colnames(hhdata))
+  colnames(get_data_wide(hh_model)) |> expect_identical(colnames(hh_data))
+  get_data_wide(hh_model)[["3"]] |> expect_equal(hh_data[["3"]])
+  names(inspect_state(hh_model, "house")$data_wide) |>
+    expect_identical(colnames(hh_data))
 
   # a definition sources it by its name, quoted
   get_latent(add_latent(hh_model, hidden = `if`))$func |>
     expect_identical("if|D")
 
   # data-long keys cross the same way
-  long <- data.frame(id = hhdata$id, check.names = FALSE)
+  long <- data.frame(id = hh_data$id, check.names = FALSE)
   long[["3"]] <- c(1.5, 2.5)
   add_data_long(hh_model, long) |>
     get_data_long() |>

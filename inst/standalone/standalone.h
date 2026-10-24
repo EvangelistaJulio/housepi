@@ -33,7 +33,7 @@ namespace housepi
             std::string infec_profile = "";
             std::string output = "";
             std::string param = "";
-            std::string setup = "";
+            std::string settings = "";
         } file;
 
         /// Parse the command line.
@@ -42,7 +42,7 @@ namespace housepi
         /// Import each table into `engine`, when its path is given.
         void read_data_wide(MCMCBase &engine);
         void read_data_long(MCMCBase &engine);
-        void read_setup(MCMCBase &engine);
+        void read_settings(MCMCBase &engine);
         void read_param(MCMCBase &engine);
         void read_infec_profile(MCMCBase &engine);
         void read_group_risk(MCMCBase &engine);

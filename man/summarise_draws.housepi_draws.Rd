@@ -58,13 +58,13 @@ and the quantile pair tracks \code{\link[=set_housepi_summary]{set_housepi_summa
 Otherwise the call falls through to \code{\link[posterior:summarise_draws]{posterior::summarise_draws()}}.
 }
 \examples{
-results <- flu_1918_frederick |>
+hh_fit <- flu_1918_frederick |>
   new_housepi_model("final-size") |>
   add_parameter(import = "template") |>
   run_inference(chains = 2, progress = FALSE)
 
 # all parameters and stored latent variables
-summarise_draws(results)
+summarise_draws(hh_fit)
 # a subset of the draws
-summarise_draws(get_parameter_draws(results, "alpha"))
+summarise_draws(get_parameter_draws(hh_fit, "alpha"))
 }

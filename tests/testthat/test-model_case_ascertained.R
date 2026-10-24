@@ -108,10 +108,10 @@ latent_infec_obs_log_lik <- function(house, param, discr = FALSE) {
     loglike_infectious(house, param, discr)
 }
 
-# model reading the infection times of `hhdata`, every parameter pinned
-build_onset_model <- function(hhdata, param, discr) {
+# model reading the infection times of `hh_data`, every parameter pinned
+build_onset_model <- function(hh_data, param, discr) {
   # nolint start: object_usage_linter. DSL symbols, read by the encoder
-  transform(hhdata, infec_date = infec_time) |>
+  transform(hh_data, infec_date = infec_time) |>
     new_housepi_model("case-ascertained", discr = discr, quiet = TRUE) |>
     add_parameter(import = param) |>
     add_latent(infec_time = infec_date) |>
@@ -178,7 +178,7 @@ test_that("Sentinel against no introduction throws error", {
 })
 
 test_that("Sentinel against a member missing a follow-up date throws error", {
-  hhdata <- transform(mk_house$data, infec_date = infec_time)
+  hh_data <- transform(mk_house$data, infec_date = infec_time)
   hh_model <- new_housepi_model(model = "case-ascertained") |>
     add_parameter(import = "template") |>
     add_latent(infec_time = infec_date) |>
@@ -186,13 +186,13 @@ test_that("Sentinel against a member missing a follow-up date throws error", {
 
   # escaped members without end_date throw
   hh_model |>
-    add_data_wide(transform(hhdata, end_date = c(rep(21, 6), NA))) |>
+    add_data_wide(transform(hh_data, end_date = c(rep(21, 6), NA))) |>
     evaluate_log_lik() |>
     expect_error("[Dd]ata .end_date. has no value for individual .m7.")
 
   # end_date computed from member observations have no value for escaped members
   hh_model |>
-    add_data_wide(dplyr::select(hhdata, -end_date)) |>
+    add_data_wide(dplyr::select(hh_data, -end_date)) |>
     add_observation(onset_date = list(model = "normal", mean = infec_time),
                     end_date = onset_date + 21) |>
     evaluate_log_lik() |>
@@ -231,16 +231,16 @@ test_that("Log-likelihood of case ascertained model is correct", {
 test_that("A case with no source of infection has zero likelihood", {
   # `m2` is the only child, out of reach of the community,
   # and no household transmission
-  hhdata <- transform(mk_house$data[c("id", "hh_id", "status", "infec_time",
-                                      "end_date")],
-                      age = c("adult", "child", rep("adult", 5)))
+  hh_data <- transform(mk_house$data[c("id", "hh_id", "status", "infec_time",
+                                       "end_date")],
+                       age = c("adult", "child", rep("adult", 5)))
   strata <- data.frame(age = c(NA, "child"),
                        param_name = c(".reference", "com_child"),
                        const = c(NA, 0))
   param <- modifyList(mk_house$param, list(beta = 0))
 
   for (discr in c(FALSE, TRUE)) {
-    build_onset_model(hhdata, param, discr) |>
+    build_onset_model(hh_data, param, discr) |>
       add_group_risk("community", strata = strata) |>
       evaluate_log_lik() |>
       expect_identical(-Inf)
@@ -274,7 +274,7 @@ test_that("Model quantities are the rates of the force of infection", {
   beta_star <- par$beta * (par$hh_size_ref / nrow(house))^par$gamma
   ctr <- ifelse(outer(child, child, xor), 1.5, 1)
   diag(ctr) <- 0
-  inspect_house_state(hh_model, "h1")$model_quantities |>
+  inspect_state(hh_model, "h1")$model_quantities |>
     expect_equal(list(
       community_rate = setNames(par$alpha * ifelse(child, 2, 1), house$id),
       p2p_rate = matrix(beta_star * ifelse(child, 0.5, 1) * ctr *
@@ -300,7 +300,7 @@ test_that("Latent moves preserve log-likelihood", {
 
   # the latent moves are reduced over two threads
   n_steps <- 30L
-  results <- hh_model |>
+  hh_fit <- hh_model |>
     run_inference(steps = n_steps, thin = 1L, adapt = 0L, chains = 1L,
                   threads = 2L, id_draws = house$id[house$status > 0]) |>
     suppressWarnings()
@@ -308,10 +308,10 @@ test_that("Latent moves preserve log-likelihood", {
   # the pointwise log-lik folds transmission, the latent model and the
   # observation node: the complete-data density, parameter prior aside
   # the bare infection time adds no density: transmission gives it
-  log_lik <- unname(get_log_lik_draws(results)$h1)
-  param_draws <- get_parameter_draws(results) |>
+  log_lik <- unname(get_log_lik_draws(hh_fit)$h1)
+  param_draws <- get_parameter_draws(hh_fit) |>
     draws_to_frame()
-  latent_draws <- get_latent_draws(results) |>
+  latent_draws <- get_latent_draws(hh_fit) |>
     draws_to_frame()
   consts <- get_parameters(hh_model) |>
     subset(!is.na(const), c("name", "const")) |>
@@ -322,7 +322,7 @@ test_that("Latent moves preserve log-likelihood", {
   }
 
   # the snapshot holds the last state
-  snapshot <- inspect_house_state(hh_model, "h1")
+  snapshot <- inspect_state(hh_model, "h1")
   unlist(c(param_draws[n_steps, ], consts))[names(snapshot$parameters)] |>
     expect_identical(snapshot$parameters)
   get_latent_state(latent_draws, n_steps) |>
@@ -330,10 +330,10 @@ test_that("Latent moves preserve log-likelihood", {
 
   # every retained draw matches an independent R recomputation
   expected <- vapply(seq_len(n_steps), function(i) {
-    hhdata <- state_at(i)
+    hh_data <- state_at(i)
     par <- c(param_draws[i, , drop = FALSE], consts)
-    infected <- hhdata[hhdata$status > 0, ]
-    latent_infec_obs_log_lik(hhdata, par) +
+    infected <- hh_data[hh_data$status > 0, ]
+    latent_infec_obs_log_lik(hh_data, par) +
       sum(dnorm(infected$onset_date, infected$incub_period, log = TRUE)) +
       sum(dweibull(infected$incub_period, shape = 2, scale = 1, log = TRUE))
   }, numeric(1))

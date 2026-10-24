@@ -30,12 +30,12 @@ namespace housepi::param
     /// Initialize parameters to sample, for inference.
     void restart(const Scheme &scheme,
                  State &state,
-                 rnd_gen &prng);
+                 RndGen &prng);
     /// Draw parameters to sample from their prior, for simulation.
     /// Unlike restart(), it uses no proposal.
     inline void draw_sample(const Scheme &scheme,
                             State &state,
-                            rnd_gen &prng)
+                            RndGen &prng)
     {
         for (size_t p : scheme.sample)
             state.vec[p].draw_value(prng);

@@ -302,7 +302,7 @@ test_that("Likelihood sums to one over every final outcome of a household", {
   evaluate_log_lik(hh_model)
 
   unique(houses$hh_id) |>
-    vapply(\(hh_id) inspect_house_state(hh_model, hh_id)$transmission_log_lik,
+    vapply(\(hh_id) inspect_state(hh_model, hh_id)$transmission_log_lik,
            numeric(1)) |>
     exp() |>
     sum() |>
@@ -322,7 +322,7 @@ test_that("Likelihood of a large household sums to one over its final sizes", {
   evaluate_log_lik(hh_model)
 
   paste0("h", 0:n) |>
-    vapply(\(hh_id) inspect_house_state(hh_model, hh_id)$transmission_log_lik,
+    vapply(\(hh_id) inspect_state(hh_model, hh_id)$transmission_log_lik,
            numeric(1)) |>
     exp() |>
     (\(p) sum(choose(n, 0:n) * p))() |>
@@ -373,7 +373,7 @@ test_that("A contact-risk mismatch keeps risk-equivalent members apart", {
 
 test_that("A free baseline under an absolute risk is pinned on real data", {
   # households carrying a sibling, so every member level of the strata is seen
-  hhdata <- flu_2014_matsumoto |>
+  hh_data <- flu_2014_matsumoto |>
     dplyr::filter(hh_id %in% utils::head(
       unique(hh_id[member == "sibling"]), 500
     ))
@@ -381,7 +381,7 @@ test_that("A free baseline under an absolute risk is pinned on real data", {
   # the template declares a free alpha, which the absolute community risk
   # leaves no scale for: it is pinned, and the anomaly is reported
   expect_warning(
-    hh_model <- hhdata |>
+    hh_model <- hh_data |>
       new_housepi_model("final-size") |>
       add_parameter(import = "template") |>
       add_group_risk("community", by = "member"),
@@ -460,10 +460,10 @@ test_that("Escape probabilities follow the transmission formulas per member", {
   summary <- summarise_house_cases(hh_model)
   summary$count[summary$metric == "classes"] |> expect_equal(1)
 
-  for (hhdata in list(house, house_2)) {
-    ctr <- mk_ctr_mtx(hhdata, mk_heter$crisks)
-    inspect_house_state(hh_model, hhdata$hh_id[1])$model_quantities |>
-      expect_equal(escape_probas(hhdata, mk_heter$par, ctr))
+  for (hh_data in list(house, house_2)) {
+    ctr <- mk_ctr_mtx(hh_data, mk_heter$crisks)
+    inspect_state(hh_model, hh_data$hh_id[1])$model_quantities |>
+      expect_equal(escape_probas(hh_data, mk_heter$par, ctr))
   }
 })
 
@@ -477,7 +477,7 @@ test_that("Escape probabilities follow the last accepted parameters of a run", {
                   progress = FALSE, warn = FALSE)
 
     # three members, default group and contact risks
-    snapshot <- inspect_house_state(hh_model, "119")
+    snapshot <- inspect_state(hh_model, "119")
     n <- nrow(snapshot$group_risks)
     snapshot$model_quantities |>
       expect_equal(escape_probas(snapshot$group_risks,

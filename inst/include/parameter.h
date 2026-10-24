@@ -46,10 +46,10 @@ namespace housepi
         void mark_produces_transm_cache(size_t p) { scheme_.mark_produces_transm_cache(p); }
 
         /// Initialize parameters to sample, for inference.
-        void restart(rnd_gen &prng) { param::restart(scheme_, state, prng); }
+        void restart(RndGen &prng) { param::restart(scheme_, state, prng); }
         /// Draw parameters to sample from their prior, for simulation.
         /// Unlike restart(), it uses no proposal.
-        void draw_sample(rnd_gen &prng) { param::draw_sample(scheme_, state, prng); }
+        void draw_sample(RndGen &prng) { param::draw_sample(scheme_, state, prng); }
         /// Finalize every parameter (see Variable::finalize).
         void finalize() { param::finalize(scheme_, state); }
         /// Load pinned values of simulation repetition `r`.
@@ -77,6 +77,15 @@ namespace housepi
         {
             return at(p).is_constant() || !scheme_.simulation_values[p].empty();
         }
+
+        /// Whether the prior or the bounds of parameter `p` read a parameter of `others`, other than `p`.
+        bool reads_any(size_t p, const std::vector<size_t> &others) const;
+
+        /// Whether parameter `p` may be read by risks alone.
+        /// * model-declared -> no, the model reads it;
+        /// * read by the function or bounds of another parameter -> no;
+        /// * feeding the transmission cache -> no.
+        bool is_risk_only(size_t p) const;
 
         /// Whether some parameter is sampled.
         bool is_any_sample() const noexcept { return !scheme_.sample.empty(); }

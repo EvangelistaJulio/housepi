@@ -91,7 +91,6 @@ Use \code{\link[=check_calibration]{check_calibration()}} instead of calling \ve
   structure_sampler = sample_house_structure,
   rank_draws = 99L,
   steps = 1000L,
-  burn = 0L,
   thin = 5L,
   adapt = 500L,
   chains = 4L,
@@ -116,26 +115,25 @@ If \code{NULL}, the attached structure is reused verbatim and \code{houses} igno
       \item{\code{rank_draws}}{\code{integer(1)}
 Number of posterior draws each simulating value is ranked among,
 thinned evenly from the stored draws of all chains.}
-      \item{\code{steps}}{\code{integer(1)} Number of MCMC iterations per chain.}
-      \item{\code{burn}}{\code{integer(1)}
-Number of iterations per chain discarded before \code{steps}.
-Run after adaptation.}
-      \item{\code{thin}}{\code{integer(1)} Keep one iteration every \code{thin} of \code{steps}.}
-      \item{\code{adapt}}{\code{integer(1)} Number of iterations to adapt proposal scales.
+      \item{\code{steps}}{\code{integer(1)} Number of MCMC steps per chain.}
+      \item{\code{thin}}{\code{integer(1)} Keep one step every \code{thin} of \code{steps}.}
+      \item{\code{adapt}}{\code{integer(1)} Number of steps to adapt proposal scales
+and the joint moves of latent variables and parameters.
 Run first and not stored as draws.
-If no proposal is adaptable, run as burn-in when \code{burn = 0}, else dropped.}
+If nothing is adaptable, run as burn-in instead.}
       \item{\code{chains}}{\code{integer(1)} Number of independent MCMC chains to run.}
       \item{\code{threads}}{\code{integer(1)} Number of threads.
 Up to \code{threads} replicates are fitted at once.
 Beyond \code{nrep}, the households of each fit share the threads left over.}
-      \item{\code{progress}}{\code{integer(1)} | \code{logical(1)} Control the progress bar,
+      \item{\code{progress}}{\code{numeric(1)} | \code{logical(1)} Control the progress bar,
 one of:
 \describe{
-\item{\code{integer}}{seconds between prints, a shorter run printing nothing;}
+\item{\code{numeric}}{seconds between prints, a shorter run printing nothing;}
 \item{\code{TRUE}}{one print per second;}
 \item{\code{FALSE} or \code{0}}{no progress bar.}
 }
-The bar prints as messages, which \code{\link[=suppressMessages]{suppressMessages()}} silences.}
+The bar prints as messages, which \code{\link[=suppressMessages]{suppressMessages()}} silences.
+In a knitted document, only its closing line prints.}
       \item{\code{...}}{Advanced configuration.}
     }
     \if{html}{\out{</div>}}

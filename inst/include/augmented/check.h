@@ -22,8 +22,6 @@ namespace housepi
         struct Wide;
     }
     struct Parameter;
-    class Variable;
-    class Individual;
 }
 
 /// Checks on definition rows, each throwing on its first violation.

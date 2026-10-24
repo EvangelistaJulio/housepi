@@ -12,7 +12,7 @@ STD_IN := -A latent.csv \
 -G group_risks.csv \
 -I infec.csv \
 -P param.csv \
--S setup.csv
+-S settings.csv
 
 # Lost of source files with exclusions
 SRC := ../../src

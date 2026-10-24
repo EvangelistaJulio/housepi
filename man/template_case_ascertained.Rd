@@ -89,7 +89,7 @@ for a household of size \eqn{n} where member \eqn{i} has status \eqn{s_i = 1}{s_
 
 \section{Model Quantities}{
 
-\code{\link[=inspect_house_state]{inspect_house_state()}} reports in \code{model_quantities} the terms of \eqn{\lambda_{i}(t)}{lambda_i(t)}:
+\code{\link[=inspect_state]{inspect_state()}} reports in \code{model_quantities} the terms of \eqn{\lambda_{i}(t)}{lambda_i(t)}:
 \itemize{
 \item \code{community_rate}: \eqn{\alpha \, \mu^\mathrm{com}_{i}}{alpha mu^com_i}, per member
 \item \code{p2p_rate}: \eqn{\beta \left(\tfrac{n_\mathrm{ref}}{n}\right)^{\gamma} \mu^\mathrm{inf}_{j} \, \mu^\mathrm{ctc}_{ji} \, \mu^\mathrm{sus}_{i}}{beta (n_ref / n)^gamma mu^inf_j mu^ctc_ji mu^sus_i}, multiplying \eqn{f_{j}(t - t_{j})}{f_j(t - t_j)}, infector \eqn{j} by row and infectee \eqn{i} by column, 0 on the diagonal

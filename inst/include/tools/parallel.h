@@ -166,11 +166,11 @@ namespace housepi::parallel
                           M &&monitor,
                           std::atomic<bool> &stop_flag)
     {
-        constexpr std::chrono::milliseconds period(250);
+        constexpr std::chrono::milliseconds PERIOD(250);
         auto result = std::async(std::launch::async, std::forward<F>(work));
         try
         {
-            while (result.wait_for(period) != std::future_status::ready)
+            while (result.wait_for(PERIOD) != std::future_status::ready)
                 monitor();
         }
         catch (...)

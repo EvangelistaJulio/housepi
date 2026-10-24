@@ -8,9 +8,7 @@
 #include <memory>
 #include <numeric>
 #include <random>
-#include <stdexcept>
 #include <string>
-#include <tuple>
 #include <unordered_set>
 #include <utility>
 #include <vector>
@@ -60,20 +58,6 @@ namespace housepi
             value_.clear();
             old_.clear();
         }
-        void LookUpTable::recover() noexcept
-        {
-            if (generic_ptr_->is_constant())
-                return;
-            std::swap(value_, old_);
-        }
-        void LookUpTable::update()
-        {
-            if (generic_ptr_->is_constant())
-                return;
-            std::swap(value_, old_);
-            materialize_();
-        }
-
         void LookUpTable::Table_::clear() noexcept
         {
             inst.clear();
@@ -870,25 +854,18 @@ namespace housepi
                 is_to_draw = false;
             }
             // deterministic definition: a function
-            else if (!def_[k].is_sampled())
+            else if (def_[k].has_func())
             {
-                if (!def_[k].has_func())
-                    msg::stop(
-                        "Impossible to initialize latent " + msg::val(astr) + " without a constant, function or model");
-                std::tie(is_to_export, is_to_draw) = list_function_(s, k, src);
-            }
-            else if (!def_[k].has_proposal())
-            {
-                msg::stop(
-                    "No proposal was provided for non-constant definition of latent " +
-                    msg::val(astr));
+                // do not export if not callable: it would crash
+                is_to_export = def_[k].func.is_callable_implicitly("x");
+                is_to_draw = list_function_(s, k, src);
             }
             else
             {
                 scheme_.is_any_sample_ = true;
                 at_(s).sample.emplace_back(a);
 
-                if (parse::is_adaptive_proposal(def_[k].proposal))
+                if (is_declared_adaptive(def_[k].proposal))
                 {
                     scheme_.is_any_adaptive_ = true;
                     at_(s).adaptive.emplace_back(a);
@@ -911,23 +888,14 @@ namespace housepi
                 at_(s).draws.emplace_back(a);
         }
 
-        std::pair<bool, bool> SchemeBuilder::list_function_(StatusLvl s,
-                                                            size_t k,
-                                                            Sources_ &src)
+        bool SchemeBuilder::list_function_(StatusLvl s, size_t k, Sources_ &src)
         {
-            bool is_to_export = true;
-            bool is_to_draw = true;
-
             const parse::Definition &parser = def_[k].func;
 
             // raw data are equivalence-class covariates, unless produced
             for (const std::string &dstr : parser.list_data_wide_producers())
                 if (!def_.has_row(dstr, Kind::Member) && !def_.has_row(dstr, Kind::House))
                     src.covariates.push_back(dstr);
-
-            // do not export if not callable: it would crash
-            if (!parser.is_callable_implicitly("x"))
-                is_to_export = false;
 
             bool all_consts = true; // start assuming all constants
             for (const std::string &pstr : parser.list_parameter_producers())
@@ -940,9 +908,7 @@ namespace housepi
                     all_consts = false;
 
             // to draw if not all constant dependencies
-            is_to_draw = !all_consts;
-
-            return {is_to_export, is_to_draw};
+            return !all_consts;
         }
 
         //////  augm::SchemeBuilder : surrogates and nodes  //////
@@ -1152,6 +1118,20 @@ namespace housepi
                     }
             }
         }
+
+        void SchemeBuilder::init_latent_block(size_t i, std::vector<size_t> keys)
+        {
+            StatusScheme &ss = scheme_.status_schemes_[i];
+            if (keys.size() < 2)
+                keys.clear();
+            ss.sample_alone = vect::difference(ss.sample, keys);
+
+            // member densities recomputed whole, transmission if a key produces it
+            ss.block_terms = {!ss.obs_models.empty(), false, !ss.latent_models.empty()};
+            for (size_t a : keys)
+                ss.block_terms.transm = ss.block_terms.transm || ss.produces_transm[a];
+            ss.block = std::move(keys);
+        }
     }
 
     //////////////////////////////  augm::State  //////////////////////////////
@@ -1172,100 +1152,6 @@ namespace housepi
             varia.resize(n_indiv);
             for (IndivState &st : varia)
                 st.vec = blank;
-        }
-
-        double commit_latent_log_lik(const StatusScheme &ss,
-                                     IndivState &st)
-        {
-            if (ss.latent_models.empty())
-                return 0.;
-            double new_ll = 0.0;
-            // guarded: a moved parameter feeding loc/min/max may push a value out of its shifted support
-            // that value reads -Inf, not a stale finite density
-            for (size_t a : ss.latent_models)
-                new_ll += st.vec[a].guarded_log_pdf();
-            st.latent_log_lik.set(new_ll);
-            return new_ll;
-        }
-
-        double commit_latent_log_lik_ratio(const StatusScheme &ss,
-                                           IndivState &st,
-                                           size_t a)
-        {
-            double delta_ll = 0;
-            // consumers[a] includes `a`: the model of `a` is counted
-            for (size_t b : ss.consumers[a])
-                delta_ll += st.vec[b].log_ratio();
-            st.latent_log_lik.increment(delta_ll);
-            return delta_ll;
-        }
-
-        double sum_guarded_latent_log_lik(const StatusScheme &ss,
-                                          const IndivState &st,
-                                          size_t a)
-        {
-            double ll = 0.;
-            // consumers[a] includes `a`: the model of `a` is counted
-            for (size_t b : ss.consumers[a])
-                ll += st.vec[b].guarded_log_pdf();
-            return ll;
-        }
-
-        double commit_latent_log_lik_ratio_with_consumers(const StatusScheme &ss,
-                                                          IndivState &st,
-                                                          size_t a,
-                                                          double L_old)
-        {
-            // with `a` proposed, its model consumers read the moved value live
-            // compare their guarded model sum against the pre-move snapshot `L_old`
-            const double delta_ll = sum_guarded_latent_log_lik(ss, st, a) - L_old;
-            st.latent_log_lik.increment(delta_ll);
-            return delta_ll;
-        }
-
-        double eval_log_obs(const StatusScheme &ss,
-                            const IndivState &st)
-        {
-            double ll = 0.0;
-            for (size_t a : ss.obs_models)
-                ll += st.vec[a].guarded_log_pdf();
-            return ll;
-        }
-
-        double commit_obs_log_lik(const StatusScheme &ss,
-                                  IndivState &st)
-        {
-            if (ss.obs_models.empty())
-                return 0.;
-            const double new_ll = eval_log_obs(ss, st);
-            st.obs_log_lik.set(new_ll);
-            return new_ll;
-        }
-
-        double commit_obs_log_lik_ratio(const StatusScheme &ss,
-                                        IndivState &st,
-                                        size_t a)
-        {
-            // skip unless the moved latent `a` parameterizes an observation node
-            if (ss.obs_consumers[a].empty())
-                return 0.;
-
-            // recompute the log-proba: an observation value is a datum
-            const double new_ll = eval_log_obs(ss, st);
-            const double delta_ll = new_ll - st.obs_log_lik.value();
-            st.obs_log_lik.set(new_ll);
-            return delta_ll;
-        }
-
-        void restart(const StatusScheme &ss, IndivState &st, rnd_gen &prng)
-        {
-            for (size_t a : ss.sample)
-                st.vec[a].restart(prng);
-        }
-        void draw_sample(const std::vector<size_t> &keys, IndivState &st, rnd_gen &prng)
-        {
-            for (size_t a : keys)
-                st.vec[a].draw_value(prng);
         }
     }
 
@@ -1314,7 +1200,7 @@ namespace housepi
             }
     }
 
-    StatusLvl StatusProcess::draw(const Individual &indiv, rnd_gen &prng) const
+    StatusLvl StatusProcess::draw(const Individual &indiv, RndGen &prng) const
     {
         if (!is_defined())
             return status::INFECTED;
@@ -1561,7 +1447,7 @@ namespace housepi
         // register member definition names, household observations excluded
         for (size_t k = 0; k < def_.size(); ++k)
             if (def_[k].kind != augm::Kind::House)
-                add(def_[k].name);
+                add_(def_[k].name);
 
         augm::SchemeBuilder builder(scheme_, def_, *this);
         // status routing
@@ -1598,7 +1484,7 @@ namespace housepi
     {
         def_.clear();
         scheme_ = augm::Scheme();
-        clear_optional();
+        clear_optional_();
         state.clear();
     }
 
@@ -1608,7 +1494,7 @@ namespace housepi
             return;
 
         def_.append(infec_profile.latent_definitions);
-        add(infprof::LATENT_FUNC);
+        add_(infprof::LATENT_FUNC);
         infec_profile.latent_key = consult(infprof::LATENT_FUNC);
         infec_profile.bind_augm(this); // for runtime per-member profile resolution
     }
@@ -1669,8 +1555,9 @@ namespace housepi
 
     void Augmented::init_for_evaluation()
     {
+        // no definition -> no latent block, the lookup sized for every member
         if (empty())
-            return;
+            return state.block_factor_of.assign(mcmc_->data.wide().report_indiv.total, na::INDEX);
 
         assert_every_member_cols_();
         materialize_surrogate_columns(false);
@@ -1689,6 +1576,72 @@ namespace housepi
 
         // parameters that may move latent/observation models
         builder.init_param_producers(mcmc_->param);
+        init_latent_blocks_(builder);
+    }
+
+    void Augmented::init_latent_blocks_(augm::SchemeBuilder &builder)
+    {
+        state.block_factors.clear();
+        state.block_factor_of.assign(mcmc_->data.wide().report_indiv.total, na::INDEX);
+        std::vector<bool> is_built = {};
+        for (const Household &house : mcmc_->data.wide())
+            for (const Individual &indiv : house.infected_indivs())
+            {
+                // members of one status scheme share its latent block
+                const size_t i = state.of(indiv).idx;
+                if (i >= is_built.size())
+                    is_built.resize(i + 1, false);
+                if (!is_built[i])
+                {
+                    builder.init_latent_block(i, list_block_keys_(indiv));
+                    is_built[i] = true;
+                }
+                if (list_block(indiv).empty())
+                    continue;
+                state.block_factor_of[Index::of(indiv)] = state.block_factors.size();
+                state.block_factors.emplace_back();
+            }
+    }
+
+    std::vector<size_t> Augmented::list_block_keys_(const Individual &indiv) const
+    {
+        const augm::StatusScheme &ss = scheme_of_(indiv);
+        std::vector<size_t> candidates = {};
+        for (size_t a : ss.sample)
+            if (at(a, indiv).can_join_block())
+                candidates.push_back(a);
+
+        // candidates each value moves with: itself, through functions, none for any other row
+        dict<std::vector<size_t>> moved_by;
+        const auto list_moved_by = [&](const std::vector<std::string> &names)
+        {
+            std::vector<size_t> out;
+            for (const std::string &astr : names)
+                if (const auto it = moved_by.find(astr); it != moved_by.end())
+                    vect::append_unique(out, it->second);
+            return out;
+        };
+
+        // a latent whose bounds or location shift move with another candidate moves alone
+        std::vector<size_t> keys = {};
+        for (size_t k : ss.order)
+        {
+            const augm::DefRow &row = def_[k];
+            if (row.has_func())
+                moved_by[row.name] = list_moved_by(row.func.list_latent_producers());
+            const size_t a = consult(row.name);
+            if (!vect::contains(candidates, a))
+                continue;
+            std::vector<std::string> support = vect::concatenate(row.min.list_latent_producers(),
+                                                                 row.max.list_latent_producers());
+            for (const parse::Entry &child : row.model.root.children)
+                if (child.key == "loc")
+                    child.append_latent_producers(support);
+            if (list_moved_by(support).empty())
+                keys.push_back(a);
+            moved_by[row.name] = {a};
+        }
+        return keys;
     }
 
     void Augmented::init_live_schemes_(augm::SchemeBuilder &builder)
@@ -2012,7 +1965,7 @@ namespace housepi
 
     //////  Augmented : user reset  //////
 
-    void Augmented::restart(rnd_gen &prng)
+    void Augmented::restart(RndGen &prng)
     {
         if (!scheme_.is_any_sample())
             return;
@@ -2022,7 +1975,7 @@ namespace housepi
                 restart(indiv, prng);
     }
 
-    void Augmented::draw_sample(rnd_gen &prng)
+    void Augmented::draw_sample(RndGen &prng)
     {
         if (!scheme_.is_any_sample())
             return;

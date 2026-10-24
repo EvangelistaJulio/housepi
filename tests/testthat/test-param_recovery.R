@@ -4,10 +4,10 @@ library(testthat)
 
 # households of two sizes, the covariate constant within each one
 mk_recov_data <- local({
-  hhdata <- data.frame(hh_id = c("h1", rep("h2", 3)),
-                       id = paste0("m", seq(4)),
-                       datum = c("a", rep("b", 3)))
-  list(hhdata = hhdata)
+  hh_data <- data.frame(hh_id = c("h1", rep("h2", 3)),
+                        id = paste0("m", seq(4)),
+                        datum = c("a", rep("b", 3)))
+  list(data = hh_data)
 })
 
 # one replicate of two parameters at two household counts
@@ -29,25 +29,25 @@ mk_recov_frame <- local({
 test_that("The household count defaults to the observed one", {
   sample_house_structure(data.frame(datum = 1)) |>
     expect_error("[Cc]olumn.*hh_id.*is missing")
-  sample_house_structure(mk_recov_data$hhdata, houses = 0) |>
+  sample_house_structure(mk_recov_data$data, houses = 0) |>
     expect_error("[Nn]umber of households")
   # the sampler draws one structure, so a sweep of counts is refused here
-  sample_house_structure(mk_recov_data$hhdata, houses = c(2, 3)) |>
+  sample_house_structure(mk_recov_data$data, houses = c(2, 3)) |>
     expect_error("[Nn]umber of households")
 
   # default sampling targets the observed household count
-  struct <- sample_house_structure(mk_recov_data$hhdata)
+  struct <- sample_house_structure(mk_recov_data$data)
   length(unique(struct$hh_id)) |> expect_identical(2L)
   # without a sampler the observed count stands, whatever count is asked
   expect_warning(
-    houses <- sweep_houses_(mk_recov_data$hhdata, houses = 6, verbatim = TRUE),
+    houses <- sweep_houses_(mk_recov_data$data, houses = 6, verbatim = TRUE),
     "[Aa]rgument.*houses.*is ignored"
   )
   houses |> expect_identical(2L)
 })
 
 test_that("Households are resampled whole", {
-  struct <- sample_house_structure(mk_recov_data$hhdata, houses = 6)
+  struct <- sample_house_structure(mk_recov_data$data, houses = 6)
   # every household is renumbered
   sort(unique(struct$hh_id)) |> expect_identical(1:6)
   # an identifier carried by the input is regenerated
@@ -106,37 +106,37 @@ mk_recov <- local({
     new_housepi_model("final-size") |>
     add_parameter(import = "template")
   draws <- data.frame(alpha = 0.15, beta = 0.20, gamma = 1)
-  results <- hh_model |>
+  recovery <- hh_model |>
     check_recovery(draws, nrep = 2, houses = c(20, 40),
                    steps = 50, chains = 1, progress = FALSE) |>
     suppressWarnings()
-  list(model = hh_model, draws = draws, results = results)
+  list(model = hh_model, draws = draws, recovery = recovery)
 })
 
 # no fit raised a warning, no fit is flagged and every point estimate lies
 # within four posterior sd of its simulating value, which a calibrated
 # posterior strays past about once in 16,000 fits
 # the check is run under `suppressWarnings()`: its warnings are read back here
-expect_recovered <- function(results) {
-  results$warnings$message |> expect_identical(character())
-  estimates <- results$estimates
+expect_recovered <- function(recovery) {
+  recovery$warnings$message |> expect_identical(character())
+  estimates <- recovery$estimates
   estimates$flagged |> expect_all_false()
   (abs(estimates$estimate - estimates$truth) < 4 * estimates$sd) |>
     expect_all_true()
 }
 
-test_that("Recovery results are read only", {
-  mk_recov$results |>
+test_that("Recovery recovery are read only", {
+  mk_recov$recovery |>
     expect_read_only_field("estimates", "replicates",
                            "overview", "truth", "houses", "nrep",
                            "point_estimate", "cri_level", "warnings")
 })
 
-test_that("Recovery results print their settings", {
-  results <- mk_recov$results
-  lines <- helper_print_lines(printed <- print(results))
+test_that("Recovery recovery print their settings", {
+  recovery <- mk_recov$recovery
+  lines <- helper_print_lines(printed <- print(recovery))
   # printing returns the object itself
-  printed |> expect_identical(results)
+  printed |> expect_identical(recovery)
   lines[1] |> expect_match("[Pp]arameter recovery check.*final size")
   lines |> expect_contains(c("Households: 20 and 40", "Replicates: 4",
                              "Point estimate: median",
@@ -144,38 +144,38 @@ test_that("Recovery results print their settings", {
   # the count is that of the flagged replicates
   lines |>
     expect_contains(paste("Flagged by diagnostics:",
-                          sum(results$replicates$flagged)))
+                          sum(recovery$replicates$flagged)))
   # durations read as the progress bar prints them
   lines |> expect_match("^Run time: [0-9]+s$", all = FALSE)
   lines |> expect_match("^Inference time per fit: [0-9]+s$", all = FALSE)
 })
 
 test_that("Recovery sweeps every household count", {
-  results <- mk_recov$results
-  results$houses |> expect_identical(c(20L, 40L))
-  results$truth |> expect_equal(c(alpha = 0.15, beta = 0.20, gamma = 1))
+  recovery <- mk_recov$recovery
+  recovery$houses |> expect_identical(c(20L, 40L))
+  recovery$truth |> expect_equal(c(alpha = 0.15, beta = 0.20, gamma = 1))
   # two counts, two replicates, three estimated parameters
-  results$estimates |> expect_nrow(12L)
-  sort(unique(results$estimates$variable)) |>
+  recovery$estimates |> expect_nrow(12L)
+  sort(unique(recovery$estimates$variable)) |>
     expect_identical(c("alpha", "beta", "gamma"))
-  results$replicates |> expect_nrow(4L)
-  results$summarise() |> expect_nrow(6L)
-  results$summarize() |> expect_identical(results$summarise())
-  results$overview$houses |> expect_identical(c(20L, 40L))
-  results$nrep |> expect_identical(c(2L, 2L))
-  results$point_estimate |> expect_identical("median")
-  results$cri_level |> expect_equal(0.9)
+  recovery$replicates |> expect_nrow(4L)
+  recovery$summarise() |> expect_nrow(6L)
+  recovery$summarize() |> expect_identical(recovery$summarise())
+  recovery$overview$houses |> expect_identical(c(20L, 40L))
+  recovery$nrep |> expect_identical(c(2L, 2L))
+  recovery$point_estimate |> expect_identical("median")
+  recovery$cri_level |> expect_equal(0.9)
 })
 
 test_that("Each replicate reports its cost and its survey", {
-  replicates <- mk_recov$results$replicates
+  replicates <- mk_recov$recovery$replicates
   (replicates$inference_secs > 0) |> expect_all_true()
-  estimates <- mk_recov$results$estimates
+  estimates <- mk_recov$recovery$estimates
   replicates$min_ess_bulk |>
     expect_equal(as.vector(tapply(estimates$ess_bulk,
                                   estimates[c("rep", "houses")], min)))
-  (mk_recov$results$overview$secs_per_ess > 0) |> expect_all_true()
-  mk_recov$results$summarise()$coverage |> expect_in(c(0, 0.5, 1))
+  (mk_recov$recovery$overview$secs_per_ess > 0) |> expect_all_true()
+  mk_recov$recovery$summarise()$coverage |> expect_in(c(0, 0.5, 1))
   replicates$seed |> expect_type("integer")
   replicates$seed |> expect_no_na()
   estimates$covers |>
@@ -184,14 +184,14 @@ test_that("Each replicate reports its cost and its survey", {
 })
 
 test_that("A failed replicate is named in the error", {
-  hhdata <- sample_house_structure(get_data_wide(mk_recov$model), houses = 20)
+  hh_data <- sample_house_structure(get_data_wide(mk_recov$model), houses = 20)
   # every status missing passes the model build and stops the engine before
   # any fit samples
-  hhdata_2 <- hhdata
-  hhdata_2$status <- NA_integer_
-  fit_args <- list(steps = 50, burn = 0, thin = 1, adapt = 0, chains = 1,
-                   threads = 1L, id_draws = ".none")
-  sweep_fit_wave_(mk_recov$model, list(hhdata, hhdata_2), reps = 1:2,
+  hh_data_2 <- hh_data
+  hh_data_2$status <- NA_integer_
+  fit_args <- list(steps = 50, thin = 1, adapt = 0, chains = 1,
+                   threads = 1L, id_draws = NULL)
+  sweep_fit_wave_(mk_recov$model, list(hh_data, hh_data_2), reps = 1:2,
                   houses = 20L, seeds = 1:2, fit_args = fit_args,
                   outer = 2L, bar = NULL) |>
     expect_error("[Rr]eplicate 2 at.*20.*households.*missing status")
@@ -215,11 +215,11 @@ test_that("A failed replicate stops the fits sampled with it", {
     add_latent("hidden", model = "uniform") |>
     add_observation("record", model = "uniform", loc = hidden,
                     min = -0.1, max = 0.1)
-  hhdata <- get_data_wide(hh_model)
-  hhdata_2 <- transform(hhdata, record = 5)
-  # the fit of `hhdata` alone samples for minutes
-  fit_args <- list(steps = 400000000L, burn = 0, thin = 100000L, adapt = 0,
-                   chains = 1, threads = 1L, id_draws = ".none")
+  hh_data <- get_data_wide(hh_model)
+  hh_data_2 <- transform(hh_data, record = 5)
+  # the fit of `hh_data` alone samples for minutes
+  fit_args <- list(steps = 400000000L, thin = 100000L, adapt = 0,
+                   chains = 1, threads = 1L, id_draws = NULL)
   fit_wave <- function(wides, outer, failed) {
     system.time(
       sweep_fit_wave_(hh_model, wides, reps = 1:2, houses = 1L, seeds = 1:2,
@@ -228,27 +228,27 @@ test_that("A failed replicate stops the fits sampled with it", {
                             " at.*[Ee]xceeded attempts"))
     )[["elapsed"]]
   }
-  # sampled together: the running fit stops at its next iteration
-  fit_wave(list(hhdata, hhdata_2), outer = 2L, failed = 2L) |> expect_lt(10)
+  # sampled together: the running fit stops at its next step
+  fit_wave(list(hh_data, hh_data_2), outer = 2L, failed = 2L) |> expect_lt(10)
   # sampled in turn: the next fit never starts
-  fit_wave(list(hhdata_2, hhdata), outer = 1L, failed = 1L) |> expect_lt(10)
+  fit_wave(list(hh_data_2, hh_data), outer = 1L, failed = 1L) |> expect_lt(10)
 })
 
 test_that("A run too short to diagnose is flagged whole", {
   expect_warning(
-    results <- check_recovery(
+    recovery <- check_recovery(
       mk_recov$model, mk_recov$draws, nrep = 2, houses = 20, steps = 50,
       chains = 1, progress = FALSE
     ),
     "raised 1 distinct warning"
   )
-  results$warnings$message |> expect_match("[Tt]otal sample size")
-  results$warnings$count |> expect_identical(2L)
+  recovery$warnings$message |> expect_match("[Tt]otal sample size")
+  recovery$warnings$count |> expect_identical(2L)
   # diagnosed all the same, and always flagged
-  results$estimates$rhat |> expect_no_na()
-  results$estimates$ess_bulk |> expect_no_na()
-  results$estimates$flagged |> expect_all_true()
-  results$overview$n_flagged |> expect_identical(2L)
+  recovery$estimates$rhat |> expect_no_na()
+  recovery$estimates$ess_bulk |> expect_no_na()
+  recovery$estimates$flagged |> expect_all_true()
+  recovery$overview$n_flagged |> expect_identical(2L)
 })
 
 test_that("Recovery leaves the model it was given untouched", {
@@ -315,16 +315,16 @@ test_that("Recovery refuses a sweep it cannot run", {
 })
 
 test_that("Recovery checks of one model pool their replicates", {
-  results <- mk_recov$results
+  recovery <- mk_recov$recovery
   # the model built anew, as in another session, the defaults spelled out
-  results_2 <- flu_1918_frederick |>
+  recovery_2 <- flu_1918_frederick |>
     new_housepi_model("final-size") |>
     add_parameter(import = "template") |>
     check_recovery(mk_recov$draws, nrep = 1, houses = c(40, 60),
                    steps = 50, chains = 1, progress = FALSE,
-                   adapt_window = 50, time_step = 0.05) |>
+                   time_step = 0.05) |>
     suppressWarnings()
-  combined <- c(results, results_2)
+  combined <- c(recovery, recovery_2)
 
   combined |> expect_s3_class("HousepiRecoveryCheck")
   combined$houses |> expect_identical(c(20L, 40L, 60L))
@@ -334,13 +334,13 @@ test_that("Recovery checks of one model pool their replicates", {
   combined$estimates |> expect_nrow(18L)
   combined$summarise()$nrep |> expect_identical(rep(c(2L, 3L, 1L), each = 3L))
   sum(combined$warnings$count) |>
-    expect_identical(sum(results$warnings$count, results_2$warnings$count))
+    expect_identical(sum(recovery$warnings$count, recovery_2$warnings$count))
   # the checks combined are left as they were
-  results$nrep |> expect_identical(c(2L, 2L))
+  recovery$nrep |> expect_identical(c(2L, 2L))
 })
 
 test_that("Recovery checks of different runs do not combine", {
-  results <- mk_recov$results
+  recovery <- mk_recov$recovery
   rerun <- function(hh_model = mk_recov$model, draws = mk_recov$draws,
                     steps = 50, ...) {
     check_recovery(hh_model, draws, nrep = 1, houses = 20, steps = steps,
@@ -348,16 +348,16 @@ test_that("Recovery checks of different runs do not combine", {
       suppressWarnings()
   }
 
-  c(results, results) |> expect_error("[Rr]epeat a replicate.*20")
-  c(results, rerun(steps = 60)) |> expect_error("[Dd]iffer in.*steps")
+  c(recovery, recovery) |> expect_error("[Rr]epeat a replicate.*20")
+  c(recovery, rerun(steps = 60)) |> expect_error("[Dd]iffer in.*steps")
   c(rerun(time_step = 0.5), rerun(time_step = 1)) |>
     expect_error("[Dd]iffer in.*time_step")
-  c(results, rerun(draws = transform(mk_recov$draws, gamma = 0.9))) |>
+  c(recovery, rerun(draws = transform(mk_recov$draws, gamma = 0.9))) |>
     expect_error("[Dd]iffer in.*truth")
   hh_model <- mk_recov$model |>
     add_parameter("beta", prior = "uniform", min = 0, max = 2, append = TRUE) |>
     suppressWarnings()
-  c(results, rerun(hh_model)) |> expect_error("[Dd]iffer in.*parameters")
+  c(recovery, rerun(hh_model)) |> expect_error("[Dd]iffer in.*parameters")
   # one body, different captured probability
   miss_cases <- function(p) {
     function(data_wide) {
@@ -369,7 +369,7 @@ test_that("Recovery checks of different runs do not combine", {
   report <- \(p) add_reporting_process(mk_recov$model, wide = miss_cases(p))
   c(rerun(report(0)), rerun(report(0.5))) |>
     expect_error("[Dd]iffer in.*reporting_process")
-  c(results, data.frame()) |> expect_error("cannot be combined")
+  c(recovery, data.frame()) |> expect_error("cannot be combined")
 })
 
 test_that("Latent inference recovers the simulating parameter", {

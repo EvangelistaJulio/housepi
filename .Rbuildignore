@@ -29,3 +29,5 @@
 ^CLAUDE\.md$
 ^\.claude$
 ^ci$
+^\.clang-format$
+^compile_flags\.txt$

@@ -353,7 +353,7 @@ test_that("A latent parameterizing the profile drives transmission", {
 
 test_that("The household snapshot reports the profile of each member", {
   hh_model <- mk_house$model
-  profiles_of <- \(h) inspect_house_state(h, "h1")$infectivity_profiles
+  profiles_of <- \(h) inspect_state(h, "h1")$infectivity_profiles
 
   # the model requires a profile, so the entry is kept but reads empty
   profiles_of(hh_model) |> expect_nrow(0L)

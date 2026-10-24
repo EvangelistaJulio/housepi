@@ -155,14 +155,13 @@ We can call `add_parameter()` as follows:
 hh_model <- hh_model |>
   # baseline community transmission risk
   add_parameter(
-    name = "alpha",     # name matching the model requirement
-    prior = "uniform",  # uniform prior
-    proposal = "rw_log" # random walk lognormal proposal
+    name = "alpha",   # name matching the model requirement
+    prior = "uniform" # uniform prior
   ) |>
   # within-household baseline person-to-person transmission risk
-  add_parameter("beta", prior = "uniform", proposal = "rw_log")
+  add_parameter("beta", prior = "uniform")
 
-# complete parameter definitions using multiple definitions
+# append parameters using multiple definitions
 hh_model <- hh_model |>
   add_parameter(
     hh_size_ref = 6L,                # constant reference household size
@@ -187,11 +186,11 @@ The draws come as [posterior](https://CRAN.R-project.org/package=posterior) obje
 
 ```{r}
 #| label: run-inference
-# run the Monte Carlo specifying setup options (equal to default)
-results <- hh_model |>
-  run_inference(steps = 1000, # iterations per chain, after burn-in
-                thin = 5,     # keep one iteration every five
-                adapt = 500,  # adaptation iterations, run before `steps`
+# run the Monte Carlo specifying its settings (equal to default)
+hh_fit <- hh_model |>
+  run_inference(steps = 1000, # steps per chain, after adaptation
+                thin = 5,     # keep one step every five
+                adapt = 500,  # adaptation steps, run before `steps`
                 chains = 4,   # independent chains
                 threads = 1)  # parallel threads
 
@@ -199,7 +198,7 @@ results <- hh_model |>
 set_housepi_summary(cri_level = 0.95)
 
 # summarise posterior draws of parameters
-results |> summarise_draws()
+hh_fit |> summarise_draws()
 ```
 
 We can extract the parameters draws by calling `get_parameter_draws` and plot traces with [bayesplot](https://CRAN.R-project.org/package=bayesplot)
@@ -209,7 +208,7 @@ We can extract the parameters draws by calling `get_parameter_draws` and plot tr
 #| fig-alt: >
 #|  Trace plots for alpha and beta parameters across MCMC iterations with four parallel chains overlaid.
 # visualize the traces of the first chain with 'bayesplot'
-get_parameter_draws(results) |>
+get_parameter_draws(hh_fit) |>
   bayesplot::mcmc_trace(facet_args = list(ncol = 1))
 ```
 
@@ -321,7 +320,7 @@ hh_model <- hh_model |>
   add_data_wide(simulated)
 
 # run inference, updating progress bar every 3 seconds
-results <- hh_model |> run_inference(progress = 3)
+hh_fit <- hh_model |> run_inference(progress = 3)
 ```
 We can visualize traces vs expected values as follows
 
@@ -335,7 +334,7 @@ We can visualize traces vs expected values as follows
 library(ggplot2)
 
 # extract sample to posterior draws_df
-param_draws <- get_parameter_draws(results)
+param_draws <- get_parameter_draws(hh_fit)
 
 # original parameters used for the simulation
 simul_parameters <- data.frame(parameter = names(sim_values),

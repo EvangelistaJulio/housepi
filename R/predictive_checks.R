@@ -72,12 +72,16 @@ measure_sar_by_hh_size <- function(data_wide, escaped = "escaped") {
   .engine$measure_sar_by_hh_size(df)
 }
 
-#' @title Tabulate observed household cases by household size
+#' @title Tabulate observed cases distribution by household size
 #' @description
-#' Retrieve cases by household size from household data.
+#' Retrieve the distribution of household cases ("final size")
+#' by household size from household data.
 #' @param data_wide `r rd_add_wide_`
 #' @param escaped `r rd_mdl_escaped_`
-#' @return `data.frame`
+#' @return `data.frame` One row per household size `hh_size`,
+#' then one column per number of cases, holding the number of households
+#' of that size with that number of cases.
+#' A number of cases above the household size is `NA`.
 #' @examples
 #' measure_cases_by_hh_size(flu_1918_frederick)
 #' @export
@@ -247,11 +251,11 @@ assert_measure_names_ <- function(nms, taken = character()) {
 #' hh_model <- flu_1918_frederick |>
 #'   new_housepi_model("final-size") |>
 #'   add_parameter(import = "template")
-#' results <- run_inference(hh_model, chains = 2, progress = FALSE)
+#' hh_fit <- run_inference(hh_model, chains = 2, progress = FALSE)
 #'
 #' # a user-defined measure: the overall attack rate
 #' overall_ar <- function(data_wide) mean(data_wide$status > 0)
-#' ppc <- check_predictive(hh_model, results,
+#' ppc <- check_predictive(hh_model, hh_fit,
 #'                         sar = measure_sar_by_hh_size,
 #'                         overall = overall_ar,
 #'                         epi = FALSE, nrep = 50, progress = FALSE)
@@ -509,11 +513,11 @@ helper_house_counts <- function(data_wide, escaped = "escaped") {
 }
 
 # List every case table, filtered.
-helper_filter_tables <- function(cases_count,
+helper_filter_tables <- function(cases_distr,
                                  min_hh_size = NA,
                                  max_hh_size = NA) {
   # load observed table to use as a type shape template
-  obsdf <- cases_count$observed
+  obsdf <- cases_distr$observed
 
   # remove rows without counts
   mask_row <- rowSums(obsdf[colnames(obsdf) != "hh_size"], na.rm = TRUE) != 0
@@ -535,9 +539,9 @@ helper_filter_tables <- function(cases_count,
 
   list(
     observed = obsdf[mask_row, mask_col],
-    predicted = cases_count$predicted[mask_row, mask_col],
-    cri_lower = cases_count$cri_lower[mask_row, mask_col],
-    cri_upper = cases_count$cri_upper[mask_row, mask_col]
+    predicted = cases_distr$predicted[mask_row, mask_col],
+    cri_lower = cases_distr$cri_lower[mask_row, mask_col],
+    cri_upper = cases_distr$cri_upper[mask_row, mask_col]
   )
 }
 
@@ -574,15 +578,15 @@ helper_combine_obs_pred <- function(obsdf, preddf) {
 #' @title Standard epidemiological posterior predictive check
 #' @description
 #' Posterior predictive check of standard epidemiological measures
-#' by household size: cases, attack rate and secondary attack rate,
-#' observed against predicted.
+#' by household size, observed against predicted:
+#' cases distribution, attack rate and secondary attack rate.
 #' @examples
 #' hh_model <- flu_1918_frederick |>
 #'   new_housepi_model("final-size") |>
 #'   add_parameter(import = "template")
-#' results <- run_inference(hh_model, chains = 2, progress = FALSE)
+#' hh_fit <- run_inference(hh_model, chains = 2, progress = FALSE)
 #'
-#' ppc <- check_predictive(hh_model, results, nrep = 50, progress = FALSE)
+#' ppc <- check_predictive(hh_model, hh_fit, nrep = 50, progress = FALSE)
 #' ppc$format_attack_rate()
 #' @docType class
 HousepiEpiPredictiveCheck <- R6::R6Class(
@@ -600,7 +604,7 @@ HousepiEpiPredictiveCheck <- R6::R6Class(
     house_counts_ = NULL,
     measure_topics_ = c(attack_rate = "measure_ar_by_hh_size",
                         sec_attack_rate = "measure_sar_by_hh_size",
-                        cases_count = "measure_cases_by_hh_size"),
+                        cases_distr = "measure_cases_by_hh_size"),
 
     # Restrict a by-hh_size data.frame to the set [min_hh_size_, max_hh_size_].
     filter_hh_size_ = function(df) {
@@ -652,7 +656,7 @@ HousepiEpiPredictiveCheck <- R6::R6Class(
         hh_model = hh_model, draws = draws,
         attack_rate = \(x) measure_ar_by_hh_size(x, esc),
         sec_attack_rate = \(x) measure_sar_by_hh_size(x, esc),
-        cases_count = \(x) measure_cases_by_hh_size(x, esc),
+        cases_distr = \(x) measure_cases_by_hh_size(x, esc),
         ...,
         nrep = nrep, thin_ess = thin_ess,
         threads = threads, progress = progress
@@ -734,12 +738,13 @@ HousepiEpiPredictiveCheck <- R6::R6Class(
       private$filter_hh_size_(output)
     },
 
-    #' @description Format observed and predicted cases by household size.
+    #' @description Format observed and predicted cases distributions
+    #' by household size.
     #' Sizes outside the set household size bounds are not returned.
     #' @return `list` of `data.frame`: `predicted`, `cri_lower`, `cri_upper`.
-    format_cases_count = function() {
+    format_cases_distr = function() {
       # filter according to household size bounds
-      cases <- helper_filter_tables(self$cases_count,
+      cases <- helper_filter_tables(self$cases_distr,
                                     private$min_hh_size_, private$max_hh_size_)
 
       # empty frame as a placeholder for Credible Interval
@@ -765,7 +770,7 @@ HousepiEpiPredictiveCheck <- R6::R6Class(
 #' \describe{
 #' \item{`"attack_rate"`}{see [measure_ar_by_hh_size];}
 #' \item{`"sec_attack_rate"`}{see [measure_sar_by_hh_size];}
-#' \item{`"cases_count"`}{see [measure_cases_by_hh_size].}
+#' \item{`"cases_distr"`}{see [measure_cases_by_hh_size].}
 #' }
 #' Named measure functions in `...` are checked alongside them,
 #' under names that differ from these.
@@ -796,20 +801,20 @@ HousepiEpiPredictiveCheck <- R6::R6Class(
 #' hh_model <- flu_1918_frederick |>
 #'   new_housepi_model("final-size") |>
 #'   add_parameter(import = "template")
-#' results <- run_inference(hh_model, chains = 2, progress = FALSE)
+#' hh_fit <- run_inference(hh_model, chains = 2, progress = FALSE)
 #'
-#' ppc <- check_predictive(hh_model, results, nrep = 50, progress = FALSE)
+#' ppc <- check_predictive(hh_model, hh_fit, nrep = 50, progress = FALSE)
 #' ppc
 #'
 #' # a user-defined measure: the overall attack rate
 #' overall_ar <- function(data_wide) mean(data_wide$status > 0)
-#' ppc <- check_predictive(hh_model, results, overall = overall_ar,
+#' ppc <- check_predictive(hh_model, hh_fit, overall = overall_ar,
 #'                         nrep = 50, progress = FALSE)
 #' ppc
 #' ppc$overall$observed
 #'
 #' # only the user-defined measures
-#' ppc <- check_predictive(hh_model, results, overall = overall_ar,
+#' ppc <- check_predictive(hh_model, hh_fit, overall = overall_ar,
 #'                         epi = FALSE, nrep = 50, progress = FALSE)
 #' ppc
 #' @export

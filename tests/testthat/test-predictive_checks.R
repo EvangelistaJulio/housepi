@@ -7,20 +7,20 @@ mk_ppc <- local({
   hh_model <- flu_1918_frederick |>
     new_housepi_model("final-size") |>
     add_parameter(import = "template")
-  results <- hh_model |>
+  hh_fit <- hh_model |>
     run_inference(steps = 100L, chains = 1L, adapt = 0L, thin = 1L) |>
     suppressWarnings()
-  list(model = hh_model, results = results)
+  list(model = hh_model, fit = hh_fit)
 })
 
 # three households of sizes two, three and two
 mk_houses <- local({
-  hhdata <- data.frame(
+  hh_data <- data.frame(
     id = paste0("m", 1:7),
     hh_id = c(rep("h1", 2), rep("h2", 3), rep("h3", 2)),
     status = c(1, 1, 1, 0, 0, 1, 0)
   )
-  list(data = hhdata)
+  list(data = hh_data)
 })
 
 ####  Measures  ####
@@ -76,14 +76,14 @@ test_that("Cases are tabulated on the complete household size grid", {
 })
 
 test_that("Measures keep households that all share one size", {
-  hhdata <- data.frame(id = paste0("m", 1:3), hh_id = "h1",
-                       status = c(1, 1, 0))
+  hh_data <- data.frame(id = paste0("m", 1:3), hh_id = "h1",
+                        status = c(1, 1, 0))
   # AR = 2/3, SAR = (2-1)/(3-1)
-  measure_ar_by_hh_size(hhdata) |>
+  measure_ar_by_hh_size(hh_data) |>
     expect_equal(data.frame(hh_size = 3L, ar = 2 / 3))
-  measure_sar_by_hh_size(hhdata) |>
+  measure_sar_by_hh_size(hh_data) |>
     expect_equal(data.frame(hh_size = 3L, sar = 0.5))
-  measure_cases_by_hh_size(hhdata)$hh_size |> expect_identical(3L)
+  measure_cases_by_hh_size(hh_data)$hh_size |> expect_identical(3L)
 })
 
 test_that("Household size geometric mean is weighted by secondary cases", {
@@ -243,7 +243,7 @@ test_that("Credible intervals are formatted on vectors and frames", {
     expect_error("same dimensions")
 })
 
-test_that("Predicted results carry the point estimate and its interval", {
+test_that("Predicted hh_fit carry the point estimate and its interval", {
   result <- ppc_extract_predicted_results(
     list(data.frame(a = c(1, 2)), data.frame(a = c(3, 4)),
          data.frame(a = c(5, 6))),
@@ -254,12 +254,12 @@ test_that("Predicted results carry the point estimate and its interval", {
 })
 
 test_that("Houses are counted by household size", {
-  hhdata <- data.frame(
+  hh_data <- data.frame(
     hh_id = c(rep("h1", 2), rep("h2", 3), rep("h3", 2), rep("h4", 2)),
     status = c(1, 1, 1, 0, 0, 1, 0, 0, 0)
   )
-  hhdata$id <- paste0("m", seq_len(nrow(hhdata)))
-  result <- helper_house_counts(hhdata)
+  hh_data$id <- paste0("m", seq_len(nrow(hh_data)))
+  result <- helper_house_counts(hh_data)
   colnames(result) |> expect_contains(c("hh_size", "total", "at_least_1_case"))
   # size 2: h1 (2 cases), h3 (1 case), h4 (0 cases) -> 3 total, 2 affected
   result$total[result$hh_size == 2] |> expect_equal(3)
@@ -329,13 +329,13 @@ test_that("Observed entries outside the interval are flagged", {
 
 test_that("Household size bounds need the standard measures", {
   mk_ppc$model |>
-    check_predictive(mk_ppc$results, sar = measure_sar_by_hh_size,
+    check_predictive(mk_ppc$fit, sar = measure_sar_by_hh_size,
                      epi = FALSE, max_hh_size = 3L) |>
     expect_error("[Mm]in_hh_size.*max_hh_size.*bound.*only.*standard")
 
   # next to custom measures, the bounds restrict the standard outputs
   ppc <- mk_ppc$model |>
-    check_predictive(mk_ppc$results, overall = \(x) mean(x$status > 0),
+    check_predictive(mk_ppc$fit, overall = \(x) mean(x$status > 0),
                      max_hh_size = 3L, thin_ess = FALSE, nrep = 5) |>
     suppressWarnings()
   (ppc$format_attack_rate()$hh_size <= 3) |> expect_all_true()
@@ -343,7 +343,7 @@ test_that("Household size bounds need the standard measures", {
 
 test_that("Custom measures are checked next to the standard ones", {
   ppc <- mk_ppc$model |>
-    check_predictive(mk_ppc$results, overall = \(x) mean(x$status > 0),
+    check_predictive(mk_ppc$fit, overall = \(x) mean(x$status > 0),
                      thin_ess = FALSE, nrep = 5) |>
     suppressWarnings()
   class(ppc)[1] |> expect_identical("HousepiEpiPredictiveCheck")
@@ -361,7 +361,7 @@ test_that("Custom measures are checked next to the standard ones", {
 
 test_that("Standard measures can be dropped", {
   ppc <- mk_ppc$model |>
-    check_predictive(mk_ppc$results, overall = \(x) mean(x$status > 0),
+    check_predictive(mk_ppc$fit, overall = \(x) mean(x$status > 0),
                      epi = FALSE, thin_ess = FALSE, nrep = 5) |>
     suppressWarnings()
   class(ppc)[1] |> expect_identical("HousepiPredictiveCheck")
@@ -370,16 +370,16 @@ test_that("Standard measures can be dropped", {
   ppc$overall$observed |> expect_type("double")
 
   mk_ppc$model |>
-    check_predictive(mk_ppc$results, epi = FALSE) |>
+    check_predictive(mk_ppc$fit, epi = FALSE) |>
     expect_error("[Nn]o measure to check")
   mk_ppc$model |>
-    check_predictive(mk_ppc$results, epi = NA) |>
+    check_predictive(mk_ppc$fit, epi = NA) |>
     expect_error("epi.*TRUE.*FALSE")
 })
 
 test_that("Measure names are unique, given and free of the members", {
   overall <- \(x) mean(x$status > 0)
-  run <- \(...) mk_ppc$model |> check_predictive(mk_ppc$results, ...)
+  run <- \(...) mk_ppc$model |> check_predictive(mk_ppc$fit, ...)
   run(overall) |> expect_error("must be named")
   run(overall = overall, overall = overall) |>
     expect_error("[Rr]epeated measure.*overall")
@@ -394,14 +394,14 @@ test_that("Measure names are unique, given and free of the members", {
 
 test_that("Measures on data_long need a long reporting process", {
   mk_ppc$model |>
-    check_predictive(mk_ppc$results, measures_long = nrow) |>
+    check_predictive(mk_ppc$fit, measures_long = nrow) |>
     expect_error("[Ll]ong reporting process")
 })
 
 test_that("Predictive check on custom measures has read-only fields", {
   ppc <- mk_ppc$model |>
     check_predictive(
-      mk_ppc$results, sar = measure_sar_by_hh_size,
+      mk_ppc$fit, sar = measure_sar_by_hh_size,
       epi = FALSE, thin_ess = FALSE, nrep = 10
     ) |>
     suppressWarnings()
@@ -419,7 +419,7 @@ test_that("Predictive check on custom measures has read-only fields", {
     list(housepi.point_estimate = "mean", housepi.cri_level = 0.8), {
       averaged <- mk_ppc$model |>
         check_predictive(
-          mk_ppc$results, sar = measure_sar_by_hh_size,
+          mk_ppc$fit, sar = measure_sar_by_hh_size,
           epi = FALSE, thin_ess = FALSE, nrep = 2
         ) |>
         suppressWarnings()
@@ -440,7 +440,7 @@ test_that("Predictive check on custom measures has read-only fields", {
 })
 
 test_that("Predicted cases by house size works as expected", {
-  ppc <- check_predictive(mk_ppc$model, mk_ppc$results) |>
+  ppc <- check_predictive(mk_ppc$model, mk_ppc$fit) |>
     suppressWarnings()
   class(ppc)[1] |> expect_identical("HousepiEpiPredictiveCheck")
   counts <- helper_house_counts(get_data_wide(mk_ppc$model))
@@ -456,13 +456,13 @@ test_that("Predicted cases by house size works as expected", {
   sar$counts |>
     expect_identical(counts$at_least_1_case[match(sar$hh_size, counts$hh_size)])
 
-  # formatted_cases_count
-  ppc$format_cases_count() |> expect_length(3)
+  # formatted_cases_distr
+  ppc$format_cases_distr() |> expect_length(3)
 
   # subclass active fields and inherited dynamic measure fields are read-only
   ppc |>
     expect_read_only_field(
-      "attack_rate", "sec_attack_rate", "cases_count"
+      "attack_rate", "sec_attack_rate", "cases_distr"
     )
 
   # set_max_hh_size and drop
@@ -479,7 +479,7 @@ test_that("Predicted cases by house size works as expected", {
 
 test_that("Epi PPC honours min/max_hh_size arguments", {
   ppc <- mk_ppc$model |>
-    check_predictive(mk_ppc$results, min_hh_size = 2L, max_hh_size = 3L) |>
+    check_predictive(mk_ppc$fit, min_hh_size = 2L, max_hh_size = 3L) |>
     suppressWarnings()
   ppc$format_attack_rate()$hh_size |> expect_in(2:3)
   ppc$format_sec_attack_rate()$hh_size |> expect_in(2:3)
@@ -489,7 +489,7 @@ test_that("Epi PPC observed values are stable across calls and status codes", {
   data_wide <- get_data_wide(mk_ppc$model)
   run_on <- function(hh_model = mk_ppc$model, ...) {
     hh_model |>
-      check_predictive(mk_ppc$results, thin_ess = FALSE, nrep = 5, ...) |>
+      check_predictive(mk_ppc$fit, thin_ess = FALSE, nrep = 5, ...) |>
       suppressWarnings()
   }
   ppc <- run_on()
@@ -505,11 +505,9 @@ test_that("Epi PPC observed values are stable across calls and status codes", {
 
   # observed values agree across thread counts
   ppc_2 <- run_on(threads = 2L)
-  ppc_2$cases_count$observed |> expect_identical(ppc$cases_count$observed)
+  ppc_2$cases_distr$observed |> expect_identical(ppc$cases_distr$observed)
   ppc_2$sec_attack_rate$observed |>
     expect_identical(ppc$sec_attack_rate$observed)
-  ppc_2$cases_table_by_size$observed |>
-    expect_identical(ppc$cases_table_by_size$observed)
 })
 
 test_that("Custom PPC warns on observed values outside the interval", {

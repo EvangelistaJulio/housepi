@@ -117,9 +117,9 @@ test_that("Definitions carry the defaults the user left out", {
   param$min |> expect_equal(c(0, 0, 0, NA))
   param$max |> expect_equal(c(1, 1, 3, NA))
 
-  hhdata <- data.frame(hh_id = c("h1", "h1"), status = c(1, 0),
-                       record = c(3L, 1L), record_2 = c(0.5, 2.1))
-  hh_model <- hhdata |>
+  hh_data <- data.frame(hh_id = c("h1", "h1"), status = c(1, 0),
+                        record = c(3L, 1L), record_2 = c(0.5, 2.1))
+  hh_model <- hh_data |>
     new_housepi_model("final-size") |>
     add_parameter(
       rho = list(prior = "gamma", shape = 2),
@@ -196,8 +196,8 @@ test_that("Missing definitions are found and reported", {
   definition_missing_find(rev(defined), character(0)) |>
     expect_identical(defined)
 
-  results <- definition_missing_stop(required, defined, "parameter")
-  results |> expect_match("missing", all = FALSE)
+  msg <- definition_missing_stop(required, defined, "parameter")
+  msg |> expect_match("missing", all = FALSE)
 
   # no missing: empty output
   definition_missing_stop(c("a"), c("a"), "parameter") |>

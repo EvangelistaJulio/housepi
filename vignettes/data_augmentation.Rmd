@@ -210,12 +210,12 @@ hh_model <- dataset |>
 #| fig-alt: >
 #|  Trace plots for mean and standard deviation parameters with three parallel chains.
 #|  Overlaying orange lines indicate the values used for the simulation.
-results <- hh_model |>
+hh_fit <- hh_model |>
   # store latent draws of "7" and "13"
   run_inference(id_draws = c("7", "13"))
 
 # plot traces of parameter draws
-bayesplot::mcmc_trace(get_parameter_draws(results)) +
+bayesplot::mcmc_trace(get_parameter_draws(hh_fit)) +
   geom_hline(data = data.frame(parameter = c("mean", "sd"),
                                simulated = c(true_mean, true_sd)),
              aes(yintercept = simulated))
@@ -228,7 +228,7 @@ bayesplot::mcmc_trace(get_parameter_draws(results)) +
 #|  Trace plots for individual latent variables across three MCMC chains.
 #|  Incubation period for two subjects (IDs 7 and 13).
 # plot the traces of the incubation period alone
-bayesplot::mcmc_trace(get_latent_draws(results, "incub_period"))
+bayesplot::mcmc_trace(get_latent_draws(hh_fit, "incub_period"))
 ```
 
 In this example we had to introduce the auxiliary latent variables `onset_time` and `infec_time`.
@@ -256,7 +256,7 @@ A uniform observation over a window the variable can never leave contributes the
 #| label: latent inspection
 #| warning: false
 
-results <- data.frame(hh_id = 1, id = 1:2, status = 1, readout = 0) |>
+hh_fit <- data.frame(hh_id = 1, id = 1:2, status = 1, readout = 0) |>
   new_housepi_model(model = "test") |>
   add_latent("z", model = "normal", mean = 14) |>
   add_observation("readout", model = "uniform", loc = z,
@@ -269,7 +269,7 @@ results <- data.frame(hh_id = 1, id = 1:2, status = 1, readout = 0) |>
 #| fig-height: 2
 #| fig-alt: >
 #|  Trace plot of a single latent variable sampled from the model.
-results |>
+hh_fit |>
   get_latent_draws() |>
   bayesplot::mcmc_trace()
 ```
@@ -279,7 +279,7 @@ results |>
 #| fig-height: 2
 #| fig-alt: >
 #|  Trace plot of the pointwise per-household log-likelihood.
-results |>
+hh_fit |>
   get_log_lik_draws() |>
   bayesplot::mcmc_trace()
 ```

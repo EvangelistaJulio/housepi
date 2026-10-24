@@ -7,31 +7,26 @@
 run_inference(
   hh_model,
   steps = 1000L,
-  burn = 0L,
   thin = 5L,
   adapt = 500L,
   chains = 4L,
   threads = 1L,
-  id_draws = NULL,
+  id_draws = NA,
   progress = TRUE,
-  warn = TRUE,
-  ...
+  warn = TRUE
 )
 }
 \arguments{
 \item{hh_model}{\code{HousepiModel} object.}
 
-\item{steps}{\code{integer(1)} Number of MCMC iterations per chain.}
+\item{steps}{\code{integer(1)} Number of MCMC steps per chain.}
 
-\item{burn}{\code{integer(1)}
-Number of iterations per chain discarded before \code{steps}.
-Run after adaptation.}
+\item{thin}{\code{integer(1)} Keep one step every \code{thin} of \code{steps}.}
 
-\item{thin}{\code{integer(1)} Keep one iteration every \code{thin} of \code{steps}.}
-
-\item{adapt}{\code{integer(1)} Number of iterations to adapt proposal scales.
+\item{adapt}{\code{integer(1)} Number of steps to adapt proposal scales
+and the joint moves of latent variables and parameters.
 Run first and not stored as draws.
-If no proposal is adaptable, run as burn-in when \code{burn = 0}, else dropped.}
+If nothing is adaptable, run as burn-in instead.}
 
 \item{chains}{\code{integer(1)} Number of independent MCMC chains to run.}
 
@@ -43,22 +38,21 @@ A \code{character()} lists individual identifiers.
 A \code{list} takes entries \code{id}, individual identifiers, and \code{hh_id},
 households whose infected members are all stored.
 If \code{NA}, one random eligible household is followed.
-If \code{".none"}, nothing is stored.}
+If \code{NULL}, nothing is stored.}
 
-\item{progress}{\code{integer(1)} | \code{logical(1)} Control the progress bar,
+\item{progress}{\code{numeric(1)} | \code{logical(1)} Control the progress bar,
 one of:
 \describe{
-\item{\code{integer}}{seconds between prints, a shorter run printing nothing;}
+\item{\code{numeric}}{seconds between prints, a shorter run printing nothing;}
 \item{\code{TRUE}}{one print per second;}
 \item{\code{FALSE} or \code{0}}{no progress bar.}
 }
-The bar prints as messages, which \code{\link[=suppressMessages]{suppressMessages()}} silences.}
+The bar prints as messages, which \code{\link[=suppressMessages]{suppressMessages()}} silences.
+In a knitted document, only its closing line prints.}
 
 \item{warn}{\code{logical(1)} Whether to report the warnings the run raises.
 A quiet run still records the convergence diagnostics it flagged,
 read back from the \code{warnings} field of the returned object.}
-
-\item{...}{Advanced configuration.}
 }
 \value{
 An object of class \code{HousepiPosteriorDraws}.
@@ -67,6 +61,21 @@ An object of class \code{HousepiPosteriorDraws}.
 Run inference with Bayesian Markov Chain Monte Carlo,
 by the component-wise Metropolis-Hastings algorithm
 \insertCite{metropolis_equation_1953,hastings_monte_1970}{housepi}.
+The latent variables of one member that declare no proposal
+move together, by adaptive Metropolis
+\insertCite{haario_adaptive_2001,andrieu_tutorial_2008}{housepi}.
+Over the first half of \code{adapt} they move one at a time.
+Their joint move then follows the covariance of their values
+from the second quarter of \code{adapt} onwards.
+A latent variable whose bounds or location read another of them,
+directly or through a function, moves alone.
+Parameters that declare no proposal move together the same way
+when a reference couples them:
+a baseline and each relative risk of its rule groups
+matching at least a tenth as many members or pairs as the reference.
+They take as many joint moves per step as they have members.
+A parameter whose prior or bounds read another of them moves alone,
+as does a risk whose number of members or pairs is unknown.
 }
 \details{
 The run warns on any of: Total sample size was below 400; R-hat > 1.05; Bulk Effective Sample Size (ESS) below 100 or 1\% of the draws.
@@ -77,7 +86,7 @@ R-hat and bulk ESS are the rank-normalized ones of
 flu_1918_frederick |>
   new_housepi_model("final-size") |>
   add_parameter(import = "template") |>
-  run_inference(steps = 50, burn = 10, thin = 2,
+  run_inference(steps = 50, thin = 2,
                 chains = 2, progress = FALSE) |>
   get_parameter_draws() |>
   posterior::summarize_draws()

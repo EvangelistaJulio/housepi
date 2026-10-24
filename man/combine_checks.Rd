@@ -40,7 +40,7 @@ hh_model <- flu_1918_frederick |>
 draws <- data.frame(alpha = 0.15, beta = 0.2, gamma = 1)
 recovery <- check_recovery(hh_model, draws, nrep = 2, houses = 30,
                            progress = FALSE)
-more <- check_recovery(hh_model, draws, nrep = 2, houses = 30,
-                       progress = FALSE)
-c(recovery, more)$nrep
+recovery_2 <- check_recovery(hh_model, draws, nrep = 2, houses = 30,
+                             progress = FALSE)
+c(recovery, recovery_2)$nrep
 }

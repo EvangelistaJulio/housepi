@@ -43,10 +43,10 @@ hh_model <- flu_1918_frederick |>
   add_parameter(import = "template")
 
 # store posterior draws
-results <- hh_model |>
+hh_fit <- hh_model |>
   run_inference(progress = FALSE)
 
-results
+hh_fit
 ```
 
 The posterior draws above are used to estimate the model parameters.
@@ -75,7 +75,7 @@ We can run different replicates at each sample size using `check_recovery()`:
 ```{r}
 #| label: sweep
 recovery <- hh_model |>
-  check_recovery(results, nrep = 15, houses = houses, progress = FALSE)
+  check_recovery(hh_fit, nrep = 15, houses = houses, progress = FALSE)
 recovery
 
 # overview of the checks per sample size, averaged over replicates

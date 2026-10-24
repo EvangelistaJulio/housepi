@@ -11,20 +11,22 @@
 #include <utility>
 #include <vector>
 
+#include "tools/vector.h"
 #include "data/individual.h"
 
 namespace housepi::chain_binom
 {
     using gentype = std::vector<MemberIdx>; /// Count vector, one entry per part.
     using ShapeIdx = std::uint32_t;         /// Index of a shape (part-count vector) in LookUpTables.
+    using SubVecIdx = std::uint32_t;        /// Index of a sub-vector in PartitionTree.
 
     /// Most terms the recurrence may sum in one household evaluation, 3^15.
     ///
     /// * every infected member in its own part, 15 parts -> 0.5s per evaluation, 4 MB;
     /// * parts holding several members -> 16 bytes of partition tree per term, 200 MB at the limit.
-    constexpr std::uint64_t max_terms = 14348907;
+    constexpr std::uint64_t MAX_TERMS = 14348907;
 
-    /// Throw if the recurrence of a household would sum more than max_terms terms.
+    /// Throw if the recurrence of a household would sum more than MAX_TERMS terms.
     ///
     /// @param part_counts Member count of each part, read up to `n_parts`.
     /// @param where Household label in the message.
@@ -42,7 +44,7 @@ namespace housepi::chain_binom
         /// Sub-vectors of the root, in a linear extension of the componentwise order.
         std::vector<gentype> sub_vecs;
         /// Per sub-vector `t`: each smaller `w`, as its index and log C(t, w).
-        std::vector<std::vector<std::pair<std::uint32_t, double>>> ancestors;
+        std::vector<std::vector<std::pair<SubVecIdx, double>>> ancestors;
     };
 
     //////////////////////////////  chain_binom::Scratch  //////////////////////////////
@@ -51,13 +53,13 @@ namespace housepi::chain_binom
     /// @note Concurrent callers each need their own Scratch.
     struct Scratch
     {
-        std::vector<double> p2p_infec_proba;          /// Infection probability per generation size.
-        std::vector<double> commu_esc_pow;            /// Community escape probability per member count.
-        std::vector<double> state_proba;              /// Probability per generation state.
-        std::vector<double> log_q;                    /// Log-escape probabilities, per subset or tree node.
-        std::vector<double> log_pi;                   /// Log-probability, per subset or tree node.
-        std::vector<double> log_commu_esc;            /// Community log-escape probability per part.
-        std::vector<std::vector<double>> log_p2p_esc; /// Person-to-person log-escape probability per part pair.
+        std::vector<double> p2p_infec_proba; /// Infection probability per generation size.
+        std::vector<double> commu_esc_pow;   /// Community escape probability per member count.
+        std::vector<double> state_proba;     /// Probability per generation state.
+        std::vector<double> log_q;           /// Log-escape probabilities, per subset or tree node.
+        std::vector<double> log_pi;          /// Log-probability, per subset or tree node.
+        std::vector<double> log_commu_esc;   /// Community log-escape probability per part.
+        matrix log_p2p_esc;                  /// Person-to-person log-escape probability per part pair.
     };
 
     //////////////////////////////  chain_binom::LookUpTables  //////////////////////////////
@@ -90,7 +92,7 @@ namespace housepi::chain_binom
                                      ShapeIdx shape_idx,
                                      const std::vector<MemberIdx> &part_indexes,
                                      const std::vector<double> &commu_infec_rate,
-                                     const std::vector<std::vector<double>> &p2p_infec_rate);
+                                     const matrix &p2p_infec_rate);
     };
 
     /// Compute the chain-binomial log-likelihood with the cheapest algorithm for the partition.
@@ -107,5 +109,5 @@ namespace housepi::chain_binom
                           ShapeIdx shape_idx,
                           const std::vector<MemberIdx> &part_indexes,
                           const std::vector<double> &commu_infec_rate,
-                          const std::vector<std::vector<double>> &p2p_infec_rate);
+                          const matrix &p2p_infec_rate);
 }

@@ -90,13 +90,13 @@ HousepiModel <- R6::R6Class(
 
     # Latent variables required by the model and by other definitions.
     get_required_latent_ = function() {
-      c(private$required_of_model_(.engine$key_Latent), # by the model
+      c(private$required_of_model_(.engine$latent_keys), # by the model
         private$required_of_declaration_("A"))   # by the latent declaration
     },
 
     # Data columns required by the model and by other definitions.
     get_required_data_wide_ = function() {
-      c(private$required_of_model_(.engine$key_Data), # by the model
+      c(private$required_of_model_(.engine$data_keys), # by the model
         private$group_risks_$data_required,      # by group risks
         private$contact_risks_$data_required,    # by contact risks
         private$required_of_declaration_("D"))   # by the latent declaration
@@ -104,13 +104,13 @@ HousepiModel <- R6::R6Class(
 
     # Group risks required by the model and by other definitions.
     get_required_group_risks_ = function() {
-      c(private$required_of_model_(.engine$key_GroupRisk), # by the model
+      c(private$required_of_model_(.engine$group_risk_keys), # by the model
         private$required_of_declaration_("G"))   # by the latent declaration
     },
 
     # Parameters required by the model and by other definitions.
     get_required_parameters_ = function() {
-      c(private$required_of_model_(.engine$key_Param), # by the model
+      c(private$required_of_model_(.engine$param_keys), # by the model
         find_required_definitions(private$resolved_param_(), "P",
                                   c("const", "func", "min", "max"),
                                   private$param_$family), # by param functions
@@ -553,10 +553,10 @@ HousepiModel <- R6::R6Class(
       sets <- list(
         # an observation stands for a column, at either level:
         # datum in inference, generated value in simulation
-        D = c(cols, needs(.engine$key_Data), obs),
-        G = c(names(private$group_risks_$defs), needs(.engine$key_GroupRisk)),
-        P = c(private$param_$defs[["name"]], needs(.engine$key_Param)),
-        A = c(latent, needs(.engine$key_Latent))
+        D = c(cols, needs(.engine$data_keys), obs),
+        G = c(names(private$group_risks_$defs), needs(.engine$group_risk_keys)),
+        P = c(private$param_$defs[["name"]], needs(.engine$param_keys)),
+        A = c(latent, needs(.engine$latent_keys))
       )
       # latent shadowing the like-named column -> no ambiguity,
       # as a simulated output fed back as data
@@ -585,7 +585,7 @@ HousepiModel <- R6::R6Class(
       resolve_discr_flags_(
         resolve_source_types_(private$effective_param_()$defs,
                               private$source_dictionary_()),
-        .engine$key_Param_discrete(private$mcmc_ptr_),
+        .engine$discrete_param_keys(private$mcmc_ptr_),
         is_prior = TRUE
       )
     },
@@ -600,9 +600,9 @@ HousepiModel <- R6::R6Class(
           resolve_source_types_(private$augm_$defs,
                                 private$source_dictionary_())
         ),
-        .engine$key_Latent_discrete(private$mcmc_ptr_),
+        .engine$discrete_latent_keys(private$mcmc_ptr_),
         discr_col_types = private$coding_$data_wide$discr,
-        discr_req_cols = .engine$key_Data_discrete(private$mcmc_ptr_)
+        discr_req_cols = .engine$discrete_data_keys(private$mcmc_ptr_)
       )
     },
 
@@ -730,22 +730,22 @@ HousepiModel <- R6::R6Class(
       seq_along(private$status_draw_levels_())
     },
 
-    # Build the model: refresh the run setup, enforce hard validation,
+    # Build the model: refresh the run settings, enforce hard validation,
     # then push the final state to the engine.
-    build_full_ = function(steps = 0L, adapt = 0L, burn = 0L,
+    build_full_ = function(steps = 0L, adapt = 0L,
                            thin = 1L, chains = 1L, threads = 1L,
-                           id_draws = NULL, simulating = FALSE,
+                           id_draws = NULL, simulating = FALSE, nrep = NULL,
                            seed = draw_seed_(), ...) {
       # only run_inference resolves a selection, other builds store nothing
       if (!is.list(id_draws))
         id_draws <- list(id = character(), hh_id = character())
 
-      .engine$import_setup(
+      .engine$import_settings(
         private$mcmc_ptr_,
-        char_setup_input_(c(list(
-          steps = steps,
+        char_settings_input_(c(list(
+          # a simulation runs one engine step per replicate
+          steps = if (is.null(nrep)) steps else nrep,
           adapt = adapt,
-          burn = burn,
           thin = thin,
           chains = chains,
           threads = threads,
@@ -799,7 +799,7 @@ HousepiModel <- R6::R6Class(
       # transmission sets the latents it generates in simulation:
       # an undeclared one gets a bare row, whose bounds simulation never reads
       generated <- setdiff(
-        .engine$key_Latent_transmission(private$mcmc_ptr_),
+        .engine$transmission_latent_keys(private$mcmc_ptr_),
         private$augm_$defs[["name"]]
       )
       if (length(generated)) {
@@ -813,7 +813,7 @@ HousepiModel <- R6::R6Class(
       }
 
       # internal build function
-      private$build_full_(steps = nrep, simulating = TRUE, ...)
+      private$build_full_(nrep = nrep, simulating = TRUE, ...)
 
       # there may be no parameters at all
       if (!nrow(get_parameters(self))) return(nrep)
@@ -860,10 +860,10 @@ HousepiModel <- R6::R6Class(
                             progress = TRUE,
                             labelled = TRUE) {
       param_table <- private$read_param_table_(draws, nrep, thin_ess)
-      nsim <- nrow(param_table)
+      nrep <- nrow(param_table)
 
       # internal build function
-      private$build_full_(steps = nsim, threads = threads)
+      private$build_full_(nrep = nrep, threads = threads)
 
       # attach param_table
       .engine$import_param_table(private$mcmc_ptr_, param_table)
@@ -895,10 +895,10 @@ HousepiModel <- R6::R6Class(
       private$escaped_
     },
 
-    #' @field setup `list` Last setup used by the build process.
-    setup = function(value) {
-      assert_read_only_(value, "setup")
-      .engine$export_setup(private$mcmc_ptr_)
+    #' @field settings `list` Last settings used by the build process.
+    settings = function(value) {
+      assert_read_only_(value, "settings")
+      .engine$export_settings(private$mcmc_ptr_)
     }
   ),
 
@@ -961,7 +961,7 @@ HousepiModel <- R6::R6Class(
       }
       obj_priv$mcmc_ptr_ <- create_mcmc_runner_(obj_priv$compiled_)
 
-      # setup is not copied, build_full_() resupplies it at every run
+      # settings are not copied, build_full_() resupplies them at every run
       # share the data store, copy-on-write
       .engine$share_data_store(obj_priv$mcmc_ptr_, private$mcmc_ptr_)
 
@@ -1121,8 +1121,8 @@ export_to_cpp_standalone <- function(hh_model, outpath = "inst/standalone/") {
   utils::write.csv(payload$parameters,
                    file.path(outpath, "param.csv"),
                    quote = FALSE, row.names = FALSE)
-  utils::write.csv(char_setup_input_(hh_model$setup),
-                   file.path(outpath, "setup.csv"),
+  utils::write.csv(char_settings_input_(hh_model$settings),
+                   file.path(outpath, "settings.csv"),
                    quote = FALSE, row.names = FALSE)
 }
 # nocov end

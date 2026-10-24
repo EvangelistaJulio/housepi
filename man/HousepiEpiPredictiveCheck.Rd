@@ -6,16 +6,16 @@
 \title{Standard epidemiological posterior predictive check}
 \description{
 Posterior predictive check of standard epidemiological measures
-by household size: cases, attack rate and secondary attack rate,
-observed against predicted.
+by household size, observed against predicted:
+cases distribution, attack rate and secondary attack rate.
 }
 \examples{
 hh_model <- flu_1918_frederick |>
   new_housepi_model("final-size") |>
   add_parameter(import = "template")
-results <- run_inference(hh_model, chains = 2, progress = FALSE)
+hh_fit <- run_inference(hh_model, chains = 2, progress = FALSE)
 
-ppc <- check_predictive(hh_model, results, nrep = 50, progress = FALSE)
+ppc <- check_predictive(hh_model, hh_fit, nrep = 50, progress = FALSE)
 ppc$format_attack_rate()
 }
 \section{Super class}{
@@ -31,7 +31,7 @@ ppc$format_attack_rate()
     \item \href{#method-HousepiEpiPredictiveCheck-drop_max_hh_size}{\code{HousepiEpiPredictiveCheck$drop_max_hh_size()}}
     \item \href{#method-HousepiEpiPredictiveCheck-format_attack_rate}{\code{HousepiEpiPredictiveCheck$format_attack_rate()}}
     \item \href{#method-HousepiEpiPredictiveCheck-format_sec_attack_rate}{\code{HousepiEpiPredictiveCheck$format_sec_attack_rate()}}
-    \item \href{#method-HousepiEpiPredictiveCheck-format_cases_count}{\code{HousepiEpiPredictiveCheck$format_cases_count()}}
+    \item \href{#method-HousepiEpiPredictiveCheck-format_cases_distr}{\code{HousepiEpiPredictiveCheck$format_cases_distr()}}
     \item \href{#method-HousepiEpiPredictiveCheck-clone}{\code{HousepiEpiPredictiveCheck$clone()}}
   }
 }
@@ -86,14 +86,15 @@ If \code{NA}, no lower bound is applied.}
       \item{\code{max_hh_size}}{\code{integer(1)} Maximum household size retained in the outputs.
 If \code{NA}, no upper bound is applied.}
       \item{\code{threads}}{\code{integer(1)} Number of threads for parallel household runs.}
-      \item{\code{progress}}{\code{integer(1)} | \code{logical(1)} Control the progress bar,
+      \item{\code{progress}}{\code{numeric(1)} | \code{logical(1)} Control the progress bar,
 one of:
 \describe{
-\item{\code{integer}}{seconds between prints, a shorter run printing nothing;}
+\item{\code{numeric}}{seconds between prints, a shorter run printing nothing;}
 \item{\code{TRUE}}{one print per second;}
 \item{\code{FALSE} or \code{0}}{no progress bar.}
 }
-The bar prints as messages, which \code{\link[=suppressMessages]{suppressMessages()}} silences.}
+The bar prints as messages, which \code{\link[=suppressMessages]{suppressMessages()}} silences.
+In a knitted document, only its closing line prints.}
     }
     \if{html}{\out{</div>}}
   }
@@ -198,14 +199,15 @@ Sizes outside the set household size bounds are not returned.
 }
 
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HousepiEpiPredictiveCheck-format_cases_count"></a>}}
-\if{latex}{\out{\hypertarget{method-HousepiEpiPredictiveCheck-format_cases_count}{}}}
-\subsection{\code{HousepiEpiPredictiveCheck$format_cases_count()}}{
-  Format observed and predicted cases by household size.
+\if{html}{\out{<a id="method-HousepiEpiPredictiveCheck-format_cases_distr"></a>}}
+\if{latex}{\out{\hypertarget{method-HousepiEpiPredictiveCheck-format_cases_distr}{}}}
+\subsection{\code{HousepiEpiPredictiveCheck$format_cases_distr()}}{
+  Format observed and predicted cases distributions
+by household size.
 Sizes outside the set household size bounds are not returned.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
-    \preformatted{HousepiEpiPredictiveCheck$format_cases_count()}
+    \preformatted{HousepiEpiPredictiveCheck$format_cases_distr()}
     \if{html}{\out{</div>}}
   }
   \subsection{Returns}{

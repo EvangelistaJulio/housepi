@@ -441,8 +441,8 @@ HousepiContactRisk <- R6::R6Class(
       strata <- housepi_smart_unwrap(strata, "strata", null_ok = TRUE)
       params <- housepi_smart_unwrap(params, "params", null_ok = TRUE)
 
-      setup <- unwrap_risk_setup_(prior, proposal, min, max, list(...),
-                                  self$family)
+      config <- unwrap_risk_config_(prior, proposal, min, max, list(...),
+                                    self$family)
       mode <- risk_mode_(by, strata, params)
       if (.warn_over && length(self$defs)) warn_h(
         "Overwriting previous contact risk definition."
@@ -452,7 +452,7 @@ HousepiContactRisk <- R6::R6Class(
       } else {
         private$helper_custom_add_(strata, params, symmetric, reference)
       }
-      self$raw_params <- setup
+      self$raw_params <- config
 
       invisible(self)
     },

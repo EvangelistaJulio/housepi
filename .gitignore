@@ -80,3 +80,6 @@ CLAUDE.md
 /inst/standalone/profile/
 *.csv
 *.txt
+
+# clangd / clang-tidy flags, machine-specific paths
+/compile_flags.txt

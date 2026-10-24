@@ -269,8 +269,7 @@ HousepiCalibrationCheck <- R6::R6Class(
     #' @param structure_sampler `r rd_sweep_sampler_`
     #' @param rank_draws `r rd_calib_rank_draws_`
     #' @param steps `r rd_smpl_steps_`
-    #' @param burn `r rd_smpl_burn_`
-    #' @param thin `r rd_smpl_thin_`
+        #' @param thin `r rd_smpl_thin_`
     #' @param adapt `r rd_smpl_adapt_`
     #' @param chains `r rd_smpl_chain_`
     #' @param threads `r rd_sweep_threads_`
@@ -278,13 +277,13 @@ HousepiCalibrationCheck <- R6::R6Class(
     #' @param ... `r rd_dots_config_`
     initialize = function(hh_model, nrep = 200L, houses = NA_integer_,
                           structure_sampler = sample_house_structure,
-                          rank_draws = 99L, steps = 1000L, burn = 0L,
-                          thin = 5L, adapt = 500L,
+                          rank_draws = 99L,
+                          steps = 1000L, thin = 5L, adapt = 500L,
                           chains = 4L, threads = 1L,
                           progress = TRUE, ...) {
       nrep <- assert_count_(nrep, "Number of replicates")
       private$rank_draws_ <- assert_count_(rank_draws, "Number of ranked draws")
-      stored <- resolve_setup_(steps, burn, thin, adapt, chains)$total
+      stored <- resolve_settings_(steps, thin, adapt, chains)$total
       if (stored < rank_draws) stop_h(
         "The fit stores {stored} draw{?s}, fewer than {.arg rank_draws}.",
         paste("Raise {.arg steps} or {.arg chains}, or lower {.arg thin} or",
@@ -298,7 +297,7 @@ HousepiCalibrationCheck <- R6::R6Class(
 
       # no column: simulation draws every parameter anew from its prior
       pins <- numeric()
-      fit_args <- list(steps = steps, burn = burn, thin = thin, adapt = adapt,
+      fit_args <- list(steps = steps, thin = thin, adapt = adapt,
                        chains = chains)
       private$sweep_ <- HousepiSweep$new(
         hh_model, structure, structure_sampler, houses, nrep,
@@ -373,7 +372,6 @@ HousepiCalibrationCheck <- R6::R6Class(
 #' @param structure_sampler `r rd_sweep_sampler_`
 #' @param rank_draws `r rd_calib_rank_draws_`
 #' @param steps `r rd_smpl_steps_`
-#' @param burn `r rd_smpl_burn_`
 #' @param thin `r rd_smpl_thin_`
 #' @param adapt `r rd_smpl_adapt_`
 #' @param chains `r rd_smpl_chain_`
@@ -418,17 +416,16 @@ check_calibration <- function(hh_model,
                               houses = NA_integer_,
                               structure_sampler = sample_house_structure,
                               rank_draws = 99L,
-                              steps = 1000L, burn = 0L,
-                              thin = 5L, adapt = 500L,
+                              steps = 1000L, thin = 5L, adapt = 500L,
                               chains = 4L, threads = 1L,
                               progress = TRUE,
                               ...) {
   stopifnothousepi(hh_model)
-  assert_advanced_setup_(c("adapt_window", "time_step"), ...)
+  assert_advanced_settings_("time_step", ...)
   HousepiCalibrationCheck$new(
     hh_model$copy(), nrep = nrep, houses = houses,
     structure_sampler = structure_sampler, rank_draws = rank_draws,
-    steps = steps, burn = burn, thin = thin, adapt = adapt,
+    steps = steps, thin = thin, adapt = adapt,
     chains = chains, threads = threads, progress = progress, ...
   )
 }

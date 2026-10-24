@@ -37,10 +37,10 @@ namespace housepi::rules
         std::vector<std::vector<double>> cells; /// Cells per specificity column, NA for a catch-all.
 
         /// View `input`, parsing `spec_columns` into the cells.
-        Table(const str_table &input_,
+        Table(const str_table &input,
               const std::vector<std::string> &spec_columns)
-            : input(input_),
-              n_rows(count_rows(input_)),
+            : input(input),
+              n_rows(count_rows(input)),
               row_gid(n_rows),
               row_spec(n_rows),
               cells(spec_columns.size(), std::vector<double>(n_rows, na::DOUBLE))

@@ -20,9 +20,6 @@ namespace housepi::chain_binom
 {
     using std::vector;
 
-    template <typename T>
-    using matrix = vector<vector<T>>;
-
     //////////////////////////////  Homogeneous log-likelihood  //////////////////////////////
 
     namespace
@@ -101,7 +98,7 @@ namespace housepi::chain_binom
         double log_lik_heterogeneous_(Scratch &scratch,
                                       MemberIdx n_infec,
                                       const std::vector<double> &commu_infec_rate,
-                                      const std::vector<std::vector<double>> &p2p_infec_rate)
+                                      const matrix &p2p_infec_rate)
         {
             const size_t Nsets = size_t(1) << n_infec; // number of subsets R, 2^n_infec
 
@@ -186,8 +183,8 @@ namespace housepi::chain_binom
                           return sa != sb ? sa < sb : a < b;
                       });
 
-            std::map<gentype, std::uint32_t> idx_of;
-            for (std::uint32_t i = 0; i < sub_vecs.size(); ++i)
+            std::map<gentype, SubVecIdx> idx_of;
+            for (SubVecIdx i = 0; i < sub_vecs.size(); ++i)
                 idx_of[sub_vecs[i]] = i;
 
             PartitionTree dp;
@@ -241,7 +238,7 @@ namespace housepi::chain_binom
         double evaluate_partition_tree_(Scratch &scratch,
                                         const PartitionTree &dp,
                                         const vector<double> &log_commu_esc,
-                                        const matrix<double> &log_p2p_esc)
+                                        const matrix &log_p2p_esc)
         {
             const MemberIdx K = dp.sub_vecs.empty()
                                     ? 0
@@ -269,7 +266,7 @@ namespace housepi::chain_binom
 
                 for (const auto &wc : dp.ancestors[ti])
                 {
-                    const std::uint32_t wi = wc.first;
+                    const SubVecIdx wi = wc.first;
                     const double log_C = wc.second;
                     const auto &w = dp.sub_vecs[wi];
 
@@ -303,7 +300,7 @@ namespace housepi::chain_binom
                                     MemberIdx n_parts,
                                     const std::vector<MemberIdx> &part_indexes,
                                     const std::vector<double> &commu_infec_rate,
-                                    const std::vector<std::vector<double>> &p2p_infec_rate)
+                                    const matrix &p2p_infec_rate)
         {
             // log-escape probabilities per part
             auto &log_commu_esc = scratch.log_commu_esc;
@@ -329,13 +326,13 @@ namespace housepi::chain_binom
                           const std::string &where)
     {
         std::uint64_t terms = 1, nodes = 1;
-        for (MemberIdx s = 0; s < n_parts && terms - nodes <= max_terms; ++s)
+        for (MemberIdx s = 0; s < n_parts && terms - nodes <= MAX_TERMS; ++s)
         {
             const std::uint64_t c = part_counts[s];
             terms *= (c + 1) * (c + 2) / 2;
             nodes *= c + 1;
         }
-        if (terms - nodes > max_terms)
+        if (terms - nodes > MAX_TERMS)
         {
             const size_t n_infec = std::accumulate(part_counts.begin(), part_counts.begin() + n_parts, size_t{0});
             msg::stop(
@@ -355,7 +352,7 @@ namespace housepi::chain_binom
                           ShapeIdx shape_idx,
                           const std::vector<MemberIdx> &part_indexes,
                           const std::vector<double> &commu_infec_rate,
-                          const std::vector<std::vector<double>> &p2p_infec_rate)
+                          const matrix &p2p_infec_rate)
     {
         //////  Seronegative contribution  //////
 

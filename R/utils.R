@@ -53,7 +53,8 @@ quiet_warnings_$on <- FALSE
 #' Value of `code(bar)`, `bar` a progress bar over `total` units
 #' printed every `progress` seconds.
 #' * `progress` FALSE or 0 -> `bar` is `NULL`;
-#' * `progress` TRUE -> one print per second.
+#' * `progress` TRUE -> one print per second;
+#' * knitted document or notebook chunk -> closing line alone.
 #' Leaving `code` closes the bar:
 #' * returned -> with its closing line;
 #' * failed -> its line ended, before the error prints;
@@ -64,10 +65,13 @@ quiet_warnings_$on <- FALSE
 with_progress_ <- function(progress, label, total, code) {
   pace <- as.double(progress[[1L]])
   if (is.na(pace) || pace <= 0) return(code(NULL))
+  # a document stacks every print as its own message block
+  document <- isTRUE(getOption("knitr.in.progress")) ||
+    isTRUE(getOption("rstudio.notebook.executing"))
   # half the console, at most 39 symbols: squares on UTF-8 output, "#" otherwise
   bar <- .engine$progress_open(label, total, pace,
                                min(getOption("width"), 78L) %/% 2L,
-                               interactive(),
+                               interactive(), document,
                                if (cli::is_utf8_output()) "\u25a0" else "#")
   out <- withCallingHandlers(code(bar),
                              error = \(e) .engine$progress_crash(bar))
@@ -249,20 +253,22 @@ helper_read_param_table_ <- function(ptab, thin_ess = TRUE) {
   )
 }
 
-#' Split the `id_draws` selection into individual and household identifiers,
-#' plus the default-follow signal.
+#' Split the `id_draws` selection into individual and household identifiers.
+#' * `NULL` -> nothing stored;
+#' * `NA` or empty -> the default household is followed.
 #' Status filtering and the default household pick are left to the engine.
 #' @param id_draws Selection given to [run_inference()].
 #' @noRd
 resolve_id_draws_ <- function(id_draws) {
   out <- list(id = character(), hh_id = character())
-  # unspecified: let the engine follow one random household
-  if (!length(id_draws)) {
+  # explicit opt-out: forward the sentinel so the engine stores nothing
+  if (is.null(id_draws)) {
+    out$id <- ".none"
     return(out)
   }
-  # explicit opt-out: forward the sentinel so the engine stores nothing
-  if (identical(as.character(id_draws), ".none")) {
-    out$id <- ".none"
+  # unspecified: let the engine follow one random household
+  if (!length(id_draws) ||
+        (!is.list(id_draws) && length(id_draws) == 1L && is.na(id_draws))) {
     return(out)
   }
   # named list: split individual and household identifiers
@@ -384,14 +390,14 @@ helper_clone <- function(x) {
   else x
 }
 
-########  Setup  ########
+########  Settings  ########
 
-#' Assert undocumented advanced setup overrides from `...`.
+#' Assert undocumented advanced settings overrides from `...`.
 #' @param allowed `character()` Accepted argument names.
-#' @param ... Advanced setup overrides.
-#' @return `list` Non-null overrides keyed by engine setup key.
+#' @param ... Advanced settings overrides.
+#' @return `list` Non-null overrides keyed by engine settings key.
 #' @noRd
-assert_advanced_setup_ <- function(allowed, ...) {
+assert_advanced_settings_ <- function(allowed, ...) {
   dots <- list(...)
   for (nm in names(dots)) {
     if (!nm %in% allowed) stop_h(
@@ -404,9 +410,9 @@ assert_advanced_setup_ <- function(allowed, ...) {
   invisible()
 }
 
-#' Format setup options for the import_setup Rcpp method.
+#' Format settings for the import_settings Rcpp method.
 #' @noRd
-char_setup_input_ <- function(defs) {
+char_settings_input_ <- function(defs) {
   # change scientific notation locally
   withr::local_options(list(scipen = 500))
   # correct id / house trace vectors
@@ -418,29 +424,25 @@ char_setup_input_ <- function(defs) {
   data.frame(lapply(defs, as.character))
 }
 
-#' Assert, then resolve the sampler setup of an inference run:
+#' Assert, then resolve the sampler settings of an inference run:
 #' * `steps` -> extended to store the last thinned draw;
 #' * sample size -> per chain and in total.
 #' Counts are whole numbers, `thin` up to `steps`.
-#' @param adapt_window `integer(1)` Adaptation window, `NULL` for the default.
 #' @noRd
-resolve_setup_ <- function(steps, burn, thin, adapt, chains,
-                           adapt_window = NULL) {
+resolve_settings_ <- function(steps, thin, adapt, chains) {
   # a whole number past the integer range stays a double
   assert_whole <- function(x, what, min = 1) {
     if (rlang::is_scalar_integerish(x) && !is.na(x) && x >= min) return()
     # nolint next: object_usage_linter. read by the cli glue below
     kind <- if (min > 0) "positive" else "non-negative"
-    stop_h("Wrong setup: {what} should be a {kind} integer.")
+    stop_h("Wrong settings: {what} should be a {kind} integer.")
   }
   assert_whole(steps, "number of steps")
-  assert_whole(burn, "number of burn-in steps", min = 0)
   assert_whole(thin, "thinning interval")
   assert_whole(adapt, "number of adaptive steps", min = 0)
   assert_whole(chains, "number of chains")
-  if (!is.null(adapt_window)) assert_whole(adapt_window, "adaptation window")
   if (thin > steps) stop_h(
-    "Wrong setup: {.arg thin} cannot be greater than {.arg steps}."
+    "Wrong settings: {.arg thin} cannot be greater than {.arg steps}."
   )
   # round the sample size up, then extend steps to fill it
   chain <- steps %/% thin + (steps %% thin > 0)
@@ -581,9 +583,10 @@ resolve_discr_flags_ <- function(defs, discr_req_defs,
   }
 
   distr_col <- if (is_prior) "prior" else "model"
-  # a latent sampled without a model carries a proposal
-  is_sampled <- !is.na(defs[[distr_col]]) | !is.na(defs[["proposal"]])
-  mask <- is_sampled & (by_model | by_data)
+  # sampled: a prior, a model, or bare (no constant, no function)
+  has_distr <- !is.na(defs[[distr_col]]) |
+    (is.na(defs[["const"]]) & is.na(defs[["func"]]))
+  mask <- has_distr & (by_model | by_data)
   discr[unresolved] <- mask[unresolved]
   defs[["discr"]] <- discr
   defs
@@ -764,7 +767,10 @@ set_housepi_theme <- function(base_size = 11,
     my_point_feats <- list(color = "#FF7F50", size = 2)
     my_line_feats <- list(color = "#FF7F50", size = 1)
     my_errbar_feats <- c(my_line_feats, width = 0.1)
+    # labels on a borderless box of the panel colour, hiding the grid lines
+    my_label_feats <- c(my_text_feats, fill = my_panel$fill, linewidth = 0)
     ggplot2::update_geom_defaults("text", my_text_feats)
+    ggplot2::update_geom_defaults("label", my_label_feats)
     ggplot2::update_geom_defaults("line", my_line_feats)
     ggplot2::update_geom_defaults("point", my_point_feats)
     ggplot2::update_geom_defaults("vline", my_line_feats)
@@ -787,6 +793,8 @@ set_housepi_theme <- function(base_size = 11,
                                       font.size = base_size,
                                       font.color = "black",
                                       background.color = "white",
+                                      padding.left = 2,
+                                      padding.right = 2,
                                       theme_fun = "theme_vanilla")
   invisible()
 }

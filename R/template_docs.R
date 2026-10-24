@@ -67,7 +67,7 @@ NULL
 #' * \eqn{\mu^\mathrm{ctc}_{ji}}{mu^ctc_ji}: contact risk from member \eqn{j} to member \eqn{i}, equal to 1 unless set by [add_contact_risk()]
 #'
 #' @section Model Quantities:
-#' [inspect_house_state()] reports in `model_quantities`:
+#' [inspect_state()] reports in `model_quantities`:
 #' * \code{community_escape}: \eqn{q^\mathrm{com}_{i}}{q^com_i}, per member
 #' * \code{p2p_escape}: \eqn{q^\mathrm{pp}_{ji}}{q^pp_ji}, infector \eqn{j} by row and infectee \eqn{i} by column, 1 on the diagonal
 #'
@@ -152,7 +152,7 @@ NULL
 #' }
 #'
 #' @section Model Quantities:
-#' [inspect_house_state()] reports in `model_quantities` the terms of \eqn{\lambda_{i}(t)}{lambda_i(t)}:
+#' [inspect_state()] reports in `model_quantities` the terms of \eqn{\lambda_{i}(t)}{lambda_i(t)}:
 #' * \code{community_rate}: \eqn{\alpha \, \mu^\mathrm{com}_{i}}{alpha mu^com_i}, per member
 #' * \code{p2p_rate}: \eqn{\beta \left(\tfrac{n_\mathrm{ref}}{n}\right)^{\gamma} \mu^\mathrm{inf}_{j} \, \mu^\mathrm{ctc}_{ji} \, \mu^\mathrm{sus}_{i}}{beta (n_ref / n)^gamma mu^inf_j mu^ctc_ji mu^sus_i}, multiplying \eqn{f_{j}(t - t_{j})}{f_j(t - t_j)}, infector \eqn{j} by row and infectee \eqn{i} by column, 0 on the diagonal
 #'

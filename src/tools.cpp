@@ -3,13 +3,11 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-#include <fstream>
 #include <sstream>
 
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
-#include <limits>
 #include <string>
 #include <unordered_set>
 #include <vector>
@@ -29,9 +27,9 @@
 
 namespace housepi
 {
-    void KeyHolder::clear_optional() { keys_.resize(n_declared_); }
+    void KeyHolder::clear_optional_() { keys_.resize(n_declared_); }
 
-    void KeyHolder::add(std::string_view name)
+    void KeyHolder::add_(std::string_view name)
     {
         if (!count(name))
             keys_.emplace_back(name);
@@ -622,11 +620,8 @@ namespace housepi::parse
         }
     }
 
-    Entry::Entry(const std::string &value_, const std::string &type_)
-    {
-        value = value_;
-        type = str::toup(type_);
-    }
+    Entry::Entry(const std::string &value, const std::string &type)
+        : type(str::toup(type)), value(value) {}
 
     std::string Entry::str() const
     {

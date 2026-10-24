@@ -5,7 +5,6 @@
 
 #pragma once
 
-#include <cstdint>
 #include <string>
 #include <string_view>
 #include <unordered_set>
@@ -102,7 +101,7 @@ namespace housepi::data
         /// Number of households in equivalence class `R`.
         size_t eq_class_weight(size_t R) const noexcept { return eq_classes_[R].weight_; }
         /// Equivalence class of household `H`.
-        size_t get_eq_class(size_t H) const noexcept { return house_vector_[H].eq_class_; }
+        EqClassIdx get_eq_class(size_t H) const noexcept { return house_vector_[H].eq_class_; }
         /// Number of equivalence classes.
         size_t eq_class_size() const noexcept { return report_house.distinct; }
         /// Head household of equivalence class `R`.

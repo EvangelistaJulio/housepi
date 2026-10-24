@@ -5,7 +5,6 @@
 
 #pragma once
 
-#include <cstddef>
 #include <cstdint>
 
 #include "data/status.h"
@@ -14,52 +13,53 @@
 
 namespace housepi
 {
-	using IndivIdx = std::uint32_t; /// Global individual index.
-	using HouseIdx = std::uint32_t; /// Global household index.
-	using MemberIdx = std::uint8_t; /// Member index within its household.
+    using IndivIdx = std::uint32_t;   /// Global individual index.
+    using HouseIdx = std::uint32_t;   /// Global household index.
+    using EqClassIdx = std::uint32_t; /// Household equivalence class index.
+    using MemberIdx = std::uint8_t;   /// Member index within its household.
 
-	/// Member of one household.
-	///
-	/// The user id lives in data::Wide, keyed by individual index, see Index::of().
-	class Individual final
-	{
-		friend class Household; /// Owns and mutates its members.
-		friend struct Index;	/// Reads the opaque storage indexes.
+    /// Member of one household.
+    ///
+    /// The user id lives in data::Wide, keyed by individual index, see Index::of().
+    class Individual final
+    {
+        friend class Household; /// Owns and mutates its members.
+        friend struct Index;    /// Reads the opaque storage indexes.
 
-	public:
-		//////  Operator  //////
+    public:
+        //////  Operator  //////
 
-		/// Whether they are different individuals.
-		bool operator!=(const Individual &other) const noexcept { return indiv_index_ != other.indiv_index_; }
+        /// Whether they are different individuals.
+        bool operator!=(const Individual &other) const noexcept { return indiv_index_ != other.indiv_index_; }
 
-		//////  Getter  //////
+        //////  Getter  //////
 
-		/// Status.
-		StatusLvl status() const noexcept { return status_; }
+        /// Status.
+        StatusLvl status() const noexcept { return status_; }
 
-		/// Whether status is infected.
-		bool is_infected_status() const noexcept { return status::is_infected(status_); }
-		/// Whether status is missing.
-		bool is_missing_status() const noexcept { return status::is_missing(status_); }
+        /// Whether status is infected.
+        bool is_infected_status() const noexcept { return status::is_infected(status_); }
+        /// Whether status is missing.
+        bool is_missing_status() const noexcept { return status::is_missing(status_); }
 
-	private:
-		IndivIdx indiv_index_ = 0;			 /// Global individual index.
-		MemberIdx member_index_ = 0;		 /// Index within its household.
-		StatusLvl status_ = status::MISSING; /// Status.
-	};
+    private:
+        IndivIdx indiv_index_ = 0;           /// Global individual index.
+        MemberIdx member_index_ = 0;         /// Index within its household.
+        StatusLvl status_ = status::MISSING; /// Status.
+    };
 
-	//////////////////////////////  Index  //////////////////////////////
+    //////////////////////////////  Index  //////////////////////////////
 
-	class Household;
+    class Household;
 
-	/// Storage indexes of Individual and Household, a client-attorney for lightweight viewers.
-	struct Index
-	{
-		/// Index of `indiv` within its household.
-		static MemberIdx member(const Individual &indiv) noexcept { return indiv.member_index_; }
-		/// Global index of `indiv`.
-		static IndivIdx of(const Individual &indiv) noexcept { return indiv.indiv_index_; }
-		/// Global index of `house`, defined in data/household.h.
-		static HouseIdx of(const Household &house) noexcept;
-	};
+    /// Storage indexes of Individual and Household, a client-attorney for lightweight viewers.
+    struct Index
+    {
+        /// Index of `indiv` within its household.
+        static MemberIdx member(const Individual &indiv) noexcept { return indiv.member_index_; }
+        /// Global index of `indiv`.
+        static IndivIdx of(const Individual &indiv) noexcept { return indiv.indiv_index_; }
+        /// Global index of `house`, defined in data/household.h.
+        static HouseIdx of(const Household &house) noexcept;
+    };
 }

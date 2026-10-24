@@ -82,6 +82,16 @@ namespace housepi
         /// * each contact risk of one matches its counterpart for the other, outgoing and incoming.
         bool same_partition(const Household &house, MemberIdx i, MemberIdx j) const;
 
+        /// List the households reading each of `n_params` parameters through a risk, in increasing order.
+        std::vector<std::vector<HouseIdx>> list_houses_of_param(size_t n_params) const;
+        /// List the parameters moving together with each sampled baseline, the baseline first.
+        /// * risk holding enough units against its reference -> joins the block of its baseline;
+        /// * unknown units -> left out;
+        /// * not sampled, or a declared proposal -> left out;
+        /// * prior or bounds reading another member -> moves alone;
+        /// * blocks sharing a member -> merged, a block of fewer than two members dropped.
+        /// @note "Enough" is `risks::BLOCK_MIN_SHARE` of the units of the reference of its rule group.
+        std::vector<std::vector<size_t>> list_param_blocks(const Parameter &param) const;
         /// Throw if more than one scale is free among a baseline and the risks scaling it.
         void assert_identifiability(const Parameter &param) const;
 

@@ -5,8 +5,8 @@
 
 #pragma once
 
-#include <cstdint>
 #include <cmath>
+#include <cstdint>
 #include <memory>
 #include <string>
 #include <string_view>
@@ -22,7 +22,7 @@ namespace housepi
     class Function;
 
     /// Index for the global name pool of the process.
-    using NameIndex = std::uint32_t;
+    using NameIdx = std::uint32_t;
 
     /// Openness of an interval side.
     enum class Interval : std::uint8_t
@@ -152,14 +152,14 @@ namespace housepi
             switch (mode_)
             {
             case Mode::Pointer:
-                return pAttr_->pointer();
+                return attr_->pointer();
             default: // cases Mode::Empty, Mode::Numeric, Mode::Function
                 return this;
             }
         }
         /// Get the function, nullptr unless in function mode.
         /// @note Pointers are not followed: call pointer() first.
-        const Function *function() const noexcept { return pFunc_.get(); }
+        const Function *function() const noexcept { return func_.get(); }
 
         //////  Flags  //////
 
@@ -204,12 +204,12 @@ namespace housepi
             Function
         } mode_ = Mode::Empty;
 
-        ErrType err_type_ = ErrType::Empty;         /// Type name displayed in errors.
-        bool is_user_const_ = false;                /// Whether the user declared it constant.
-        NameIndex name_id_ = 0;                     /// Interned name id, 0 when empty.
-        double value_ = na::DOUBLE;                 /// Numeric value.
-        const Attribute *pAttr_ = nullptr;          /// Pointed attribute.
-        std::unique_ptr<Function> pFunc_ = nullptr; /// Owned function.
+        ErrType err_type_ = ErrType::Empty;        /// Type name displayed in errors.
+        bool is_user_const_ = false;               /// Whether the user declared it constant.
+        NameIdx name_id_ = 0;                      /// Interned name id, 0 when empty.
+        double value_ = na::DOUBLE;                /// Numeric value.
+        const Attribute *attr_ = nullptr;          /// Pointed attribute.
+        std::unique_ptr<Function> func_ = nullptr; /// Owned function.
     };
 
     //////////////////////////////  Domain  //////////////////////////////
@@ -631,9 +631,9 @@ namespace housepi
         case Mode::Numeric:
             return value_;
         case Mode::Pointer:
-            return pAttr_->value();
+            return attr_->value();
         case Mode::Function:
-            return pFunc_->evaluate();
+            return func_->evaluate();
         default: // case Mode::Empty
             return na::DOUBLE;
         }

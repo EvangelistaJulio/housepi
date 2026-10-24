@@ -119,7 +119,7 @@ cat("\n```\n")
 
 Key elements:
 
-- **Register keys**: `HOUSEPI_DECLARE_REGISTER_KEYS` declares named keys for latent variables (`proba`) and parameters (`alpha`). Empty key macros are used for unused slots (data, group risks, etc.).
+- **Declare keys**: `HOUSEPI_DECLARE_LATENT_KEYS` and `HOUSEPI_DECLARE_PARAM_KEYS` declare the latent variable `proba` and the parameter `alpha`. A slot the model does not read needs no macro.
 - **Log-likelihood**: `compute_house_obs_log_lik()` sums the log of each infected member's `proba` value, offset by `-alpha`.
 - **Initialization**: `simulate_single_house()` initializes missing latent variables for each infected member.
 

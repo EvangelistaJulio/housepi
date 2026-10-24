@@ -40,7 +40,7 @@ namespace housepi
 
         /// Draw the infected status of member `indiv`.
         /// * no status process -> the lowest infected status.
-        StatusLvl draw(const Individual &indiv, rnd_gen &prng) const;
+        StatusLvl draw(const Individual &indiv, RndGen &prng) const;
 
         /// Infected statuses member `indiv` can draw, those of positive weight.
         /// * no status process -> the lowest infected status.

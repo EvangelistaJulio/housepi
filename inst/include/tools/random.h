@@ -8,47 +8,34 @@
 #include <cstdint>
 #include <random>
 
+#include <boost/random/normal_distribution.hpp>
 #include <boost/random/xoshiro.hpp>
 
 namespace housepi
 {
     /// Xor Shift Rotate 256 Star Star, seeded with Split Mix 64.
     /// Based on @cite blackman_xoshiro256starstar_2018 and @cite vigna_pseudo_random_2015
-    struct rnd_gen
+    struct RndGen
     {
         using result_type = std::uint64_t;
 
         //////  Constructor  //////
 
-        rnd_gen() = default;
-        explicit rnd_gen(result_type seed) { this->seed(seed); }
+        RndGen() = default;
+        explicit RndGen(result_type seed) { this->seed(seed); }
 
         //////  Operators  //////
 
         /// Draw the next 64-bit integer.
         result_type operator()() noexcept { return engine_(); }
 
-        /// Draw a standard N(0,1) deviate.
-        /// Deviates come in pairs: the sampler holds a spare between calls.
-        double draw_normal() { return normal_dist_(*this); }
-        /// Reset the normal sampler, discarding the spare.
-        void reset() { normal_dist_.reset(); }
-
         //////  Setter  //////
 
         /// Seed with SplitMix64.
-        void seed(result_type seed)
-        {
-            reset();
-            engine_.seed(seed);
-        }
+        void seed(result_type seed) { engine_.seed(seed); }
 
         /// Jump 2^128 steps ahead, splitting parallel streams.
-        void jump() noexcept
-        {
-            reset();
-            engine_.jump();
-        }
+        void jump() noexcept { engine_.jump(); }
 
         //////  Getter  //////
 
@@ -57,29 +44,19 @@ namespace housepi
         static constexpr result_type max() noexcept { return boost::random::xoshiro256mm::max(); }
 
     private:
-        boost::random::xoshiro256mm engine_;           /// Generator engine.
-        std::normal_distribution<double> normal_dist_; /// Holds the spare of each normal pair.
+        boost::random::xoshiro256mm engine_; /// Generator engine.
     };
 
     //////  Standard samplers  //////
 
     /// @todo Improve the standard samplers.
 
-    /// Draw a standard N(0,1) variate.
-    /// The sampler lives on the generator, so seed() and jump() reset it.
-    inline double standard_normal(rnd_gen &prng) { return prng.draw_normal(); }
+    /// Draw a standard N(0,1) variate with the ziggurat method, stateless.
+    inline double standard_normal(RndGen &prng) { return boost::random::normal_distribution<double>()(prng); }
 
     /// Draw a uniform [0, 1) variate, stateless.
-    inline double standard_uniform(rnd_gen &prng)
-    {
-        std::uniform_real_distribution<double> gen(0., 1.);
-        return gen(prng);
-    }
+    inline double standard_uniform(RndGen &prng) { return std::uniform_real_distribution<double>()(prng); }
 
     /// Draw a unit-rate exponential variate, stateless.
-    inline double standard_exponential(rnd_gen &prng)
-    {
-        std::exponential_distribution<double> gen(1.);
-        return gen(prng);
-    }
+    inline double standard_exponential(RndGen &prng) { return std::exponential_distribution<double>()(prng); }
 }

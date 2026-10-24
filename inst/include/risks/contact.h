@@ -92,6 +92,9 @@ namespace housepi::risks
             return from == to ? 0. : (is_empty() ? 1. : at(house, from, to).value());
         }
 
+        /// Rule groups scaling the contacts, their scale anchoring.
+        const std::vector<ScaleAnchor> &scale_anchors() const noexcept { return scale_anchors_; }
+
         /// Number of rule groups whose overall scale is free.
         size_t n_scale_free(const Parameter &param) const
         {

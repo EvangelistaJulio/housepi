@@ -7,10 +7,8 @@
 
 #include <cstdint>
 #include <memory>
-#include <stdexcept>
 #include <string>
 #include <string_view>
-#include <utility>
 #include <vector>
 
 #include "tools/dictionary.h"
@@ -30,8 +28,8 @@ namespace housepi
     public:
         //////  Constructor  //////
 
-        Variable();                          /// Constructor.
-        ~Variable() override;                /// Destructor.
+        Variable();           /// Constructor.
+        ~Variable() override; /// Destructor.
         /// Copy constructor.
         /// * proposal -> not copied, the copy binds its own.
         /// @note Copy only before proposals are bound, as State allocation does.
@@ -53,12 +51,12 @@ namespace housepi
 
         /// Reshape the function, see Function::reshape().
         /// @note The model's discretization takes priority, e.g. `discr` false on a discrete-defined model.
-        void reshape_function(bool discr) { pFunc_->reshape(discr); }
+        void reshape_function(bool discr) { func_->reshape(discr); }
 
         /// Initialize distribution `opt`.
         void init_distr(std::string_view opt, bool discr);
         /// Initialize argument `key` of the distribution from `attr`.
-        void init_distr_attr(std::string_view key, const Attribute &attr) { pDistr_->init_attr(key, attr); }
+        void init_distr_attr(std::string_view key, const Attribute &attr) { distr_->init_attr(key, attr); }
         /// Reshape the distribution.
         /// @note Always call it after init_distr().
         void reshape_distribution(bool discr);
@@ -74,13 +72,13 @@ namespace housepi
         /// Drop user choice for constant. Used when readers bind its variable.
         void release_user_const() noexcept { is_user_const_ = false; }
         /// Draw the initial value from the distribution, if any.
-        void restart(rnd_gen &prng);
+        void restart(RndGen &prng);
         /// Draw the value from the distribution, the constant flag ignored.
         /// * no distribution -> skipped.
-        void draw_value(rnd_gen &prng)
+        void draw_value(RndGen &prng)
         {
-            if (pDistr_)
-                set(pDistr_->rand(prng));
+            if (distr_)
+                set(distr_->rand(prng));
         }
         /// Finalize the attribute and the distribution arguments, see Attribute::finalize().
         void finalize() override final;
@@ -94,25 +92,30 @@ namespace housepi
         /// * otherwise -> the support of the distribution.
         Codomain codomain() const noexcept override final
         {
-            return !pDistr_ || is_constant() ? Attribute::codomain() : pDistr_->support();
+            return !distr_ || is_constant() ? Attribute::codomain() : distr_->support();
         }
         /// Whether the variable has a distribution.
-        bool has_distr() const noexcept { return pDistr_ != nullptr; }
+        bool has_distr() const noexcept { return distr_ != nullptr; }
         /// Whether the variable has a definition: a value, a pointer, a function or a distribution.
-        bool has_definition() const noexcept { return !is_empty() || pDistr_; }
+        bool has_definition() const noexcept { return !is_empty() || distr_; }
 
         //////  Metropolis-Hastings  //////
 
         /// Propose a new value, keeping the previous one.
-        void propose(rnd_gen &prng) { set(pProp_->propose(prng, value_)); }
+        void propose(RndGen &prng) { set(prop_->propose(prng, value_)); }
         /// Whether the last proposed value is valid.
+        /// * `RandomWalk` -> inside the domain of the distribution;
+        /// * `Unconstrained` -> proposal log-ratio finite, infinite on a value rounded onto a bound;
+        /// * otherwise -> always.
         bool is_valid_move() const
         {
-            switch (valid_mode_)
+            switch (move_mode_)
             {
-            case Validity::Check:
-                return pDistr_->is_valid(value_);
-            default: // case Validity::Always:
+            case Move::RandomWalk:
+                return distr_->is_valid(value_);
+            case Move::Unconstrained:
+                return proposal_log_ratio() < inf::DOUBLE;
+            default: // case Move::Forward, Move::Independence:
                 return true;
             }
         }
@@ -120,65 +123,82 @@ namespace housepi
         /// Restore previous value.
         void restore() noexcept { value_ = old_; }
 
-        /// Reset an adaptable proposal to its default scale.
-        void init_proposal() { pProp_->reset(pDistr_.get()); }
-        /// Adapt the proposal to acceptance ratio `ratio`, if adaptable.
-        void adapt_proposal(double ratio) { pProp_->adapt(ratio); }
+        /// Whether the variable can join a block: it moves by a random walk in the unconstrained coordinate.
+        bool can_join_block() const noexcept { return move_mode_ == Move::Unconstrained; }
+        /// Jump by `dz` in the unconstrained coordinate, keeping the previous value.
+        /// @return Proposal log-ratio of the move.
+        /// @note Expects can_join_block().
+        double block_jump(double dz)
+        {
+            RndWalkProposal &prop = unconstrained_();
+            set(prop.jump(value_, dz));
+            return prop.log_ratio(old_, value_);
+        }
+        /// Current value in the unconstrained coordinate.
+        /// @note Expects can_join_block().
+        double block_coord() const { return unconstrained_().to_coord(value_); }
+        /// Default jump scale in the unconstrained coordinate.
+        /// @note Expects can_join_block().
+        double block_scale() const { return unconstrained_().default_scale(distr_.get()); }
 
-        /// Under adaptation, inform the proposal about refusal, with accept-rate smoothing `s`.
-        void refuse_proposal_move(double s) noexcept { pProp_->refuse_move(s); }
-        /// Under adaptation, inform the proposal about acceptance, with accept-rate smoothing `s`.
-        void commit_proposal_move(double s) noexcept { pProp_->commit_move(old_, value_, s); }
+        /// Name of the proposal, see Proposal::name().
+        std::string proposal_name() const { return prop_->name(); }
+        /// Coordinate of the proposal jumps, see Proposal::coord().
+        std::string proposal_coord() const { return prop_->coord(); }
+        /// Current scale of the proposal, see Proposal::scale().
+        double proposal_scale() const noexcept { return prop_->scale(); }
+
+        /// Reset an adaptable proposal to its default scale.
+        void init_proposal() { prop_->reset(distr_.get()); }
+        /// Adapt the proposal to acceptance probability `alpha` of the last move, with gain `gain`.
+        void adapt_proposal(double alpha, double gain) { prop_->adapt(alpha, gain); }
 
         /// Log-pdf of the current value.
         /// @note Assumes the value is valid: no check.
-        double log_pdf() const { return pDistr_->log_pdf(value_); }
+        double log_pdf() const { return distr_->log_pdf(value_); }
         /// Log-pdf of the current value, minus infinity when invalid.
-        double guarded_log_pdf() const { return pDistr_->guarded_log_pdf(value_); }
+        double guarded_log_pdf() const { return distr_->guarded_log_pdf(value_); }
         /// Log-ratio of densities from the previous to the current value.
         /// @note Assumes the density arguments, domain included, did not change.
-        double log_ratio() const { return pDistr_->log_ratio(old_, value_); }
+        double log_ratio() const { return distr_->log_ratio(old_, value_); }
         /// Log-ratio of proposals from the previous to the current value.
-        double proposal_log_ratio() const { return pProp_->log_ratio(old_, value_); }
+        double proposal_log_ratio() const { return prop_->log_ratio(old_, value_); }
         /// Log-ratio of the last move: densities minus proposals.
+        /// * `Forward` -> 0, the two cancel.
         double get_move_log_ratio() const
         {
-            switch (ratio_mode_)
-            {
-            case Ratio::Compute:
-                return log_ratio() - proposal_log_ratio();
-            default: // case Ratio::None:
-                return 0;
-            }
+            return move_mode_ == Move::Forward ? 0. : log_ratio() - proposal_log_ratio();
         }
 
     private:
-        /// Whether is_valid_move() checks the value.
-        enum class Validity : std::uint8_t
+        /// Proposal family, read by is_valid_move() and get_move_log_ratio().
+        enum class Move : std::uint8_t
         {
-            Always,
-            Check
-        } valid_mode_ = Validity::Always;
-        /// Whether get_move_log_ratio() computes the ratio.
-        enum class Ratio : std::uint8_t
-        {
-            None,
-            Compute
-        } ratio_mode_ = Ratio::None;
+            Forward,      /// Never moves, or draws from its own distribution: no ratio, always valid.
+            Independence, /// Draws inside the domain: ratio computed, always valid.
+            RandomWalk,   /// May move outside the domain: ratio computed, value checked.
+            Unconstrained /// Moves in the unconstrained coordinate: ratio computed, proposal judges validity.
+        } move_mode_ = Move::Forward;
 
-        double old_ = na::DOUBLE;              /// Previous value.
-        std::unique_ptr<Distribution> pDistr_; /// Distribution.
-        std::unique_ptr<Proposal> pProp_;      /// Proposal.
+        double old_ = na::DOUBLE;             /// Previous value.
+        std::unique_ptr<Distribution> distr_; /// Distribution.
+        std::unique_ptr<Proposal> prop_;      /// Proposal.
 
-    private:
         //////  Helpers  //////
+
+        /// Proposal as a random walk in the unconstrained coordinate.
+        RndWalkProposal &unconstrained_() { return static_cast<RndWalkProposal &>(*prop_); }
+        const RndWalkProposal &unconstrained_() const { return static_cast<const RndWalkProposal &>(*prop_); }
 
         /// Initialize null proposal.
         void helper_init_null_proposal_();
         /// Initialize independence proposal drawing directly from distribution.
-        void helper_init_distr_proposal_();
+        void helper_init_forward_proposal_();
         /// Initialize a random-walk proposal: rw, rw_log or rw_unif.
         void helper_init_random_walk_proposal_(const std::string &proposal, double scale);
+        /// Initialize the default proposal, a random walk in the unconstrained coordinate.
+        /// * discrete prior -> rw on its lattice.
+        void helper_init_default_proposal_();
         /// Initialize an independence proposal drawing from a named distribution.
         void helper_init_independence_proposal_(const std::string &proposal, const dict<Attribute> &args);
     };

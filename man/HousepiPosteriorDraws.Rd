@@ -34,12 +34,12 @@ with no latent variable or observation node, the remaining terms vanish
 and \code{log_lik} contracts to transmission alone.
 }
 \examples{
-results <- flu_1918_frederick |>
+hh_fit <- flu_1918_frederick |>
   new_housepi_model("final-size") |>
   add_parameter(import = "template") |>
   run_inference(chains = 2, progress = FALSE)
-results
-get_parameter_draws(results)
+hh_fit
+get_parameter_draws(hh_fit)
 }
 \section{Active bindings}{
   \if{html}{\out{<div class="r6-active-bindings">}}

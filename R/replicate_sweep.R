@@ -295,9 +295,9 @@ sweep_pool_ <- function(sweeps) {
 #' draws <- data.frame(alpha = 0.15, beta = 0.2, gamma = 1)
 #' recovery <- check_recovery(hh_model, draws, nrep = 2, houses = 30,
 #'                            progress = FALSE)
-#' more <- check_recovery(hh_model, draws, nrep = 2, houses = 30,
-#'                        progress = FALSE)
-#' c(recovery, more)$nrep
+#' recovery_2 <- check_recovery(hh_model, draws, nrep = 2, houses = 30,
+#'                              progress = FALSE)
+#' c(recovery, recovery_2)$nrep
 #' @name combine_checks
 #' @export
 c.HousepiRecoveryCheck <- function(...) sweep_combine_(list(...))
@@ -395,27 +395,25 @@ sweep_guard_ <- function(expr, rep, houses) {
 #' `NA` drawn from the prior.
 #' @param fit_args `list` Sampler settings of each fit.
 #' @param threads `integer(1)` Threads shared by the fits of a wave.
-#' @param dots `list` Advanced setup of the check,
+#' @param dots `list` Advanced settings of the check,
 #' split between the simulation and the fits.
 #' @param label `character(1)` Label of the progress bar.
 #' @noRd
 sweep_run_ <- function(hh_model, structure, sampler, houses, nrep, pins,
                        fit_args, threads, dots, reducer, progress, label) {
-  adapt <- dots[names(dots) == "adapt_window"]
-  do.call(resolve_setup_, c(fit_args, adapt))
+  do.call(resolve_settings_, fit_args)
   # fits read the wide survey only
   hh_model <- add_reporting_process(hh_model, long = NULL)
   fingerprint <- sweep_fingerprint_(hh_model, structure, sampler)
   time_step <- dots[names(dots) == "time_step"]
-  # a copy carries no setup: it reads the engine defaults
-  advanced <- utils::modifyList(hh_model$setup[c("adapt_window", "time_step")],
-                                c(adapt, time_step))
+  # a copy carries no settings: it reads the engine defaults
+  advanced <- utils::modifyList(hh_model$settings["time_step"], time_step)
   settings <- lapply(c(fit_args, advanced), as.numeric)
   # one simulation call per household count yields the whole cell,
   # the pins repeated one row per replicate
   sim_args <- c(list(draws = sweep_param_table_(pins, nrep)), time_step)
   workers <- sweep_split_(nrep, threads)
-  fit_args <- c(fit_args, adapt, threads = workers$inner, id_draws = ".none")
+  fit_args <- c(fit_args, list(threads = workers$inner, id_draws = NULL))
   waves <- split(seq_len(nrep), (seq_len(nrep) - 1L) %/% workers$outer)
   # the replicates at `n` households, reduced
   cell <- function(n, bar) {

@@ -87,11 +87,11 @@ namespace housepi
                             const Household *house_ptr) const;
 
     private:
-        Parameter &param_;                /// Parameter key module.
-        Augmented &augm_;                 /// Latent key module.
-        const Data &data_;                /// Data tables and key holder.
-        const risks::Group &group_risk_;  /// Group-risk storage and key holder.
-        mutable Attribute storage_;       /// Auxiliary storage attribute.
+        Parameter &param_;               /// Parameter key module.
+        Augmented &augm_;                /// Latent key module.
+        const Data &data_;               /// Data tables and key holder.
+        const risks::Group &group_risk_; /// Group-risk storage and key holder.
+        mutable Attribute storage_;      /// Auxiliary storage attribute.
 
         /// Build function `node` into `storage_`, its arguments bound.
         void helper_store_read_function_(const parse::Entry &node,

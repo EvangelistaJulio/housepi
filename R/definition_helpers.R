@@ -279,7 +279,6 @@ helper_variable_move <- function(opts, family) {
       "Provide a {.arg {dist_word}}, or both {.arg min} and {.arg max}."
     )
   }
-  if (is.na(opts$proposal)) opts$proposal <- "rw"
   opts
 }
 

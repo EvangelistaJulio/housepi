@@ -4,8 +4,8 @@ library(testthat)
 
 # three members over `datum`, two of them sharing a value
 mk_strata <- local({
-  hhdata <- data.frame(datum = c("a", "a", "b"))
-  list(data = hhdata, cells = member_cells_(hhdata, "datum"))
+  hh_data <- data.frame(datum = c("a", "a", "b"))
+  list(data = hh_data, cells = member_cells_(hh_data, "datum"))
 })
 
 # fit check of one table keyed on `datum`, its rules in one rule group
@@ -72,20 +72,20 @@ test_that("Rule groups follow the maximal patterns of the table", {
 ####  Resolution  ####
 
 test_that("Member cells hold each covariate combination once", {
-  hhdata <- data.frame(datum = c("a", "a", "b", NA))
-  cells <- member_cells_(hhdata, "datum")
+  hh_data <- data.frame(datum = c("a", "a", "b", NA))
+  cells <- member_cells_(hh_data, "datum")
   cells$datum |> expect_identical(c("a", "b", NA))
   cells$.weight |> expect_identical(c(2L, 1L, 1L))
   cells$.combo |> expect_identical(1:3)
 
   # every infected status repeats every combination
-  cells <- member_cells_(hhdata, "datum", c("symptomatic", "asymptomatic"))
+  cells <- member_cells_(hh_data, "datum", c("symptomatic", "asymptomatic"))
   cells$status |> expect_identical(rep(c("symptomatic", "asymptomatic"),
                                        each = 3))
   cells$.combo |> expect_identical(rep(1:3, 2))
 
   # no covariate: one cell holding every member
-  member_cells_(hhdata, character())$.weight |> expect_identical(4L)
+  member_cells_(hh_data, character())$.weight |> expect_identical(4L)
 })
 
 test_that("A cell goes to the most specific rule it matches", {

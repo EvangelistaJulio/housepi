@@ -12,25 +12,25 @@ mk_latent <- local({
 
 # saturated outbreak: every household infects all of its members
 mk_outbreak <- local({
-  hhdata <- sarscov2_2021_icofs |>
+  hh_data <- sarscov2_2021_icofs |>
     dplyr::filter(hh_id %in% utils::head(unique(hh_id), 50)) |>
     dplyr::mutate(end_date = 21)
-  hh_model <- hhdata |>
+  hh_model <- hh_data |>
     new_housepi_model("case-ascertained") |>
     add_infectivity_profile(import = "template") |>
     add_parameter(alpha = 1e-12, beta = 100, gamma = 1, hh_size_ref = 4)
-  list(data = hhdata, model = hh_model)
+  list(data = hh_data, model = hh_model)
 })
 
 # two infected statuses under the template definitions
 mk_status <- local({
-  hhdata <- data.frame(id = c("m1", "m2", "m3", "m4"), hh_id = "h1",
-                       status = c(1, 2, 0, 0), end_date = 21)
-  hh_model <- hhdata |>
+  hh_data <- data.frame(id = c("m1", "m2", "m3", "m4"), hh_id = "h1",
+                        status = c(1, 2, 0, 0), end_date = 21)
+  hh_model <- hh_data |>
     new_housepi_model("case-ascertained") |>
     add_parameter(import = "template") |>
     add_latent(import = "template")
-  list(data = hhdata, model = hh_model)
+  list(data = hh_data, model = hh_model)
 })
 
 # every case_ascertained parameter pinned

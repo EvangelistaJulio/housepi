@@ -8,6 +8,7 @@
 #include <cstdint>
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "tools/dictionary.h"
@@ -36,9 +37,20 @@ namespace housepi
             /// Clear the table.
             void clear() noexcept;
             /// Recover the previous table, if the generic profile is not constant.
-            void recover() noexcept;
+            void recover() noexcept
+            {
+                if (generic_ptr_->is_constant())
+                    return;
+                std::swap(value_, old_);
+            }
             /// Update the table, if the generic profile is not constant.
-            void update();
+            void update()
+            {
+                if (generic_ptr_->is_constant())
+                    return;
+                std::swap(value_, old_);
+                materialize_();
+            }
 
             //////  Getter  //////
 

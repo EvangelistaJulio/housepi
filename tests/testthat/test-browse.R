@@ -1070,8 +1070,8 @@ test_that("browse_templates rejects '.' as destination path", {
 })
 
 test_that("Model help pages name the keys the engine registers", {
-  modules <- c(Data = "Data", Param = "Parameters",
-               Latent = "Latent", GroupRisk = "Group Risks")
+  modules <- c(DATA = "Data", PARAM = "Parameters",
+               LATENT = "Latent", GROUP_RISK = "Group Risks")
   for (name in c("final_size", "case_ascertained")) {
     cpp <- system.file("models", name, "model.cpp", package = "housepi") |>
       readLines() |>
@@ -1079,8 +1079,8 @@ test_that("Model help pages name the keys the engine registers", {
     rd <- template_rd(name)
     # loop over all modules
     for (k in names(modules)) {
-      # EMPTY_KEYS declarations match nothing and register no key
-      fmt <- "(?<=REGISTER_KEYS\\(%s,)[^)]*"
+      # a slot without its macro matches nothing and registers no key
+      fmt <- "(?<=HOUSEPI_DECLARE_%s_KEYS\\()[^)]*"
       decl <- regmatches(cpp, regexpr(sprintf(fmt, k), cpp, perl = TRUE))
       keys <- trimws(unlist(strsplit(decl, ",")))
       # section body up to the next section: its \code{} items are the keys

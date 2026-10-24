@@ -7,10 +7,10 @@
 
 #include <string>
 #include <unordered_map>
-#include <utility>
 #include <vector>
 
 #include "tools/keys.h"
+#include "tools/logproba.h"
 #include "tools/nan.h"
 #include "augmented/definition.h"
 #include "data/status.h"
@@ -63,6 +63,10 @@ namespace housepi::augm
 
         /// Key -> whether transmission consumes it, directly or through intermediaries.
         std::vector<bool> produces_transm = {};
+
+        std::vector<size_t> block = {};        /// Keys of the latent block, producer before consumer.
+        std::vector<size_t> sample_alone = {}; /// Keys of `sample` outside the latent block.
+        LogLikTerms block_terms = {};          /// Terms a move of the latent block touches.
     };
 
     /// Sampling schemes of every status, and what definitions produce.
@@ -107,10 +111,10 @@ namespace housepi::augm
     private:
         friend struct SchemeBuilder;
 
-        std::vector<StatusScheme> status_schemes_ = {}; /// Per-status schemes, then missing-observation variants.
-        size_t n_base_ = 0;                             /// Number of per-status schemes, before the variants.
+        size_t n_base_ = 0;                                                   /// Number of per-status schemes, before the variants.
+        std::vector<StatusScheme> status_schemes_ = {};                       /// Per-status schemes, then missing-observation variants.
         std::unordered_map<StatusLvl, std::vector<size_t>> status_rows_ = {}; /// Status -> definition rows.
-        std::unordered_map<StatusLvl, size_t> status_index_ = {};              /// Status -> index in `status_schemes_`.
+        std::unordered_map<StatusLvl, size_t> status_index_ = {};             /// Status -> index in `status_schemes_`.
 
         bool is_any_sample_ = false;       /// Whether any latent is sampled.
         bool is_any_adaptive_ = false;     /// Whether any latent has an adaptive proposal.
@@ -165,6 +169,9 @@ namespace housepi::augm
                             const std::vector<std::string> &transm);
         /// Mark parameters feeding a latent or observation model, infectivity profile excluded.
         void init_param_producers(const KeyHolder &param);
+        /// Set latent block `keys` of scheme `i`, and the keys moving alone.
+        /// * fewer than two keys -> no block.
+        void init_latent_block(size_t i, std::vector<size_t> keys);
 
     private:
         Scheme &scheme_;        /// Scheme being built.
@@ -187,7 +194,7 @@ namespace housepi::augm
         /// Add definition row `k` to the sample and draw lists of status `s`.
         void list_definition_(StatusLvl s, size_t k, Sources_ &src);
         /// Classify deterministic definition row `k` of status `s`.
-        /// @return Whether to export it, and whether to draw it.
-        std::pair<bool, bool> list_function_(StatusLvl s, size_t k, Sources_ &src);
+        /// @return Whether to draw it.
+        bool list_function_(StatusLvl s, size_t k, Sources_ &src);
     };
 }

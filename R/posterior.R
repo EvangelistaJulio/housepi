@@ -118,27 +118,24 @@ empty_draws_ <- function() {
 # Stored draws of one block of a `HousepiPosteriorDraws`, empty when absent.
 # @param block `character(1)` `"param"`, `"latent"`, `"point_log_lik"`
 # or `"lprior"`.
-draws_block_ <- function(hhdraws, block) {
-  out <- hhdraws$.__enclos_env__$private$draws_[[block]]
+draws_block_ <- function(hh_fit, block) {
+  out <- hh_fit$.__enclos_env__$private$draws_[[block]]
   if (is.null(out)) empty_draws_() else out
 }
 
-# Per-draw chain and iteration index implied by an MCMC `setup` list.
-draws_index_ <- function(setup) {
-  counts <- setup[c("steps", "burn", "thin", "adapt", "chains")]
-  chain_size <- do.call(resolve_setup_, counts)$chain
-  list(chain = rep(seq_len(setup[["chains"]]), each = chain_size),
-       iteration = setup[["burn"]] + seq_len(chain_size) * setup[["thin"]])
+# Per-draw chain index implied by an MCMC `settings` list.
+draws_chain_ <- function(settings) {
+  chain_size <- settings[["steps"]] %/% settings[["thin"]]
+  rep(seq_len(settings[["chains"]]), each = chain_size)
 }
 
 # Tag an Rcpp draws data.frame, draws by variables,
 # as a housepi `posterior::draws_df`,
-# with `.chain`, `.iteration` and `.draw` from a draws_index_() result.
-tag_rcpp_draws_ <- function(df, index) {
+# with `.chain` from a draws_chain_() result,
+# `.iteration` and `.draw` numbered by posterior.
+tag_rcpp_draws_ <- function(df, chain) {
   if (!length(df)) return(NULL)
-  df$.chain <- index$chain
-  df$.iteration <- rep(index$iteration, times = length(unique(index$chain)))
-  df$.draw <- seq_len(nrow(df))
+  df$.chain <- chain
   tag_as_housepi_draws(posterior::as_draws_df(df))
 }
 
@@ -155,15 +152,15 @@ tag_rcpp_draws_ <- function(df, index) {
 #' @param .args,.num_args,.cores Forwarded to [posterior::summarise_draws()].
 #' @return A `draws_summary` `data.frame`.
 #' @examples
-#' results <- flu_1918_frederick |>
+#' hh_fit <- flu_1918_frederick |>
 #'   new_housepi_model("final-size") |>
 #'   add_parameter(import = "template") |>
 #'   run_inference(chains = 2, progress = FALSE)
 #'
 #' # all parameters and stored latent variables
-#' summarise_draws(results)
+#' summarise_draws(hh_fit)
 #' # a subset of the draws
-#' summarise_draws(get_parameter_draws(results, "alpha"))
+#' summarise_draws(get_parameter_draws(hh_fit, "alpha"))
 #' @name summarise_draws.housepi_draws
 #' @exportS3Method posterior::summarise_draws
 summarise_draws.housepi_draws <- function(
@@ -343,12 +340,12 @@ count_diagnostics_ <- function(blocks) {
 #' with no latent variable or observation node, the remaining terms vanish
 #' and `log_lik` contracts to transmission alone.
 #' @examples
-#' results <- flu_1918_frederick |>
+#' hh_fit <- flu_1918_frederick |>
 #'   new_housepi_model("final-size") |>
 #'   add_parameter(import = "template") |>
 #'   run_inference(chains = 2, progress = FALSE)
-#' results
-#' get_parameter_draws(results)
+#' hh_fit
+#' get_parameter_draws(hh_fit)
 #' @docType class
 HousepiPosteriorDraws <- R6::R6Class(
   classname = "HousepiPosteriorDraws",
@@ -359,7 +356,7 @@ HousepiPosteriorDraws <- R6::R6Class(
     name_ = NA_character_,
     draws_ = list(),
     secs_ = NA_real_,
-    # engine setup of the run, seed, threads and chains aside
+    # engine settings of the run, seed, threads and chains aside
     settings_ = NULL,
     # hashes of the data and definitions the run was fitted on
     fingerprint_ = NULL,
@@ -420,15 +417,15 @@ HousepiPosteriorDraws <- R6::R6Class(
       private$name_ <- as.character(name)
       private$secs_ <- as.numeric(secs)
       private$fingerprint_ <- fingerprint
-      setup <- .engine$export_setup(ptr)
-      private$seed_ <- setup$seed
+      settings <- .engine$export_settings(ptr)
+      private$seed_ <- settings$seed
       private$settings_ <-
-        setup[setdiff(names(setup), c("seed", "threads", "chains"))]
-      # per-draw chain/iteration index from the inference setup
-      idx <- draws_index_(setup)
+        settings[setdiff(names(settings), c("seed", "threads", "chains"))]
+      # per-draw chain index from the inference settings
+      chain <- draws_chain_(settings)
 
       # store cpp draws converted to posterior
-      tag <- \(df) tag_rcpp_draws_(df, idx)
+      tag <- \(df) tag_rcpp_draws_(df, chain)
       lp <- .engine$flush_param_log_prior_draws(ptr)
       private$draws_ <- list(
         param = tag(.engine$flush_param_draws(ptr)),
@@ -484,9 +481,9 @@ HousepiPosteriorDraws <- R6::R6Class(
 #' hh_model <- flu_1918_frederick |>
 #'   new_housepi_model("final-size") |>
 #'   add_parameter(import = "template")
-#' results <- run_inference(hh_model, chains = 2, progress = FALSE)
-#' more <- run_inference(hh_model, chains = 2, progress = FALSE)
-#' c(results, more)
+#' hh_fit <- run_inference(hh_model, chains = 2, progress = FALSE)
+#' hh_fit_2 <- run_inference(hh_model, chains = 2, progress = FALSE)
+#' c(hh_fit, hh_fit_2)
 #' @name combine_draws
 #' @export
 c.HousepiPosteriorDraws <- function(...) {
@@ -541,9 +538,9 @@ subset_draws_ <- function(out, variable, prefix = "") {
 }
 
 # Assert the object is a `HousepiPosteriorDraws`.
-stopifnotdraws <- function(hhdraws) {
-  if (!inherits(hhdraws, "HousepiPosteriorDraws")) stop_h(
-    "{.arg hhdraws} must be of class {.cls HousepiPosteriorDraws}.",
+stopifnotdraws <- function(hh_fit) {
+  if (!inherits(hh_fit, "HousepiPosteriorDraws")) stop_h(
+    "{.arg hh_fit} must be of class {.cls HousepiPosteriorDraws}.",
     "Create one with {.fn new_housepi_model}."
   )
 }
@@ -572,11 +569,11 @@ stopifnotdraws <- function(hhdraws) {
 #'     the parameter log-prior \eqn{\log p(\theta)}.
 #'     The latent-variable log-density enters `log_lik`, not `lprior`.
 #'     Both are evaluated along the joint (latent, parameter) chain.
-#'     `lprior` alone is read with `get_complete_draws(hhdraws, "lprior")`.}
+#'     `lprior` alone is read with `get_complete_draws(hh_fit, "lprior")`.}
 #' }
 #' See [HousepiPosteriorDraws] for how the joint log-density
 #' splits into `lprior` and `log_lik`.
-#' @param hhdraws `HousepiPosteriorDraws` Object returned by [run_inference()].
+#' @param hh_fit `HousepiPosteriorDraws` Object returned by [run_inference()].
 #' @param variable `character()` Variables to return, all of them when `NULL`.
 #' A name also returns its indexed elements,
 #' e.g. `log_lik[1]`, `log_lik[2]`, ... for `log_lik` in `get_complete_draws()`.
@@ -589,20 +586,20 @@ stopifnotdraws <- function(hhdraws) {
 #' @return `posterior::draws_df`
 #' For `log_lik`/`lprior` columns: `r rd_natural_log_`
 #' @examples
-#' results <- flu_1918_frederick |>
+#' hh_fit <- flu_1918_frederick |>
 #'   new_housepi_model("final-size") |>
 #'   add_parameter(import = "template") |>
 #'   run_inference(chains = 2, progress = FALSE)
-#' get_parameter_draws(results, c("alpha", "beta"))
+#' get_parameter_draws(hh_fit, c("alpha", "beta"))
 #'
 #' # parameters, pointwise log_lik and lprior side by side
-#' complete <- get_complete_draws(results)
+#' complete <- get_complete_draws(hh_fit)
 #' posterior::variables(complete) |> head()
 #' @rdname get_draws
 #' @export
-get_parameter_draws <- function(hhdraws, variable = NULL) {
-  stopifnotdraws(hhdraws)
-  out <- draws_block_(hhdraws, "param")
+get_parameter_draws <- function(hh_fit, variable = NULL) {
+  stopifnotdraws(hh_fit)
+  out <- draws_block_(hh_fit, "param")
   if (posterior::nvariables(out) == 0) warn_h(
     "Empty draws: no parameter was defined in the model."
   )
@@ -611,9 +608,9 @@ get_parameter_draws <- function(hhdraws, variable = NULL) {
 
 #' @rdname get_draws
 #' @export
-get_latent_draws <- function(hhdraws, variable = NULL) {
-  stopifnotdraws(hhdraws)
-  out <- draws_block_(hhdraws, "latent")
+get_latent_draws <- function(hh_fit, variable = NULL) {
+  stopifnotdraws(hh_fit)
+  out <- draws_block_(hh_fit, "latent")
   if (posterior::nvariables(out) == 0) warn_h(
     "Empty draws: latent variables were not defined or not stored.",
     "Set {.arg id_draws} in {.fn run_inference} to store latent draws."
@@ -623,16 +620,16 @@ get_latent_draws <- function(hhdraws, variable = NULL) {
 
 #' @rdname get_draws
 #' @export
-get_log_lik_draws <- function(hhdraws, variable = NULL) {
-  stopifnotdraws(hhdraws)
-  subset_draws_(draws_block_(hhdraws, "point_log_lik"), variable)
+get_log_lik_draws <- function(hh_fit, variable = NULL) {
+  stopifnotdraws(hh_fit)
+  subset_draws_(draws_block_(hh_fit, "point_log_lik"), variable)
 }
 
 #' @rdname get_draws
 #' @export
-get_complete_draws <- function(hhdraws, variable = NULL) {
-  stopifnotdraws(hhdraws)
-  draws <- hhdraws$.__enclos_env__$private$draws_
+get_complete_draws <- function(hh_fit, variable = NULL) {
+  stopifnotdraws(hh_fit)
+  draws <- hh_fit$.__enclos_env__$private$draws_
   # rename the pointwise log-likelihood after the standard convention
   aux <- draws$point_log_lik
   n_vars <- posterior::nvariables(aux)

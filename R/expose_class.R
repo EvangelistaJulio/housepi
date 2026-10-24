@@ -90,12 +90,19 @@ Independence samplers draw a fresh value from a distribution:
   \\item{a distribution name}{drawn from that distribution,
     e.g. `proposal = \"normal\"` with `proposal_mean` and `proposal_sd`.}
 }
-If `NA`, `\"rw\"` is used.
+If `NA`, normal increments of a coordinate set by the bounds of the variable:
+the value itself when unbounded,
+the log of its distance to the bound when bounded on one side,
+the logit of its position when bounded on both sides.
+The move never leaves those bounds.
+A discrete variable takes `\"rw\"`.
+The latent variables of one member with `NA` move together,
+and so do the parameters a reference couples, see [run_inference()].
 "
 rd_proposal_opts_ <- "
 Advanced Monte Carlo options may also be passed through `...`,
 each prefixed `proposal_`.
-For a random walk, `proposal_scale` sets the step scale.
+For a random walk, `proposal_scale` sets the scale of its jumps.
 If omitted, it is adapted during inference when `adapt > 0`.
 If a positive number, it is fixed and never adapted.
 For independence sampling from a named distribution,
@@ -195,7 +202,8 @@ The reserved numeric column `const` pins a stratum to that value,
 in inference and simulation, so that it carries no prior.
 The reference stratum takes none.
 Mutually exclusive with `by`."
-rd_risk_params_ <- "`list` Per-parameter MCMC setups, named as in `param_name`.
+rd_risk_params_ <- "`list` Per-parameter MCMC configurations,
+named as in `param_name`.
 Overrides shared prior/args for parameters specified in the list.
 A stratum pinned through the `strata` table takes no entry here.
 Ignored in automatic mode."
@@ -210,24 +218,23 @@ A covariate the reference does not name leaves the whole risk absolute.",
 
 ####  Run-time knobs  ####
 
-rd_smpl_steps_ <- "`integer(1)` Number of MCMC iterations per chain."
-rd_smpl_burn_ <- "`integer(1)`
-Number of iterations per chain discarded before `steps`.
-Run after adaptation."
-rd_smpl_thin_ <- "`integer(1)` Keep one iteration every `thin` of `steps`."
-rd_smpl_adapt_ <- "`integer(1)` Number of iterations to adapt proposal scales.
+rd_smpl_steps_ <- "`integer(1)` Number of MCMC steps per chain."
+rd_smpl_thin_ <- "`integer(1)` Keep one step every `thin` of `steps`."
+rd_smpl_adapt_ <- "`integer(1)` Number of steps to adapt proposal scales
+and the joint moves of latent variables and parameters.
 Run first and not stored as draws.
-If no proposal is adaptable, run as burn-in when `burn = 0`, else dropped."
+If nothing is adaptable, run as burn-in instead."
 rd_smpl_chain_ <- "`integer(1)` Number of independent MCMC chains to run."
 rd_thread_ <- "`integer(1)` Number of threads for parallel household runs."
-rd_progress_ <- "`integer(1)` | `logical(1)` Control the progress bar,
+rd_progress_ <- "`numeric(1)` | `logical(1)` Control the progress bar,
 one of:
 \\describe{
-  \\item{`integer`}{seconds between prints, a shorter run printing nothing;}
+  \\item{`numeric`}{seconds between prints, a shorter run printing nothing;}
   \\item{`TRUE`}{one print per second;}
   \\item{`FALSE` or `0`}{no progress bar.}
 }
-The bar prints as messages, which [suppressMessages()] silences."
+The bar prints as messages, which [suppressMessages()] silences.
+In a knitted document, only its closing line prints."
 rd_dots_config_ <- "Advanced configuration."
 rd_draws_ <- "Parameter values, one row per draw.
 One of:
@@ -253,7 +260,7 @@ are left by the last call that ran it:
 \\describe{
   \\item{[evaluate_log_lik()]}{the evaluated parameters and latent variables,
   with their log-likelihood contributions;}
-  \\item{[run_inference()]}{the final iteration of the last chain;}
+  \\item{[run_inference()]}{the final step of the last chain;}
   \\item{[run_simulation()]}{the observed data,
   the parameters of the last replicate.}
 }"
@@ -1227,7 +1234,7 @@ evaluate_log_lik <- function(hh_model, hh_id = NA_character_) {
 #' `r rd_inspect_state_`
 #' @param hh_model `r rd_model_in_`
 #' @return `data.frame` The dataset with its latent variables.
-#' @seealso [inspect_house_state()]
+#' @seealso [inspect_state()]
 #' @examples
 #' hh_model <- flu_1918_frederick |>
 #'   new_housepi_model("final-size") |>
@@ -1243,60 +1250,109 @@ inspect_augmented_data <- function(hh_model) {
                      "data_wide")
 }
 
-#' @title Inspect the state of a household in a housepi model
+#' @title Inspect the state of a housepi model
 #' @description
-#' Read all the variables a `HousepiModel` holds for one household.
+#' Read the parameters a `HousepiModel` holds and how its variables move,
+#' and optionally all the variables of one household.
 #' `r rd_inspect_state_`
 #' @param hh_model `r rd_model_in_`
-#' @param hh_id `r rd_hh_id_`
-#' @return `list` All variables of the household.
-#' Entries are named after the homonymous active fields.
+#' @param hh_id `character(1)` ID of the household of interest.
+#' If `NULL`, only the parameters and the sampler are read.
+#' @return `list` The parameters and the sampler,
+#' and with a household all its variables.
+#' Entries are named after their getters, e.g `data_wide` for [get_data_wide()].
 #' Then come the latent, observation and transmission log-likelihoods,
-#' and `model_quantities`, the named quantities the model exports,
-#' see its `template_<model>` help page.
+#' `model_quantities`, the named quantities the model exports,
+#' see its `template_<model>` help page, and `.sampler`.
 #' An empty definition is dropped unless the model requires it.
 #' The transmission log-likelihood is `NA` and `model_quantities` absent
 #' until the household is evaluated at the current definitions,
 #' by [evaluate_log_lik()] on it or on every household, or by [run_inference()].
 #' Each evaluation discards the previous one.
+#'
+#' `.sampler` reads how the variables move, absent while nothing is sampled.
+#' Scales are the defaults until inference adapts them,
+#' and a block appears once inference has formed it.
+#' It holds two data frames:
+#' \describe{
+#'   \item{`moves`}{one row per sampled variable, the parameters
+#'   and the latent variables of the infected members of the household.
+#'   `member` is the member a latent variable belongs to,
+#'   `NA` for a parameter.
+#'   `proposal` is the declared proposal, `NA` for the default.
+#'   `coord` is the coordinate its jumps are drawn in.
+#'   `scale` is the scale of the jumps in that coordinate,
+#'   the standard deviation of the jump of a variable moving in a block.
+#'   `block` identifies the block the variable moves in,
+#'   `NA` if it moves alone;}
+#'   \item{`blocks`}{one row per block of variables moving together.
+#'   `member` is the member whose latent variables move in it,
+#'   `NA` for a block of parameters.
+#'   `jump_cov` is the covariance of its joint jump in the coordinates.
+#'   `log_scale` is the log of the multiplier of its jumps.}
+#' }
+#' Values are those of the last chain.
 #' @seealso [inspect_augmented_data()]
 #' @examples
 #' hh_model <- flu_1918_frederick |>
 #'   new_housepi_model("final-size") |>
 #'   add_parameter(import = "template")
 #' evaluate_log_lik(hh_model)
-#' inspect_house_state(hh_model, "1")
+#' inspect_state(hh_model, "1")
 #' @export
-inspect_house_state <- function(hh_model, hh_id) {
+inspect_state <- function(hh_model, hh_id = NULL) {
   stopifnothousepi(hh_model)
+  if (!is.null(hh_id) && (length(hh_id) != 1L || is.na(hh_id))) stop_h(
+    "{.arg hh_id} is not a single household ID.",
+    "Pass one ID, or {.code NULL} to read the parameters and the sampler only."
+  )
   pvt <- hh_model$.__enclos_env__$private
-  out <- .engine$export_house_snapshot(pvt$mcmc_ptr_, as.character(hh_id))
-  out$data_wide <- pvt$refactor_data_(out$data_wide, "data_wide")
-  # data long
-  if (all(dim(out$data_long) == 0)) out$data_long <- NULL
-  else out$data_long <- pvt$refactor_data_(out$data_long, "data_long")
-  # parameters
-  if (!length(.engine$key_Param(pvt$mcmc_ptr_)) &&
-        all(dim(out$parameters) == 0)) out$parameters <- NULL
-  # group risks
-  if (!length(.engine$key_GroupRisk(pvt$mcmc_ptr_)) &&
-        all(dim(out$group_risks) == 0)) out$group_risks <- NULL
-  # contact risks
-  if (!.engine$has_contact_risk(pvt$mcmc_ptr_) &&
-        all(dim(out$contact_risks) == 0)) out$contact_risks <- NULL
-  # infectivity profiles
-  if (!.engine$has_infec_profile(pvt$mcmc_ptr_) &&
-        !length(out$infectivity_profiles)) {
-    out$infectivity_profiles <- NULL
-  } else {
-    lst <- out$infectivity_profiles
-    df <- data.frame(id = lst$id, discr = lst$discr, func = lst$func,
-                     min = lst$min, max = lst$max)
-    df$func_args <- lst$func_args
-    out$infectivity_profiles <- df
+  has_house <- !is.null(hh_id)
+  out <- .engine$export_state(
+    pvt$mcmc_ptr_, if (has_house) as.character(hh_id) else NA_character_
+  )
+
+  if (has_house) {
+    out$data_wide <- pvt$refactor_data_(out$data_wide, "data_wide")
+    # data long
+    if (all(dim(out$data_long) == 0)) out$data_long <- NULL
+    else out$data_long <- pvt$refactor_data_(out$data_long, "data_long")
   }
-  # model quantities
-  if (!length(out$model_quantities)) out$model_quantities <- NULL
+  # parameters
+  if (!length(.engine$param_keys(pvt$mcmc_ptr_)) &&
+        all(dim(out$parameters) == 0)) out$parameters <- NULL
+  if (has_house) {
+    # group risks
+    if (!length(.engine$group_risk_keys(pvt$mcmc_ptr_)) &&
+          all(dim(out$group_risks) == 0)) out$group_risks <- NULL
+    # contact risks
+    if (!.engine$has_contact_risk(pvt$mcmc_ptr_) &&
+          all(dim(out$contact_risks) == 0)) out$contact_risks <- NULL
+    # infectivity profiles
+    if (!.engine$has_infec_profile(pvt$mcmc_ptr_) &&
+          !length(out$infectivity_profiles)) {
+      out$infectivity_profiles <- NULL
+    } else {
+      lst <- out$infectivity_profiles
+      df <- data.frame(id = lst$id, discr = lst$discr, func = lst$func,
+                       min = lst$min, max = lst$max)
+      df$func_args <- lst$func_args
+      out$infectivity_profiles <- df
+    }
+    # model quantities
+    if (!length(out$model_quantities)) out$model_quantities <- NULL
+  }
+  # sampler, absent while nothing is sampled
+  smp <- out$.sampler
+  out$.sampler <- if (length(smp)) {
+    na_empty <- \(x) replace(x, !nzchar(x), NA_character_)
+    moves <- as.data.frame(smp$moves)
+    moves[c("member", "proposal", "coord")] <- lapply(moves[c("member", "proposal", "coord")], na_empty)
+    blocks <- as.data.frame(smp$blocks[names(smp$blocks) != "jump_cov"])
+    blocks$member <- na_empty(blocks$member)
+    blocks$jump_cov <- smp$blocks$jump_cov
+    list(moves = moves, blocks = blocks)
+  }
   out
 }
 
@@ -1305,9 +1361,23 @@ inspect_house_state <- function(hh_model, hh_id) {
 #' Run inference with Bayesian Markov Chain Monte Carlo,
 #' by the component-wise Metropolis-Hastings algorithm
 #' \insertCite{metropolis_equation_1953,hastings_monte_1970}{housepi}.
+#' The latent variables of one member that declare no proposal
+#' move together, by adaptive Metropolis
+#' \insertCite{haario_adaptive_2001,andrieu_tutorial_2008}{housepi}.
+#' Over the first half of `adapt` they move one at a time.
+#' Their joint move then follows the covariance of their values
+#' from the second quarter of `adapt` onwards.
+#' A latent variable whose bounds or location read another of them,
+#' directly or through a function, moves alone.
+#' Parameters that declare no proposal move together the same way
+#' when a reference couples them:
+#' a baseline and each relative risk of its rule groups
+#' matching at least a tenth as many members or pairs as the reference.
+#' They take as many joint moves per step as they have members.
+#' A parameter whose prior or bounds read another of them moves alone,
+#' as does a risk whose number of members or pairs is unknown.
 #' @param hh_model `r rd_model_in_`
 #' @param steps `r rd_smpl_steps_`
-#' @param burn `r rd_smpl_burn_`
 #' @param thin `r rd_smpl_thin_`
 #' @param adapt `r rd_smpl_adapt_`
 #' @param chains `r rd_smpl_chain_`
@@ -1318,12 +1388,11 @@ inspect_house_state <- function(hh_model, hh_id) {
 #' A `list` takes entries `id`, individual identifiers, and `hh_id`,
 #' households whose infected members are all stored.
 #' If `NA`, one random eligible household is followed.
-#' If `".none"`, nothing is stored.
+#' If `NULL`, nothing is stored.
 #' @param progress `r rd_progress_`
 #' @param warn `logical(1)` Whether to report the warnings the run raises.
 #' A quiet run still records the convergence diagnostics it flagged,
 #' read back from the `warnings` field of the returned object.
-#' @param ... `r rd_dots_config_`
 #' @return An object of class `HousepiPosteriorDraws`.
 #' @details
 #' The run warns on any of: `r paste(diagnostic_flags_, collapse = "; ")`.
@@ -1335,24 +1404,22 @@ inspect_house_state <- function(hh_model, hh_id) {
 #' flu_1918_frederick |>
 #'   new_housepi_model("final-size") |>
 #'   add_parameter(import = "template") |>
-#'   run_inference(steps = 50, burn = 10, thin = 2,
+#'   run_inference(steps = 50, thin = 2,
 #'                 chains = 2, progress = FALSE) |>
 #'   get_parameter_draws() |>
 #'   posterior::summarize_draws()
 #' @export
 run_inference <- function(hh_model,
-                          steps = 1000L, burn = 0L,
-                          thin = 5L, adapt = 500L,
+                          steps = 1000L, thin = 5L, adapt = 500L,
                           chains = 4L, threads = 1L,
-                          id_draws = NULL,
+                          id_draws = NA,
                           progress = TRUE,
-                          warn = TRUE,
-                          ...) {
+                          warn = TRUE) {
   stopifnothousepi(hh_model)
   # the whole run is quiet, its build included
   local_quiet_warnings_(!warn)
-  ptr <- prepare_inference_(hh_model, steps, burn, thin, adapt, chains,
-                            threads, id_draws, draw_seed_(), ...)
+  ptr <- prepare_inference_(hh_model, steps, thin, adapt, chains,
+                            threads, id_draws, draw_seed_())
   with_progress_(progress, "sample", 1, function(bar) {
     wrap_inference_(hh_model, .engine$run_inference_list(list(ptr), 1L, bar))
   })
@@ -1362,17 +1429,15 @@ run_inference <- function(hh_model,
 #' Shared by [run_inference()] and the replicate sweep.
 #' @return The engine pointer.
 #' @noRd
-prepare_inference_ <- function(hh_model, steps, burn, thin, adapt, chains,
-                               threads, id_draws, seed, ...) {
-  assert_advanced_setup_("adapt_window", ...)
-  setup <- resolve_setup_(steps, burn, thin, adapt, chains, ...)
+prepare_inference_ <- function(hh_model, steps, thin, adapt, chains,
+                               threads, id_draws, seed) {
+  settings <- resolve_settings_(steps, thin, adapt, chains)
   id_draws <- resolve_id_draws_(id_draws)
-  assert_posterior_memory_(hh_model, setup$total, id_draws)
+  assert_posterior_memory_(hh_model, settings$total, id_draws)
   pvt <- hh_model$.__enclos_env__$private
   pvt$build_full_(
-    steps = setup$steps, burn = burn, thin = thin, adapt = adapt,
-    chains = chains, threads = threads, id_draws = id_draws,
-    seed = seed, ...
+    steps = settings$steps, thin = thin, adapt = adapt,
+    chains = chains, threads = threads, id_draws = id_draws, seed = seed
   )
   pvt$mcmc_ptr_
 }
@@ -1478,7 +1543,7 @@ simulate_with_parameters_ <- function(hh_model,
                                       ...) {
   stopifnothousepi(hh_model)
   # simulation specific build
-  assert_advanced_setup_("time_step", ...)
+  assert_advanced_settings_("time_step", ...)
   pvt <- hh_model$.__enclos_env__$private
   pvt$helper_simulation_build_(
     draws = draws, nrep = nrep, thin_ess = thin_ess, ...

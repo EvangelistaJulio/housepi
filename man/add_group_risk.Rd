@@ -33,7 +33,7 @@ The columns must be categorical.}
 \item{...}{Named arguments for the prior distribution.
 Advanced Monte Carlo options may also be passed through \code{...},
 each prefixed \code{proposal_}.
-For a random walk, \code{proposal_scale} sets the step scale.
+For a random walk, \code{proposal_scale} sets the scale of its jumps.
 If omitted, it is adapted during inference when \code{adapt > 0}.
 If a positive number, it is fixed and never adapted.
 For independence sampling from a named distribution,
@@ -69,7 +69,8 @@ in inference and simulation, so that it carries no prior.
 The reference stratum takes none.
 Mutually exclusive with \code{by}.}
 
-\item{params}{\code{list} Per-parameter MCMC setups, named as in \code{param_name}.
+\item{params}{\code{list} Per-parameter MCMC configurations,
+named as in \code{param_name}.
 Overrides shared prior/args for parameters specified in the list.
 A stratum pinned through the \code{strata} table takes no entry here.
 Ignored in automatic mode.}
@@ -97,7 +98,14 @@ its prior for a parameter, its model for a latent variable;}
 \item{a distribution name}{drawn from that distribution,
 e.g. \code{proposal = "normal"} with \code{proposal_mean} and \code{proposal_sd}.}
 }
-If \code{NA}, \code{"rw"} is used.}
+If \code{NA}, normal increments of a coordinate set by the bounds of the variable:
+the value itself when unbounded,
+the log of its distance to the bound when bounded on one side,
+the logit of its position when bounded on both sides.
+The move never leaves those bounds.
+A discrete variable takes \code{"rw"}.
+The latent variables of one member with \code{NA} move together,
+and so do the parameters a reference couples, see \code{\link[=run_inference]{run_inference()}}.}
 
 \item{prefix}{\code{character(1)} Prefix to names of associated parameters. If \code{NA}, the first 3 letters of the risk name.}
 

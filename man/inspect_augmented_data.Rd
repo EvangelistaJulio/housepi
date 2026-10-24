@@ -19,7 +19,7 @@ are left by the last call that ran it:
 \describe{
 \item{\code{\link[=evaluate_log_lik]{evaluate_log_lik()}}}{the evaluated parameters and latent variables,
 with their log-likelihood contributions;}
-\item{\code{\link[=run_inference]{run_inference()}}}{the final iteration of the last chain;}
+\item{\code{\link[=run_inference]{run_inference()}}}{the final step of the last chain;}
 \item{\code{\link[=run_simulation]{run_simulation()}}}{the observed data,
 the parameters of the last replicate.}
 }
@@ -33,5 +33,5 @@ inspect_augmented_data(hh_model) |>
   head()
 }
 \seealso{
-\code{\link[=inspect_house_state]{inspect_house_state()}}
+\code{\link[=inspect_state]{inspect_state()}}
 }

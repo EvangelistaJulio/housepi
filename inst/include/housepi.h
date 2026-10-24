@@ -5,16 +5,15 @@
 
 #pragma once
 
-#include <memory>
 #include <string>
 #include <vector>
 
 #include "tools/math.h"
 #include "tools/messages.h"
 #include "tools/string.h"
-#include "model.h"
-#include "data/individual.h"
 #include "data/household.h"
+#include "data/individual.h"
+#include "model.h"
 #include "registry.h"
 
 #ifdef _STANDALONE
@@ -22,26 +21,35 @@
 #include "standalone.h"
 #endif
 
-#define HOUSEPI_DECLARE_EMPTY_KEYS(T) \
-    struct T                          \
-    {                                 \
-    };                                \
-                                      \
-    const std::vector<std::string> key_##T() const override final { return {}; }
-
-#define HOUSEPI_DECLARE_REGISTER_KEYS(T, ...)                     \
-    struct T                                                      \
-    {                                                             \
-        enum : size_t                                             \
-        {                                                         \
-            __VA_ARGS__                                           \
-        };                                                        \
-    };                                                            \
-                                                                  \
-    const std::vector<std::string> key_##T() const override final \
-    {                                                             \
-        return housepi::str::parse_names(#__VA_ARGS__);           \
+/// Declare keys `...` as `T::key`, and override `method` to list their names.
+#define HOUSEPI_DECLARE_KEYS_IMPL(T, method, ...)          \
+    struct T                                               \
+    {                                                      \
+        enum : size_t                                      \
+        {                                                  \
+            __VA_ARGS__                                    \
+        };                                                 \
+    };                                                     \
+                                                           \
+    std::vector<std::string> method() const override final \
+    {                                                      \
+        return housepi::str::parse_names(#__VA_ARGS__);    \
     }
+
+/// Declare the keys a model reads, one macro per slot, none for a slot it leaves empty.
+#define HOUSEPI_DECLARE_DATA_KEYS(...) HOUSEPI_DECLARE_KEYS_IMPL(Data, data_keys, __VA_ARGS__)
+#define HOUSEPI_DECLARE_LONG_KEYS(...) HOUSEPI_DECLARE_KEYS_IMPL(Long, long_keys, __VA_ARGS__)
+#define HOUSEPI_DECLARE_PARAM_KEYS(...) HOUSEPI_DECLARE_KEYS_IMPL(Param, param_keys, __VA_ARGS__)
+#define HOUSEPI_DECLARE_GROUP_RISK_KEYS(...) HOUSEPI_DECLARE_KEYS_IMPL(GroupRisk, group_risk_keys, __VA_ARGS__)
+#define HOUSEPI_DECLARE_LATENT_KEYS(...) HOUSEPI_DECLARE_KEYS_IMPL(Latent, latent_keys, __VA_ARGS__)
+#define HOUSEPI_DECLARE_HOUSE_MEMBER_KEYS(...) \
+    HOUSEPI_DECLARE_KEYS_IMPL(HouseMember, house_member_keys, __VA_ARGS__)
+#define HOUSEPI_DECLARE_HOUSE_MEMBER_VEC_KEYS(...) \
+    HOUSEPI_DECLARE_KEYS_IMPL(HouseMemberVec, house_member_vec_keys, __VA_ARGS__)
+#define HOUSEPI_DECLARE_HOUSE_DOUBLE_VEC_KEYS(...) \
+    HOUSEPI_DECLARE_KEYS_IMPL(HouseDoubleVec, house_double_vec_keys, __VA_ARGS__)
+#define HOUSEPI_DECLARE_HOUSE_DOUBLE_MTX_KEYS(...) \
+    HOUSEPI_DECLARE_KEYS_IMPL(HouseDoubleMtx, house_double_mtx_keys, __VA_ARGS__)
 
 #ifdef _STANDALONE
 #define HOUSEPI_STANDALONE_MAIN(module)                  \

@@ -4,26 +4,26 @@
  */
 
 #include <exception>
+#include <fstream>
+#include <iomanip>
+#include <iostream>
+#include <sstream>
 #include <string>
 #include <vector>
-#include <fstream>
-#include <sstream>
-#include <iostream>
-#include <iomanip>
 
 #include "tools/keys.h"
 #include "tools/messages.h"
 #include "tools/nan.h"
 #include "tools/string.h"
-#include "standalone.h"
-#include "mcmc.h"
-#include "mcmc/setup.h"
-#include "data/wide.h"
+#include "augmented.h"
 #include "data/long.h"
+#include "data/wide.h"
+#include "infec_profile.h"
+#include "mcmc.h"
+#include "mcmc/settings.h"
 #include "parameter.h"
 #include "risks.h"
-#include "infec_profile.h"
-#include "augmented.h"
+#include "standalone.h"
 
 //////////////////////////////  msg  //////////////////////////////
 
@@ -147,18 +147,17 @@ namespace housepi
         }
     }
 
-    void Options::read_setup(MCMCBase &model)
+    void Options::read_settings(MCMCBase &model)
     {
         try
         {
-            model.setup.build(read::csv_table(file.setup));
+            model.settings.build(read::csv_table(file.settings));
         }
         catch (const std::exception &e)
         {
-            msg::stop(std::string("While reading setup definitions:\n") + e.what());
+            msg::stop(std::string("While reading settings definitions:\n") + e.what());
         }
     }
-
 
     void Options::read_param(MCMCBase &model)
     {
@@ -256,7 +255,7 @@ namespace housepi
         if (na::is(out_file))
             return;
 
-        const Setup &setup = engine.setup;
+        const Settings &settings = engine.settings;
         const Posterior &post = engine.posterior;
 
         std::ofstream ofs;
@@ -267,7 +266,7 @@ namespace housepi
                 "Unable to open file: " + out_file);
 
         // header: log-likelihood
-        ofs << "iteration" << str::DELIMITER << "log_lik";
+        ofs << "step" << str::DELIMITER << "log_lik";
 
         // header: parameters
         for (const auto &name : post.param_values.names)
@@ -281,14 +280,13 @@ namespace housepi
         ofs << str::DELIMITER << "_chain_\n";
 
         // values: one row per draw
-        for (size_t c = 0; c < setup.n_chains; ++c)
-            for (size_t k = 0; k < setup.c_sample_size; k++)
+        for (Settings::Chain c = 0; c < settings.n_chains; ++c)
+            for (Settings::Step k = 0; k < settings.c_sample_size; k++)
             {
-                size_t i = k + c * setup.c_sample_size;
+                size_t i = k + c * settings.c_sample_size;
 
-                // print iteration
-                std::uint64_t sweep = setup.n_burn + (k + 1) * setup.n_thin;
-                ofs << sweep;
+                // print step, counted from the start of the warm-up
+                ofs << settings.n_adapt + settings.n_burn + (k + 1) * settings.n_thin;
 
                 // joint log-likelihood (transmission + observation), summed over households from pointwise draws
                 double log_lik = 0.;
@@ -383,8 +381,8 @@ namespace housepi
         // no output file: simulate without serializing
         const bool is_writing = !na::is(pathtofile);
 
-        engine.augm.init_house_for_simulation(); // build household-level observations
-        engine.model->init_model_for_simulation(); // model-specific initialization
+        engine.augm.init_house_for_simulation();                        // build household-level observations
+        engine.model->init_model_for_simulation();                      // model-specific initialization
         engine.augm.init_members_for_simulation(engine.status_process); // bind member definitions once per run
 
         // header after initialization: a produced observation registers its data column there
@@ -395,8 +393,8 @@ namespace housepi
                                          data_wide.all(),
                                          augm.consult(augm.scheme().list_latent_export));
 
-        // the setup step count is the number of replicates
-        for (size_t r = 0; r < engine.setup.n_steps; ++r)
+        // the settings step count is the number of replicates
+        for (Settings::Step r = 0; r < engine.settings.n_steps; ++r)
         {
             // clear before recovering: clear_all() walks the infected members of the last replicate
             engine.augm.clear_all();
@@ -484,8 +482,8 @@ namespace housepi
             else if (toup(carg) == "-P" || tolow(carg) == "--parameter")
                 file.param = argv[++carg_i];
 
-            else if (toup(carg) == "-S" || tolow(carg) == "--setup")
-                file.setup = argv[++carg_i];
+            else if (toup(carg) == "-S" || tolow(carg) == "--settings")
+                file.settings = argv[++carg_i];
 
             else
                 msg::stop("Unrecognized option `" + carg + "`.");
@@ -523,7 +521,7 @@ namespace housepi
         Options opts(argc, argv);
         opts.read_data_wide(engine);     // 1) Load Data Wide
         opts.read_data_long(engine);     // ... and Data Long
-        opts.read_setup(engine);         // 2) Load Setup
+        opts.read_settings(engine);      // 2) Load Settings
         opts.read_param(engine);         // 3) Load Parameters
         opts.read_infec_profile(engine); // 4) Load Infectivity Profile
         opts.read_group_risk(engine);    // 5) Load Group Risks

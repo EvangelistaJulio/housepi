@@ -6,7 +6,6 @@
 #include <algorithm>
 #include <map>
 #include <numeric>
-#include <stdexcept>
 #include <string>
 #include <utility>
 #include <vector>
@@ -42,10 +41,8 @@ namespace housepi
 
     Variable::Variable(const Variable &other)
         : Attribute(other),
-          valid_mode_(other.valid_mode_),
-          ratio_mode_(other.ratio_mode_),
           old_(other.old_),
-          pDistr_(other.pDistr_ ? other.pDistr_->clone_distrib() : nullptr) {}
+          distr_(other.distr_ ? other.distr_->clone_distrib() : nullptr) {}
     Variable::Variable(Variable &&) noexcept = default;
 
     Variable &Variable::operator=(Variable other)
@@ -57,24 +54,23 @@ namespace housepi
     void Variable::swap(Variable &other) noexcept
     {
         Attribute::swap(other);
-        std::swap(valid_mode_, other.valid_mode_);
-        std::swap(ratio_mode_, other.ratio_mode_);
+        std::swap(move_mode_, other.move_mode_);
         std::swap(old_, other.old_);
-        std::swap(pDistr_, other.pDistr_);
-        std::swap(pProp_, other.pProp_);
+        std::swap(distr_, other.distr_);
+        std::swap(prop_, other.prop_);
     }
 
     void Variable::init_distr(std::string_view opt, bool discr)
     {
-        pDistr_ = registry::create_distribution(
+        distr_ = registry::create_distribution(
             opt, ErrType::Distribution, registry::distr_kinds(discr));
     }
 
     void Variable::reshape_distribution(bool is_discr)
     {
-        pDistr_->reshape(is_discr);
+        distr_->reshape(is_discr);
 
-        const Domain &domain = pDistr_->domain();
+        const Domain &domain = distr_->domain();
         domain.assert_consistent(str());
 
         // nothing to do on a non-degenerate domain
@@ -98,18 +94,17 @@ namespace housepi
                   msg::alert(sms + "."));
         const double x0 = domain.relocate(domain.min.value());
         init_numeric(x0);
-        pDistr_ = std::make_unique<NullDistribution>(x0);
+        distr_ = std::make_unique<NullDistribution>(x0);
         helper_init_null_proposal_();
     }
 
     void Variable::helper_init_null_proposal_()
     {
         // proposal that never moves
-        pProp_ = std::make_unique<NullProposal>();
+        prop_ = std::make_unique<NullProposal>();
 
         // no ratio, no validity check
-        ratio_mode_ = Ratio::None;
-        valid_mode_ = Validity::Always;
+        move_mode_ = Move::Forward;
     }
 
     //////  Variable : proposal  //////
@@ -126,11 +121,14 @@ namespace housepi
 
         try
         {
-            // "forward" or a distribution name: independence sampler
+            // none declared: random walk in the unconstrained coordinate
+            // "forward", or distribution name: independence sampler
             // "rw", "rw_log", "rw_unif": random walk tuned by a "scale" argument
-            if (proposal == "forward")
-                helper_init_distr_proposal_();
-            else if (proposal == "rw" || proposal == "rw_log" || proposal == "rw_unif")
+            if (proposal.empty())
+                helper_init_default_proposal_();
+            else if (proposal == "forward")
+                helper_init_forward_proposal_();
+            else if (is_random_walk(proposal))
             {
                 const auto it = args.find("scale");
                 helper_init_random_walk_proposal_(proposal, it != args.end() ? it->second.value() : na::DOUBLE);
@@ -147,38 +145,46 @@ namespace housepi
         }
     }
 
-    void Variable::helper_init_distr_proposal_()
+    void Variable::helper_init_forward_proposal_()
     {
-        pProp_ = std::make_unique<ForwardProposal>(pDistr_.get());
-        ratio_mode_ = Ratio::None;
-        valid_mode_ = Validity::Always;
+        prop_ = std::make_unique<ForwardProposal>(distr_.get());
+        move_mode_ = Move::Forward;
     }
 
     void Variable::helper_init_random_walk_proposal_(const std::string &proposal,
                                                      double scale)
     {
-        const Distribution *prior = pDistr_.get();
-        if (proposal == "rw_unif")
-            pProp_ = std::make_unique<RndWalkUnifProposal>(scale, prior);
-        else if (proposal == "rw")
-            pProp_ = std::make_unique<RndWalkProposal>(scale, prior);
-        else // "rw_log"
-            pProp_ = std::make_unique<RndWalkLogProposal>(scale, prior);
+        const Distribution *prior = distr_.get();
+        if (proposal == RndWalkUnifProposal::NAME)
+            prop_ = std::make_unique<RndWalkUnifProposal>(scale, prior);
+        else if (proposal == RndWalkProposal::NAME)
+            prop_ = std::make_unique<RndWalkProposal>(scale, prior, RndWalkProposal::Coord::Identity);
+        else // RndWalkProposal::LOG_NAME
+            prop_ = std::make_unique<RndWalkProposal>(scale, prior, RndWalkProposal::Coord::Log);
 
-        ratio_mode_ = Ratio::Compute;
-        valid_mode_ = Validity::Check;
+        move_mode_ = Move::RandomWalk;
+    }
+
+    void Variable::helper_init_default_proposal_()
+    {
+        // a discrete prior moves on its lattice
+        if (distr_->is_discretized())
+            return helper_init_random_walk_proposal_(RndWalkProposal::NAME, na::DOUBLE);
+
+        // the move never leaves the domain, a value rounded onto a bound refused by the proposal
+        prop_ = std::make_unique<RndWalkProposal>(distr_.get());
+        move_mode_ = Move::Unconstrained;
     }
 
     void Variable::helper_init_independence_proposal_(const std::string &proposal,
                                                       const dict<Attribute> &args)
     {
-        // valid by construction: no per-step validity check
-        pProp_ = std::make_unique<IndependenceProposal>(proposal, args, pDistr_.get());
-        ratio_mode_ = Ratio::Compute;
-        valid_mode_ = Validity::Always;
+        // valid by construction: no per-move validity check
+        prop_ = std::make_unique<IndependenceProposal>(proposal, args, distr_.get());
+        move_mode_ = Move::Independence;
     }
 
-    void Variable::restart(rnd_gen &prng)
+    void Variable::restart(RndGen &prng)
     {
         // @todo check whether this guard is reachable
         if (is_constant() || !has_distr())
@@ -186,29 +192,30 @@ namespace housepi
 
         // independence proposal: absolute, data-informed start, e.g. near the observed datum
         // otherwise: a prior draw
-        if (pProp_->is_independent())
-            set(pProp_->propose(prng, value()));
+        if (prop_->is_independent())
+            set(prop_->propose(prng, value()));
         else
-            set(pDistr_->rand(prng));
+            set(distr_->rand(prng));
     }
 
     void Variable::finalize()
     {
         Attribute::finalize();
-        if (pDistr_)
-            pDistr_->finalize();
-        if (pProp_)
-            pProp_->finalize(str());
+        if (distr_)
+            distr_->finalize();
+        if (prop_)
+            prop_->finalize(str());
     }
 
     void Variable::clear() noexcept
     {
         mode_ = Mode::Empty;
         value_ = na::DOUBLE;
-        pAttr_ = nullptr;
-        pFunc_ = nullptr;
-        pDistr_ = nullptr;
-        pProp_ = nullptr;
+        attr_ = nullptr;
+        func_ = nullptr;
+        distr_ = nullptr;
+        prop_ = nullptr;
+        move_mode_ = Move::Forward;
     }
 
     //////////////////////////////  param::DefTable  //////////////////////////////
@@ -306,7 +313,7 @@ namespace housepi
                 else
                 {
                     sample.push_back(p);
-                    if (parse::is_adaptive_proposal(row.proposal))
+                    if (is_declared_adaptive(row.proposal))
                         adaptive.push_back(p);
                 }
             }
@@ -349,7 +356,7 @@ namespace housepi
                 vec[p].name(keys.consult(p), ErrType::Parameter);
         }
 
-        void restart(const Scheme &scheme, State &state, rnd_gen &prng)
+        void restart(const Scheme &scheme, State &state, RndGen &prng)
         {
             for (size_t p : scheme.sample)
                 state.vec[p].restart(prng);
@@ -376,7 +383,7 @@ namespace housepi
     void Parameter::build(const str_table &input,
                           const Translator &translator)
     {
-        clear_optional();
+        clear_optional_();
 
         if (input.empty())
             return;
@@ -387,7 +394,7 @@ namespace housepi
         // user parameters take keys after model-declared ones, producer first
         for (size_t k : order)
             if (!count(def_[k].name))
-                add(def_[k].name);
+                add_(def_[k].name);
 
         scheme_.build(def_, *this, std::move(order));
         state.allocate(*this);
@@ -405,6 +412,34 @@ namespace housepi
                 at(consult(pstr)).release_user_const();
                 scheme_.pin(consult(pstr), found->second);
             }
+    }
+
+    bool Parameter::reads_any(size_t p, const std::vector<size_t> &others) const
+    {
+        const std::string &pstr = consult(p);
+        for (const param::DefRow &row : def_.rows)
+        {
+            if (row.name != pstr)
+                continue;
+            for (const parse::Definition *col : {&row.prior, &row.min, &row.max})
+                for (const std::string &producer : col->list_parameter_producers())
+                    for (size_t o : others)
+                        if (o != p && producer == consult(o))
+                            return true;
+        }
+        return false;
+    }
+
+    bool Parameter::is_risk_only(size_t p) const
+    {
+        if (is_declared(p) || vect::contains(scheme_.sample_cached, p))
+            return false;
+        const std::string &pstr = consult(p);
+        for (const param::DefRow &row : def_.rows)
+            for (const parse::Definition *col : {&row.func, &row.min, &row.max})
+                if (vect::contains(col->list_parameter_producers(), pstr))
+                    return false;
+        return true;
     }
 
     void Parameter::bind_(const Translator &translator)
@@ -512,6 +547,7 @@ namespace housepi
         {
             flat_.clear();
             base_.assign(n_owners, 0);
+            houses_of_param_.clear();
         }
 
         //////////////////////////////  risks::Group  //////////////////////////////
@@ -521,7 +557,7 @@ namespace housepi
                           const str_table &input)
         {
             // drop the previous build
-            clear_optional();
+            clear_optional_();
             reset_store_(data_wide.report_indiv.total);
             scale_anchors_.clear();
             slot_base_.fill(0);
@@ -550,7 +586,7 @@ namespace housepi
 
             // scale anchoring per risk name and rule group
             for (const auto &[key, anchor] : read_scale_anchors<GroupKey>(
-                     defs.row_param, [&](size_t r)
+                     defs.row_param, read_row_units(input), [&](size_t r)
                      { return GroupKey{g_input_vec[r], defs.rules.row_gid[r]}; }))
                 scale_anchors_[consult(key.first)].push_back(anchor);
 
@@ -564,7 +600,10 @@ namespace housepi
                     for (size_t s = 0; s < n_slots_; ++s)
                         for (auto &[key, r] : defs.resolve(data_wide, indiv, static_cast<StatusSlot>(s)))
                             if (const size_t p = defs.row_param[r]; !na::is(p))
+                            {
                                 cell_params[s * n_keys + consult(key.first)].push_back(p);
+                                mark_reads_(p, Index::of(house));
+                            }
 
                     auto [it, is_new] = unique_defin_map.try_emplace(
                         std::move(cell_params), static_cast<RiskOffset>(flat_.size()));
@@ -577,7 +616,7 @@ namespace housepi
         std::vector<std::string> Group::helper_process_definitions_(data::Wide &data_wide,
                                                                     const str_table &input)
         {
-            const std::vector<std::string> file_headers = {"group_risk", "param_name", "rule_group"};
+            const std::vector<std::string> file_headers = {"group_risk", "param_name", "n", "rule_group"};
 
             // every column but the template headers is a covariate
             std::vector<std::string> data_headers = extract_keys(input);
@@ -585,7 +624,7 @@ namespace housepi
 
             // register the group-risk names
             for (const std::string &gstr : str::unique(input.at("group_risk")))
-                add(gstr);
+                add_(gstr);
 
             // the status is carried by the member: no data key, the equivalence-class hash mixes it in
             data_wide.set_eq_class_data_names(
@@ -671,7 +710,7 @@ namespace housepi
 
             // scale anchoring per rule group
             for (const auto &[gid, anchor] : read_scale_anchors<size_t>(
-                     defs.row_param, [&](size_t r)
+                     defs.row_param, read_row_units(input), [&](size_t r)
                      { return defs.rules.row_gid[r]; }))
                 scale_anchors_.push_back(anchor);
 
@@ -702,13 +741,18 @@ namespace housepi
                                        classes.of_indiv[Index::of(house.at(to))]];
                         if (!pair.resolved)
                         {
-                            pair.param_ptrs =
-                                defs.associate_param_ptrs(data_wide, param, house.at(from), house.at(to));
+                            pair.params = defs.associate_params(data_wide, house.at(from), house.at(to));
+                            for (size_t p : pair.params)
+                                pair.param_ptrs.push_back(param.at(p).pointer());
                             pair.resolved = true;
                         }
 
                         if (!pair.param_ptrs.empty())
                             flat_[base_[H] + from * house_size + to].init_product(pair.param_ptrs);
+                        // transmission reads a contact from an infected member only
+                        if (house.at(from).is_infected_status())
+                            for (size_t p : pair.params)
+                                mark_reads_(p, H);
                     }
             }
         }
@@ -722,6 +766,77 @@ namespace housepi
     {
         return group_.same_group(house.at(i), house.at(j)) &&
                contact_.same_contacts(house, i, j);
+    }
+
+    std::vector<std::vector<HouseIdx>> Risks::list_houses_of_param(size_t n_params) const
+    {
+        std::vector<std::vector<HouseIdx>> out(n_params);
+        const risks::Store *group = &group_, *contact = &contact_;
+        for (const risks::Store *store : {group, contact})
+            for (size_t p = 0; p < store->houses_of_param().size(); ++p)
+                vect::append(out[p], store->houses_of_param()[p]);
+        for (std::vector<HouseIdx> &houses : out)
+            vect::sort_unique(houses);
+        return out;
+    }
+
+    std::vector<std::vector<size_t>> Risks::list_param_blocks(const Parameter &param) const
+    {
+        const auto is_movable = [&](size_t p)
+        { return vect::contains(param.scheme().sample, p) && param.at(p).can_join_block(); };
+
+        std::vector<std::vector<size_t>> blocks = {};
+        for (const risks::Anchor &anchor : anchors_)
+        {
+            if (!is_movable(anchor.baseline))
+                continue;
+            std::vector<size_t> block = {anchor.baseline};
+            const auto join = [&](const risks::ScaleAnchor &scaling)
+            {
+                for (size_t p : scaling.list_heavy())
+                    if (is_movable(p) && !vect::contains(block, p))
+                        block.push_back(p);
+            };
+            for (size_t g : anchor.risks)
+                for (const risks::ScaleAnchor &scaling : group_.scale_anchors(g))
+                    join(scaling);
+            if (anchor.contacts)
+                for (const risks::ScaleAnchor &scaling : contact_.scale_anchors())
+                    join(scaling);
+
+            // blocks sharing a member merge
+            for (size_t b = 0; b < blocks.size();)
+            {
+                const bool is_shared = std::any_of(blocks[b].begin(), blocks[b].end(),
+                                                   [&](size_t p)
+                                                   { return vect::contains(block, p); });
+                if (!is_shared)
+                {
+                    ++b;
+                    continue;
+                }
+                for (size_t p : blocks[b])
+                    if (!vect::contains(block, p))
+                        block.push_back(p);
+                blocks.erase(blocks.begin() + static_cast<std::ptrdiff_t>(b));
+            }
+            blocks.push_back(std::move(block));
+        }
+
+        // a member whose prior or bounds read another member moves alone
+        for (std::vector<size_t> &block : blocks)
+        {
+            std::vector<size_t> kept = {};
+            for (size_t p : block)
+                if (!param.reads_any(p, block))
+                    kept.push_back(p);
+            block = std::move(kept);
+        }
+        blocks.erase(std::remove_if(blocks.begin(), blocks.end(),
+                                    [](const std::vector<size_t> &block)
+                                    { return block.size() < 2; }),
+                     blocks.end());
+        return blocks;
     }
 
     void Risks::assert_identifiability(const Parameter &param) const

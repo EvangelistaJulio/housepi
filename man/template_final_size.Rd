@@ -60,7 +60,7 @@ with escape probabilities
 
 \section{Model Quantities}{
 
-\code{\link[=inspect_house_state]{inspect_house_state()}} reports in \code{model_quantities}:
+\code{\link[=inspect_state]{inspect_state()}} reports in \code{model_quantities}:
 \itemize{
 \item \code{community_escape}: \eqn{q^\mathrm{com}_{i}}{q^com_i}, per member
 \item \code{p2p_escape}: \eqn{q^\mathrm{pp}_{ji}}{q^pp_ji}, infector \eqn{j} by row and infectee \eqn{i} by column, 1 on the diagonal

@@ -1,7 +1,7 @@
 
+#include "function.h"
 #include "housepi.h"
 #include "mcmc.h"
-#include "function.h"
 #include "registry.h"
 
 HOUSEPI_OPEN_MODULE_NAMESPACE()
@@ -52,15 +52,8 @@ class Model : public ModelBase
 {
 public:
     /// Keys of the definitions the model requires.
-    HOUSEPI_DECLARE_REGISTER_KEYS(Latent, proba)
-    HOUSEPI_DECLARE_EMPTY_KEYS(Data)
-    HOUSEPI_DECLARE_EMPTY_KEYS(Long)
-    HOUSEPI_DECLARE_EMPTY_KEYS(GroupRisk)
-    HOUSEPI_DECLARE_EMPTY_KEYS(HHmember)
-    HOUSEPI_DECLARE_EMPTY_KEYS(HHmembervec)
-    HOUSEPI_DECLARE_EMPTY_KEYS(HHdoublevec)
-    HOUSEPI_DECLARE_EMPTY_KEYS(HHdoublemtx)
-    HOUSEPI_DECLARE_REGISTER_KEYS(Param, alpha)
+    HOUSEPI_DECLARE_LATENT_KEYS(proba)
+    HOUSEPI_DECLARE_PARAM_KEYS(alpha)
 
     /// Compute the transmission log-likelihood of `house`.
     double compute_house_transm_log_lik(const Household &house) override final

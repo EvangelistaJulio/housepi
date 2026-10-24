@@ -5,12 +5,13 @@
 
 #pragma once
 
-#include <cstdint>
 #include <string>
 #include <utility>
 #include <vector>
 
 #include "tools/nan.h"
+#include "tools/vector.h"
+#include "mcmc/settings.h"
 
 namespace housepi
 {
@@ -22,12 +23,10 @@ namespace housepi
     {
         struct Wide;
     }
-    struct Setup;
 
     /// Store posterior MCMC draws of every chain.
     struct Posterior
     {
-        using matrix = std::vector<std::vector<double>>;
         using headers = std::vector<std::string>;
 
         /// Draw columns of one table, shaped at initialization.
@@ -58,20 +57,20 @@ namespace housepi
         void init(MCMCBase &mcmc);
         /// Store current values as draw `local` of chain `chain_id`, in its own column block.
         void store(MCMCBase &mcmc,
-                   std::uint64_t chain_id,
-                   std::uint64_t local);
+                   Settings::Chain chain_id,
+                   Settings::Step local);
 
     private:
         /// Initialize the parameter draws of the posterior.
         void init_param_draws_(const Parameter &param,
-                               std::uint64_t sample_size);
+                               Settings::Step sample_size);
         /// Initialize the household transmission log-likelihood draws of the posterior.
         void init_house_draws_(const data::Wide &data_wide,
-                               std::uint64_t sample_size);
+                               Settings::Step sample_size);
         /// Initialize the latent draws of the posterior.
         void init_latent_draws_(const Augmented &augm,
                                 const data::Wide &data_wide,
-                                const Setup &setup,
-                                std::uint64_t sample_size);
+                                const Settings &settings,
+                                Settings::Step sample_size);
     };
 }

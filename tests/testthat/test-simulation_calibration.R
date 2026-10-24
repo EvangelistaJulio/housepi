@@ -93,23 +93,23 @@ mk_calib <- local({
     add_parameter("rho", prior = "uniform", min = -5, max = 5) |>
     add_latent("hidden", model = "normal", mean = rho, sd = 1) |>
     add_observation("record", model = "normal", mean = hidden, sd = 1)
-  results <- hh_model |>
+  calibration <- hh_model |>
     check_calibration(nrep = 3, structure_sampler = NULL, rank_draws = 9,
                       steps = 400, thin = 1, chains = 1, progress = FALSE) |>
     suppressWarnings()
-  list(model = hh_model, results = results)
+  list(model = hh_model, calibration = calibration)
 })
 
-test_that("Calibration results are read only", {
-  mk_calib$results |>
+test_that("Calibration calibration are read only", {
+  mk_calib$calibration |>
     expect_read_only_field("estimates", "replicates",
                            "overview", "houses", "nrep", "rank_draws",
                            "warnings")
 })
 
 test_that("Every replicate is ranked at a value drawn from the prior", {
-  results <- mk_calib$results
-  estimates <- results$estimates
+  calibration <- mk_calib$calibration
+  estimates <- calibration$estimates
   estimates |> expect_nrow(3L)
   estimates$rep |> expect_identical(1:3)
   estimates$rank |> expect_in(0:9)
@@ -117,26 +117,26 @@ test_that("Every replicate is ranked at a value drawn from the prior", {
   unique(estimates$truth) |> expect_length(3L)
   (estimates$truth > -5 & estimates$truth < 5 & estimates$truth != 2) |>
     expect_all_true()
-  results$evaluate_ecdf() |> expect_nrow(9L)
-  results$summarise()$nrep |> expect_identical(3L)
-  results$summarize() |> expect_identical(results$summarise())
-  results$overview$nrep |> expect_identical(3L)
-  results$houses |> expect_identical(30L)
-  results$rank_draws |> expect_identical(9L)
+  calibration$evaluate_ecdf() |> expect_nrow(9L)
+  calibration$summarise()$nrep |> expect_identical(3L)
+  calibration$summarize() |> expect_identical(calibration$summarise())
+  calibration$overview$nrep |> expect_identical(3L)
+  calibration$houses |> expect_identical(30L)
+  calibration$rank_draws |> expect_identical(9L)
 })
 
-test_that("Calibration results print their settings", {
-  results <- mk_calib$results
-  lines <- helper_print_lines(printed <- print(results))
+test_that("Calibration calibration print their settings", {
+  calibration <- mk_calib$calibration
+  lines <- helper_print_lines(printed <- print(calibration))
   # printing returns the object itself
-  printed |> expect_identical(results)
+  printed |> expect_identical(calibration)
   lines[1] |> expect_match("[Ss]imulation calibration check.*\"test\"")
   lines |> expect_contains(c("Households: 30", "Replicates: 3",
                              "Posterior draws ranked among: 9"))
   # the count is that of the flagged replicates
   lines |>
     expect_contains(paste("Flagged by diagnostics:",
-                          sum(results$replicates$flagged)))
+                          sum(calibration$replicates$flagged)))
   # durations read as the progress bar prints them
   lines |> expect_match("^Run time: [0-9]+s$", all = FALSE)
   lines |> expect_match("^Inference time per fit: [0-9]+s$", all = FALSE)
@@ -152,12 +152,13 @@ test_that("A sweep reproduces from a seed at any thread count", {
   }
   # one fit per wave, then a single wave of three: the ranks break ties
   # from the same stream as the engine seeds
-  results <- sweep_at(1L)
-  results_2 <- sweep_at(3L)
+  calibration <- sweep_at(1L)
+  calibration_2 <- sweep_at(3L)
   untimed <- \(replicates) replicates[names(replicates) != "inference_secs"]
-  results_2$estimates |> expect_identical(results$estimates)
-  untimed(results_2$replicates) |> expect_identical(untimed(results$replicates))
-  results_2$warnings |> expect_identical(results$warnings)
+  calibration_2$estimates |> expect_identical(calibration$estimates)
+  untimed(calibration_2$replicates) |>
+    expect_identical(untimed(calibration$replicates))
+  calibration_2$warnings |> expect_identical(calibration$warnings)
 })
 
 test_that("Calibration refuses a sweep it cannot rank", {
@@ -184,8 +185,8 @@ test_that("Calibration checks of one model pool their replicates", {
                       chains = 1, progress = FALSE, ...) |>
       suppressWarnings()
   }
-  results <- mk_calib$results
-  combined <- c(results, rerun())
+  calibration <- mk_calib$calibration
+  combined <- c(calibration, rerun())
 
   combined$nrep |> expect_identical(5L)
   combined$estimates$rep |> expect_identical(1:5)
@@ -194,17 +195,17 @@ test_that("Calibration checks of one model pool their replicates", {
   combined$summarise()$log_gamma_threshold |>
     expect_equal(calibration_log_threshold_(5, 9, 0.05))
   combined$evaluate_ecdf() |> expect_nrow(9L)
-  results$nrep |> expect_identical(3L)
-  c(results, results) |> expect_error("[Rr]epeat a replicate.*30")
-  c(results, rerun(nrep = 1, rank_draws = 8)) |>
+  calibration$nrep |> expect_identical(3L)
+  c(calibration, calibration) |> expect_error("[Rr]epeat a replicate.*30")
+  c(calibration, rerun(nrep = 1, rank_draws = 8)) |>
     expect_error("[Dd]iffer in.*rank_draws")
 
   # one count per check, several once pooled
   resampled <- \(nrep, houses) {
     rerun(nrep, structure_sampler = sample_house_structure, houses = houses)
   }
-  results_2 <- resampled(2, 30)
-  combined <- c(results_2, resampled(1, 40), resampled(1, 30))
+  calibration_2 <- resampled(2, 30)
+  combined <- c(calibration_2, resampled(1, 40), resampled(1, 30))
   combined$houses |> expect_identical(c(30L, 40L))
   combined$nrep |> expect_identical(c(3L, 1L))
   # the third check follows the first at their shared count
@@ -214,15 +215,18 @@ test_that("Calibration checks of one model pool their replicates", {
     expect_equal(c(calibration_log_threshold_(3, 9, 0.05),
                    calibration_log_threshold_(1, 9, 0.05)))
   combined$evaluate_ecdf() |> expect_nrow(18L)
-  c(results, results_2) |> expect_error("[Dd]iffer in.*structure_sampler")
+  c(calibration, calibration_2) |>
+    expect_error("[Dd]iffer in.*structure_sampler")
 })
 
 test_that("Latent inference is calibrated against the prior", {
   skip_on_cran()
   # a replicate flagged by convergence diagnostics warns
-  results <- check_calibration(mk_calib$model, threads = 4, progress = FALSE) |>
+  calibration <- mk_calib$model |>
+    check_calibration(threads = 4, progress = FALSE) |>
     suppressWarnings()
   # a test at level 0.001, so a calibrated sampler fails one run in 1000
-  threshold <- calibration_log_threshold_(results$summarise()$nrep, 99, 0.001)
-  (results$summarise()$log_gamma >= threshold) |> expect_true()
+  nrep <- calibration$summarise()$nrep
+  threshold <- calibration_log_threshold_(nrep, 99, 0.001)
+  (calibration$summarise()$log_gamma >= threshold) |> expect_true()
 })

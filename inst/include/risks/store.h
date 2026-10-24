@@ -11,6 +11,7 @@
 #include <limits>
 #include <vector>
 
+#include "data/individual.h"
 #include "data/status.h"
 #include "function.h"
 
@@ -43,10 +44,23 @@ namespace housepi::risks
         bool is_empty() const noexcept { return flat_.empty(); }
         /// Finalize every attribute (see Attribute::finalize).
         void finalize();
+        /// Households reading each parameter, by parameter key, in increasing order.
+        const std::vector<std::vector<HouseIdx>> &houses_of_param() const noexcept { return houses_of_param_; }
 
     protected:
-        std::vector<Attribute> flat_ = {};  /// Risk attributes, one block per unique definition.
-        std::vector<RiskOffset> base_ = {}; /// Offset each owner's block starts at.
+        std::vector<Attribute> flat_ = {};                        /// Risk attributes, one block per unique definition.
+        std::vector<RiskOffset> base_ = {};                       /// Offset each owner's block starts at.
+        std::vector<std::vector<HouseIdx>> houses_of_param_ = {}; /// Households reading each parameter.
+
+        /// Record that household `H` reads parameter `p`.
+        /// @note Households are visited in increasing order.
+        void mark_reads_(size_t p, HouseIdx H)
+        {
+            if (p >= houses_of_param_.size())
+                houses_of_param_.resize(p + 1);
+            if (houses_of_param_[p].empty() || houses_of_param_[p].back() != H)
+                houses_of_param_[p].push_back(H);
+        }
 
         /// Drop the previous build and point every owner at the first block.
         void reset_store_(size_t n_owners);

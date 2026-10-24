@@ -5,289 +5,291 @@
 
 #pragma once
 
-#include <vector>
 #include <string>
 #include <utility>
+#include <vector>
 
+#include "tools/messages.h"
+#include "tools/vector.h"
 #include "data/individual.h"
 #include "mcmc/base.h"
-#include "tools/messages.h"
 
 //////////////////////////////  ModelBase  //////////////////////////////
 
 namespace housepi
 {
-	class Individual;
-	class Household;
+    class Individual;
+    class Household;
 
 #define MAKE_HOUSEPI_CACHE_FORWARDER(NAME)                                    \
-	auto &cache_##NAME(const Household &house, size_t e) noexcept             \
-	{                                                                         \
-		return mcmc_->data.state.cache_##NAME(house, e);                      \
-	}                                                                         \
-	const auto &cache_##NAME(const Household &house, size_t e) const noexcept \
-	{                                                                         \
-		return mcmc_->data.state.cache_##NAME(house, e);                      \
-	}
+    auto &cache_##NAME(const Household &house, size_t e) noexcept             \
+    {                                                                         \
+        return mcmc_->data.state.cache_##NAME(house, e);                      \
+    }                                                                         \
+    const auto &cache_##NAME(const Household &house, size_t e) const noexcept \
+    {                                                                         \
+        return mcmc_->data.state.cache_##NAME(house, e);                      \
+    }
 
-	/// Named quantities of one household that a model exports, indexed by member.
-	struct HouseQuantities
-	{
-		/// Collect quantities of a household of `n` members.
-		explicit HouseQuantities(size_t n) noexcept : n_(n) {}
+    /// Named quantities of one household that a model exports, indexed by member.
+    struct HouseQuantities
+    {
+        /// Collect quantities of a household of `n` members.
+        explicit HouseQuantities(size_t n) noexcept : n_(n) {}
 
-		/// Add `values` as `name`, one per member.
-		void vector(std::string name, std::vector<double> values)
-		{
-			if (values.size() != n_)
-				msg::stop("Exported vector " + msg::val(name) + " is not sized by household members.");
-			vectors.emplace_back(std::move(name), std::move(values));
-		}
-		/// Add `values` as `name`, one row and one column per member.
-		void matrix(std::string name, std::vector<std::vector<double>> values)
-		{
-			bool sized = values.size() == n_;
-			for (const std::vector<double> &row : values)
-				sized = sized && row.size() == n_;
-			if (!sized)
-				msg::stop("Exported matrix " + msg::val(name) + " is not sized by household members.");
-			matrices.emplace_back(std::move(name), std::move(values));
-		}
+        /// Add `values` as `name`, one per member.
+        void vector(std::string name, std::vector<double> values)
+        {
+            if (values.size() != n_)
+                msg::stop("Exported vector " + msg::val(name) + " is not sized by household members.");
+            vectors.emplace_back(std::move(name), std::move(values));
+        }
+        /// Add `values` as `name`, one row and one column per member.
+        void matrix(std::string name, housepi::matrix values)
+        {
+            bool sized = values.size() == n_;
+            for (const std::vector<double> &row : values)
+                sized = sized && row.size() == n_;
+            if (!sized)
+                msg::stop("Exported matrix " + msg::val(name) + " is not sized by household members.");
+            matrices.emplace_back(std::move(name), std::move(values));
+        }
 
-		std::vector<std::pair<std::string, std::vector<double>>> vectors = {};               /// Vectors, by name.
-		std::vector<std::pair<std::string, std::vector<std::vector<double>>>> matrices = {}; /// Matrices, by name.
+        std::vector<std::pair<std::string, std::vector<double>>> vectors = {}; /// Vectors, by name.
+        std::vector<std::pair<std::string, housepi::matrix>> matrices = {};    /// Matrices, by name.
 
-	private:
-		size_t n_; /// Household size.
-	};
+    private:
+        size_t n_; /// Household size.
+    };
 
-	/// Transmission model: per-household log-likelihood and simulation hooks.
-	///
-	/// * built-in and custom models derive from it through the `HOUSEPI_*` macros;
-	/// * the accessors below read the engine the model is bound to.
-	class ModelBase
-	{
-	public:
-		//////  Constructor  //////
+    /// Transmission model: per-household log-likelihood and simulation hooks.
+    ///
+    /// * built-in and custom models derive from it through the `HOUSEPI_*` macros;
+    /// * the accessors below read the engine the model is bound to.
+    class ModelBase
+    {
+    public:
+        //////  Constructor  //////
 
-		virtual ~ModelBase() = default;
+        virtual ~ModelBase() = default;
 
-		/// Bind the engine `mcmc` the model reads.
-		void bind_solver(MCMCBase *mcmc) noexcept { mcmc_ = mcmc; }
+        /// Bind the engine `mcmc` the model reads.
+        void bind_solver(MCMCBase *mcmc) noexcept { mcmc_ = mcmc; }
 
-		//////  Model-declared keys  //////
+        //////  Model-declared keys  //////
 
-		virtual const std::vector<std::string> key_Data() const = 0;
-		virtual const std::vector<std::string> key_HHmember() const = 0;
-		virtual const std::vector<std::string> key_HHmembervec() const = 0;
-		virtual const std::vector<std::string> key_HHdoublevec() const = 0;
-		virtual const std::vector<std::string> key_HHdoublemtx() const = 0;
-		virtual const std::vector<std::string> key_Long() const = 0;
-		virtual const std::vector<std::string> key_Param() const = 0;
-		virtual const std::vector<std::string> key_GroupRisk() const = 0;
-		virtual const std::vector<std::string> key_Latent() const = 0;
+        /// Names of the keys per slot, overridden by `HOUSEPI_DECLARE_<SLOT>_KEYS`, empty otherwise.
+        virtual std::vector<std::string> data_keys() const { return {}; }
+        virtual std::vector<std::string> house_member_keys() const { return {}; }
+        virtual std::vector<std::string> house_member_vec_keys() const { return {}; }
+        virtual std::vector<std::string> house_double_vec_keys() const { return {}; }
+        virtual std::vector<std::string> house_double_mtx_keys() const { return {}; }
+        virtual std::vector<std::string> long_keys() const { return {}; }
+        virtual std::vector<std::string> param_keys() const { return {}; }
+        virtual std::vector<std::string> group_risk_keys() const { return {}; }
+        virtual std::vector<std::string> latent_keys() const { return {}; }
 
-		//////  Model  //////
+        //////  Model  //////
 
-		/// Whether the model uses contact risks.
-		virtual bool has_contact_risk() const { return false; }
-		/// Whether the model requires an infectivity profile definition.
-		virtual bool has_infec_profile() const { return false; }
+        /// Whether the model uses contact risks.
+        virtual bool has_contact_risk() const { return false; }
+        /// Whether the model requires an infectivity profile definition.
+        virtual bool has_infec_profile() const { return false; }
 
-		/// Recompute the cached quantities of `house` read by the transmission model.
-		virtual void update_house_transmission_cache(const Household & /*house*/) {}
-		/// Recompute the cached quantities of member `indiv` read by the transmission model.
-		virtual void update_member_transmission_cache(const Household & /*house*/,
-													  const Individual & /*indiv*/) {}
-		/// Compute the transmission log-likelihood of `house`.
-		virtual double compute_house_transm_log_lik(const Household & /*house*/) = 0;
-		/// Export named quantities of `house` at the current state into `out`.
-		/// * called on an equivalence-class head, once every class is evaluated;
-		/// * default -> nothing.
-		/// @note A cache written by compute_house_transm_log_lik() may hold a rejected proposal.
-		virtual void export_house_quantities(const Household & /*house*/, HouseQuantities & /*out*/) {}
+        /// Recompute the cached quantities of `house` read by the transmission model.
+        virtual void update_house_transmission_cache(const Household & /*house*/) {}
+        /// Recompute the cached quantities of member `indiv` read by the transmission model.
+        virtual void update_member_transmission_cache(const Household & /*house*/,
+                                                      const Individual & /*indiv*/) {}
+        /// Compute the transmission log-likelihood of `house`.
+        virtual double compute_house_transm_log_lik(const Household & /*house*/) = 0;
+        /// Export named quantities of `house` at the current state into `out`.
+        /// * called on an equivalence-class head, once every class is evaluated;
+        /// * default -> nothing.
+        /// @note A cache written by compute_house_transm_log_lik() may hold a rejected proposal.
+        virtual void export_house_quantities(const Household & /*house*/, HouseQuantities & /*out*/) {}
 
-		/// Initialize the model for evaluation (cache variables, lookup tables).
-		virtual void init_model_for_evaluation() {}
-		/// Initialize household `house` for evaluation.
-		/// * runs right after init_model_for_evaluation().
-		virtual void init_house_for_evaluation(const Household & /*house*/) {}
+        /// Initialize the model for evaluation (cache variables, lookup tables).
+        virtual void init_model_for_evaluation() {}
+        /// Initialize household `house` for evaluation.
+        /// * runs right after init_model_for_evaluation().
+        virtual void init_house_for_evaluation(const Household & /*house*/) {}
 
-		/// Initialize the model for simulation (cache variables, lookup tables).
-		virtual void init_model_for_simulation() {}
-		/// Simulate household `house`.
-		virtual void simulate_single_house(Household & /*house*/) = 0;
+        /// Initialize the model for simulation (cache variables, lookup tables).
+        virtual void init_model_for_simulation() {}
+        /// Simulate household `house`.
+        virtual void simulate_single_house(Household & /*house*/) = 0;
 
-		//////  Setter: model requests  //////
+        //////  Setter: model requests  //////
 
-		/// Declare the model definition requirements.
-		virtual void init_model_requirements() {}
+        /// Declare the model definition requirements.
+        virtual void init_model_requirements() {}
 
-		/// Request that baseline parameter `p` and group risks `risks` share one reference.
-		/// @param contacts Whether contact risks scale the same term as `risks`.
-		void request_risk_identifiability(size_t p, std::vector<size_t> risks, bool contacts = false)
-		{
-			mcmc_->risks.request_identifiability(p, std::move(risks), contacts);
-		}
+        /// Request that baseline parameter `p` and group risks `risks` share one reference.
+        /// @param contacts Whether contact risks scale the same term as `risks`.
+        void request_risk_identifiability(size_t p, std::vector<size_t> risks, bool contacts = false)
+        {
+            mcmc_->risks.request_identifiability(p, std::move(risks), contacts);
+        }
 
-		/// Declare the group risks `vec` a rule may stratify by infected status.
-		/// @note Leave out risks read before a member's status is drawn in simulation.
-		void request_risk_status_stratified(std::vector<size_t> vec)
-		{
-			mcmc_->risks.request_status_stratified(std::move(vec));
-		}
+        /// Declare the group risks `vec` a rule may stratify by infected status.
+        /// @note Leave out risks read before a member's status is drawn in simulation.
+        void request_risk_status_stratified(std::vector<size_t> vec)
+        {
+            mcmc_->risks.request_status_stratified(std::move(vec));
+        }
 
-		/// Request discrete parameters `vec`.
-		void request_param_discrete(std::vector<size_t> vec) { mcmc_->param.request_discrete(vec); }
-		/// Request positive parameters `vec`.
-		void request_param_positive(std::vector<size_t> vec) { mcmc_->param.request_positive(vec); }
+        /// Request discrete parameters `vec`.
+        void request_param_discrete(std::vector<size_t> vec) { mcmc_->param.request_discrete(vec); }
+        /// Request positive parameters `vec`.
+        void request_param_positive(std::vector<size_t> vec) { mcmc_->param.request_positive(vec); }
 
-		/// Request discrete latents `vec`.
-		void request_latent_discrete(std::vector<size_t> vec) { mcmc_->augm.request_discrete(vec); }
-		/// Request positive latents `vec`.
-		void request_latent_positive(std::vector<size_t> vec) { mcmc_->augm.request_positive(vec); }
-		/// Declare latents `vec` as generated and read by transmission, cache included.
-		/// A latent listed here takes no model: transmission gives its density.
-		void request_latent_transmission(std::vector<size_t> vec) { mcmc_->augm.request_transmission(vec); }
+        /// Request discrete latents `vec`.
+        void request_latent_discrete(std::vector<size_t> vec) { mcmc_->augm.request_discrete(vec); }
+        /// Request positive latents `vec`.
+        void request_latent_positive(std::vector<size_t> vec) { mcmc_->augm.request_positive(vec); }
+        /// Declare latents `vec` as generated and read by transmission, cache included.
+        /// A latent listed here takes no model: transmission gives its density.
+        void request_latent_transmission(std::vector<size_t> vec) { mcmc_->augm.request_transmission(vec); }
 
-		/// Request a discrete infectivity profile.
-		void request_infec_profile_discrete() { mcmc_->infec_profile.request_discrete(); }
+        /// Request a discrete infectivity profile.
+        void request_infec_profile_discrete() { mcmc_->infec_profile.request_discrete(); }
 
-		/// Request discrete data columns `vec`.
-		void request_data_discrete(std::vector<size_t> vec) { mcmc_->data.wide().request_discrete(vec); }
-		/// Request positive data columns `vec`.
-		void request_data_positive(std::vector<size_t> vec) { mcmc_->data.wide().request_positive(vec); }
-		/// Request data columns `vec` with a value for every member, escaped ones included.
-		void request_data_every_member(std::vector<size_t> vec) { mcmc_->data.wide().request_everyone(vec); }
+        /// Request discrete data columns `vec`.
+        void request_data_discrete(std::vector<size_t> vec) { mcmc_->data.wide().request_discrete(vec); }
+        /// Request positive data columns `vec`.
+        void request_data_positive(std::vector<size_t> vec) { mcmc_->data.wide().request_positive(vec); }
+        /// Request data columns `vec` with a value for every member, escaped ones included.
+        void request_data_every_member(std::vector<size_t> vec) { mcmc_->data.wide().request_everyone(vec); }
 
-		/// Throw if some member has missing status.
-		void assert_no_missing_status() const { mcmc_->data.wide().assert_no_missing_status(); }
+        /// Throw if some member has missing status.
+        void assert_no_missing_status() const { mcmc_->data.wide().assert_no_missing_status(); }
 
-		//////  Setter: model calls  //////
+        //////  Setter: model calls  //////
 
-		/// Set member `indiv` infected, at the status the status process draws.
-		/// * no status process -> the lowest infected status.
-		/// @note Call init_missing_latent() after to initialize individual status-specific variables.
-		void set_infected(Household &house, Individual &indiv)
-		{
-			house.set_new_status_(indiv, mcmc_->status_process.draw(indiv, mcmc_->setup.prng()));
-		}
-		/// Set member `indiv` escaped.
-		void set_escaped(Household &house, Individual &indiv)
-		{
-			house.set_new_status_(indiv, status::ESCAPED);
-		}
+        /// Set member `indiv` infected, at the status the status process draws.
+        /// * no status process -> the lowest infected status.
+        /// @note Call init_missing_latent() after to initialize individual status-specific variables.
+        void set_infected(Household &house, Individual &indiv)
+        {
+            house.set_new_status_(indiv, mcmc_->status_process.draw(indiv, mcmc_->settings.prng()));
+        }
+        /// Set member `indiv` escaped.
+        void set_escaped(Household &house, Individual &indiv)
+        {
+            house.set_new_status_(indiv, status::ESCAPED);
+        }
 
-		/// Set latent `a` of member `m` to `x`; throw if not allowed.
-		void set_latent_value(size_t a, const Individual &m, double x) { mcmc_->augm.at(a, m).set(x); }
+        /// Set latent `a` of member `m` to `x`; throw if not allowed.
+        void set_latent_value(size_t a, const Individual &m, double x) { mcmc_->augm.at(a, m).set(x); }
 
-		/// Introduce infection in `house` through latent `a`.
-		/// Set every other member to escaped.
-		/// * member: drawn uniformly;
-		/// * time: the time origin, 0.
-		/// @todo Generalize to user-choices other than uniform.
-		/// @note This procedure is validated by SBC on case-ascertained.
-		/// @return The member introducing the infection.
-		MemberIdx set_introduction(Household &house, size_t a)
-		{
-			const MemberIdx i0 = uniform() * house.size();
-			Individual &indiv_0 = house.at(i0);
-			set_infected(house, indiv_0);
-			set_latent_value(a, indiv_0, 0.);
-			init_missing_latent(indiv_0);
+        /// Introduce infection in `house` through latent `a`.
+        /// Set every other member to escaped.
+        /// * member: drawn uniformly;
+        /// * time: the time origin, 0.
+        /// @todo Generalize to user-choices other than uniform.
+        /// @note This procedure is validated by SBC on case-ascertained.
+        /// @return The member introducing the infection.
+        MemberIdx set_introduction(Household &house, size_t a)
+        {
+            const MemberIdx i0 = uniform() * house.size();
+            Individual &indiv_0 = house.at(i0);
+            set_infected(house, indiv_0);
+            set_latent_value(a, indiv_0, 0.);
+            init_missing_latent(indiv_0);
 
-			for (Individual &indiv : house)
-				if (indiv != indiv_0)
-					set_escaped(house, indiv);
-			return i0;
-		}
+            for (Individual &indiv : house)
+                if (indiv != indiv_0)
+                    set_escaped(house, indiv);
+            return i0;
+        }
 
-		/// Initialize the latents and observations of member `indiv`.
-		/// * latent set by the user -> skipped.
-		/// @todo Allow order-dependent assignments in simulation.
-		void init_missing_latent(Individual &indiv)
-		{
-			mcmc_->augm.init_definitions_for_simulation(indiv);
-			mcmc_->augm.draw_sample_for_simulation(indiv, mcmc_->setup.prng());
-			mcmc_->augm.sample_obs(indiv, mcmc_->setup.prng());
-		}
+        /// Initialize the latents and observations of member `indiv`.
+        /// * latent set by the user -> skipped.
+        /// @todo Allow order-dependent assignments in simulation.
+        void init_missing_latent(Individual &indiv)
+        {
+            mcmc_->augm.init_definitions_for_simulation(indiv);
+            mcmc_->augm.draw_sample_for_simulation(indiv, mcmc_->settings.prng());
+            mcmc_->augm.sample_obs(indiv, mcmc_->settings.prng());
+        }
 
-		//////  Getter  //////
+        //////  Getter  //////
 
-		/// Draw a uniform variate on [0, 1].
-		double uniform() const { return mcmc_->setup.uniform(); }
-		/// Draw a unit-rate exponential variate.
-		double exponential() const { return mcmc_->setup.exponential(); }
+        /// Draw a uniform variate on [0, 1].
+        double uniform() const { return mcmc_->settings.uniform(); }
+        /// Draw a unit-rate exponential variate.
+        double exponential() const { return mcmc_->settings.exponential(); }
 
-		/// User-configured time step of the simulation.
-		double real_time_step() const { return mcmc_->setup.time_step; }
-		/// Number of thread slots, the size of a per-thread pool.
-		size_t n_threads() const { return mcmc_->setup.n_threads; }
-		/// Slot of the calling thread in a per-thread pool.
-		size_t thread_slot() const { return mcmc_->setup.thread_slot(); }
+        /// User-configured time step of the simulation.
+        double real_time_step() const { return mcmc_->settings.time_step; }
+        /// Number of thread slots, the size of a per-thread pool.
+        size_t n_threads() const { return mcmc_->settings.n_threads; }
+        /// Slot of the calling thread in a per-thread pool.
+        size_t thread_slot() const { return mcmc_->settings.thread_slot(); }
 
-		/// Value of parameter `p`.
-		double par(size_t p) const { return mcmc_->param.at(p).value(); }
-		/// Latent `a` of member `m`.
-		double aug(size_t a, const Individual &m) const { return mcmc_->aug(a, m); }
-		/// Datum `d` of member `m`.
-		double data(size_t d, const Individual &m) const { return mcmc_->data.at(d, m).value(); }
-		/// Group risk `g` of member `m`.
-		double group_risk(size_t g, const Individual &m) const { return mcmc_->risks.group().value(g, m); }
+        /// Value of parameter `p`.
+        double par(size_t p) const { return mcmc_->param.at(p).value(); }
+        /// Latent `a` of member `m`.
+        double aug(size_t a, const Individual &m) const { return mcmc_->aug(a, m); }
+        /// Datum `d` of member `m`.
+        double data(size_t d, const Individual &m) const { return mcmc_->data.at(d, m).value(); }
+        /// Group risk `g` of member `m`.
+        double group_risk(size_t g, const Individual &m) const { return mcmc_->risks.group().value(g, m); }
 
-		/// Name of member `m`, for error messages.
-		std::string str(const Individual &m) const { return mcmc_->data.wide().str(m); }
-		/// Name of household `h`, for error messages.
-		std::string str(const Household &h) const { return mcmc_->data.wide().str(h); }
+        /// Name of member `m`, for error messages.
+        std::string str(const Individual &m) const { return mcmc_->data.wide().str(m); }
+        /// Name of household `h`, for error messages.
+        std::string str(const Household &h) const { return mcmc_->data.wide().str(h); }
 
-		/// Contact risk from member `from` to member `to` of `house`.
-		double contact_risk(const Household &house, MemberIdx from, MemberIdx to) const
-		{
-			return mcmc_->risks.contact().value(house, from, to);
-		}
-		/// Whether members `i` and `j` of `house` are equivalent according to risks.
-		bool is_same_risk_partition(const Household &house, MemberIdx i, MemberIdx j) const
-		{
-			return mcmc_->risks.same_partition(house, i, j);
-		}
-		/// Contact risk within the partition of member `i` (self-contact).
-		double intra_partition_contact_risk(const Household &house, MemberIdx i) const
-		{
-			return mcmc_->risks.contact().intra_value(house, i);
-		}
+        /// Contact risk from member `from` to member `to` of `house`.
+        double contact_risk(const Household &house, MemberIdx from, MemberIdx to) const
+        {
+            return mcmc_->risks.contact().value(house, from, to);
+        }
+        /// Whether members `i` and `j` of `house` are equivalent according to risks.
+        bool is_same_risk_partition(const Household &house, MemberIdx i, MemberIdx j) const
+        {
+            return mcmc_->risks.same_partition(house, i, j);
+        }
+        /// Contact risk within the partition of member `i` (self-contact).
+        double intra_partition_contact_risk(const Household &house, MemberIdx i) const
+        {
+            return mcmc_->risks.contact().intra_value(house, i);
+        }
 
-		/// Instantaneous infectivity profile of member `m` at time `t`.
-		double infec_profile_inst(const Individual &m, double t) const
-		{
-			return mcmc_->infec_profile.inst(&m, t);
-		}
-		/// Cumulative infectivity profile of member `m` at time `t`.
-		double infec_profile_cumul(const Individual &m, double t) const
-		{
-			return mcmc_->infec_profile.cumul(&m, t);
-		}
+        /// Instantaneous infectivity profile of member `m` at time `t`.
+        double infec_profile_inst(const Individual &m, double t) const
+        {
+            return mcmc_->infec_profile.inst(&m, t);
+        }
+        /// Cumulative infectivity profile of member `m` at time `t`.
+        double infec_profile_cumul(const Individual &m, double t) const
+        {
+            return mcmc_->infec_profile.cumul(&m, t);
+        }
 
-		//////  Cache  //////
+        //////  Cache  //////
 
-		/// @name Model cache of the equivalence class of `house`, by cache key.
-		/// * recovered on a rejected latent move;
-		/// * recovered on a rejected move of a parameter feeding the infectivity profile.
-		/// @note Values computed from other parameters may hold a rejected proposal: recompute them.
-		///@{
+        /// @name Model cache of the equivalence class of `house`, by cache key.
+        /// * recovered on a rejected latent move;
+        /// * recovered on a rejected move of a parameter feeding the infectivity profile.
+        /// @note Values computed from other parameters may hold a rejected proposal: recompute them.
+        ///@{
 
-		/// Cached member value.
-		MAKE_HOUSEPI_CACHE_FORWARDER(member)
-		/// Cached member vector.
-		MAKE_HOUSEPI_CACHE_FORWARDER(member_vector)
-		/// Cached double vector.
-		MAKE_HOUSEPI_CACHE_FORWARDER(double_vector)
-		/// Cached double matrix.
-		MAKE_HOUSEPI_CACHE_FORWARDER(double_matrix)
-		///@}
+        /// Cached member value.
+        MAKE_HOUSEPI_CACHE_FORWARDER(member)
+        /// Cached member vector.
+        MAKE_HOUSEPI_CACHE_FORWARDER(member_vector)
+        /// Cached double vector.
+        MAKE_HOUSEPI_CACHE_FORWARDER(double_vector)
+        /// Cached double matrix.
+        MAKE_HOUSEPI_CACHE_FORWARDER(double_matrix)
+        ///@}
 
-	private:
-		MCMCBase *mcmc_; /// Engine the model reads.
-	};
+    private:
+        MCMCBase *mcmc_; /// Engine the model reads.
+    };
 }
 
 #undef MAKE_HOUSEPI_CACHE_FORWARDER

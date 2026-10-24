@@ -52,6 +52,8 @@ namespace housepi
 
         /// Whether no definition has been provided.
         bool empty() const noexcept { return size() == 0; };
+        /// Whether key `k` is model-declared.
+        bool is_declared(size_t k) const noexcept { return k < n_declared_; }
         /// Whether definition `name` is registered.
         bool count(std::string_view name) const noexcept { return !na::is(find(name)); }
 
@@ -59,9 +61,9 @@ namespace housepi
         //////  Setter  //////
 
         /// Drop all optional definitions.
-        void clear_optional();
+        void clear_optional_();
         /// Add optional definition `name`, if absent.
-        void add(std::string_view name);
+        void add_(std::string_view name);
 
     private:
         std::vector<std::string> keys_ = {}; /// Model-declared definitions, then optional ones.

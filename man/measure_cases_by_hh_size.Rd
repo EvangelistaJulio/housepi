@@ -2,7 +2,7 @@
 % Please edit documentation in R/predictive_checks.R
 \name{measure_cases_by_hh_size}
 \alias{measure_cases_by_hh_size}
-\title{Tabulate observed household cases by household size}
+\title{Tabulate observed cases distribution by household size}
 \usage{
 measure_cases_by_hh_size(data_wide, escaped = "escaped")
 }
@@ -14,10 +14,14 @@ members outside the declared infected statuses,
 when the \code{status} column is character or factor.}
 }
 \value{
-\code{data.frame}
+\code{data.frame} One row per household size \code{hh_size},
+then one column per number of cases, holding the number of households
+of that size with that number of cases.
+A number of cases above the household size is \code{NA}.
 }
 \description{
-Retrieve cases by household size from household data.
+Retrieve the distribution of household cases ("final size")
+by household size from household data.
 }
 \examples{
 measure_cases_by_hh_size(flu_1918_frederick)

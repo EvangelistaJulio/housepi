@@ -62,15 +62,12 @@ namespace housepi::augm
         bool has_func() const noexcept { return !func.is_na(); }
         /// Whether the row holds a model.
         bool has_model() const noexcept { return !model.is_na(); }
-        /// Whether the row holds a proposal.
-        bool has_proposal() const noexcept { return !proposal.is_na(); }
         /// Whether the row holds a constant.
         bool is_const() const noexcept { return !value.is_na(); }
 
-        /// Whether inference samples the row.
-        /// * with a model or a proposal;
-        /// * never when constant or a function.
-        bool is_sampled() const noexcept { return !is_const() && !has_func() && (has_model() || has_proposal()); }
+        /// Whether inference samples the row: neither a constant nor a function.
+        /// @note A row with neither is a bare latent or holds a model, asserted R-side.
+        bool is_sampled() const noexcept { return !is_const() && !has_func(); }
         /// Whether the row is bare: sampled within its bounds, with no model.
         /// Transmission generates it in simulation.
         bool is_bare() const noexcept { return is_sampled() && !has_model(); }

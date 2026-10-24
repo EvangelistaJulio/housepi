@@ -28,7 +28,7 @@ test_that("Default parameter definitions are correct", {
   param$name |> expect_identical("rho")
   param$const |> expect_all_na()
   param$discr |> expect_identical(FALSE)
-  param$proposal |> expect_identical("rw")
+  param$proposal |> expect_all_na()
   param$prior |> expect_identical("uniform")
   param$min |> expect_equal(0)
   param$max |> expect_equal(5)
@@ -275,18 +275,18 @@ test_that("Lognormal proposal rejects unsupported domains", {
   # prior with unbounded lower bound
   mk_param$model |>
     add_parameter("rho", prior = "normal", proposal = "rw_log") |>
-    expect_error("non.?positive.*rho")
+    expect_error("rw_log.*non-negative minimum.*rho")
 
   # prior with negative lower bound
   mk_param$model |>
     add_parameter("rho", prior = "uniform", min = -1, proposal = "rw_log") |>
-    expect_error("non.?positive")
+    expect_error("rw_log.*non-negative minimum")
 
   # discrete lognormal proposal is forbidden
   mk_param$model |>
     add_parameter("rho", prior = "gamma", shape = 2, scale = 1,
                   discr = TRUE, proposal = "rw_log") |>
-    expect_error("lognormal.*discrete.*rho")
+    expect_error("rw_log.*discrete prior.*rho")
 
   # location parameter
   draws <- mk_param$model |>
@@ -310,7 +310,7 @@ test_that("Discretization is enabled as expected", {
                    proposal = "rw_unif", min = !!val$min, max = !!val$max),
       rho_3 = list(prior = "gamma", shape = 2, scale = 1, discr = TRUE,
                    proposal = "rw", min = !!val$min, max = !!val$max),
-      # prior quartiles coincide: the walks start from a unit step
+      # prior quartiles coincide: the walks start from a unit scale
       rho_4 = list(prior = "poisson", lambda = 0.1, proposal = "rw_unif",
                    min = !!val$min, max = !!val$max),
       rho_5 = list(prior = "poisson", lambda = 0.1, proposal = "rw",
@@ -325,7 +325,7 @@ test_that("Discretization is enabled as expected", {
   (draws <= val$max) |> as.vector() |> expect_all_true()
 
   # a lattice kernel tuned narrower than one integer value stays pinned to its
-  # starting point, every step proposing the value it already holds
+  # starting point, every move proposing the value it already holds
   length(unique(draws[, "rho_2"])) |> expect_gt(1L)
   length(unique(draws[, "rho_3"])) |> expect_gt(1L)
 })
@@ -349,6 +349,42 @@ test_that("Lattice random walks sample their target", {
     # total variation distance, well within the spread of a correct kernel
     (0.5 * sum(abs(empirical - exact))) |> expect_lt(0.06)
   }
+})
+
+test_that("Default random walks sample their target", {
+  # no proposal declared: each parameter moves in the coordinate of its domain,
+  # logit on (0, 1), log above a minimum, log below a maximum
+  # no model reads them: the posterior is the prior, the draws match its mean
+  # a lost Jacobian draws beta(1, 4), gamma of shape 1, the normal piled at 0
+  draws <- mk_param$model |>
+    add_parameter(rho = list(prior = "beta", shape1 = 2, shape2 = 5),
+                  rho_2 = list(prior = "gamma", shape = 2, scale = 1),
+                  rho_3 = list(prior = "normal", mean = 0, sd = 1, max = 0)) |>
+    run_inference(steps = 1e4L, thin = 1L, adapt = 500L, chains = 1L) |>
+    suppressWarnings() |>
+    get_parameter_draws()
+
+  mean(draws[["rho"]]) |> expect_equal(2 / 7, tolerance = 0.06)
+  mean(draws[["rho_2"]]) |> expect_equal(2, tolerance = 0.06)
+  mean(draws[["rho_3"]]) |> expect_equal(-sqrt(2 / pi), tolerance = 0.06)
+})
+
+test_that("A random walk adapts its scale unless the scale is a number", {
+  # an NA scale is no scale: the walk starts from its prior and adapts
+  hh_model <- mk_param$model |>
+    add_parameter(rho = list(prior = "uniform", max = 5, proposal = "rw",
+                             proposal_scale = NA),
+                  rho_2 = list(prior = "uniform", max = 5, proposal = "rw",
+                               proposal_scale = 0.5))
+  hh_model |>
+    run_inference(steps = 10L, thin = 1L, adapt = 200L, chains = 1L) |>
+    suppressWarnings()
+
+  moves <- inspect_state(hh_model)$.sampler$moves
+  scale <- stats::setNames(moves$scale, moves$name)
+  scale[["rho_2"]] |> expect_identical(0.5)
+  # 1 is the placeholder a walk holds before its first reset
+  (scale[["rho"]] == 1) |> expect_false()
 })
 
 test_that("A discrete prior resolves 'uniform' to the discrete distribution", {
@@ -565,8 +601,8 @@ test_that("An unpinned parameter is drawn from its prior in simulation", {
                              proposal_mean = 0.88, proposal_sd = 0.005)) |>
     add_latent(hidden = rho)
 
-  results <- simulate_with_parameters_(hh_model, nrep = 40)
-  drawn <- results$parameters$rho
+  simulated <- simulate_with_parameters_(hh_model, nrep = 40)
+  drawn <- simulated$parameters$rho
 
   drawn |> expect_length(40L)
   unique(drawn) |> expect_length(40L)
@@ -574,7 +610,7 @@ test_that("An unpinned parameter is drawn from its prior in simulation", {
   stats::sd(drawn) |> expect_gt(0.15) # uniform spread, not the proposal's 0.005
   mean(drawn) |> expect_lt(0.7)            # centred on the prior, not on 0.88
   # a deterministic latent reading the parameter sees the value returned
-  vapply(results$wide, \(x) x$hidden[1], numeric(1)) |> expect_equal(drawn)
+  vapply(simulated$wide, \(x) x$hidden[1], numeric(1)) |> expect_equal(drawn)
 })
 
 test_that("A parameter is returned at its draws value in simulation", {
@@ -584,15 +620,16 @@ test_that("A parameter is returned at its draws value in simulation", {
                   rho_2 = list(prior = "uniform"))
 
   # rho_2, without a column, is drawn from its prior
-  results <- simulate_with_parameters_(hh_model,
-                                       draws = data.frame(rho = rep(0.3, 5)))
-  results$parameters |> expect_named(c("rho", "rho_2"), ignore.order = TRUE)
-  results$parameters$rho |> expect_all_equal(0.3)
+  simulated <- simulate_with_parameters_(hh_model,
+                                         draws = data.frame(rho = rep(0.3, 5)))
+  simulated$parameters |> expect_named(c("rho", "rho_2"), ignore.order = TRUE)
+  simulated$parameters$rho |> expect_all_equal(0.3)
   # a single replicate returns one frame and a one-row table
-  results <- simulate_with_parameters_(hh_model, draws = data.frame(rho = 0.3))
-  results$wide |> expect_length(1L)
-  results$parameters |> expect_nrow(1L)
-  results$parameters$rho |> expect_equal(0.3)
+  simulated <- simulate_with_parameters_(hh_model,
+                                         draws = data.frame(rho = 0.3))
+  simulated$wide |> expect_length(1L)
+  simulated$parameters |> expect_nrow(1L)
+  simulated$parameters$rho |> expect_equal(0.3)
 })
 
 test_that("Per-replicate parameter values reach the latents reading them", {
@@ -606,11 +643,11 @@ test_that("Per-replicate parameter values reach the latents reading them", {
   # declared constant: the table overrides its value
   hh_model_2 <- hh_model |> add_parameter(rho = 0.3)
 
-  for (results in list(run_simulation(hh_model, draws = rho_table),
-                       run_simulation(hh_model_2, draws = rho_table))) {
-    vapply(results, \(x) x$hidden[2], numeric(1)) |>
+  for (simulated in list(run_simulation(hh_model, draws = rho_table),
+                         run_simulation(hh_model_2, draws = rho_table))) {
+    vapply(simulated, \(x) x$hidden[2], numeric(1)) |>
       expect_equal(rho_table$rho)
-    vapply(results, \(x) x$hidden_2[2], numeric(1)) |>
+    vapply(simulated, \(x) x$hidden_2[2], numeric(1)) |>
       expect_equal(rho_table$rho, tolerance = 1e-2)
   }
 })
@@ -633,7 +670,7 @@ test_that("An unpinned parameter is drawn from its prior at evaluation", {
 })
 
 test_that("A fixed seed reproduces parameter draws on a single thread", {
-  # the normal prior and the default "rw" proposal both draw standard_normal:
+  # the normal prior and the default proposal both draw standard_normal:
   # sampler state surviving a re-seed desynchronises one run from the next
   draws_at <- function(seed) {
     set.seed(seed)

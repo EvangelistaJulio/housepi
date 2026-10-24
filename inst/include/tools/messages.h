@@ -6,9 +6,7 @@
 #pragma once
 
 #include <cstdint>
-#include <exception>
 #include <string>
-#include <utility>
 #include <vector>
 
 namespace housepi

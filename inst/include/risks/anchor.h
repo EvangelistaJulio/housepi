@@ -8,6 +8,8 @@
 #include <cstddef>
 #include <vector>
 
+#include "tools/nan.h"
+
 //////////////////////////////  risks::Anchor  //////////////////////////////
 
 namespace housepi
@@ -17,6 +19,9 @@ namespace housepi
 
 namespace housepi::risks
 {
+    /// Share of the units of its reference from which a risk moves with its baseline.
+    constexpr double BLOCK_MIN_SHARE = 0.1;
+
     /// Baseline parameter and the relative risks scaling it, as declared by the model.
     struct Anchor
     {
@@ -33,6 +38,21 @@ namespace housepi::risks
     {
         bool anchored = false;                   /// Whether a rule of the group names the reference.
         std::vector<size_t> scaling_params = {}; /// Distinct risks the group applies.
+        double n_reference = 0.;                 /// Units the reference rules resolve, NA if any is unknown.
+        std::vector<double> n_params = {};       /// Units the rules of each of `scaling_params` resolve, NA if any is unknown.
+
+        /// List the risks holding at least a minimum share of the units of the reference.
+        /// * no reference, or unknown units -> skipped.
+        std::vector<size_t> list_heavy() const
+        {
+            std::vector<size_t> out = {};
+            if (!anchored || na::is(n_reference) || !(n_reference > 0.))
+                return out;
+            for (size_t i = 0; i < scaling_params.size(); ++i)
+                if (!na::is(n_params[i]) && n_params[i] >= BLOCK_MIN_SHARE * n_reference)
+                    out.push_back(scaling_params[i]);
+            return out;
+        }
 
         /// Whether the overall scale of the rule group is free.
         /// * a rule names the reference -> not free;

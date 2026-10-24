@@ -77,6 +77,9 @@ namespace housepi::risks
             return at(g, indiv).value();
         }
 
+        /// Rule groups of key `g`, their scale anchoring.
+        const std::vector<ScaleAnchor> &scale_anchors(size_t g) const { return scale_anchors_[g]; }
+
         /// Number of rule groups of key `g` whose overall scale is free.
         size_t n_scale_free(size_t g, const Parameter &param) const
         {

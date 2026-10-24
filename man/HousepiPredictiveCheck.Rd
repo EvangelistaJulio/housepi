@@ -11,11 +11,11 @@ Posterior predictive checks of measures on simulated surveys.
 hh_model <- flu_1918_frederick |>
   new_housepi_model("final-size") |>
   add_parameter(import = "template")
-results <- run_inference(hh_model, chains = 2, progress = FALSE)
+hh_fit <- run_inference(hh_model, chains = 2, progress = FALSE)
 
 # a user-defined measure: the overall attack rate
 overall_ar <- function(data_wide) mean(data_wide$status > 0)
-ppc <- check_predictive(hh_model, results,
+ppc <- check_predictive(hh_model, hh_fit,
                         sar = measure_sar_by_hh_size,
                         overall = overall_ar,
                         epi = FALSE, nrep = 50, progress = FALSE)
@@ -91,14 +91,15 @@ If \code{NA}, every draw is simulated.}
 Whether to thin \code{draws} to their bulk effective sample size (ESS).
 Ignored if \code{draws} is a plain \code{data.frame}.}
       \item{\code{threads}}{\code{integer(1)} Number of threads for parallel household runs.}
-      \item{\code{progress}}{\code{integer(1)} | \code{logical(1)} Control the progress bar,
+      \item{\code{progress}}{\code{numeric(1)} | \code{logical(1)} Control the progress bar,
 one of:
 \describe{
-\item{\code{integer}}{seconds between prints, a shorter run printing nothing;}
+\item{\code{numeric}}{seconds between prints, a shorter run printing nothing;}
 \item{\code{TRUE}}{one print per second;}
 \item{\code{FALSE} or \code{0}}{no progress bar.}
 }
-The bar prints as messages, which \code{\link[=suppressMessages]{suppressMessages()}} silences.}
+The bar prints as messages, which \code{\link[=suppressMessages]{suppressMessages()}} silences.
+In a knitted document, only its closing line prints.}
     }
     \if{html}{\out{</div>}}
   }

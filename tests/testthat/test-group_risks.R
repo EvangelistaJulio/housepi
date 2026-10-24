@@ -5,21 +5,21 @@ library(testthat)
 # Model over two covariates. Covariate columns stay character on purpose:
 # levels follow order of first appearance, which fixes the reference stratum.
 mk_risk <- local({
-  hhdata <- data.frame(hh_id = 1, status = 0,
-                       age = c("child", "child", "adult", "adult"),
-                       sex = c("M", "F", "M", "M"),
-                       isolation = c(FALSE, FALSE, TRUE, TRUE))
+  hh_data <- data.frame(hh_id = 1, status = 0,
+                        age = c("child", "child", "adult", "adult"),
+                        sex = c("M", "F", "M", "M"),
+                        isolation = c(FALSE, FALSE, TRUE, TRUE))
   strata <- tibble::tribble(~isolation, ~param_name,
                             FALSE,      ".reference",
                             TRUE,       "inf_isol")
-  list(data = hhdata, strata = strata,
-       model = new_housepi_model(hhdata, "final-size"))
+  list(data = hh_data, strata = strata,
+       model = new_housepi_model(hh_data, "final-size"))
 })
 
 # five households over a "member" covariate, "student" being the only role
 # present in every household
 mk_flu <- local({
-  hhdata <- data.frame(
+  hh_data <- data.frame(
     hh_id = c(rep(1, 2), rep(2, 2), rep(3, 3), rep(4, 2), rep(5, 3)),
     status = c(1, 0, 1, 1, 0, 1, 0, 1, 0, 1, 0, 1),
     member = c("student", "other",
@@ -28,11 +28,11 @@ mk_flu <- local({
                "student", "other",
                "student", "mother", "father")
   )
-  hh_model <- hhdata |>
+  hh_model <- hh_data |>
     new_housepi_model("final-size")
   pinned <- hh_model |>
     add_parameter(alpha = 0.01, beta = 0.1, gamma = 1, hh_size_ref = 4)
-  list(data = hhdata, model = hh_model, pinned = pinned)
+  list(data = hh_data, model = hh_model, pinned = pinned)
 })
 
 # real dataset for validation: add_group_risk() copies before mutating
@@ -46,9 +46,9 @@ mk_status <- local({
   status <- c("escaped", "symptomatic", "asymptomatic", "symptomatic",
               "escaped", "asymptomatic", "symptomatic", "escaped",
               "asymptomatic", "symptomatic", "asymptomatic", "escaped")
-  hhdata <- data.frame(hh_id = rep(1:4, each = 3), status = status,
-                       datum = ifelse(status == "escaped", NA, status))
-  list(data = hhdata, model = new_housepi_model(hhdata, "final-size"))
+  hh_data <- data.frame(hh_id = rep(1:4, each = 3), status = status,
+                        datum = ifelse(status == "escaped", NA, status))
+  list(data = hh_data, model = new_housepi_model(hh_data, "final-size"))
 })
 
 # numeric covariates a risk can stratify on, and an observation can read
@@ -149,15 +149,15 @@ test_that("Group risks integrate with data", {
   # absolute by default: no reference stratum
   sum(tidy$param_name == ".reference") |> expect_identical(0L)
 
-  # mcmc setup is the absolute default
+  # mcmc configuration is the absolute default
   params <- get_parameters(hh_model)
   params <- params[is.na(params$const), ]
   params$min |> expect_all_equal(0)
   params$max |> expect_all_equal(1)
-  params$proposal |> expect_all_equal("rw_log")
+  params$proposal |> expect_all_na()
 })
 
-test_that("Reference turns group risks relative with its own mcmc setup", {
+test_that("Reference turns group risks relative with its own mcmc configuration", {
   hh_model <- mk_risk$model |>
     add_group_risk("community", by = c("age", "sex"), joint = TRUE,
                    reference = ".auto")
@@ -167,12 +167,12 @@ test_that("Reference turns group risks relative with its own mcmc setup", {
   # the reference is the largest stratum
   tidy$n[tidy$param_name == ".reference"] |> expect_identical(max(tidy$n))
 
-  # mcmc setup is default (Cauchemez et al., 2009)
+  # mcmc configuration is default (Cauchemez et al., 2009)
   params <- get_parameters(hh_model)
   params$args[[1]] |> expect_equal(c(meanlog = 0, sdlog = 3))
   params$min |> expect_all_equal(0)
   params$max |> expect_all_equal(NA_real_)
-  params$proposal |> expect_all_equal("rw_log")
+  params$proposal |> expect_all_na()
 })
 
 test_that("Group risks hold without data and re-derive on add_data_wide", {
@@ -201,11 +201,11 @@ test_that("Group risks hold without data and re-derive on add_data_wide", {
 })
 
 test_that("Group risks expand on their own covariates only", {
-  hhdata <- sarscov2_2021_icofs |>
+  hh_data <- sarscov2_2021_icofs |>
     dplyr::filter(hh_id %in% utils::head(unique(hh_id), 50))
 
   # a data column the risk does not read leaves the expansion untouched
-  risks <- hhdata |>
+  risks <- hh_data |>
     new_housepi_model("case-ascertained") |>
     add_group_risk("susceptibility", by = "age") |>
     get_group_risks()
@@ -345,8 +345,8 @@ test_that("Parameter options work correctly", {
   params$prior |> expect_all_equal("uniform")
   params$min |> expect_all_equal(0)
   params$max |> expect_all_equal(10)
-  # a sampled risk parameter defaults to a random walk
-  params$proposal |> expect_all_equal("rw")
+  # a sampled risk parameter declares no proposal
+  params$proposal |> expect_all_na()
 
   params <- mk_risk$model |>
     add_group_risk("infectivity", by = c("age", "sex"),
@@ -356,7 +356,7 @@ test_that("Parameter options work correctly", {
   params$args[[1]] |> expect_equal(c(shape = 2, scale = 1))
   params$min |> expect_all_equal(0)
   params$max |> expect_all_na()
-  params$proposal |> expect_all_equal("rw")
+  params$proposal |> expect_all_na()
 })
 
 test_that("Load list works as expected", {
@@ -677,9 +677,9 @@ test_that("A status stratum leaving a level uncovered is refused", {
     expect_error("[Gg]roup risk .infectivity. leaves 12 members unmatched")
 
   # whatever status the data records
-  hhdata <- mk_status$data
-  hhdata$status[2] <- NA
-  hhdata |>
+  hh_data <- mk_status$data
+  hh_data$status[2] <- NA
+  hh_data |>
     new_housepi_model("final-size") |>
     add_group_risk("infectivity", strata = strata) |>
     expect_error("leaves 12 members unmatched")
@@ -687,8 +687,8 @@ test_that("A status stratum leaving a level uncovered is refused", {
 
 test_that("A status stratum covers the codes a status process draws", {
   # the data records code 1 only, the status process also draws code 2
-  hhdata <- data.frame(hh_id = rep(1:4, each = 3), status = rep(c(1, 0, 0), 4))
-  hh_model <- hhdata |>
+  hh_data <- data.frame(hh_id = rep(1:4, each = 3), status = rep(c(1, 0, 0), 4))
+  hh_model <- hh_data |>
     new_housepi_model("final-size") |>
     add_status_process(0.5, 0.5)
 
@@ -705,8 +705,8 @@ test_that("A status stratum covers the codes a status process draws", {
     expect_identical(c("1", "2"))
 
   # with no status recorded, the status process alone declares the codes
-  hhdata[["status"]] <- NULL
-  hhdata |>
+  hh_data[["status"]] <- NULL
+  hh_data |>
     new_housepi_model("final-size") |>
     add_status_process(0.5, 0.5) |>
     add_group_risk("infectivity", by = "status") |>
@@ -718,11 +718,11 @@ test_that("A status stratum covers the codes a status process draws", {
 
 test_that("A status stratum covers combinations the data never realised", {
   # children are never asymptomatic, and the one mother not infected escaped
-  hhdata <- data.frame(hh_id = c(1, 1, 2, 2),
-                       status = c("symptomatic", "asymptomatic",
-                                  "symptomatic", "escaped"),
-                       member = c("child", "mother", "child", "mother"))
-  hh_model <- new_housepi_model(hhdata, "final-size")
+  hh_data <- data.frame(hh_id = c(1, 1, 2, 2),
+                        status = c("symptomatic", "asymptomatic",
+                                   "symptomatic", "escaped"),
+                        member = c("child", "mother", "child", "mother"))
+  hh_model <- new_housepi_model(hh_data, "final-size")
 
   # a table covering the observed combinations only leaves 4 members exposed
   hh_model |>
@@ -798,12 +798,12 @@ test_that("Only the risks the model declares may be status stratified", {
 test_that("Status strata are declared, not read off the data", {
   # the observed labels are the model dictionary: a stratum outside it
   # resolves no member
-  hhdata <- mk_status$data
-  hhdata$status[hhdata$status == "asymptomatic"] <- "escaped"
+  hh_data <- mk_status$data
+  hh_data$status[hh_data$status == "asymptomatic"] <- "escaped"
   strata <- tibble::tribble(~status,        ~param_name,
                             "symptomatic",  ".reference",
                             "asymptomatic", "inf_asymptomatic")
-  hhdata |>
+  hh_data |>
     new_housepi_model("final-size") |>
     add_group_risk("infectivity", strata = strata) |>
     expect_error("1 rule no member resolves to.*asymptomatic")
@@ -1142,7 +1142,7 @@ test_that("A catch-all stratum survives a missing covariate cell", {
     add_parameter(import = "template") |>
     add_group_risk("susceptibility", strata = strata,
                    params = list(sus_rest = 3))
-  snapshot <- hh_model |> inspect_house_state("h1")
+  snapshot <- hh_model |> inspect_state("h1")
 
   risk <- stats::setNames(snapshot$group_risks$susceptibility,
                           snapshot$group_risks$id)

@@ -41,10 +41,11 @@ namespace housepi
     /// Display the progress of a sequence of runs, with elapsed and remaining time.
     /// Based on @cite hammouchi_fancy_2024
     ///
-    /// * one thread prints, the threads running engines only count their iterations;
+    /// * one thread prints, the threads running engines only count their steps;
     /// * each run fills one unit per engine, after the units of past runs;
     /// * open line -> `text |###   | 50% 3s<3s`, closing line -> `text |######| 6s`;
-    /// * closed with no line printed -> prints nothing.
+    /// * document -> closing line alone, never rewritten;
+    /// * closed before its first print time -> prints nothing.
     class ProgressBar
     {
         using Clock = std::chrono::steady_clock;
@@ -54,17 +55,20 @@ namespace housepi
 
         /// Open a bar named `text` over `total` units, printed every `thintime` seconds.
         /// @param barwidth Symbols in a full bar.
+        /// @param is_document Whether the output is a knitted document, which overrides `is_interactive`.
         /// @param symbol Character filling the bar.
         ProgressBar(std::string text,
                     double total,
                     double thintime,
                     unsigned barwidth,
                     bool is_interactive,
+                    bool is_document,
                     std::string symbol)
-            : interactive_(is_interactive),
+            : interactive_(is_interactive && !is_document),
+              document_(is_document),
               symbol_(std::move(symbol)),
-              barwidth_(barwidth),
               text_(std::move(text)),
+              barwidth_(barwidth),
               total_(total),
               thintime_(thintime), next_(thintime) {}
 
@@ -74,13 +78,17 @@ namespace housepi
         void advance(double units) { offset_ += units; }
 
         /// Print `done` units of the current run, every `thintime` seconds from opening.
-        /// * prints missed by a busy thread -> skipped.
+        /// * prints missed by a busy thread -> skipped;
+        /// * document -> no print, the closing line held due.
         void update(double done)
         {
             const double secs = secs_();
             if (secs < next_)
                 return;
             next_ = thintime_ * (std::floor(secs / thintime_) + 1.);
+            has_line_ = true;
+            if (document_)
+                return;
 
             const double prog = std::min(1., (offset_ + done) / total_);
             std::ostringstream oss;
@@ -90,25 +98,24 @@ namespace housepi
                 << (secs >= silencer_ && prog > 0. ? format_secs(secs * (1. - prog) / prog) : "?s")
                 << std::setw(interactive_ ? 10 : 0) << ""; // wipe a longer previous line
             print_(oss, false);
-            has_bar_print_ = true;
         }
 
         /// End the line of a bar left open by an error, once.
         /// * non-interactive -> no-op, every print ends its line.
         void crash()
         {
-            if (has_bar_print_ && interactive_)
+            if (has_line_ && interactive_)
                 msg::info("\n"); // # nocov
-            has_bar_print_ = false;
+            has_line_ = false;
         }
 
         /// Close the progress bar.
         void close()
         {
-            // close an opened bar only
-            if (!has_bar_print_)
+            // close a bar past its first print time only
+            if (!has_line_)
                 return;
-            has_bar_print_ = false;
+            has_line_ = false;
 
             std::ostringstream oss;
             line_(oss, 1.);
@@ -117,19 +124,21 @@ namespace housepi
         }
 
     private:
-        static constexpr const char *ansi_reset_ = "\033[39m"; /// Default foreground colour.
-        static constexpr const char *ansi_green_ = "\033[32m"; /// Green foreground colour.
+        static constexpr const char *ANSI_RESET = "\033[39m"; /// Default foreground colour.
+        static constexpr const char *ANSI_GREEN = "\033[32m"; /// Green foreground colour.
 
-        const bool interactive_;                 /// Whether prints overwrite the current line.
-        const std::string symbol_;               /// Character filling the bar.
-        unsigned barwidth_ = 33;                 /// Bar total size.
-        double silencer_ = 3.;                   /// Minimal time to wait before estimating.
-        bool has_bar_print_ = false;             /// Whether the bar has printed once.
-        std::string text_ = "";                  /// Text heading the bar.
-        double total_ = 1.;                      /// Units of a full bar.
+        const bool interactive_;       /// Whether prints overwrite the current line.
+        const bool document_;          /// Whether only the closing line prints.
+        const std::string symbol_;     /// Character filling the bar.
+        const std::string text_;       /// Text heading the bar.
+        const unsigned barwidth_ = 33; /// Bar total size.
+        const double silencer_ = 3.;   /// Minimal time to wait before estimating.
+        const double total_ = 1.;      /// Units of a full bar.
+        const double thintime_ = 1.;   /// Seconds between two prints.
+
         double offset_ = 0.;                     /// Units filled by past runs.
-        double thintime_ = 1.;                   /// Seconds between two prints.
         double next_ = 1.;                       /// Seconds from opening of the next print.
+        bool has_line_ = false;                  /// Whether the bar is past its first print time.
         Clock::time_point start_ = Clock::now(); /// Time of opening.
 
         /// Seconds since opening.
@@ -140,10 +149,10 @@ namespace housepi
         void line_(std::ostream &os, double prog) const
         {
             const unsigned where = prog * barwidth_;
-            os << (interactive_ ? "\r" : "") << text_ << " |" << (interactive_ ? ansi_green_ : "");
+            os << (interactive_ ? "\r" : "") << text_ << " |" << (interactive_ ? ANSI_GREEN : "");
             for (unsigned u = 0; u < where; ++u)
                 os << symbol_;
-            os << (interactive_ ? ansi_reset_ : "") << std::setw(barwidth_ - where) << "" << "| ";
+            os << (interactive_ ? ANSI_RESET : "") << std::setw(barwidth_ - where) << "" << "| ";
         }
 
         /// Print line `oss`, ended on `end` or when non-interactive.

@@ -257,8 +257,7 @@ HousepiRecoveryCheck <- R6::R6Class(
     #' @param houses `r rd_recov_houses_`
     #' @param structure_sampler `r rd_sweep_sampler_`
     #' @param steps `r rd_smpl_steps_`
-    #' @param burn `r rd_smpl_burn_`
-    #' @param thin `r rd_smpl_thin_`
+        #' @param thin `r rd_smpl_thin_`
     #' @param adapt `r rd_smpl_adapt_`
     #' @param chains `r rd_smpl_chain_`
     #' @param threads `r rd_sweep_threads_`
@@ -267,8 +266,7 @@ HousepiRecoveryCheck <- R6::R6Class(
     initialize = function(hh_model, draws = NULL,
                           nrep = 50L, houses = NA_integer_,
                           structure_sampler = sample_house_structure,
-                          steps = 1000L, burn = 0L,
-                          thin = 5L, adapt = 500L,
+                          steps = 1000L, thin = 5L, adapt = 500L,
                           chains = 4L, threads = 1L,
                           progress = TRUE, ...) {
       nrep <- assert_count_(nrep, "Number of replicates")
@@ -281,7 +279,7 @@ HousepiRecoveryCheck <- R6::R6Class(
       structure <- sweep_base_structure_(hh_model)
       houses <- sweep_houses_(structure, houses, is.null(structure_sampler))
 
-      fit_args <- list(steps = steps, burn = burn, thin = thin, adapt = adapt,
+      fit_args <- list(steps = steps, thin = thin, adapt = adapt,
                        chains = chains)
       private$sweep_ <- HousepiSweep$new(
         hh_model, structure, structure_sampler, houses, nrep,
@@ -339,7 +337,6 @@ HousepiRecoveryCheck <- R6::R6Class(
 #' @param houses `r rd_recov_houses_`
 #' @param structure_sampler `r rd_sweep_sampler_`
 #' @param steps `r rd_smpl_steps_`
-#' @param burn `r rd_smpl_burn_`
 #' @param thin `r rd_smpl_thin_`
 #' @param adapt `r rd_smpl_adapt_`
 #' @param chains `r rd_smpl_chain_`
@@ -366,17 +363,16 @@ check_recovery <- function(hh_model,
                            nrep = 50L,
                            houses = NA_integer_,
                            structure_sampler = sample_house_structure,
-                           steps = 1000L, burn = 0L,
-                           thin = 5L, adapt = 500L,
+                           steps = 1000L, thin = 5L, adapt = 500L,
                            chains = 4L, threads = 1L,
                            progress = TRUE,
                            ...) {
   stopifnothousepi(hh_model)
-  assert_advanced_setup_(c("adapt_window", "time_step"), ...)
+  assert_advanced_settings_("time_step", ...)
   HousepiRecoveryCheck$new(
     hh_model$copy(), draws = draws, nrep = nrep, houses = houses,
     structure_sampler = structure_sampler,
-    steps = steps, burn = burn, thin = thin, adapt = adapt,
+    steps = steps, thin = thin, adapt = adapt,
     chains = chains, threads = threads, progress = progress, ...
   )
 }

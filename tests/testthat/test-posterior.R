@@ -7,10 +7,10 @@ mk_draws <- local({
   hh_model <- flu_1918_frederick |>
     new_housepi_model("final-size") |>
     add_parameter(import = "template")
-  results <- hh_model |>
+  hh_fit <- hh_model |>
     run_inference(steps = 100L, chains = 1L, adapt = 0L, thin = 1L,
                   warn = FALSE)
-  list(model = hh_model, results = results)
+  list(model = hh_model, fit = hh_fit)
 })
 
 # two parameters and a latent traced on one member
@@ -22,11 +22,11 @@ mk_latent_draws <- local({
                   rho_2 = list(prior = "uniform")) |>
     add_latent(hidden = list(model = "uniform")) |>
     helper_flat_sink(loc = hidden)
-  results <- hh_model |>
+  hh_fit <- hh_model |>
     run_inference(steps = 5L, chains = 1L, adapt = 0L, thin = 1L,
                   id_draws = "m1") |>
     suppressWarnings()
-  list(model = hh_model, results = results)
+  list(model = hh_model, fit = hh_fit)
 })
 
 ####  Definitions  ####
@@ -133,31 +133,31 @@ test_that("Summarise-draws default columns track cri_level", {
 ####  End-to-end  ####
 
 test_that("Active fields are read-only", {
-  mk_draws$results |>
+  mk_draws$fit |>
     expect_read_only_field("warnings", "inference_secs")
 })
 
 test_that("Draws getters return each block", {
-  results <- mk_draws$results
-  param <- get_parameter_draws(results)
+  hh_fit <- mk_draws$fit
+  param <- get_parameter_draws(hh_fit)
   posterior::is_draws(param) |> expect_true()
   posterior::niterations(param) |> expect_identical(100L)
 
   # no latent is traced
-  get_latent_draws(results) |> expect_warning("[Ee]mpty draws")
+  get_latent_draws(hh_fit) |> expect_warning("[Ee]mpty draws")
 
-  log_lik <- get_log_lik_draws(results)
+  log_lik <- get_log_lik_draws(hh_fit)
   posterior::is_draws(log_lik) |> expect_true()
   posterior::nvariables(log_lik) |> expect_gt(0)
 
   # parameter names, log_lik[...] and lprior (loo / priorsense names)
-  complete <- get_complete_draws(results)
+  complete <- get_complete_draws(hh_fit)
   posterior::is_draws(complete) |> expect_true()
   n_house <- posterior::nvariables(log_lik)
   posterior::variables(complete) |>
     expect_identical(c(posterior::variables(param),
                        paste0("log_lik[", seq_len(n_house), "]"), "lprior"))
-  posterior::variables(get_complete_draws(results, "lprior")) |>
+  posterior::variables(get_complete_draws(hh_fit, "lprior")) |>
     expect_identical("lprior")
 })
 
@@ -169,17 +169,17 @@ test_that("Exported getter functions work correctly", {
   get_complete_draws(new_housepi_model(model = "test")) |> expect_error(err)
 
   # the run has parameters but no latent draws
-  get_latent_draws(mk_draws$results) |>
+  get_latent_draws(mk_draws$fit) |>
     expect_warning("id_draws")
 })
 
 test_that("Print behavior is stable", {
-  local_results <- mk_draws$results
+  local_results <- mk_draws$fit
   print(local_results) |> expect_snapshot(transform = helper_scrub_secs)
 })
 
 test_that("A short run records one warning, under its sample size", {
-  flagged <- mk_draws$results$warnings
+  flagged <- mk_draws$fit$warnings
   flagged |> expect_nrow(1L)
   flagged$message |> expect_match("[Ss]ample size was below")
   flagged$count |> expect_identical(1L)
@@ -213,13 +213,13 @@ test_that("A quiet run holds back its build warnings too", {
   run(TRUE) |>
     expect_warning("[Rr]educing .threads.") |>
     expect_warning("[Ss]ample size was below")
-  expect_no_warning(results <- run(FALSE))
+  expect_no_warning(hh_fit <- run(FALSE))
   # a build warning is held back but never recorded: only diagnostics are
-  results$warnings$message |> expect_no_match("threads")
+  hh_fit$warnings$message |> expect_no_match("threads")
 })
 
 test_that("The sampling loop reports its own cost", {
-  secs <- mk_draws$results$inference_secs
+  secs <- mk_draws$fit$inference_secs
   secs |> expect_length(1L)
   secs |> expect_all_finite()
   secs |> expect_gt(0)
@@ -227,7 +227,7 @@ test_that("The sampling loop reports its own cost", {
 
 test_that("Diagnostic warning fires on poor mixing", {
   expect_warning(
-    results <- flu_1918_frederick |>
+    hh_fit <- flu_1918_frederick |>
       new_housepi_model("final-size") |>
       add_parameter(
         # explicitly define micro-steps
@@ -241,90 +241,90 @@ test_that("Diagnostic warning fires on poor mixing", {
     "alpha.*beta.*not mixed"
   )
   # the recorded line states what was flagged without the findings under it
-  results$warnings$message |> expect_match("[Ff]lagged parameter draws")
+  hh_fit$warnings$message |> expect_match("[Ff]lagged parameter draws")
 })
 
 test_that("Pointwise log-lik is carried into the complete-draws bundle", {
   # get_complete_draws() renames the pointwise columns to the loo / priorsense
   # convention; their values must be the same pointwise log-likelihood
-  expect_same_pointwise <- function(results) {
-    pointwise <- draws_to_frame(get_log_lik_draws(results))
-    bundle <- draws_to_frame(get_complete_draws(results))
+  expect_same_pointwise <- function(hh_fit) {
+    pointwise <- draws_to_frame(get_log_lik_draws(hh_fit))
+    bundle <- draws_to_frame(get_complete_draws(hh_fit))
     ll_cols <- grep("^log_lik\\[", colnames(bundle))
     length(ll_cols) |> expect_identical(ncol(pointwise))
     unname(bundle[, ll_cols]) |> expect_equal(unname(pointwise))
   }
-  expect_same_pointwise(mk_draws$results)
+  expect_same_pointwise(mk_draws$fit)
 
   # the pointwise store is filled over two threads alike
   flu_1918_frederick |>
     new_housepi_model("final-size") |>
     add_parameter(import = "template") |>
-    run_inference(steps = 10L, thin = 2L, adapt = 2L, burn = 2L,
+    run_inference(steps = 10L, thin = 2L, adapt = 2L,
                   chains = 1L, threads = 2L) |>
     suppressWarnings() |>
     expect_same_pointwise()
 })
 
 test_that("A model without parameters returns empty parameter draws", {
-  results <- data.frame(hh_id = 1, id = "m1", status = 1, obs = 0) |>
+  hh_fit <- data.frame(hh_id = 1, id = "m1", status = 1, obs = 0) |>
     new_housepi_model("test") |>
     add_latent(hidden = list(model = "uniform")) |>
     helper_flat_sink(loc = hidden) |>
     run_inference(steps = 5L, chains = 1L, adapt = 0L, thin = 1L) |>
     suppressWarnings()
 
-  print(results) |> expect_message("Latent: 1")
+  print(hh_fit) |> expect_message("Latent: 1")
   # nothing carries a prior: no lprior column in the bundle
-  posterior::variables(get_complete_draws(results)) |>
+  posterior::variables(get_complete_draws(hh_fit)) |>
     expect_identical("log_lik[1]")
-  get_parameter_draws(results) |>
+  get_parameter_draws(hh_fit) |>
     expect_warning("[Ee]mpty draws: no parameter")
 })
 
 test_that("Draws accessors subset the variables they return", {
-  results <- mk_latent_draws$results
+  hh_fit <- mk_latent_draws$fit
 
   # asking for nothing returns everything
-  posterior::variables(get_parameter_draws(results)) |>
+  posterior::variables(get_parameter_draws(hh_fit)) |>
     expect_setequal(c("rho", "rho_2"))
-  posterior::variables(get_parameter_draws(results, "rho")) |>
+  posterior::variables(get_parameter_draws(hh_fit, "rho")) |>
     expect_identical("rho")
-  posterior::variables(get_parameter_draws(results, "rho_2")) |>
+  posterior::variables(get_parameter_draws(hh_fit, "rho_2")) |>
     expect_identical("rho_2")
 
   # a latent trace is named `<id>_<latent>`: the latent name selects it across
   # the stored members, the full name selects one member
-  posterior::variables(get_latent_draws(results)) |>
+  posterior::variables(get_latent_draws(hh_fit)) |>
     expect_identical("m1_hidden")
-  posterior::variables(get_latent_draws(results, "hidden")) |>
+  posterior::variables(get_latent_draws(hh_fit, "hidden")) |>
     expect_identical("m1_hidden")
-  posterior::variables(get_latent_draws(results, "m1_hidden")) |>
+  posterior::variables(get_latent_draws(hh_fit, "m1_hidden")) |>
     expect_identical("m1_hidden")
-  get_latent_draws(results, "idden") |>
+  get_latent_draws(hh_fit, "idden") |>
     expect_error("[Nn]o draws of variable.*idden")
 
   # a base name selects its indexed elements
-  posterior::variables(get_complete_draws(results, "log_lik")) |>
+  posterior::variables(get_complete_draws(hh_fit, "log_lik")) |>
     expect_identical("log_lik[1]")
-  get_parameter_draws(results, c("rho", "hidden")) |>
+  get_parameter_draws(hh_fit, c("rho", "hidden")) |>
     expect_error("[Nn]o draws of variable.*hidden")
 
   # the subset stays a housepi draws object, so summarise_draws still dispatches
-  get_parameter_draws(results, "rho") |> expect_s3_class("housepi_draws")
-  get_complete_draws(results, "lprior") |> expect_s3_class("housepi_draws")
+  get_parameter_draws(hh_fit, "rho") |> expect_s3_class("housepi_draws")
+  get_complete_draws(hh_fit, "lprior") |> expect_s3_class("housepi_draws")
 })
 
 test_that("Runs of one model bind their chains", {
-  results <- mk_draws$results
+  hh_fit <- mk_draws$fit
   # the model built anew, as in another session
-  results_2 <- flu_1918_frederick |>
+  hh_fit_2 <- flu_1918_frederick |>
     new_housepi_model("final-size") |>
     add_parameter(import = "template") |>
     run_inference(steps = 100L, chains = 2L, adapt = 0L, thin = 1L,
                   warn = FALSE)
   # diagnostics run again over the chains bound, and warn as a run does
-  combined <- c(results, results_2) |> suppressWarnings()
+  combined <- c(hh_fit, hh_fit_2) |> suppressWarnings()
 
   combined |> expect_s3_class("HousepiPosteriorDraws")
   param <- get_parameter_draws(combined)
@@ -332,38 +332,38 @@ test_that("Runs of one model bind their chains", {
   posterior::niterations(param) |> expect_identical(100L)
   # the chains of the second run follow those of the first
   posterior::subset_draws(param, chain = 2:3)$alpha |>
-    expect_identical(get_parameter_draws(results_2)$alpha)
+    expect_identical(get_parameter_draws(hh_fit_2)$alpha)
   posterior::nchains(get_log_lik_draws(combined)) |> expect_identical(3L)
   combined$inference_secs |>
-    expect_equal(results$inference_secs + results_2$inference_secs)
+    expect_equal(hh_fit$inference_secs + hh_fit_2$inference_secs)
   combined$warnings$message |>
     expect_match("[Ss]ample size was below", all = FALSE)
   # the runs combined are left as they were
-  posterior::nchains(get_parameter_draws(results)) |> expect_identical(1L)
+  posterior::nchains(get_parameter_draws(hh_fit)) |> expect_identical(1L)
 })
 
 test_that("Runs of different settings, data or members do not combine", {
-  results <- mk_draws$results
+  hh_fit <- mk_draws$fit
   run <- function(hh_model, steps = 100L, ...) {
     run_inference(hh_model, steps = steps, chains = 1L, adapt = 0L,
                   thin = 1L, warn = FALSE, ...)
   }
-  c(results, results) |> expect_error("[Rr]epeat a seed")
-  c(results, run(mk_draws$model, steps = 50L)) |>
+  c(hh_fit, hh_fit) |> expect_error("[Rr]epeat a seed")
+  c(hh_fit, run(mk_draws$model, steps = 50L)) |>
     expect_error("[Dd]iffer in.*steps")
   hh_model <- flu_1918_frederick[-1L, ] |>
     new_housepi_model("final-size") |>
     add_parameter(import = "template")
-  c(results, run(hh_model)) |> expect_error("[Dd]iffer in.*data_wide")
+  c(hh_fit, run(hh_model)) |> expect_error("[Dd]iffer in.*data_wide")
   hh_model <- mk_draws$model |>
     add_parameter("beta", prior = "uniform", min = 0, max = 2, append = TRUE) |>
     suppressWarnings()
-  c(results, run(hh_model)) |> expect_error("[Dd]iffer in.*parameters")
+  c(hh_fit, run(hh_model)) |> expect_error("[Dd]iffer in.*parameters")
   # `[^.]` keeps to the fields, the hint names the model too
-  c(results, mk_latent_draws$results) |>
+  c(hh_fit, mk_latent_draws$fit) |>
     expect_error("[Dd]iffer in[^.]*model")
-  results_2 <- run(mk_latent_draws$model, steps = 5L, id_draws = "m2")
-  c(mk_latent_draws$results, results_2) |>
+  hh_fit_2 <- run(mk_latent_draws$model, steps = 5L, id_draws = "m2")
+  c(mk_latent_draws$fit, hh_fit_2) |>
     expect_error("[Dd]iffer in.*id_draws")
   # a default run traces one household at random, among two here:
   # one of twenty runs traces the other one but once in 500,000 suites

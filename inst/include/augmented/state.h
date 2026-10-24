@@ -52,6 +52,9 @@ namespace housepi::augm
         std::vector<SimMember> sim = {};  /// Simulation storage, by individual index.
         std::vector<Variable> blank = {}; /// Empty variables named by key.
 
+        std::vector<block_rw::Factor> block_factors = {}; /// Factors of the latent blocks, one per member with a block.
+        std::vector<size_t> block_factor_of = {};         /// Factor of each individual, NA without a latent block.
+
         /// State of member `m`.
         IndivState &of(const Individual &m) noexcept { return varia[Index::of(m)]; }
         const IndivState &of(const Individual &m) const noexcept { return varia[Index::of(m)]; }
@@ -67,6 +70,8 @@ namespace housepi::augm
             house_varia.clear();
             sim.clear();
             blank.clear();
+            block_factors.clear();
+            block_factor_of.clear();
         }
     };
 
@@ -74,40 +79,95 @@ namespace housepi::augm
 
     /// Compute and store the latent-model log-likelihood of a member.
     /// * value outside a support shifted by a moved parameter -> -Inf.
-    double commit_latent_log_lik(const StatusScheme &ss,
-                                 IndivState &st);
+    inline double commit_latent_log_lik(const StatusScheme &ss, IndivState &st)
+    {
+        if (ss.latent_models.empty())
+            return 0.;
+        double new_ll = 0.0;
+        // guarded: a moved parameter feeding loc/min/max may push a value out of its shifted support
+        // that value reads -Inf, not a stale finite density
+        for (size_t a : ss.latent_models)
+            new_ll += st.vec[a].guarded_log_pdf();
+        st.latent_log_lik.set(new_ll);
+        return new_ll;
+    }
     /// Compute and store the log-ratio of models a move of `a` touches, `a` included.
-    double commit_latent_log_lik_ratio(const StatusScheme &ss,
-                                       IndivState &st,
-                                       size_t a);
+    inline double commit_latent_log_lik_ratio(const StatusScheme &ss, IndivState &st, size_t a)
+    {
+        double delta_ll = 0;
+        // consumers[a] includes `a`: the model of `a` is counted
+        for (size_t b : ss.consumers[a])
+            delta_ll += st.vec[b].log_ratio();
+        st.latent_log_lik.increment(delta_ll);
+        return delta_ll;
+    }
     /// Sum the log-densities of models `a` can shift, `a` included.
     /// * consumer out of support -> -Inf.
-    double sum_guarded_latent_log_lik(const StatusScheme &ss,
-                                      const IndivState &st,
-                                      size_t a);
+    inline double sum_guarded_latent_log_lik(const StatusScheme &ss, const IndivState &st, size_t a)
+    {
+        double ll = 0.;
+        // consumers[a] includes `a`: the model of `a` is counted
+        for (size_t b : ss.consumers[a])
+            ll += st.vec[b].guarded_log_pdf();
+        return ll;
+    }
     /// Store the log-ratio of a move of `a` that shifts the densities of its model consumers.
     /// @note Take `L_old` from sum_guarded_latent_log_lik() before proposing `a`.
-    double commit_latent_log_lik_ratio_with_consumers(const StatusScheme &ss,
-                                                      IndivState &st,
-                                                      size_t a,
-                                                      double L_old);
+    inline double commit_latent_log_lik_ratio_with_consumers(const StatusScheme &ss,
+                                                             IndivState &st,
+                                                             size_t a,
+                                                             double L_old)
+    {
+        // with `a` proposed, its model consumers read the moved value live
+        // compare their guarded model sum against the pre-move snapshot `L_old`
+        const double delta_ll = sum_guarded_latent_log_lik(ss, st, a) - L_old;
+        st.latent_log_lik.increment(delta_ll);
+        return delta_ll;
+    }
 
     /// Evaluate the observation log-likelihood of a member, without storing it.
     /// * datum outside its support -> -Inf.
-    double eval_log_obs(const StatusScheme &ss,
-                        const IndivState &st);
+    inline double eval_log_obs(const StatusScheme &ss, const IndivState &st)
+    {
+        double ll = 0.0;
+        for (size_t a : ss.obs_models)
+            ll += st.vec[a].guarded_log_pdf();
+        return ll;
+    }
     /// Compute and store the observation log-likelihood of a member.
-    double commit_obs_log_lik(const StatusScheme &ss,
-                              IndivState &st);
+    inline double commit_obs_log_lik(const StatusScheme &ss, IndivState &st)
+    {
+        if (ss.obs_models.empty())
+            return 0.;
+        const double new_ll = eval_log_obs(ss, st);
+        st.obs_log_lik.set(new_ll);
+        return new_ll;
+    }
     /// Compute and store the log-ratio of observations a move of `a` touches.
-    double commit_obs_log_lik_ratio(const StatusScheme &ss,
-                                    IndivState &st, size_t a);
+    inline double commit_obs_log_lik_ratio(const StatusScheme &ss, IndivState &st, size_t a)
+    {
+        // skip unless the moved latent `a` parameterizes an observation node
+        if (ss.obs_consumers[a].empty())
+            return 0.;
+
+        // recompute the log-proba: an observation value is a datum
+        st.obs_log_lik.set(eval_log_obs(ss, st));
+        return st.obs_log_lik.ratio();
+    }
 
     //////  Sampling  //////
 
     /// Initialize the sampled latents of a member for inference.
-    void restart(const StatusScheme &ss, IndivState &st, rnd_gen &prng);
+    inline void restart(const StatusScheme &ss, IndivState &st, RndGen &prng)
+    {
+        for (size_t a : ss.sample)
+            st.vec[a].restart(prng);
+    }
     /// Draw latents `keys` of a member from their models, in order.
     /// Unlike restart(), it uses no proposal.
-    void draw_sample(const std::vector<size_t> &keys, IndivState &st, rnd_gen &prng);
+    inline void draw_sample(const std::vector<size_t> &keys, IndivState &st, RndGen &prng)
+    {
+        for (size_t a : keys)
+            st.vec[a].draw_value(prng);
+    }
 }

@@ -7,16 +7,15 @@
 #include <limits>
 #include <memory>
 #include <random>
-#include <stdexcept>
 #include <string>
 #include <vector>
 
-#include <boost/math/special_functions/erf.hpp>
-#include <boost/math/special_functions/beta.hpp>
-#include <boost/math/special_functions/gamma.hpp>
-#include <boost/math/distributions/poisson.hpp>
 #include <boost/math/distributions/binomial.hpp>
 #include <boost/math/distributions/negative_binomial.hpp>
+#include <boost/math/distributions/poisson.hpp>
+#include <boost/math/special_functions/beta.hpp>
+#include <boost/math/special_functions/erf.hpp>
+#include <boost/math/special_functions/gamma.hpp>
 #include <boost/random/beta_distribution.hpp>
 
 /// Block boost long double policy.
@@ -173,7 +172,7 @@ namespace housepi
             double raw_ccdf_(double x) const override final { return (domain_.max.value() - x) / norm_(); }
             double raw_log_pdf_(double) const override final { return -log(norm_()); }
             double raw_log_ratio_(double, double) const override final { return 0.; }
-            double raw_rand_(rnd_gen &prng) const override final
+            double raw_rand_(RndGen &prng) const override final
             {
                 const double r = standard_uniform(prng);
                 return domain_.min.value() * (1. - r) + domain_.max.value() * r;
@@ -207,7 +206,7 @@ namespace housepi
             double raw_log_pdf_(double) const override final { return -log(norm_()); }
             double raw_log_ratio_(double, double) const override final { return 0.; }
             double raw_quantile_(double p) const override final { return domain_.min.value() + std::ceil(p * norm_()) - 1.; }
-            double raw_rand_(rnd_gen &prng) const override final
+            double raw_rand_(RndGen &prng) const override final
             {
                 return std::uniform_int_distribution<long>(
                     static_cast<long>(domain_.min.value()), static_cast<long>(domain_.max.value()))(prng);
@@ -263,7 +262,7 @@ namespace housepi
             {
                 return arg(0) + arg(1) * boost::math::erfc_inv(2. - 2. * p, no_promote_policy{}) * M_SQRT2;
             }
-            double raw_rand_(rnd_gen &prng) const override final
+            double raw_rand_(RndGen &prng) const override final
             {
                 return arg(0) + arg(1) * standard_normal(prng);
             }
@@ -349,7 +348,7 @@ namespace housepi
                 const auto [meanlog, sdlog] = eff_params_();
                 return exp(meanlog + sdlog * boost::math::erfc_inv(2. - 2. * p, no_promote_policy{}) * M_SQRT2);
             }
-            double raw_rand_(rnd_gen &prng) const override final
+            double raw_rand_(RndGen &prng) const override final
             {
                 const auto [meanlog, sdlog] = eff_params_();
                 return exp(meanlog + sdlog * standard_normal(prng));
@@ -421,7 +420,7 @@ namespace housepi
             {
                 return boost::math::ibeta_inv(arg(0), arg(1), p, no_promote_policy{});
             }
-            double raw_rand_(rnd_gen &prng) const override final
+            double raw_rand_(RndGen &prng) const override final
             {
                 return boost::random::beta_distribution<double>(arg(0), arg(1))(prng);
             }
@@ -507,7 +506,7 @@ namespace housepi
                 const auto [shape, scale] = eff_params_();
                 return scale * boost::math::gamma_p_inv(shape, p, no_promote_policy{});
             }
-            double raw_rand_(rnd_gen &prng) const override final
+            double raw_rand_(RndGen &prng) const override final
             {
                 const auto [shape, scale] = eff_params_();
                 return std::gamma_distribution<double>(shape, scale)(prng);
@@ -557,7 +556,7 @@ namespace housepi
             {
                 return arg(0) * sqrt(-2. * log1p(-p));
             }
-            double raw_rand_(rnd_gen &prng) const override final
+            double raw_rand_(RndGen &prng) const override final
             {
                 return arg(0) * sqrt(-2 * log(standard_uniform(prng)));
             }
@@ -607,7 +606,7 @@ namespace housepi
             {
                 return arg(1) * pow(-log1p(-p), 1. / arg(0));
             }
-            double raw_rand_(rnd_gen &prng) const override final
+            double raw_rand_(RndGen &prng) const override final
             {
                 return arg(1) * pow(-log(standard_uniform(prng)), 1.0 / arg(0));
             }
@@ -651,7 +650,7 @@ namespace housepi
             {
                 return -log1p(-p) / arg(0);
             }
-            double raw_rand_(rnd_gen &prng) const override final
+            double raw_rand_(RndGen &prng) const override final
             {
                 return -log(standard_uniform(prng)) / arg(0);
             }
@@ -694,7 +693,7 @@ namespace housepi
                 return boost::math::quantile(
                     boost::math::poisson_distribution<double, discrete_up_policy>(arg(0)), p);
             }
-            double raw_rand_(rnd_gen &prng) const override final
+            double raw_rand_(RndGen &prng) const override final
             {
                 return std::poisson_distribution<unsigned>(arg(0))(prng);
             }
@@ -769,7 +768,7 @@ namespace housepi
                 return boost::math::quantile(
                     boost::math::binomial_distribution<double, discrete_up_policy>(arg(0), arg(1)), p);
             }
-            double raw_rand_(rnd_gen &prng) const override final
+            double raw_rand_(RndGen &prng) const override final
             {
                 return std::binomial_distribution<unsigned>(arg(0), arg(1))(prng);
             }
@@ -821,7 +820,7 @@ namespace housepi
                 return boost::math::quantile(
                     boost::math::negative_binomial_distribution<double, discrete_up_policy>(arg(0), arg(1)), p);
             }
-            double raw_rand_(rnd_gen &prng) const override final
+            double raw_rand_(RndGen &prng) const override final
             {
                 return std::negative_binomial_distribution<unsigned>(arg(0), arg(1))(prng);
             }
@@ -843,7 +842,7 @@ namespace housepi
 
         private:
             /// Shrink of `p` keeping an accurate cumulative atom on its own quantile.
-            static constexpr double quantile_shrink_ = 1. - 2. * std::numeric_limits<double>::epsilon();
+            static constexpr double QUANTILE_SHRINK = 1. - 2. * std::numeric_limits<double>::epsilon();
 
         protected:
             double raw_pdf_(double x) const override final
@@ -867,10 +866,10 @@ namespace housepi
             double raw_quantile_(double p) const override final
             {
                 // closed form overshoots by one where the cumulative rounds below `p`: step back
-                const double k = std::ceil(log1p(-p * quantile_shrink_) / log1p(-arg(0)) - 1.);
+                const double k = std::ceil(log1p(-p * QUANTILE_SHRINK) / log1p(-arg(0)) - 1.);
                 return k > 0. && raw_cdf_(k - 1.) >= p ? k - 1. : k;
             }
-            double raw_rand_(rnd_gen &prng) const override final
+            double raw_rand_(RndGen &prng) const override final
             {
                 return std::geometric_distribution<unsigned>(arg(0))(prng);
             }
@@ -948,7 +947,7 @@ namespace housepi
                     acc += arg(++i);
                 return static_cast<double>(i);
             }
-            double raw_rand_(rnd_gen &prng) const override final
+            double raw_rand_(RndGen &prng) const override final
             {
                 const size_t cases = n_args();
                 const double target = standard_uniform(prng) * norm_();
@@ -986,7 +985,7 @@ namespace housepi
             INIT_DISCR_LEFT_MIN_ZERO_CLOSE()
 
         protected:
-            double raw_rand_(rnd_gen & /*prng*/) const override final { raise_undefined_call_err_("rand"); }
+            double raw_rand_(RndGen & /*prng*/) const override final { raise_undefined_call_err_("rand"); }
             double raw_log_ratio_(double /*xo*/, double /*xn*/) const override final { raise_undefined_call_err_("log_ratio"); }
             double raw_quantile_(double /*p*/) const override final { raise_undefined_call_err_("quantile"); }
             double raw_log_pdf_(double /*x*/) const override final { raise_undefined_call_err_("log_pdf"); }

@@ -24,7 +24,7 @@ hh_model$name
     \item{\code{escaped}}{\code{character(1)}
 Label for status code \code{0} in a character or factor \code{status} column.}
 
-    \item{\code{setup}}{\code{list} Last setup used by the build process.}
+    \item{\code{settings}}{\code{list} Last settings used by the build process.}
   }
   \if{html}{\out{</div>}}
 }

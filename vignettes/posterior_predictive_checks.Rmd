@@ -39,32 +39,32 @@ hh_model <- flu_1918_frederick |>
   add_parameter(import = "template")
 
 # store posterior draws
-results <- hh_model |>
+hh_fit <- hh_model |>
   run_inference()
 ```
 
-# Predicted cases by size
+# Predicted cases distribution
 
-We can use the simulation process to challenge the validity of the inferred model on top of the original dataset. We do so by computing the predicted numbers of cases per household size according to our posterior distribution (i.e. by producing simulations according to posterior values).
+We can use the simulation process to challenge the validity of the inferred model on top of the original dataset. We do so by computing the predicted distribution of household cases ("final size") per household size according to our posterior distribution (i.e. by producing simulations according to posterior values).
 
 ```{r}
 #| label: compute-predictions
 # compute posterior predictive checks
 ppc <- hh_model |>
-  # run simulations according to previous posterior traces in results
-  check_predictive(results)
+  # run simulations according to previous posterior traces in hh_fit
+  check_predictive(hh_fit)
 print(ppc)
 ```
 
-To show both observed and predicted cases by size, we can extract the formatted cases table from our output object as follows.
+To show both observed and predicted cases distributions by household size, we can extract the formatted table from our output object as follows.
 
 ```{r}
-#| label: format-cases-table
+#| label: format-cases-distr
 # for this part of the analysis we consider only house sizes up to 5
 ppc$set_max_hh_size(5)
 
-# return a data.frame with observed and predicted cases
-cases_df <- ppc$format_cases_count()
+# return data.frames with observed and predicted cases distributions
+cases_df <- ppc$format_cases_distr()
 
 # format predicted cases
 combined <- cases_df$predicted
@@ -79,7 +79,7 @@ combined[mask_pred, mask_cols] <- format_credible_interval(
   as_integer = TRUE
 )
 
-# generate cases by household size table
+# generate cases distribution by household size table
 flextable::flextable(combined) |>
   flextable::separate_header() |>
   flextable::bold(j = ~ hh_size, bold = TRUE) |>
@@ -134,7 +134,7 @@ Current standard measures are stratified by household size:
 
 - `measure_ar_by_hh_size`: attack rate;
 - `measure_sar_by_hh_size`: secondary attack rate;
-- `measure_cases_by_hh_size`: counts of cases.
+- `measure_cases_by_hh_size`: cases distribution.
 
 `measure_geom_mean_hh_size` returns a single number instead: the geometric mean of household size weighted by secondary cases, a data-driven choice for `hh_size_ref`.
 
@@ -149,7 +149,7 @@ measure_overall_attack_rate <- function(data_wide) {
 
 # compute standard and custom measures together
 ppc_multi <- hh_model |>
-  check_predictive(results, overall = measure_overall_attack_rate)
+  check_predictive(hh_fit, overall = measure_overall_attack_rate)
 ppc_multi
 ```
 
@@ -170,7 +170,7 @@ The result is then a `HousepiPredictiveCheck` object, without the formatted outp
 ```{r}
 #| label: predicted-measures-only-custom
 hh_model |>
-  check_predictive(results, overall = measure_overall_attack_rate,
+  check_predictive(hh_fit, overall = measure_overall_attack_rate,
                    epi = FALSE)
 ```
 

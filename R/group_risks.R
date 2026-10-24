@@ -69,16 +69,16 @@ risk_na_pad <- function(cols) {
 # Parameter definitions of the logic tables of one risk.
 # A named parameter takes, in order of precedence:
 # * its override, when given;
-# * the shared `setup`;
+# * the shared `config`;
 # * the default for an `absolute` risk.
 # Its table pins its values.
-risk_params_ <- function(tables, overrides, setup, absolute) {
-  if (is.null(setup)) setup <- default_risk_mcmc_setup(absolute)
+risk_params_ <- function(tables, overrides, config, absolute) {
+  if (is.null(config)) config <- default_risk_mcmc_config(absolute)
   out <- list()
   for (tbl in tables) {
     pins <- collect_table_pins(tbl)
     for (par_id in setdiff(tbl$param_name, ".reference")) {
-      def <- if (!is.null(overrides[[par_id]])) overrides[[par_id]] else setup
+      def <- if (!is.null(overrides[[par_id]])) overrides[[par_id]] else config
       out[[par_id]] <- helper_pin_param_def(def, pins[[par_id]])
     }
   }
@@ -284,7 +284,7 @@ collect_table_pins <- function(tbl) {
 
 #' Fold a stratum pin into its parameter definition.
 #' * pinned stratum -> constant parameter, no prior.
-#' @param def `list` Shared MCMC setup of the risk.
+#' @param def `list` Shared MCMC configuration of the risk.
 #' @param pin `numeric(1)` | `NULL` Pin of the stratum.
 #' @noRd
 helper_pin_param_def <- function(def, pin) {
@@ -305,7 +305,7 @@ lacks_reference_ <- function(tables) {
 }
 
 #' Assert every `params` entry names a parameter the strata table declares.
-#' @param params `list` Per-parameter MCMC-setup overrides.
+#' @param params `list` Per-parameter MCMC-configuration overrides.
 #' @return `list` `params`, invisibly.
 #' @noRd
 assert_known_params_names <- function(strata, params) {
@@ -317,7 +317,7 @@ assert_known_params_names <- function(strata, params) {
 }
 
 #' Warn that automatic mode drops `params`, as it derives its own parameters.
-#' @param params `list` Per-parameter MCMC-setup overrides.
+#' @param params `list` Per-parameter MCMC-configuration overrides.
 #' @return `list` `params`, invisibly.
 #' @noRd
 warn_unused_auto_params <- function(params) {
@@ -331,7 +331,7 @@ warn_unused_auto_params <- function(params) {
 }
 
 #' Assert no stratum is both pinned and overridden through `params`.
-#' @param params `list` Per-parameter MCMC-setup overrides.
+#' @param params `list` Per-parameter MCMC-configuration overrides.
 #' @return `list` `params`, invisibly.
 #' @noRd
 assert_no_pin_params_clash <- function(strata, params) {
@@ -339,7 +339,7 @@ assert_no_pin_params_clash <- function(strata, params) {
   if (length(clash)) stop_h(
     paste("Pinned {cli::qty(clash)}strat{?um/a} also set through",
           "{.arg params}: {.val {clash}}."),
-    paste("A pinned stratum carries no MCMC setup:",
+    paste("A pinned stratum carries no MCMC configuration:",
           "drop it from {.arg params} or from the strata table.")
   )
   invisible(params)
@@ -499,14 +499,14 @@ tidyup_group_risk_tables <- function(all_tables) {
   as.data.frame(combined_df)
 }
 
-#' Validate the user MCMC setup of a risk, returned as written.
+#' Validate the user MCMC configuration of a risk, returned as written.
 #' It is encoded once the risk's parameters are declared.
 #' * every choice missing -> `NULL`.
 #' @param dots `list` Distribution and proposal arguments.
 #' @param family `character(1)` Holder family.
 #' @param name `character(1)` | `NULL` Name of the risk, when it has one.
 #' @noRd
-unwrap_risk_setup_ <- function(prior, proposal, min, max, dots, family,
+unwrap_risk_config_ <- function(prior, proposal, min, max, dots, family,
                                name = NULL) {
   prior <- housepi_smart_unwrap(prior, "prior")
   proposal <- housepi_smart_unwrap(proposal, "proposal")
@@ -518,9 +518,9 @@ unwrap_risk_setup_ <- function(prior, proposal, min, max, dots, family,
   args <- helper_definition_args(proposal, dots, family, name)$args
   assert_no_sibling_dist_arg(args, family, name)
 
-  setup <- c(list(prior = prior), as.list(args),
+  config <- c(list(prior = prior), as.list(args),
              list(min = min, max = max, proposal = proposal))
-  is_default <- vapply(setup, \(x) isTRUE(is.na(x)), logical(1))
+  is_default <- vapply(config, \(x) isTRUE(is.na(x)), logical(1))
   # all defaults -> resolved once the data tells absolute from relative
   if (all(is_default)) return(NULL)
   # nolint next: object_usage_linter. read by the cli glue below
@@ -532,14 +532,14 @@ unwrap_risk_setup_ <- function(prior, proposal, min, max, dots, family,
   c(list(prior = prior), dots, list(min = min, max = max, proposal = proposal))
 }
 
-#' Return the default MCMC setup of a risk.
+#' Return the default MCMC configuration of a risk.
 #' * absolute -> rates on their own;
 #' * relative -> ratios, as in \insertRef{cauchemez_household_2009}{housepi}.
 #' @param absolute `logical(1)` Whether the risk carries absolute values.
 #' @noRd
-default_risk_mcmc_setup <- function(absolute) {
-  if (isTRUE(absolute)) list(prior = "uniform", proposal = "rw_log")
-  else list(prior = "lognormal", meanlog = 0, sdlog = 3, proposal = "rw_log")
+default_risk_mcmc_config <- function(absolute) {
+  if (isTRUE(absolute)) list(prior = "uniform")
+  else list(prior = "lognormal", meanlog = 0, sdlog = 3)
 }
 
 # Validate and shape the automatic reference of group risks.
@@ -804,8 +804,8 @@ HousepiGroupRisk <- R6::R6Class(
       strata <- housepi_smart_unwrap(strata, "strata", null_ok = TRUE)
       params <- housepi_smart_unwrap(params, "params", null_ok = TRUE)
 
-      setup <- unwrap_risk_setup_(prior, proposal, min, max, list(...),
-                                  self$family, name)
+      config <- unwrap_risk_config_(prior, proposal, min, max, list(...),
+                                    self$family, name)
       if (risk_mode_(by, strata, params) == "auto") {
         private$helper_auto_add_(
           name = name, by = by, reference = reference, prefix = prefix,
@@ -818,8 +818,8 @@ HousepiGroupRisk <- R6::R6Class(
         )
       }
 
-      # store shared MCMC setup (overwriting any existing)
-      self$raw_params[name] <- list(setup)
+      # store shared MCMC configuration (overwriting any existing)
+      self$raw_params[name] <- list(config)
 
       # reorder
       y <- sort(names(self$defs))
@@ -904,7 +904,7 @@ HousepiGroupRisk <- R6::R6Class(
     # @param status_codes `integer()` Engine status codes, named by label.
     expose_to_cpp = function(info, status_codes) {
       defs <- self$tidy_table
-      defs[c("n", risk_pin_cols)] <- NULL
+      defs[risk_pin_cols] <- NULL
       # status has no entry in `info`, coded against the engine codes
       # members hold, not against a data column
       encode_strata_levels_(code_status_col_(defs, status_codes), info,

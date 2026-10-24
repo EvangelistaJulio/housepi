@@ -55,14 +55,15 @@ If \code{NA}, no upper bound is applied. Only with \code{epi = TRUE}.}
 
 \item{threads}{\code{integer(1)} Number of threads for parallel household runs.}
 
-\item{progress}{\code{integer(1)} | \code{logical(1)} Control the progress bar,
+\item{progress}{\code{numeric(1)} | \code{logical(1)} Control the progress bar,
 one of:
 \describe{
-\item{\code{integer}}{seconds between prints, a shorter run printing nothing;}
+\item{\code{numeric}}{seconds between prints, a shorter run printing nothing;}
 \item{\code{TRUE}}{one print per second;}
 \item{\code{FALSE} or \code{0}}{no progress bar.}
 }
-The bar prints as messages, which \code{\link[=suppressMessages]{suppressMessages()}} silences.}
+The bar prints as messages, which \code{\link[=suppressMessages]{suppressMessages()}} silences.
+In a knitted document, only its closing line prints.}
 }
 \value{
 An object of class \link{HousepiEpiPredictiveCheck} if \code{epi = TRUE},
@@ -76,7 +77,7 @@ It checks standard epidemiological measures by household size:
 \describe{
 \item{\code{"attack_rate"}}{see \link{measure_ar_by_hh_size};}
 \item{\code{"sec_attack_rate"}}{see \link{measure_sar_by_hh_size};}
-\item{\code{"cases_count"}}{see \link{measure_cases_by_hh_size}.}
+\item{\code{"cases_distr"}}{see \link{measure_cases_by_hh_size}.}
 }
 Named measure functions in \code{...} are checked alongside them,
 under names that differ from these.
@@ -91,20 +92,20 @@ and credible level of the global options, see \code{\link[=set_housepi_summary]{
 hh_model <- flu_1918_frederick |>
   new_housepi_model("final-size") |>
   add_parameter(import = "template")
-results <- run_inference(hh_model, chains = 2, progress = FALSE)
+hh_fit <- run_inference(hh_model, chains = 2, progress = FALSE)
 
-ppc <- check_predictive(hh_model, results, nrep = 50, progress = FALSE)
+ppc <- check_predictive(hh_model, hh_fit, nrep = 50, progress = FALSE)
 ppc
 
 # a user-defined measure: the overall attack rate
 overall_ar <- function(data_wide) mean(data_wide$status > 0)
-ppc <- check_predictive(hh_model, results, overall = overall_ar,
+ppc <- check_predictive(hh_model, hh_fit, overall = overall_ar,
                         nrep = 50, progress = FALSE)
 ppc
 ppc$overall$observed
 
 # only the user-defined measures
-ppc <- check_predictive(hh_model, results, overall = overall_ar,
+ppc <- check_predictive(hh_model, hh_fit, overall = overall_ar,
                         epi = FALSE, nrep = 50, progress = FALSE)
 ppc
 }

@@ -4,14 +4,11 @@
  */
 
 #include <algorithm>
-#include <cmath>
 #include <functional>
 #include <limits>
 #include <map>
 #include <numeric>
-#include <stdexcept>
 #include <string>
-#include <unordered_map>
 #include <vector>
 
 #include "tools/dictionary.h"
@@ -21,6 +18,7 @@
 #include "tools/nan.h"
 #include "tools/string.h"
 #include "tools/vector.h"
+#include "data.h"
 #include "data/household.h"
 #include "data/individual.h"
 #include "data/long.h"
@@ -28,7 +26,6 @@
 #include "data/state.h"
 #include "data/status.h"
 #include "data/wide.h"
-#include "data.h"
 #include "function.h"
 #include "model.h"
 
@@ -37,12 +34,12 @@ namespace housepi
     //////////////////////////////  Data  //////////////////////////////
 
     Data::Store_::Store_(const ModelBase &model)
-        : wide(model.key_Data(),
-               model.key_HHmember(),
-               model.key_HHmembervec(),
-               model.key_HHdoublevec(),
-               model.key_HHdoublemtx()),
-          long_format(model.key_Long()) {}
+        : wide(model.data_keys(),
+               model.house_member_keys(),
+               model.house_member_vec_keys(),
+               model.house_double_vec_keys(),
+               model.house_double_mtx_keys()),
+          long_format(model.long_keys()) {}
 
     //////////////////////////////  Household  //////////////////////////////
 
@@ -130,7 +127,7 @@ namespace housepi::data
 
     void Wide::build(const str_table &input)
     {
-        clear_optional();
+        clear_optional_();
 
         helper_build_clear_data_();        // drop previous data and lists
         helper_build_data_headers_(input); // extract headers
@@ -147,9 +144,9 @@ namespace housepi::data
         // store households
         for (size_t i = 0; i < report_indiv.total; ++i)
         {
-            std::string id = std::to_string(i + 1);                      // default id
+            std::string id = std::to_string(i + 1);                       // default id
             std::string hh_id = std::to_string(house_vector_.size() + 1); // default hh_id
-            StatusLvl status = status::MISSING;                          // default status
+            StatusLvl status = status::MISSING;                           // default status
             // individual context for reading errors
             std::string err_ctx = " for individual in row n." + std::to_string(i + 1);
 
@@ -259,7 +256,7 @@ namespace housepi::data
     void Wide::add_produced_cols(const std::vector<std::string> &produced_cols)
     {
         for (const std::string &name : produced_cols)
-            add(name);
+            add_(name);
         for (IndivWide_ &idata : indiv_data_)
             idata.vec.resize(size(), na::DOUBLE);
     }
@@ -303,7 +300,7 @@ namespace housepi::data
 
         // add optional keys to registry
         for (const std::string &datastring : headers)
-            add(datastring);
+            add_(datastring);
     }
 
     void Wide::build_helper_fill_report_data_()
@@ -452,7 +449,7 @@ namespace housepi::data
         {
             const size_t refer_restrict = eq_classes_.size();
             for (size_t H : group)
-                at(H).eq_class_ = static_cast<HouseIdx>(refer_restrict);
+                at(H).eq_class_ = static_cast<EqClassIdx>(refer_restrict);
 
             eq_classes_.emplace_back(group);
         }
@@ -484,7 +481,7 @@ namespace housepi::data
         for (size_t H = 0; H < report_house.total; ++H)
         {
             eq_classes_[H].head_ = H;
-            at(H).eq_class_ = static_cast<HouseIdx>(H);
+            at(H).eq_class_ = static_cast<EqClassIdx>(H);
         }
     }
 
@@ -666,7 +663,7 @@ namespace housepi::data
     void Long::build(Wide &data_wide,
                      const str_table &input)
     {
-        clear_optional();
+        clear_optional_();
 
         if (input.empty())
             return;
@@ -732,6 +729,6 @@ namespace housepi::data
 
         // add optional keys to registry
         for (const std::string &datastring : headers)
-            add(datastring);
+            add_(datastring);
     }
 }

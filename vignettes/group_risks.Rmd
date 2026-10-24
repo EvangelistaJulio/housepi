@@ -42,10 +42,8 @@ set_housepi_theme()
 set_housepi_summary(cri_level = 0.95)
 set.seed(42)
 
-# define a model object with a subset of the ICoFs dataset
-hh_model <- sarscov2_2021_icofs |>
-  dplyr::filter(hh_id %in% sample(unique(hh_id), 200)) |>
-  new_housepi_model("case-ascertained")
+# define a model object
+hh_model <- new_housepi_model(sarscov2_2021_icofs, "case-ascertained")
 ```
 
 The current loaded model allows for a number of group risks, among which the individual `"susceptibility"` (use `$help()` method to learn more).
@@ -96,7 +94,7 @@ hh_model |>
 # Parameters associated to risks
 
 To perform inference of the parameters associated to each group we need to provide options for the Bayesian Monte Carlo.
-By default, an absolute group risk assumes a uniform prior over its support, while a relative one assumes a lognormal prior (`meanlog = 0` and `sdlog = 3`), following @cauchemez_household_2009. Both use a lognormal random-walk proposal (`"rw_log"`).
+By default, an absolute group risk assumes a uniform prior over its support, while a relative one assumes a lognormal prior (`meanlog = 0` and `sdlog = 3`), following @cauchemez_household_2009.
 The group risk definition takes the same MCMC arguments as a parameter definition.
 
 ```{r}
@@ -152,7 +150,7 @@ hh_model <- hh_model |>
   # latent definitions
   add_latent(
     # public definitions
-    infec_time = list(min = end_date - 29, max = end_date),
+    infec_time = list(min = end_date - 29, max = test_date + 1),
     # accessory definitions, generic to all statuses
     incub_period = list(model = "gamma", mean = 3, sd = 1.4),
     onset_time = infec_time + incub_period,
@@ -174,10 +172,10 @@ hh_model <- hh_model |>
   add_infectivity_profile("gamma", mean = 4, sd = 1.6)
 
 # perform inference
-results <- hh_model |>
+hh_fit <- hh_model |>
   run_inference(progress = 4)
 
-bayesplot::mcmc_trace(get_parameter_draws(results))
+bayesplot::mcmc_trace(get_parameter_draws(hh_fit))
 ```
 
 # Compare group risks
@@ -206,7 +204,7 @@ ylabel <- if (nrow(tmp) == 0) risk_id else
           paste(paste(names(tmp), tmp, sep = " "), collapse = " "))
 
 # compare inferred susceptibility group risks
-results |>
+hh_fit |>
   summarise_draws() |>
   dplyr::filter(startsWith(variable, prefix)) |>
   dplyr::left_join(get_group_risks(hh_model) |>
@@ -215,7 +213,7 @@ results |>
                    by = "variable") |>
   dplyr::mutate(
     variable = gsub("_", " ", sub("sus_vacc_status", "", variable))
-    ) |> 
+  ) |>
   ggplot(aes(x = variable, y = median, label = sprintf("[%s]", n))) +
   geom_hline(yintercept = 1, color = "black") +
   geom_point() +

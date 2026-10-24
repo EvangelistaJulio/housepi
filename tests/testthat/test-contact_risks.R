@@ -332,11 +332,11 @@ test_that("An unnamed reference names the single covariate", {
 })
 
 test_that("Contact risks expand on their own covariates only", {
-  hhdata <- sarscov2_2021_icofs |>
+  hh_data <- sarscov2_2021_icofs |>
     dplyr::filter(hh_id %in% utils::head(unique(hh_id), 50))
 
   # the covariate itself must be a genuine data column
-  hhdata |>
+  hh_data |>
     dplyr::select(-age) |>
     new_housepi_model("final-size") |>
     add_contact_risk(by = "age") |>
@@ -489,7 +489,7 @@ test_that("A catch-all contact rule counts every pair it reaches", {
   risks <- hh_model |>
     get_contact_risks()
 
-  ctr <- inspect_house_state(hh_model, "h1")$contact_risks
+  ctr <- inspect_state(hh_model, "h1")$contact_risks
   risks$n[risks$param_name == "rho"] |> expect_identical(sum(ctr == 2))
   risks$n[risks$param_name == ".reference"] |> expect_identical(sum(ctr == 1))
 })
@@ -590,7 +590,7 @@ test_that("Most-specific rule wins over reference (single covariate)", {
   snapshot <- mk_house$model |>
     add_contact_risk(strata = strata, symmetric = FALSE,
                      params = list(ctr_fm = 2)) |>
-    inspect_house_state("h1")
+    inspect_state("h1")
 
   # the explicit pair wins
   ctr_cell(snapshot, "father", "mother") |> expect_equal(2)
@@ -633,7 +633,7 @@ test_that("A catch-all rule survives a missing cell in its covariate column", {
                             member = c("father", "mother", "student", NA))) |>
     add_contact_risk(strata = strata, symmetric = FALSE,
                      params = list(ctr_fm = 2, ctr_any = 3)) |>
-    inspect_house_state("h1") |>
+    inspect_state("h1") |>
     suppressWarnings() # suppress baseline collapse warning
 
   # the specific pair still wins on specificity
@@ -671,7 +671,7 @@ test_that("Distinct rule_groups multiply at the cell", {
       params = list(ctr_aa = 3, ctr_class_aa = 5, ctr_child = 7,
                     ctr_class_b = 11)
     ) |>
-    inspect_house_state("h1")
+    inspect_state("h1")
 
   # m1 (adult,a) -> m2 (adult,a): both rules match -> 3 * 5 = 15
   ctr_cell(snapshot, "m1", "m2", key = "id") |> expect_equal(15)
@@ -696,7 +696,7 @@ test_that("Contact risk definition work as expected", {
     add_parameter(import = "template")
 
   # no contact risk defs -> empty matrix
-  contact_risks <- inspect_house_state(hh_model, "h2")$contact_risks
+  contact_risks <- inspect_state(hh_model, "h2")$contact_risks
   is.matrix(contact_risks) |> expect_true()
   dim(contact_risks) |> expect_identical(c(0L, 0L))
 
@@ -717,7 +717,7 @@ test_that("Contact risk definition work as expected", {
   hh_model <- add_contact_risk(hh_model, strata = strata, params = params)
 
   # matrix is n x n with a null diagonal
-  snapshot <- inspect_house_state(hh_model, "h2")
+  snapshot <- inspect_state(hh_model, "h2")
   n <- nrow(snapshot$data_wide)
   dim(snapshot$contact_risks) |> expect_equal(c(n, n))
   unname(diag(snapshot$contact_risks)) |> expect_equal(rep(0., n))
@@ -756,6 +756,77 @@ test_that("Contact risks raise an error for incompatible models", {
     expect_error("[Nn]ot supported")
 })
 
+test_that("A baseline moves with the contact risks coupled to it", {
+  # the father-mother pair is the reference and every other pair shares one
+  # risk, so the baseline and that risk trade off along a ridge
+  hh_data <- flu_2014_matsumoto[
+    flu_2014_matsumoto$hh_id %in% unique(flu_2014_matsumoto$hh_id)[1:1200], ]
+  strata <- tibble::tribble(
+    ~from_member, ~to_member, ~param_name,
+    "father",     "mother",   ".reference",
+    NA,           NA,         "ctr_rest"
+  )
+  hh_model <- hh_data |>
+    new_housepi_model("final-size") |>
+    add_parameter(alpha = 0.01, gamma = 1, hh_size_ref = 5L,
+                  beta = list(prior = "uniform"))
+
+  # undeclared proposals: the baseline and the risk move together
+  hh_model_2 <- add_contact_risk(hh_model, strata = strata)
+  hh_fit <- hh_model_2 |>
+    run_inference(steps = 8000L, thin = 2L, adapt = 1000L, chains = 2L,
+                  threads = 1L, progress = FALSE, warn = FALSE)
+  # a declared proposal moves its variable alone
+  hh_model_3 <- add_contact_risk(hh_model, strata = strata, prior = "lognormal",
+                                 meanlog = 0, sdlog = 3, proposal = "rw_log")
+  hh_fit_2 <- hh_model_3 |>
+    run_inference(steps = 8000L, thin = 2L, adapt = 1000L, chains = 2L,
+                  threads = 1L, progress = FALSE, warn = FALSE)
+  draws <- get_parameter_draws(hh_fit)
+  draws_2 <- get_parameter_draws(hh_fit_2)
+  summ <- posterior::summarise_draws(draws, "mean", "ess_bulk")
+  summ_2 <- posterior::summarise_draws(draws_2, "mean", "ess_bulk")
+
+  # the ridge the one-variable moves crawl along
+  cor(log(draws_2$beta), log(draws_2$ctr_rest)) |> expect_lt(-0.8)
+  # moving together mixes it
+  summ$variable |> expect_identical(summ_2$variable)
+  (summ$ess_bulk[summ$variable == "beta"] /
+     summ_2$ess_bulk[summ_2$variable == "beta"]) |>
+    expect_gt(3)
+  # the same posterior across the ridge, on the product the data identifies,
+  # within Monte Carlo error
+  # along the ridge the one-variable arm resolves too few draws to compare
+  summarise_product <- function(d) {
+    d <- posterior::as_draws_df(d) |>
+      posterior::mutate_variables(prod = beta * ctr_rest) |>
+      posterior::subset_draws("prod")
+    posterior::summarise_draws(d, "mean", "mcse_mean")
+  }
+  summ_prod <- summarise_product(draws)
+  summ_prod_2 <- summarise_product(draws_2)
+  (abs(summ_prod$mean - summ_prod_2$mean) /
+     sqrt(summ_prod$mcse_mean^2 + summ_prod_2$mcse_mean^2)) |>
+    expect_lt(4)
+  # every draw stays inside the support
+  (draws$beta > 0 & draws$beta < 1) |> expect_all_true()
+  (draws$ctr_rest > 0) |> expect_all_true()
+
+  # the baseline and the risk form one block, learnt along the ridge
+  sampler <- inspect_state(hh_model_2)$.sampler
+  sampler$moves$name |> expect_setequal(c("beta", "ctr_rest"))
+  sampler$moves$block |> expect_identical(c(1L, 1L))
+  sampler$blocks |> nrow() |> expect_identical(1L)
+  sampler$blocks$member |> expect_all_na()
+  block_cor <- cov2cor(sampler$blocks$jump_cov[[1]])
+  block_cor[1L, 2L] |> expect_lt(-0.8)
+  # a declared proposal leaves no block, and says so
+  sampler <- inspect_state(hh_model_3)$.sampler
+  sampler$moves$block |> expect_all_na()
+  sampler$moves$proposal[sampler$moves$name == "ctr_rest"] |> expect_identical("rw_log")
+  sampler$blocks |> nrow() |> expect_identical(0L)
+})
+
 ####  Strata pins  ####
 
 test_that("Infected members under different contact rules are kept apart", {
@@ -769,8 +840,8 @@ test_that("Infected members under different contact rules are kept apart", {
     "F",       "M",     "fm",         3,
     "F",       "F",     "ff",         NA
   )
-  hhdata <- data.frame(id = c("m1", "m2", "m3", "m4"), hh_id = "h1",
-                       status = 1L, sex = c("M", "F", "M", "F"))
+  hh_data <- data.frame(id = c("m1", "m2", "m3", "m4"), hh_id = "h1",
+                        status = 1L, sex = c("M", "F", "M", "F"))
   log_lik <- function(data, ff) {
     data |>
       new_housepi_model("final-size") |>
@@ -784,12 +855,13 @@ test_that("Infected members under different contact rules are kept apart", {
   }
 
   # the likelihood does not depend on the order of the members
-  ll <- log_lik(hhdata, ff = 4)
+  ll <- log_lik(hh_data, ff = 4)
   ll |> expect_all_finite()
-  log_lik(hhdata[c(2, 3, 4, 1), ], ff = 4) |> expect_equal(ll, tolerance = 1e-4)
+  log_lik(hh_data[c(2, 3, 4, 1), ], ff = 4) |>
+    expect_equal(ll, tolerance = 1e-4)
 
   # a member with another self-contact is not merged with the others
-  (abs(log_lik(hhdata, ff = 0.5) - ll) > 1e-2) |> expect_true()
+  (abs(log_lik(hh_data, ff = 0.5) - ll) > 1e-2) |> expect_true()
 })
 
 test_that("A contact strata const pins the stratum, with no prior", {
@@ -832,7 +904,7 @@ test_that("Invalid contact strata pins are rejected", {
 
 test_that("A symmetric pin reaches the mirrored pair", {
   snapshot <- pin_ctr_strata(symmetric = TRUE) |>
-    inspect_house_state("h1")
+    inspect_state("h1")
 
   # the mirrored row inherits both the parameter and its pin
   ctr_cell(snapshot, "father", "mother") |> expect_equal(0.4)
@@ -842,7 +914,7 @@ test_that("A symmetric pin reaches the mirrored pair", {
 
   # symmetric = FALSE leaves the reverse direction at the reference
   snapshot <- pin_ctr_strata(symmetric = FALSE) |>
-    inspect_house_state("h1")
+    inspect_state("h1")
   ctr_cell(snapshot, "father", "mother") |> expect_equal(0.4)
   ctr_cell(snapshot, "mother", "father") |> expect_equal(1)
 })

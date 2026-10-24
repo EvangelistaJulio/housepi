@@ -45,15 +45,15 @@ test_that("Wrappers reject objects that are not a housepi model", {
 })
 
 test_that("Data provided at construction is exposed via get_data_wide", {
-  hhdata <- get_data_wide(new_housepi_model(flu_1918_baltimore, "test"))
-  colnames(hhdata) |> expect_contains(c("hh_id", "status"))
+  hh_data <- get_data_wide(new_housepi_model(flu_1918_baltimore, "test"))
+  colnames(hh_data) |> expect_contains(c("hh_id", "status"))
 
   # id automatically added
-  hhdata$id |> expect_identical(as.character(seq_len(nrow(hhdata))))
+  hh_data$id |> expect_identical(as.character(seq_len(nrow(hh_data))))
   # hh_id cast to character
-  hhdata$hh_id |> expect_identical(as.character(flu_1918_baltimore$hh_id))
+  hh_data$hh_id |> expect_identical(as.character(flu_1918_baltimore$hh_id))
   # statuses are integer
-  hhdata$status |> expect_identical(flu_1918_baltimore$status)
+  hh_data$status |> expect_identical(flu_1918_baltimore$status)
 })
 
 test_that("Variadic labels are not swallowed by formal matching", {
@@ -284,21 +284,20 @@ test_that("Reporting process wrapper rejects anything but a function", {
     expect_error("[Rr]eporting process .wide. must be a function")
 })
 
-test_that("Advanced setup options route through `...`", {
-  hh_model <- mk_wrapper$model |>
-    add_parameter(rho = list(prior = "gamma", shape = 2, scale = 1))
+test_that("Advanced settings route through `...`", {
+  hh_model <- flu_1918_frederick |>
+    new_housepi_model("final-size") |>
+    add_parameter(import = "template")
 
   # a name that is no advanced option is rejected, closest match suggested
   hh_model |>
-    run_inference(adapt_windows = 2L) |>
-    expect_error("adapt_windows.*adapt_window")
+    run_simulation(time_steps = 0.5) |>
+    expect_error("time_steps.*time_step")
 
-  # the adaptation window is carried to the engine and read back
-  hh_model |>
-    run_inference(steps = 4L, thin = 1L, adapt = 4L, chains = 1L,
-                  adapt_window = 2L) |>
-    suppressWarnings()
-  hh_model$setup$adapt_window |> expect_equal(2)
+  # the integration step is carried to the engine and read back
+  simulated <- run_simulation(hh_model, time_step = 0.5)
+  simulated |> expect_s3_class("data.frame")
+  hh_model$settings$time_step |> expect_equal(0.5)
 })
 
 test_that("Progress bar prints every `progress` seconds until interrupted", {

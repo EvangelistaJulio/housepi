@@ -7,16 +7,16 @@
 \alias{get_complete_draws}
 \title{Get posterior draws of respective variables}
 \usage{
-get_parameter_draws(hhdraws, variable = NULL)
+get_parameter_draws(hh_fit, variable = NULL)
 
-get_latent_draws(hhdraws, variable = NULL)
+get_latent_draws(hh_fit, variable = NULL)
 
-get_log_lik_draws(hhdraws, variable = NULL)
+get_log_lik_draws(hh_fit, variable = NULL)
 
-get_complete_draws(hhdraws, variable = NULL)
+get_complete_draws(hh_fit, variable = NULL)
 }
 \arguments{
-\item{hhdraws}{\code{HousepiPosteriorDraws} Object returned by \code{\link[=run_inference]{run_inference()}}.}
+\item{hh_fit}{\code{HousepiPosteriorDraws} Object returned by \code{\link[=run_inference]{run_inference()}}.}
 
 \item{variable}{\code{character()} Variables to return, all of them when \code{NULL}.
 A name also returns its indexed elements,
@@ -57,19 +57,19 @@ and the single column \code{lprior},
 the parameter log-prior \eqn{\log p(\theta)}.
 The latent-variable log-density enters \code{log_lik}, not \code{lprior}.
 Both are evaluated along the joint (latent, parameter) chain.
-\code{lprior} alone is read with \code{get_complete_draws(hhdraws, "lprior")}.}
+\code{lprior} alone is read with \code{get_complete_draws(hh_fit, "lprior")}.}
 }
 See \link{HousepiPosteriorDraws} for how the joint log-density
 splits into \code{lprior} and \code{log_lik}.
 }
 \examples{
-results <- flu_1918_frederick |>
+hh_fit <- flu_1918_frederick |>
   new_housepi_model("final-size") |>
   add_parameter(import = "template") |>
   run_inference(chains = 2, progress = FALSE)
-get_parameter_draws(results, c("alpha", "beta"))
+get_parameter_draws(hh_fit, c("alpha", "beta"))
 
 # parameters, pointwise log_lik and lprior side by side
-complete <- get_complete_draws(results)
+complete <- get_complete_draws(hh_fit)
 posterior::variables(complete) |> head()
 }

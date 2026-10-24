@@ -24,10 +24,6 @@ namespace housepi
 {
     struct InfecProfile;
     struct StatusProcess;
-    namespace data
-    {
-        struct Wide;
-    }
     class Household;
     class MCMCBase;
 
@@ -88,7 +84,7 @@ namespace housepi
         /// Draw the observations of `indiv` from their models, for simulation.
         /// * each draw lands in its Variable, where data readers read it;
         /// * the data column, if any, is never overwritten.
-        void sample_obs(const Individual &indiv, rnd_gen &prng)
+        void sample_obs(const Individual &indiv, RndGen &prng)
         {
             augm::draw_sample(scheme_of_(indiv).obs_models, state.of(indiv), prng);
         }
@@ -101,24 +97,24 @@ namespace housepi
         void materialize_surrogate_columns(bool for_export = false);
 
         /// Initialize the latents of `indiv`, for inference.
-        void restart(const Individual &indiv, rnd_gen &prng)
+        void restart(const Individual &indiv, RndGen &prng)
         {
             augm::restart(scheme_of_(indiv), state.of(indiv), prng);
         }
         /// Initialize the latents of every individual, for inference.
         /// * no latent to sample -> skipped.
-        void restart(rnd_gen &prng);
+        void restart(RndGen &prng);
 
         /// Draw the sampled latents of `indiv` from their models, for simulation.
         /// Unlike restart(), it uses no proposal.
-        void draw_sample_for_simulation(const Individual &indiv, rnd_gen &prng)
+        void draw_sample_for_simulation(const Individual &indiv, RndGen &prng)
         {
             augm::draw_sample(scheme_of_(indiv).sim_sample, state.of(indiv), prng);
         }
         /// Draw the sampled latents of every individual from their models, for evaluation.
         /// Unlike restart(), it uses no proposal.
         /// * no latent to sample -> skipped.
-        void draw_sample(rnd_gen &prng);
+        void draw_sample(RndGen &prng);
 
         /// Finalize every variable, see Variable::finalize().
         void finalize();
@@ -135,11 +131,22 @@ namespace housepi
         /// Variable of latent `a` for member `m`.
         Variable &at(size_t a, const Individual &m) noexcept { return state.of(m).vec[a]; }
         const Variable &at(size_t a, const Individual &m) const noexcept { return state.of(m).vec[a]; }
-
+        /// Factor of the latent block of member `m`, nullptr without one.
+        block_rw::Factor *block_factor(const Individual &m) noexcept
+        {
+            const size_t b = state.block_factor_of[Index::of(m)];
+            return na::is(b) ? nullptr : &state.block_factors[b];
+        }
         /// Keys to sample for member `m`.
         const std::vector<size_t> &list_sample(const Individual &m) const { return scheme_of_(m).sample; }
         /// Keys with an adaptive proposal for member `m`.
         const std::vector<size_t> &list_adaptive(const Individual &m) const { return scheme_of_(m).adaptive; }
+        /// Keys of the latent block of member `m`.
+        const std::vector<size_t> &list_block(const Individual &m) const { return scheme_of_(m).block; }
+        /// Keys to sample for member `m`, outside its latent block.
+        const std::vector<size_t> &list_sample_alone(const Individual &m) const { return scheme_of_(m).sample_alone; }
+        /// Terms a move of the latent block of member `m` touches.
+        const LogLikTerms &block_terms(const Individual &m) const { return scheme_of_(m).block_terms; }
         /// Keys to draw for member `m`.
         const std::vector<size_t> &list_draws(const Individual &m) const { return scheme_of_(m).draws; }
         /// Keys carrying a latent-model density for member `m`.
@@ -248,6 +255,12 @@ namespace housepi
         /// A datum absent at build stays absent for the run: the likelihood never reads it.
         /// @note Evaluation only: a simulation reads every definition it produces.
         void init_live_schemes_(augm::SchemeBuilder &builder);
+        /// Set the latent block of every status scheme an infected member follows, and its members' factors.
+        void init_latent_blocks_(augm::SchemeBuilder &builder);
+        /// List the sampled latents of member `indiv` moving together, producer before consumer.
+        /// * proposal declared, or discrete -> left out, it moves alone;
+        /// * bounds or location shift moving with another block latent, through functions too -> moves alone.
+        std::vector<size_t> list_block_keys_(const Individual &indiv) const;
 
         /// List names the transmission reads: model-declared keys and the latent infectivity profile.
         std::vector<std::string> transm_names_() const;
