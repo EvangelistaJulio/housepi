@@ -42,6 +42,15 @@ test_that("Overwrite is a no-op on the same path and raises on failure", {
     expect_error("user permissions")
 })
 
+test_that("Durations round up to the smallest time scale shown", {
+  secs <- c(0, 0.2, 59.5, 61, 3599.5, 3661, 86399, 90001)
+  vapply(secs, format_secs_, "") |>
+    expect_identical(c("0s", "1s", "1m00s", "1m01s",
+                       "1h00m", "1h02m", "1d00h", "1d02h"))
+  # missing or infinite duration -> placeholder
+  vapply(c(NA, Inf), format_secs_, "") |> expect_identical(c("?s", "?s"))
+})
+
 test_that("Rendered text keeps data braces literal through a later cli pass", {
   datum <- c("a{b}", "{c}")
   txt <- inline_cli_("Got {datum}.")

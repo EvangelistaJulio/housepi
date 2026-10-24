@@ -19,11 +19,18 @@
 
 namespace housepi
 {
-    /// Format `secs` in whole seconds, showing large time scales only when relevant.
-    /// * e.g. `12s`, `3m05s`, `1h02m`, `2d03h`.
+    /// Format `secs` rounded up to the smallest time scale shown.
+    /// * large time scales shown only when relevant, e.g. `12s`, `3m05s`, `1h02m`, `2d03h`;
+    /// * not finite -> `?s`.
     inline std::string format_secs(double secs)
     {
-        const long t = static_cast<long>(secs);
+        if (!std::isfinite(secs))
+            return "?s";
+        long t = static_cast<long>(std::ceil(secs));
+        if (t >= 3600) // seconds hidden, round up to minutes
+            t = (t + 59) / 60 * 60;
+        if (t >= 86400) // minutes hidden, round up to hours
+            t = (t + 3599) / 3600 * 3600;
         const long dys = t / 86400, hrs = t / 3600 % 24, mns = t / 60 % 60, scs = t % 60;
         std::ostringstream oss;
         oss << std::setfill('0');
