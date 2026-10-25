@@ -109,10 +109,10 @@ plot_profile_demo <- function(profile,
     geom_line(aes(y = inst), color = color_inst) +
     # apply rescaling
     scale_y_continuous(
-      name = "Instantaneous",
-      sec.axis = sec_axis(~. * rescale, name = "Cumulative")
+      name = "instantaneous",
+      sec.axis = sec_axis(~. * rescale, name = "cumulative")
     ) +
-    labs(x = "Generation Time") +
+    labs(x = "generation time") +
     coord_cartesian(xlim = c(0, 10))
 }
 

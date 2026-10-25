@@ -601,35 +601,31 @@ test_that("An unpinned parameter is drawn from its prior in simulation", {
                              proposal_mean = 0.88, proposal_sd = 0.005)) |>
     add_latent(hidden = rho)
 
-  simulated <- simulate_with_parameters_(hh_model, nrep = 40)
-  drawn <- simulated$parameters$rho
+  # a deterministic latent reading the parameter exports its value
+  drawn <- run_simulation(hh_model, nrep = 40) |>
+    vapply(\(x) x$hidden[1], numeric(1))
 
-  drawn |> expect_length(40L)
   unique(drawn) |> expect_length(40L)
   (drawn >= 0.1 & drawn <= 0.9) |> expect_all_true()
   stats::sd(drawn) |> expect_gt(0.15) # uniform spread, not the proposal's 0.005
   mean(drawn) |> expect_lt(0.7)            # centred on the prior, not on 0.88
-  # a deterministic latent reading the parameter sees the value returned
-  vapply(simulated$wide, \(x) x$hidden[1], numeric(1)) |> expect_equal(drawn)
 })
 
-test_that("A parameter is returned at its draws value in simulation", {
-  hh_model <- data.frame(hh_id = "h1", id = c("m1", "m2"), status = 0) |>
+test_that("A parameter without a draws column is drawn from its prior", {
+  hh_model <- data.frame(hh_id = "h1", id = c("m1", "m2"), status = 1) |>
     new_housepi_model("test") |>
     add_parameter(rho = list(prior = "uniform"),
-                  rho_2 = list(prior = "uniform"))
+                  rho_2 = list(prior = "uniform")) |>
+    add_latent(hidden = rho, hidden_2 = rho_2)
 
-  # rho_2, without a column, is drawn from its prior
-  simulated <- simulate_with_parameters_(hh_model,
-                                         draws = data.frame(rho = rep(0.3, 5)))
-  simulated$parameters |> expect_named(c("rho", "rho_2"), ignore.order = TRUE)
-  simulated$parameters$rho |> expect_all_equal(0.3)
-  # a single replicate returns one frame and a one-row table
-  simulated <- simulate_with_parameters_(hh_model,
-                                         draws = data.frame(rho = 0.3))
-  simulated$wide |> expect_length(1L)
-  simulated$parameters |> expect_nrow(1L)
-  simulated$parameters$rho |> expect_equal(0.3)
+  simulated <- run_simulation(hh_model, draws = data.frame(rho = rep(0.3, 5)))
+  vapply(simulated, \(x) x$hidden[1], numeric(1)) |> expect_all_equal(0.3)
+  drawn <- vapply(simulated, \(x) x$hidden_2[1], numeric(1))
+  unique(drawn) |> expect_length(5L)
+  # a one-row table simulates a single frame
+  simulated <- run_simulation(hh_model, draws = data.frame(rho = 0.3))
+  simulated |> expect_s3_class("data.frame")
+  simulated$hidden[1] |> expect_equal(0.3)
 })
 
 test_that("Per-replicate parameter values reach the latents reading them", {

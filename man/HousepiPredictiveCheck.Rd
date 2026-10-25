@@ -3,9 +3,9 @@
 \docType{class}
 \name{HousepiPredictiveCheck}
 \alias{HousepiPredictiveCheck}
-\title{Posterior predictive check container for user-defined measures}
+\title{Prior or posterior predictive check of user-defined measures}
 \description{
-Posterior predictive checks of measures on simulated surveys.
+Prior or posterior predictive checks of measures on simulated surveys.
 }
 \examples{
 hh_model <- flu_1918_frederick |>
@@ -30,12 +30,27 @@ ppc$overall
 
     \item{\code{nrep}}{\code{integer(1)} Number of replicates used for the predictions.}
 
-    \item{\code{thin_ess}}{\code{logical(1)} Whether thinning to ESS was applied.}
+    \item{\code{thin_ess}}{\code{logical(1)}
+Whether posterior draws were thinned to their ESS.}
 
-    \item{\code{is_posterior}}{\code{logical(1)}
-Whether the predictions are posterior predictions.}
+    \item{\code{source}}{\code{character(1)}
+Where the parameter values come from, one of:
+\describe{
+\item{\code{"prior"}}{drawn from the prior;}
+\item{\code{"posterior"}}{posterior draws;}
+\item{\code{"table"}}{a plain \code{data.frame}.}
+}}
 
     \item{\code{model_name}}{\code{character(1)} Name of the underlying model.}
+
+    \item{\code{warnings}}{\code{data.frame} Distinct warnings raised,
+recorded whether or not they were reported, and counted by the print.
+\describe{
+\item{message}{Line stating what was flagged;}
+\item{count}{Times it was raised.}
+}
+They hold the measures with observed values outside their credible
+interval, compared in the field of each measure.}
   }
   \if{html}{\out{</div>}}
 }
@@ -51,13 +66,13 @@ Whether the predictions are posterior predictions.}
 \if{html}{\out{<a id="method-HousepiPredictiveCheck-initialize"></a>}}
 \if{latex}{\out{\hypertarget{method-HousepiPredictiveCheck-initialize}{}}}
 \subsection{\code{HousepiPredictiveCheck$new()}}{
-  Simulate from a model and parameter draws,
+  Simulate from a model and parameter draws, or from its prior,
 then compute the predicted values of a set of measures.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{HousepiPredictiveCheck$new(
   hh_model,
-  draws,
+  draws = NULL,
   ...,
   measures_long = NULL,
   nrep = NA_integer_,
@@ -81,15 +96,20 @@ One of:
       \item{\code{...}}{Named \code{function}s computing measures from data.
 Each returns a \code{numeric()}, a \code{list} or a \code{data.frame}.
 Names must be unique and cannot match a member of the returned object.}
-      \item{\code{measures_long}}{\code{function} | \code{list} of \code{function}s
-Applied to \code{data_long}, derived by the \code{long} reporting process.}
-      \item{\code{nrep}}{\code{integer(1)} Maximum number of draws simulated.
-Posterior draws are thinned to their ESS when \code{thin_ess} is \code{TRUE}.
-Then \code{nrep} evenly spaced draws are kept, all of them when fewer remain.
-If \code{NA}, every draw is simulated.}
+      \item{\code{measures_long}}{\code{list}
+Named \code{function}s computing measures from \code{data_long}.
+Each replicate's \code{data_long} comes from the \code{long} reporting process,
+see \code{\link[=add_reporting_process]{add_reporting_process()}}.
+Returned values and names follow the rules of \code{...}.}
+      \item{\code{nrep}}{\code{integer(1)} Number of replicates.
+With \code{draws}, at most \code{nrep} evenly spaced draws are simulated,
+picked after thinning to their ESS when \code{thin_ess} is \code{TRUE}.
+If \code{NA}, every draw is simulated.
+Without \code{draws}, \code{nrep} replicates are simulated,
+each with parameters drawn from their prior. \code{NA} is then an error.}
       \item{\code{thin_ess}}{\code{logical(1)}
 Whether to thin \code{draws} to their bulk effective sample size (ESS).
-Ignored if \code{draws} is a plain \code{data.frame}.}
+Ignored without \code{draws} or with a plain \code{data.frame}.}
       \item{\code{threads}}{\code{integer(1)} Number of threads for parallel household runs.}
       \item{\code{progress}}{\code{numeric(1)} | \code{logical(1)} Control the progress bar,
 one of:

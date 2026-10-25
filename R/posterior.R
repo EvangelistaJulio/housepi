@@ -379,13 +379,8 @@ HousepiPosteriorDraws <- R6::R6Class(
   ####  Active  ####
 
   active = list(
-    #' @field warnings `data.frame`
-    #' Convergence diagnostics the run flagged
-    #' \describe{
-    #'   \item{message}{Line stating what was flagged;}
-    #'   \item{count}{Times it was raised.}
-    #' }
-    #' Recorded whether or not the run reported them.
+    #' @field warnings `r rd_warnings_`
+    #' They hold the convergence diagnostics the run flagged.
     #' Per-variable R-hat and Bulk ESS behind a flag
     #' are read from [summarise_draws()].
     warnings = function(value) {
@@ -455,7 +450,7 @@ HousepiPosteriorDraws <- R6::R6Class(
         if (nparams > 0) c(Parameters = "{nparams}"),
         if (nlatent > 0) c(Latent = "{nlatent}"),
         `Inference time` = "{format_secs_(private$secs_)}"
-      ))
+      ), warnings = private$warnings_)
       invisible()
     }
   )

@@ -95,7 +95,7 @@ ggplot(calibration$estimates, aes(x = rank)) +
   geom_histogram(binwidth = 10, boundary = 0, closed = "left") +
   geom_hline(yintercept = calibration$nrep / 10, colour = "coral") +
   facet_wrap(~ variable) +
-  labs(x = "Rank", y = "Replicates")
+  labs(x = "rank", y = "replicates")
 ```
 
 Ranks piling at both ends mean the posterior is too narrow, so the truth falls in its tails too often.
@@ -130,7 +130,7 @@ bayesplot::ppc_pit_ecdf_grouped(
   group = calibration$estimates$variable,
   K = rank_draws + 1, prob = 0.95, plot_diff = TRUE
 ) +
-  labs(x = "Scaled rank")
+  labs(x = "scaled rank")
 ```
 
 A posterior that overestimates puts the curve above zero, since low ranks make the ECDF rise early, and one that underestimates puts it below.
@@ -152,7 +152,7 @@ n_uniform <- sum(verdict$uniform)
 
 Here `r n_uniform` of `r nrow(verdict)` parameters pass.
 Passing says that the sampler and the likelihood agree with the prior and the model.
-It says nothing about whether the model fits Frederick: for that, compare its predictions with the data in [Posterior predictive checks](posterior_predictive_checks.html).
+It says nothing about whether the model fits Frederick: for that, compare its predictions with the data in [Predictive checks](predictive_checks.html).
 
 # A sampler run too short
 
@@ -179,7 +179,7 @@ bayesplot::ppc_pit_ecdf_grouped(
   group = short$estimates$variable,
   K = rank_draws + 1, prob = 0.95, plot_diff = TRUE
 ) +
-  labs(x = "Scaled rank")
+  labs(x = "scaled rank")
 ```
 
 ```{r}

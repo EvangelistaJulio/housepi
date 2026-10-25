@@ -206,7 +206,7 @@ HousepiSweep <- R6::R6Class(
     },
 
     # Print `header`, the household counts and replicates, `rows`,
-    # then the diagnostics and run times.
+    # then the diagnostics, run times and warnings.
     # @param rows `character()` Rows of the check, glued in `.envir`.
     # Shared rows read this sweep as `sweep`.
     print_rows = function(header, rows, .envir = parent.frame()) {
@@ -219,7 +219,7 @@ HousepiSweep <- R6::R6Class(
         `Run time` = "{format_secs_(sweep$secs)}",
         `Inference time per fit` =
           "{format_secs_(mean(sweep$replicates[['inference_secs']]))}"
-      ), .envir = env)
+      ), warnings = private$warnings_, .envir = env)
     }
   )
 )
@@ -418,8 +418,8 @@ sweep_run_ <- function(hh_model, structure, sampler, houses, nrep, pins,
   # the replicates at `n` households, reduced
   cell <- function(n, bar) {
     struct <- if (is.null(sampler)) structure else sampler(structure, n)
-    surveys <- do.call(simulate_with_parameters_,
-                       c(list(add_data_wide(hh_model, struct)), sim_args))
+    sim_model <- add_data_wide(hh_model, struct)
+    surveys <- do.call(sim_model$.__enclos_env__$private$simulate_, sim_args)
     truths <- lapply(seq_len(nrep),
                      \(rep) unlist(surveys$parameters[rep, , drop = FALSE]))
     # seeds drawn ahead of the fits: the reducers draw from the same stream

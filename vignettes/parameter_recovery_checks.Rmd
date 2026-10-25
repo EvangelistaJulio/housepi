@@ -115,7 +115,7 @@ recovery$estimates |>
   scale_colour_manual(values = c(`TRUE` = "black", `FALSE` = "coral"),
                       labels = c(`TRUE` = "covered", `FALSE` = "missed")) +
   facet_wrap(~ variable, scales = "free_y") +
-  labs(x = "Replicate", y = "Estimate", colour = NULL)
+  labs(x = "replicate", y = "estimate", colour = NULL)
 ```
 
 ```{r}
@@ -145,7 +145,7 @@ recovery$estimates |>
   geom_boxplot() +
   geom_hline(yintercept = 0) +
   facet_wrap(~ variable) +
-  labs(x = "Number of households", y = "Relative error")
+  labs(x = "number of households", y = "relative error")
 ```
 
 Each box spans the middle half of the estimates, so it shows how far a single study of that size lands from the truth.

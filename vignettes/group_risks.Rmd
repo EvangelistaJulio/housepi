@@ -200,7 +200,7 @@ tmp <- get_group_risks(hh_model) |>
   dplyr::select(vacc_status)
 # an absolute risk has no reference row: the estimates read on their own
 ylabel <- if (nrow(tmp) == 0) risk_id else
-  sprintf("%s (Ref: %s)", risk_id,
+  sprintf("%s (ref: %s)", risk_id,
           paste(paste(names(tmp), tmp, sep = " "), collapse = " "))
 
 # compare inferred susceptibility group risks

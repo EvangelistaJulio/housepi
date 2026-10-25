@@ -183,6 +183,9 @@ test_that("A short run records one warning, under its sample size", {
   flagged |> expect_nrow(1L)
   flagged$message |> expect_match("[Ss]ample size was below")
   flagged$count |> expect_identical(1L)
+  # the print closes on the warning count
+  helper_print_lines(print(mk_draws$fit)) |>
+    expect_match("^! Warning: 1 issue flagged, see .\\$warnings", all = FALSE)
 })
 
 test_that("A quiet run holds back the warnings it records", {

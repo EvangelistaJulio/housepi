@@ -68,8 +68,13 @@ Summary statistic taken as the posterior point estimate.}
     \item{\code{cri_level}}{\code{numeric(1)}
 Credible level the intervals and the coverage are computed at.}
 
-    \item{\code{warnings}}{\code{data.frame}
-Distinct warnings raised over the sweep, with their counts.}
+    \item{\code{warnings}}{\code{data.frame} Distinct warnings raised,
+recorded whether or not they were reported, and counted by the print.
+\describe{
+\item{message}{Line stating what was flagged;}
+\item{count}{Times it was raised.}
+}
+They pool the replicates of the sweep.}
   }
   \if{html}{\out{</div>}}
 }

@@ -9,6 +9,7 @@ run_simulation(
   draws = NULL,
   nrep = NA_integer_,
   thin_ess = TRUE,
+  threads = 1L,
   ...
 )
 }
@@ -23,18 +24,19 @@ One of:
 \item \link{HousepiPosteriorDraws}.
 }}
 
-\item{nrep}{\code{integer(1)} Maximum number of draws simulated.
-Posterior draws are thinned to their ESS when \code{thin_ess} is \code{TRUE}.
-Then \code{nrep} evenly spaced draws are kept, all of them when fewer remain.
+\item{nrep}{\code{integer(1)} Number of replicates.
+With \code{draws}, at most \code{nrep} evenly spaced draws are simulated,
+picked after thinning to their ESS when \code{thin_ess} is \code{TRUE}.
 If \code{NA}, every draw is simulated.
-Without \code{draws}, the number of replicates,
-which share the constant parameters and draw the others from their prior.
-If \code{NA}, one replicate.
+Without \code{draws}, \code{nrep} replicates are simulated,
+each with parameters drawn from their prior. If \code{NA}, one replicate.
 Once set, even to 1, the replicates are returned as a list.}
 
 \item{thin_ess}{\code{logical(1)}
 Whether to thin \code{draws} to their bulk effective sample size (ESS).
-Ignored if \code{draws} is a plain \code{data.frame}.}
+Ignored without \code{draws} or with a plain \code{data.frame}.}
+
+\item{threads}{\code{integer(1)} Number of threads for parallel household runs.}
 
 \item{...}{Advanced configuration.}
 }

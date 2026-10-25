@@ -3,9 +3,9 @@
 \docType{class}
 \name{HousepiEpiPredictiveCheck}
 \alias{HousepiEpiPredictiveCheck}
-\title{Standard epidemiological posterior predictive check}
+\title{Standard epidemiological prior or posterior predictive check}
 \description{
-Posterior predictive check of standard epidemiological measures
+Prior or posterior predictive check of standard epidemiological measures
 by household size, observed against predicted:
 cases distribution, attack rate and secondary attack rate.
 }
@@ -48,8 +48,9 @@ ppc$format_attack_rate()
     \if{html}{\out{<div class="r">}}
     \preformatted{HousepiEpiPredictiveCheck$new(
   hh_model,
-  draws,
+  draws = NULL,
   ...,
+  measures_long = NULL,
   nrep = NA_integer_,
   thin_ess = TRUE,
   min_hh_size = NA_integer_,
@@ -74,13 +75,20 @@ One of:
 Each returns a \code{numeric()}, a \code{list} or a \code{data.frame}.
 Names must be unique and cannot match a member of the returned object.
 They are checked alongside standard epidemiological measures.}
-      \item{\code{nrep}}{\code{integer(1)} Maximum number of draws simulated.
-Posterior draws are thinned to their ESS when \code{thin_ess} is \code{TRUE}.
-Then \code{nrep} evenly spaced draws are kept, all of them when fewer remain.
-If \code{NA}, every draw is simulated.}
+      \item{\code{measures_long}}{\code{list}
+Named \code{function}s computing measures from \code{data_long}.
+Each replicate's \code{data_long} comes from the \code{long} reporting process,
+see \code{\link[=add_reporting_process]{add_reporting_process()}}.
+Returned values and names follow the rules of \code{...}.}
+      \item{\code{nrep}}{\code{integer(1)} Number of replicates.
+With \code{draws}, at most \code{nrep} evenly spaced draws are simulated,
+picked after thinning to their ESS when \code{thin_ess} is \code{TRUE}.
+If \code{NA}, every draw is simulated.
+Without \code{draws}, \code{nrep} replicates are simulated,
+each with parameters drawn from their prior. \code{NA} is then an error.}
       \item{\code{thin_ess}}{\code{logical(1)}
 Whether to thin \code{draws} to their bulk effective sample size (ESS).
-Ignored if \code{draws} is a plain \code{data.frame}.}
+Ignored without \code{draws} or with a plain \code{data.frame}.}
       \item{\code{min_hh_size}}{\code{integer(1)} Minimum household size retained in the outputs.
 If \code{NA}, no lower bound is applied.}
       \item{\code{max_hh_size}}{\code{integer(1)} Maximum household size retained in the outputs.

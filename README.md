@@ -14,7 +14,7 @@ of infectious disease transmission within households.
 Household transmission models are specified declaratively, fitted to data with Bayesian MCMC
 and used to simulate outbreaks.
 They support data augmentation, infectivity profiles, and individual group and contact risks.
-Validation is supported through simulations studies and posterior predictive checks.
+Validation is supported through simulation studies, and prior and posterior predictive checks.
 
 > [!IMPORTANT]
 > *housepi* has not been released yet: the API may change between versions until the first release.

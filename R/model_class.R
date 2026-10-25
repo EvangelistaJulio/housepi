@@ -849,33 +849,39 @@ HousepiModel <- R6::R6Class(
       else if (labelled) \(x) private$refactor_data_(x, "data_wide")
     },
 
-    # Run a measure function on posterior simulations.
+    # Simulate replicates from `draws`, each through the reporting process.
+    # * `draws` NULL -> parameters drawn from their prior;
+    # * `apply_wide` NULL -> wide frames returned;
+    # * `apply_long` NULL, or no long reporting process -> no long output.
+    # @param ... Run settings, passed to the build.
+    # @return `list` Entries `wide` and `long`, one element per replicate,
+    # and `parameters`, one row per replicate.
     # @todo loop in C++
-    run_measure_ = function(draws,
-                            apply_wide,
-                            apply_long = NULL,
-                            nrep = NA_integer_,
-                            thin_ess = TRUE,
-                            threads = 1L,
-                            progress = TRUE,
-                            labelled = TRUE) {
-      param_table <- private$read_param_table_(draws, nrep, thin_ess)
-      nrep <- nrow(param_table)
-
-      # internal build function
-      private$build_full_(nrep = nrep, threads = threads)
-
-      # attach param_table
-      .engine$import_param_table(private$mcmc_ptr_, param_table)
-
+    simulate_ = function(draws = NULL,
+                         nrep = NA_integer_,
+                         thin_ess = TRUE,
+                         apply_wide = NULL,
+                         apply_long = NULL,
+                         labelled = TRUE,
+                         progress = FALSE,
+                         ...) {
+      private$helper_simulation_build_(
+        draws = draws, nrep = nrep, thin_ess = thin_ess, ...
+      )
+      # load a measure on data long-format
       long <- private$reporting_process_$long
-      apply_long_func <-
-        if (is.null(apply_long)) NULL else \(x) apply_long(long(x))
-      with_progress_(progress, "simulate", 1, function(bar) {
+      apply_long_func <- NULL
+      if (is.function(long) && is.function(apply_long))
+        apply_long_func <- \(x) apply_long(long(x))
+
+      # run simulations
+      output <- with_progress_(progress, "simulate", 1, function(bar) {
         .engine$run_simulation(private$mcmc_ptr_,
                                private$helper_reporting_wide_(labelled),
                                apply_wide, apply_long_func, bar)
       })
+      if (!length(output$long)) output$long <- NULL
+      output
     }
   ),
 

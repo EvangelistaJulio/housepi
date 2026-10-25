@@ -236,8 +236,8 @@ HousepiRecoveryCheck <- R6::R6Class(
       private$cri_level_
     },
 
-    #' @field warnings `data.frame`
-    #' Distinct warnings raised over the sweep, with their counts.
+    #' @field warnings `r rd_warnings_`
+    #' They pool the replicates of the sweep.
     warnings = function(value) {
       assert_read_only_(value, "warnings")
       private$sweep_$warnings
@@ -257,7 +257,7 @@ HousepiRecoveryCheck <- R6::R6Class(
     #' @param houses `r rd_recov_houses_`
     #' @param structure_sampler `r rd_sweep_sampler_`
     #' @param steps `r rd_smpl_steps_`
-        #' @param thin `r rd_smpl_thin_`
+    #' @param thin `r rd_smpl_thin_`
     #' @param adapt `r rd_smpl_adapt_`
     #' @param chains `r rd_smpl_chain_`
     #' @param threads `r rd_sweep_threads_`

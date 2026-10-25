@@ -44,13 +44,13 @@ get_parameter_draws(hh_fit)
 \section{Active bindings}{
   \if{html}{\out{<div class="r6-active-bindings">}}
   \describe{
-    \item{\code{warnings}}{\code{data.frame}
-Convergence diagnostics the run flagged
+    \item{\code{warnings}}{\code{data.frame} Distinct warnings raised,
+recorded whether or not they were reported, and counted by the print.
 \describe{
 \item{message}{Line stating what was flagged;}
 \item{count}{Times it was raised.}
 }
-Recorded whether or not the run reported them.
+They hold the convergence diagnostics the run flagged.
 Per-variable R-hat and Bulk ESS behind a flag
 are read from \code{\link[=summarise_draws]{summarise_draws()}}.}
 

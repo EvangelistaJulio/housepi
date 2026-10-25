@@ -62,9 +62,9 @@ reference:
   - HousepiPosteriorDraws
   - ends_with("_draws")
 
-- title: "Posterior predictions"
+- title: "Predictive checks"
   desc: >
-    Perform posterior predictive checks.
+    Perform prior or posterior predictive checks.
   contents:
   - starts_with("measure_")
   - check_predictive
@@ -117,7 +117,7 @@ articles:
       - contact_risks
       - data_augmentation
       - infectivity_profiles
-      - posterior_predictive_checks
+      - predictive_checks
       - parameter_recovery_checks
       - simulation_calibration_checks
       - user_functions

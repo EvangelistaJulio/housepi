@@ -244,6 +244,9 @@ test_that("A run too short to diagnose is flagged whole", {
   )
   recovery$warnings$message |> expect_match("[Tt]otal sample size")
   recovery$warnings$count |> expect_identical(2L)
+  # the print closes on the distinct warning count
+  helper_print_lines(print(recovery)) |>
+    expect_match("^! Warning: 1 issue flagged, see .\\$warnings", all = FALSE)
   # diagnosed all the same, and always flagged
   recovery$estimates$rhat |> expect_no_na()
   recovery$estimates$ess_bulk |> expect_no_na()

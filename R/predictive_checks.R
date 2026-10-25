@@ -10,6 +10,11 @@ If `NA`, no upper bound is applied."
 rd_measure_dots_ <- "Named `function`s computing measures from data.
 Each returns a `numeric()`, a `list` or a `data.frame`.
 Names must be unique and cannot match a member of the returned object."
+rd_measures_long_ <- "`list`
+Named `function`s computing measures from `data_long`.
+Each replicate's `data_long` comes from the `long` reporting process,
+see [add_reporting_process()].
+Returned values and names follow the rules of `...`."
 
 ########  Measures  ########
 
@@ -228,10 +233,15 @@ ppc_extract_predicted_results <- function(x, point_estimate = "median", cri,
 
 # Assert measure names are given, unique and free of the members of `self`,
 # as each measure becomes a read-only field of the check object.
-assert_measure_names_ <- function(nms, taken = character()) {
-  if (is.null(nms) || anyNA(nms) || !all(nzchar(nms))) stop_h(
-    "Every measure in {.arg ...} must be named."
-  )
+# @param measures `list` Measures, keyed by the argument passing them.
+assert_measure_names_ <- function(measures, taken = character()) {
+  for (arg in names(measures)) {
+    nms <- rlang::names2(measures[[arg]])
+    if (anyNA(nms) || !all(nzchar(nms))) stop_h(
+      "Every measure in {.arg {arg}} must be named."
+    )
+  }
+  nms <- unlist(lapply(unname(measures), names))
   duplicates <- unique(nms[duplicated(nms)])
   if (length(duplicates)) stop_h(
     "{cli::qty(duplicates)}Repeated measure name{?s} {.field {duplicates}}."
@@ -244,9 +254,17 @@ assert_measure_names_ <- function(nms, taken = character()) {
   invisible(nms)
 }
 
-#' @title Posterior predictive check container for user-defined measures
+# Split the `...` of a predictive check into measures
+# and run settings, as `run_simulation()` takes them.
+measure_dots_ <- function(...) {
+  dots <- list(...)
+  setting <- rlang::names2(dots) %in% "time_step"
+  list(measures = dots[!setting], settings = dots[setting])
+}
+
+#' @title Prior or posterior predictive check of user-defined measures
 #' @description
-#' Posterior predictive checks of measures on simulated surveys.
+#' Prior or posterior predictive checks of measures on simulated surveys.
 #' @examples
 #' hh_model <- flu_1918_frederick |>
 #'   new_housepi_model("final-size") |>
@@ -274,9 +292,10 @@ HousepiPredictiveCheck <- R6::R6Class(
     point_estimate_ = "median",
     nrep_ = NA_integer_,
     thin_ess_ = TRUE,
-    is_posterior_ = FALSE,
+    source_ = NA_character_,
     model_name_ = NA_character_,
     secs_ = NA_real_,
+    warnings_ = NULL,
     measure_names_ = character(0),
     # help topic of each built-in measure, by measure name
     measure_topics_ = character(0),
@@ -285,12 +304,22 @@ HousepiPredictiveCheck <- R6::R6Class(
     # restored, as user-supplied measures always do
     labelled_ = TRUE,
 
+    # Name the check after the source of its parameter values.
+    kind_ = function() {
+      switch(private$source_,
+        prior = "Prior predictive check",
+        posterior = "Posterior predictive check",
+        table = "Predictive check"
+      )
+    },
+
     # Compare observed values against the credible interval of each measure,
     # in a single warning: one finding line per measure with observed entries
     # outside its [cri_lower, cri_upper] bounds, then one closing hint.
+    # Each finding is recorded as a row of `warnings_`, raised once.
     check_observed_in_cri_ = function() {
       cri_pct <- round(100 * private$cri_level_)
-      findings <- c()
+      findings <- character()
       for (m in private$measure_names_) {
         mismatch <- ppc_observed_outside_cri(self[[m]])
         len_bad <- sum(unlist(mismatch))
@@ -299,10 +328,15 @@ HousepiPredictiveCheck <- R6::R6Class(
           " outside of {cri_pct}% CrI for measure {.field {m}}."
         ))
       }
+      private$warnings_ <- data.frame(
+        message = cli::ansi_strip(findings), count = rep(1L, length(findings)),
+        stringsAsFactors = FALSE
+      )
       if (length(findings)) {
         names(findings) <- rep("!", length(findings))
+        kind <- private$kind_()
         warn_h(c(
-          "Posterior predictive checks flagged the following:",
+          "{kind} flagged the following:",
           findings,
           "Observed data may be poorly captured by the model."
         ))
@@ -329,21 +363,34 @@ HousepiPredictiveCheck <- R6::R6Class(
       assert_read_only_(value, "nrep")
       private$nrep_
     },
-    #' @field thin_ess `logical(1)` Whether thinning to ESS was applied.
+    #' @field thin_ess `logical(1)`
+    #' Whether posterior draws were thinned to their ESS.
     thin_ess = function(value) {
       assert_read_only_(value, "thin_ess")
       private$thin_ess_
     },
-    #' @field is_posterior `logical(1)`
-    #' Whether the predictions are posterior predictions.
-    is_posterior = function(value) {
-      assert_read_only_(value, "is_posterior")
-      private$is_posterior_
+    #' @field source `character(1)`
+    #' Where the parameter values come from, one of:
+    #' \describe{
+    #' \item{`"prior"`}{drawn from the prior;}
+    #' \item{`"posterior"`}{posterior draws;}
+    #' \item{`"table"`}{a plain `data.frame`.}
+    #' }
+    source = function(value) {
+      assert_read_only_(value, "source")
+      private$source_
     },
     #' @field model_name `character(1)` Name of the underlying model.
     model_name = function(value) {
       assert_read_only_(value, "model_name")
       private$model_name_
+    },
+    #' @field warnings `r rd_warnings_`
+    #' They hold the measures with observed values outside their credible
+    #' interval, compared in the field of each measure.
+    warnings = function(value) {
+      assert_read_only_(value, "warnings")
+      private$warnings_
     }
   ),
 
@@ -351,19 +398,19 @@ HousepiPredictiveCheck <- R6::R6Class(
 
   public = list(
     #' @description
-    #' Simulate from a model and parameter draws,
+    #' Simulate from a model and parameter draws, or from its prior,
     #' then compute the predicted values of a set of measures.
     #' @param hh_model `r rd_model_in_`
     #' @param draws `r rd_draws_`
     #' @param ... `r rd_measure_dots_`
     #' @param nrep `r rd_nrep_`
+    #' `r rd_nrep_prior_` `NA` is then an error.
     #' @param thin_ess `r rd_thin_ess_`
-    #' @param measures_long `function` | `list` of `function`s
-    #' Applied to `data_long`, derived by the `long` reporting process.
+    #' @param measures_long `r rd_measures_long_`
     #' @param threads `r rd_thread_`
     #' @param progress `r rd_progress_`
     initialize = function(hh_model,
-                          draws,
+                          draws = NULL,
                           ...,
                           measures_long = NULL,
                           nrep = NA_integer_,
@@ -372,72 +419,57 @@ HousepiPredictiveCheck <- R6::R6Class(
                           progress = TRUE) {
       start <- proc.time()[["elapsed"]]
       nrep <- assert_count_(nrep, "Number of replicates", allow_na = TRUE)
+      if (is.null(draws) && is.na(nrep)) stop_h(
+        "A prior predictive check needs {.arg nrep}.",
+        "Set the number of replicates, or pass posterior {.arg draws}."
+      )
       # associate summary statistic and credible interval
       private$point_estimate_ <- get_global_point_estimate()
       private$cri_level_ <- get_global_cri_level()
 
-      # load and classify measure functions (wide vs long)
-      m_wide <- list(...)
-      if (length(m_wide))
-        assert_measure_names_(names(m_wide), ls(self, all.names = TRUE))
-      # @todo a list of functions breaks here
-      m_long <- list()
-      if (!is.null(measures_long)) m_long <- list(measures_long)
-
+      # measures on data_wide and on data_long
+      dots <- measure_dots_(...)
+      measures <- list(wide = dots$measures, long = measures_long)
+      assert_measure_names_(
+        stats::setNames(measures, c("...", "measures_long")),
+        ls(self, all.names = TRUE)
+      )
       reporting <- get_reporting_process(hh_model)
-      if (length(m_long) && is.null(reporting$long)) stop_h(
+      if (length(measures$long) && is.null(reporting$long)) stop_h(
         "Measures on {.code data_long} need a long reporting process.",
         "Add one with {.code add_reporting_process(long = )}."
       )
 
-      # store (and test) results from observed data wide and/or long
-      observations <- list()
-
-      # wide-measure application
-      apply_wide <- NULL
-      if (length(m_wide)) {
-        observations <- c(
-          observations, lapply(m_wide, \(func) func(get_data_wide(hh_model)))
-        )
-        apply_wide <- \(x) lapply(m_wide, \(func) func(x))
-      }
-      # long-measure application
-      apply_long <- NULL
-      if (length(m_long)) {
-        observations <- c(
-          observations, lapply(m_long, \(func) func(get_data_long(hh_model)))
-        )
-        apply_long <- \(x) lapply(m_long, \(func) func(x))
-      }
-
-      # check measures
+      # each side applies its measures to a frame
+      # * no long measure -> long reporting process skipped
+      appliers <- lapply(measures, \(fs) function(x) lapply(fs, \(f) f(x)))
+      if (!length(measures$long)) appliers$long <- NULL
+      observations <- c(
+        appliers$wide(get_data_wide(hh_model)),
+        if (length(measures$long)) appliers$long(get_data_long(hh_model))
+      )
       if (any(lapply(observations, NROW) == 0)) stop_h(
         "One or more measures returned empty observation on data."
       )
 
-      # run measures on posterior simulations
-      output <- hh_model$.__enclos_env__$private$run_measure_(
-        draws,
-        apply_wide = apply_wide,
-        apply_long = apply_long,
+      # run measures on simulations
+      output <- do.call(hh_model$.__enclos_env__$private$simulate_, c(list(
+        draws = draws,
         nrep = nrep,
         thin_ess = thin_ess,
-        threads = threads,
+        apply_wide = appliers$wide,
+        apply_long = appliers$long,
+        labelled = private$labelled_,
         progress = progress,
-        labelled = private$labelled_
-      )
+        threads = threads
+      ), dots$settings))
 
-      # parse results
-      all_measure_names <- c(names(m_wide), names(m_long))
-
-      parsed <- c()
-      if (length(m_wide)) parsed <- c(parsed,
-        lapply(names(m_wide), \(x) lapply(output$wide, `[[`, x))
-      )
-      if (length(m_long)) parsed <- c(parsed,
-        lapply(names(m_long), \(x) lapply(output$long, `[[`, x))
-      )
-      names(parsed) <- all_measure_names
+      # values of each measure, one per replicate
+      replicates <- output$wide
+      if (!is.null(output$long)) replicates <- Map(c, replicates, output$long)
+      all_measure_names <- names(observations)
+      parsed <- lapply(stats::setNames(nm = all_measure_names),
+                       \(m) lapply(replicates, `[[`, m))
 
       predictions <- Map(
         ppc_extract_predicted_results,
@@ -466,11 +498,12 @@ HousepiPredictiveCheck <- R6::R6Class(
       }
       # store decorations for print and read-only access
       private$model_name_ <- hh_model$name
-      private$is_posterior_ <-
+      private$source_ <- if (is.null(draws)) "prior" else if (
         inherits(draws, "HousepiPosteriorDraws") || posterior::is_draws(draws)
+      ) "posterior" else "table"
       private$measure_names_ <- all_measure_names
-      private$nrep_ <- length(parsed[[1]])
-      private$thin_ess_ <- isTRUE(thin_ess)
+      private$nrep_ <- length(replicates)
+      private$thin_ess_ <- isTRUE(thin_ess) && private$source_ == "posterior"
 
       private$check_observed_in_cri_()
       private$secs_ <- proc.time()[["elapsed"]] - start
@@ -481,8 +514,6 @@ HousepiPredictiveCheck <- R6::R6Class(
     #' @description
     #' Print the measures, observed against predicted.
     print = function() {
-      kind <- if (private$is_posterior_) "Posterior predictions" else
-        "Predictions"
       # built-in measures link to their help page
       measures <- vapply(private$measure_names_, function(m) {
         topic <- private$measure_topics_[m]
@@ -491,14 +522,14 @@ HousepiPredictiveCheck <- R6::R6Class(
           "{.run [{m}](utils::help(\"{topic}\", \"housepi\"))}"
         )
       }, character(1), USE.NAMES = FALSE)
+      kind <- private$kind_()
       print_rows_("{kind} for model {.val {private$model_name_}}.", c(
         Measures = "{measures}",
-        Replicates = paste0("{private$nrep_}",
-                            if (private$thin_ess_) " (ESS)" else ""),
+        Replicates = "{private$nrep_}",
         `Point estimate` = "{private$point_estimate_}",
         `Credible interval` = "{round(100 * private$cri_level_)}%",
         `Run time` = "{format_secs_(private$secs_)}"
-      ))
+      ), warnings = private$warnings_)
       invisible(self)
     }
   )
@@ -575,9 +606,9 @@ helper_combine_obs_pred <- function(obsdf, preddf) {
   combined
 }
 
-#' @title Standard epidemiological posterior predictive check
+#' @title Standard epidemiological prior or posterior predictive check
 #' @description
-#' Posterior predictive check of standard epidemiological measures
+#' Prior or posterior predictive check of standard epidemiological measures
 #' by household size, observed against predicted:
 #' cases distribution, attack rate and secondary attack rate.
 #' @examples
@@ -623,22 +654,26 @@ HousepiEpiPredictiveCheck <- R6::R6Class(
     #' @param draws `r rd_draws_`
     #' @param ... `r rd_measure_dots_`
     #' They are checked alongside standard epidemiological measures.
+    #' @param measures_long `r rd_measures_long_`
     #' @param nrep `r rd_nrep_`
+    #' `r rd_nrep_prior_` `NA` is then an error.
     #' @param thin_ess `r rd_thin_ess_`
     #' @param min_hh_size `r rd_min_hh_size_`
     #' @param max_hh_size `r rd_max_hh_size_`
     #' @param threads `r rd_thread_`
     #' @param progress `r rd_progress_`
     initialize = function(hh_model,
-                          draws,
+                          draws = NULL,
                           ...,
+                          measures_long = NULL,
                           nrep = NA_integer_,
                           thin_ess = TRUE,
                           min_hh_size = NA_integer_,
                           max_hh_size = NA_integer_,
                           threads = 1L,
                           progress = TRUE) {
-      clash <- intersect(names(list(...)), names(private$measure_topics_))
+      clash <- intersect(c(names(list(...)), names(measures_long)),
+                         names(private$measure_topics_))
       if (length(clash)) stop_h(
         paste("{cli::qty(clash)}Measure name{?s} {.field {clash}} already used",
               "by a standard epidemiological measure."),
@@ -649,7 +684,7 @@ HousepiEpiPredictiveCheck <- R6::R6Class(
       #   engine-coded, the relabelling skipped once per replicate.
       esc <- hh_model$escaped
       private$labelled_ <- !is.null(get_reporting_process(hh_model)$wide) ||
-        length(list(...))
+        length(measure_dots_(...)$measures) || length(measures_long)
 
       # initialize parent class HousepiPredictiveCheck
       super$initialize(
@@ -658,7 +693,7 @@ HousepiEpiPredictiveCheck <- R6::R6Class(
         sec_attack_rate = \(x) measure_sar_by_hh_size(x, esc),
         cases_distr = \(x) measure_cases_by_hh_size(x, esc),
         ...,
-        nrep = nrep, thin_ess = thin_ess,
+        measures_long = measures_long, nrep = nrep, thin_ess = thin_ess,
         threads = threads, progress = progress
       )
       private$house_counts_ <- helper_house_counts(get_data_wide(hh_model), esc)
@@ -761,29 +796,34 @@ HousepiEpiPredictiveCheck <- R6::R6Class(
   )
 )
 
-#' @title Posterior predictive check of a housepi model
+#' @title Prior or posterior predictive check of a housepi model
 #' @description
-#' Posterior predictive check comparing observed values of household measures
-#' against their values on surveys simulated from parameter draws
+#' Predictive check comparing observed values of household measures
+#' against their values on surveys simulated from parameter values
 #' \insertCite{gelman_posterior_1996}{housepi}.
+#' Without `draws`, the parameters are drawn from their prior,
+#' as in [run_simulation()], for a prior predictive check.
+#' With posterior draws, it is a posterior predictive check.
 #' It checks standard epidemiological measures by household size:
 #' \describe{
 #' \item{`"attack_rate"`}{see [measure_ar_by_hh_size];}
 #' \item{`"sec_attack_rate"`}{see [measure_sar_by_hh_size];}
 #' \item{`"cases_distr"`}{see [measure_cases_by_hh_size].}
 #' }
-#' Named measure functions in `...` are checked alongside them,
-#' under names that differ from these.
+#' Named measure functions in `...` and `measures_long` are checked
+#' alongside them, under names that differ from these.
 #' Each replicate goes through the reporting process of the model,
 #' see [add_reporting_process()].
 #' @param hh_model `r rd_model_in_`
 #' @param draws `r rd_draws_`
 #' @param ... `r rd_measure_dots_`
+#' @param measures_long `r rd_measures_long_`
 #' @param nrep `r rd_nrep_`
+#' `r rd_nrep_prior_` `NA` is then an error.
 #' @param thin_ess `r rd_thin_ess_`
 #' @param epi `logical(1)`
 #' Whether to check standard epidemiological measures.
-#' If `FALSE`, only the measures in `...` are checked,
+#' If `FALSE`, only the measures in `...` and `measures_long` are checked,
 #' and the formatted outputs and household size bounds of
 #' [HousepiEpiPredictiveCheck] are unavailable.
 #' @param min_hh_size `r rd_min_hh_size_` Only with `epi = TRUE`.
@@ -806,6 +846,10 @@ HousepiEpiPredictiveCheck <- R6::R6Class(
 #' ppc <- check_predictive(hh_model, hh_fit, nrep = 50, progress = FALSE)
 #' ppc
 #'
+#' # prior predictive check, before any inference
+#' ppc <- check_predictive(hh_model, nrep = 50, progress = FALSE)
+#' ppc
+#'
 #' # a user-defined measure: the overall attack rate
 #' overall_ar <- function(data_wide) mean(data_wide$status > 0)
 #' ppc <- check_predictive(hh_model, hh_fit, overall = overall_ar,
@@ -819,8 +863,9 @@ HousepiEpiPredictiveCheck <- R6::R6Class(
 #' ppc
 #' @export
 check_predictive <- function(hh_model,
-                             draws,
+                             draws = NULL,
                              ...,
+                             measures_long = NULL,
                              epi = TRUE,
                              nrep = NA_integer_,
                              thin_ess = TRUE,
@@ -833,13 +878,14 @@ check_predictive <- function(hh_model,
     "{.arg epi} should be {.code TRUE} or {.code FALSE}."
   )
   if (isTRUE(epi)) return(HousepiEpiPredictiveCheck$new(
-    hh_model$copy(), draws, ..., nrep = nrep,
+    hh_model$copy(), draws, ..., measures_long = measures_long, nrep = nrep,
     thin_ess = thin_ess, min_hh_size = min_hh_size, max_hh_size = max_hh_size,
     threads = threads, progress = progress
   ))
-  if (!length(list(...))) stop_h(
+  if (!length(measure_dots_(...)$measures) && !length(measures_long)) stop_h(
     "No measure to check.",
-    "Pass measure functions in {.arg ...} or keep {.code epi = TRUE}."
+    paste("Pass measure functions in {.arg ...} or {.arg measures_long},",
+          "or keep {.code epi = TRUE}.")
   )
   if (!all(is.na(c(min_hh_size, max_hh_size)))) stop_h(
     paste("Arguments {.arg min_hh_size} and {.arg max_hh_size} bound only",
@@ -848,7 +894,7 @@ check_predictive <- function(hh_model,
   )
   HousepiPredictiveCheck$new(
     hh_model$copy(), draws, ...,
-    nrep = nrep, thin_ess = thin_ess,
+    measures_long = measures_long, nrep = nrep, thin_ess = thin_ess,
     threads = threads, progress = progress
   )
 }

@@ -298,6 +298,9 @@ test_that("Advanced settings route through `...`", {
   simulated <- run_simulation(hh_model, time_step = 0.5)
   simulated |> expect_s3_class("data.frame")
   hh_model$settings$time_step |> expect_equal(0.5)
+  # threads, a formal, is carried the same way
+  run_simulation(hh_model, threads = 2L) |> expect_s3_class("data.frame")
+  hh_model$settings$threads |> expect_equal(2)
 })
 
 test_that("Progress bar prints every `progress` seconds until interrupted", {

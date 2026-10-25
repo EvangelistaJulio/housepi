@@ -2,12 +2,13 @@
 % Please edit documentation in R/predictive_checks.R
 \name{check_predictive}
 \alias{check_predictive}
-\title{Posterior predictive check of a housepi model}
+\title{Prior or posterior predictive check of a housepi model}
 \usage{
 check_predictive(
   hh_model,
-  draws,
+  draws = NULL,
   ...,
+  measures_long = NULL,
   epi = TRUE,
   nrep = NA_integer_,
   thin_ess = TRUE,
@@ -32,20 +33,28 @@ One of:
 Each returns a \code{numeric()}, a \code{list} or a \code{data.frame}.
 Names must be unique and cannot match a member of the returned object.}
 
+\item{measures_long}{\code{list}
+Named \code{function}s computing measures from \code{data_long}.
+Each replicate's \code{data_long} comes from the \code{long} reporting process,
+see \code{\link[=add_reporting_process]{add_reporting_process()}}.
+Returned values and names follow the rules of \code{...}.}
+
 \item{epi}{\code{logical(1)}
 Whether to check standard epidemiological measures.
-If \code{FALSE}, only the measures in \code{...} are checked,
+If \code{FALSE}, only the measures in \code{...} and \code{measures_long} are checked,
 and the formatted outputs and household size bounds of
 \link{HousepiEpiPredictiveCheck} are unavailable.}
 
-\item{nrep}{\code{integer(1)} Maximum number of draws simulated.
-Posterior draws are thinned to their ESS when \code{thin_ess} is \code{TRUE}.
-Then \code{nrep} evenly spaced draws are kept, all of them when fewer remain.
-If \code{NA}, every draw is simulated.}
+\item{nrep}{\code{integer(1)} Number of replicates.
+With \code{draws}, at most \code{nrep} evenly spaced draws are simulated,
+picked after thinning to their ESS when \code{thin_ess} is \code{TRUE}.
+If \code{NA}, every draw is simulated.
+Without \code{draws}, \code{nrep} replicates are simulated,
+each with parameters drawn from their prior. \code{NA} is then an error.}
 
 \item{thin_ess}{\code{logical(1)}
 Whether to thin \code{draws} to their bulk effective sample size (ESS).
-Ignored if \code{draws} is a plain \code{data.frame}.}
+Ignored without \code{draws} or with a plain \code{data.frame}.}
 
 \item{min_hh_size}{\code{integer(1)} Minimum household size retained in the outputs.
 If \code{NA}, no lower bound is applied. Only with \code{epi = TRUE}.}
@@ -70,17 +79,20 @@ An object of class \link{HousepiEpiPredictiveCheck} if \code{epi = TRUE},
 of class \link{HousepiPredictiveCheck} otherwise.
 }
 \description{
-Posterior predictive check comparing observed values of household measures
-against their values on surveys simulated from parameter draws
+Predictive check comparing observed values of household measures
+against their values on surveys simulated from parameter values
 \insertCite{gelman_posterior_1996}{housepi}.
+Without \code{draws}, the parameters are drawn from their prior,
+as in \code{\link[=run_simulation]{run_simulation()}}, for a prior predictive check.
+With posterior draws, it is a posterior predictive check.
 It checks standard epidemiological measures by household size:
 \describe{
 \item{\code{"attack_rate"}}{see \link{measure_ar_by_hh_size};}
 \item{\code{"sec_attack_rate"}}{see \link{measure_sar_by_hh_size};}
 \item{\code{"cases_distr"}}{see \link{measure_cases_by_hh_size}.}
 }
-Named measure functions in \code{...} are checked alongside them,
-under names that differ from these.
+Named measure functions in \code{...} and \code{measures_long} are checked
+alongside them, under names that differ from these.
 Each replicate goes through the reporting process of the model,
 see \code{\link[=add_reporting_process]{add_reporting_process()}}.
 }
@@ -95,6 +107,10 @@ hh_model <- flu_1918_frederick |>
 hh_fit <- run_inference(hh_model, chains = 2, progress = FALSE)
 
 ppc <- check_predictive(hh_model, hh_fit, nrep = 50, progress = FALSE)
+ppc
+
+# prior predictive check, before any inference
+ppc <- check_predictive(hh_model, nrep = 50, progress = FALSE)
 ppc
 
 # a user-defined measure: the overall attack rate

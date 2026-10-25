@@ -394,8 +394,49 @@ test_that("Measure names are unique, given and free of the members", {
 
 test_that("Measures on data_long need a long reporting process", {
   mk_ppc$model |>
-    check_predictive(mk_ppc$fit, measures_long = nrow) |>
+    check_predictive(mk_ppc$fit, measures_long = list(n = nrow)) |>
     expect_error("[Ll]ong reporting process")
+})
+
+test_that("Measures on data_long are checked alongside those on data_wide", {
+  cases_long <- \(x) data.frame(id = x$id, case = as.integer(x$status > 0))
+  hh_model <- mk_ppc$model |>
+    add_data_long(cases_long(get_data_wide(mk_ppc$model))) |>
+    add_reporting_process(long = cases_long)
+  run <- function(...) {
+    check_predictive(hh_model, mk_ppc$fit, ..., nrep = 3, thin_ess = FALSE,
+                     progress = FALSE)
+  }
+
+  # one count read from either frame of the same replicates
+  ppc <- run(measures_long = list(cases = \(x) sum(x$case)),
+             wide_cases = \(x) sum(x$status > 0)) |>
+    suppressWarnings()
+  ppc$cases |> expect_equal(ppc$wide_cases)
+  ppc$nrep |> expect_identical(3L)
+  # measures on data_long alone, the standard ones dropped
+  run(measures_long = list(cases = \(x) sum(x$case)), epi = FALSE) |>
+    suppressWarnings() |>
+    expect_s3_class("HousepiPredictiveCheck")
+  # named as those in `...`, under names free across both
+  run(measures_long = \(x) sum(x$case)) |>
+    expect_error("measures_long.*must be named")
+  run(measures_long = list(cases = nrow), cases = nrow) |>
+    expect_error("[Rr]epeated measure.*cases")
+  run(measures_long = list(attack_rate = nrow)) |>
+    expect_error("attack_rate.*standard")
+})
+
+test_that("A predictive check takes time_step as a run setting", {
+  run <- function(...) {
+    check_predictive(mk_ppc$model, mk_ppc$fit, ..., nrep = 2, progress = FALSE)
+  }
+  # the step reaches the engine, as in run_simulation()
+  run(time_step = -1) |> expect_error("time_step. must be strictly positive")
+  ppc <- run(time_step = 0.5) |> suppressWarnings()
+  ppc$time_step |> expect_null()
+  # never a measure
+  run(time_step = 0.5, epi = FALSE) |> expect_error("[Nn]o measure")
 })
 
 test_that("Predictive check on custom measures has read-only fields", {
@@ -408,7 +449,6 @@ test_that("Predictive check on custom measures has read-only fields", {
 
   class(ppc)[1] |> expect_identical("HousepiPredictiveCheck")
   names(ppc$sar) |> expect_contains(c("observed", "predicted"))
-  print(ppc) |> expect_snapshot(transform = helper_scrub_secs)
 
   # read access returns the run settings
   ppc$nrep |> expect_identical(10L)
@@ -428,15 +468,58 @@ test_that("Predictive check on custom measures has read-only fields", {
     }
   )
   ppc$thin_ess |> expect_false()
-  ppc$is_posterior |> expect_true()
+  ppc$source |> expect_identical("posterior")
   ppc$model_name |> expect_identical("final size")
 
   # active fields are read-only
   ppc |>
     expect_read_only_field(
       "point_estimate", "cri_level", "nrep",
-      "thin_ess", "is_posterior", "model_name"
+      "thin_ess", "source", "model_name", "warnings"
     )
+})
+
+test_that("Observed values outside the interval are recorded as warnings", {
+  hh_data <- get_data_wide(mk_ppc$model)
+  # only the observed data equal themselves, a constant always matches
+  same <- \(x) as.numeric(identical(x, hh_data))
+  run <- function(...) {
+    mk_ppc$model |>
+      check_predictive(mk_ppc$fit, ..., const = \(x) 1, epi = FALSE,
+                       thin_ess = FALSE, nrep = 2, progress = FALSE)
+  }
+  expect_warning(ppc <- run(same = same), "outside.*CrI for measure same")
+  ppc$warnings$message |> expect_match("measure same")
+  ppc$warnings$count |> expect_identical(1L)
+  helper_print_lines(print(ppc)) |>
+    expect_match("^! Warning: 1 issue flagged, see .\\$warnings", all = FALSE)
+  print(ppc) |> expect_snapshot(transform = helper_scrub_secs)
+
+  # a check flagging nothing has no rows and no warning line
+  ppc_2 <- run()
+  ppc_2$warnings |> expect_nrow(0L)
+  helper_print_lines(print(ppc_2)) |> expect_no_match("Warning")
+})
+
+test_that("Without draws, the check draws parameters from their prior", {
+  mk_ppc$model |> check_predictive() |> expect_error("[Pp]rior.*nrep")
+
+  ppc <- mk_ppc$model |>
+    check_predictive(nrep = 5, progress = FALSE) |>
+    suppressWarnings()
+  ppc$source |> expect_identical("prior")
+  ppc$nrep |> expect_identical(5L)
+  # prior draws are independent: no ESS thinning
+  ppc$thin_ess |> expect_false()
+  print(ppc) |> expect_message("Prior predictive check")
+
+  # a plain table of values is neither prior nor posterior
+  param_table <- data.frame(alpha = 1, beta = 1, gamma = 1, hh_size_ref = 4)
+  ppc_2 <- mk_ppc$model |>
+    check_predictive(param_table, progress = FALSE) |>
+    suppressWarnings()
+  ppc_2$source |> expect_identical("table")
+  ppc_2$thin_ess |> expect_false()
 })
 
 test_that("Predicted cases by house size works as expected", {

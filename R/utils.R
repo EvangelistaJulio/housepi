@@ -15,10 +15,17 @@ print_bullets <- function(x, .envir = parent.frame()) {
 # Render `header` as an info line,
 # then one indented `Label: value` line per element of `rows`,
 # its name the label and its value cli markup.
-print_rows_ <- function(header, rows = character(), .envir = parent.frame()) {
+# * `warnings` with rows -> closing `Warning` line pointing to `$warnings`.
+print_rows_ <- function(header, rows = character(), warnings = NULL,
+                        .envir = parent.frame()) {
   lines <- paste0(names(rows), ": ", rows)
-  print_bullets(c(i = header, stats::setNames(lines, rep(" ", length(lines)))),
-                .envir = .envir)
+  n_warn <- NROW(warnings)
+  warn <- if (n_warn) c(`!` = paste0(
+    cli::col_yellow("Warning"), ": ",
+    inline_cli_("{n_warn} issue{?s} flagged, see {.code $warnings}.")
+  ))
+  print_bullets(c(i = header, stats::setNames(lines, rep(" ", length(lines))),
+                  warn), .envir = .envir)
 }
 
 # Duration of `secs` seconds, as the progress bar prints it.

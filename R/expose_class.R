@@ -242,16 +242,24 @@ One of:
 * `posterior::draws`;
 * [HousepiPosteriorDraws].
 "
-rd_nrep_ <- "`integer(1)` Maximum number of draws simulated.
-Posterior draws are thinned to their ESS when `thin_ess` is `TRUE`.
-Then `nrep` evenly spaced draws are kept, all of them when fewer remain.
+rd_nrep_ <- "`integer(1)` Number of replicates.
+With `draws`, at most `nrep` evenly spaced draws are simulated,
+picked after thinning to their ESS when `thin_ess` is `TRUE`.
 If `NA`, every draw is simulated."
+rd_nrep_prior_ <- "Without `draws`, `nrep` replicates are simulated,
+each with parameters drawn from their prior."
 rd_thin_ess_ <- "`logical(1)`
 Whether to thin `draws` to their bulk effective sample size (ESS).
-Ignored if `draws` is a plain `data.frame`."
+Ignored without `draws` or with a plain `data.frame`."
 rd_natural_log_ <- "Logarithms are natural (base \\eqn{e})."
 rd_global_summary_ <- "Results are summarised at the point estimate
 and credible level of the global options, see [set_housepi_summary()]."
+rd_warnings_ <- "`data.frame` Distinct warnings raised,
+recorded whether or not they were reported, and counted by the print.
+\\describe{
+  \\item{message}{Line stating what was flagged;}
+  \\item{count}{Times it was raised.}
+}"
 
 ####  State inspection  ####
 
@@ -1347,7 +1355,8 @@ inspect_state <- function(hh_model, hh_id = NULL) {
   out$.sampler <- if (length(smp)) {
     na_empty <- \(x) replace(x, !nzchar(x), NA_character_)
     moves <- as.data.frame(smp$moves)
-    moves[c("member", "proposal", "coord")] <- lapply(moves[c("member", "proposal", "coord")], na_empty)
+    cols <- c("member", "proposal", "coord")
+    moves[cols] <- lapply(moves[cols], na_empty)
     blocks <- as.data.frame(smp$blocks[names(smp$blocks) != "jump_cov"])
     blocks$member <- na_empty(blocks$member)
     blocks$jump_cov <- smp$blocks$jump_cov
@@ -1498,11 +1507,10 @@ wrap_inference_ <- function(hh_model, ran, i = 1L) {
 #' @param hh_model `r rd_model_in_`
 #' @param draws `r rd_draws_`
 #' @param nrep `r rd_nrep_`
-#' Without `draws`, the number of replicates,
-#' which share the constant parameters and draw the others from their prior.
-#' If `NA`, one replicate.
+#' `r rd_nrep_prior_` If `NA`, one replicate.
 #' Once set, even to 1, the replicates are returned as a list.
 #' @param thin_ess `r rd_thin_ess_`
+#' @param threads `r rd_thread_`
 #' @param ... `r rd_dots_config_`
 #' @return A `data.frame` for a single replicate,
 #' when `nrep` is `NA` and `draws` is `NULL` or a one-row `data.frame`.
@@ -1519,9 +1527,13 @@ run_simulation <- function(hh_model,
                            draws = NULL,
                            nrep = NA_integer_,
                            thin_ess = TRUE,
+                           threads = 1L,
                            ...) {
-  output <- simulate_with_parameters_(
-    hh_model, draws = draws, thin_ess = thin_ess, nrep = nrep, ...
+  stopifnothousepi(hh_model)
+  assert_advanced_settings_("time_step", ...)
+  output <- hh_model$.__enclos_env__$private$simulate_(
+    draws = draws, nrep = nrep, thin_ess = thin_ess,
+    apply_long = identity, threads = threads, ...
   )
   output$parameters <- NULL
   # the arguments, not the replicates left after thinning, ask for one frame
@@ -1530,33 +1542,4 @@ run_simulation <- function(hh_model,
   )
   if (is.na(nrep) && single) output <- lapply(output, `[[`, 1L)
   if (length(output) == 1) output[[1]] else output
-}
-
-#' Simulate from `hh_model` as [run_simulation()] does.
-#' @return `list` Entries `wide` and `long`, one survey per replicate,
-#' and `parameters`, one row per replicate, given or drawn from the prior.
-#' @noRd
-simulate_with_parameters_ <- function(hh_model,
-                                      draws = NULL,
-                                      nrep = NA_integer_,
-                                      thin_ess = TRUE,
-                                      ...) {
-  stopifnothousepi(hh_model)
-  # simulation specific build
-  assert_advanced_settings_("time_step", ...)
-  pvt <- hh_model$.__enclos_env__$private
-  pvt$helper_simulation_build_(
-    draws = draws, nrep = nrep, thin_ess = thin_ess, ...
-  )
-
-  # run simulations
-  output <- .engine$run_simulation(
-    pvt$mcmc_ptr_,
-    pvt$helper_reporting_wide_(), NULL,
-    pvt$reporting_process_$long, NULL
-  )
-
-  # drop empty long
-  if (!length(output$long)) output$long <- NULL
-  output
 }
