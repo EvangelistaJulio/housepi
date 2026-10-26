@@ -45,10 +45,18 @@ mk_house_discr <- local({
 ####  Definitions  ####
 
 test_that("Infectivity profile definition errors are recognized", {
-  # missing function name
+  # function name of the wrong type
   mk_infec$model |>
-    add_infectivity_profile(func = NA, discr = FALSE, a = 1) |>
-    expect_error("[Ii]ncomplete definition")
+    add_infectivity_profile(func = 2, discr = FALSE, a = 1) |>
+    expect_error(".func. of infectivity profile must be a non-empty string")
+  # the name of a listed definition is a label, not its function
+  mk_infec$model |>
+    add_infectivity_profile(import = list(gamma = list(shape = 2))) |>
+    expect_error("[Mm]issing .func. of infectivity profile .gamma.")
+  # arguments without `func` are listed definitions naming no function
+  mk_infec$model |>
+    add_infectivity_profile(shape = 2, scale = 1) |>
+    expect_error("[Mm]issing .func. of infectivity profile .shape.")
   # unknown family
   mk_infec$model |>
     add_infectivity_profile(func = "unknown", x = 5) |>

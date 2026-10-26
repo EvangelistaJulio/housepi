@@ -43,11 +43,11 @@ HousepiInfecProfile <- R6::R6Class(
       }, logical(1))
       if (!any(mask)) return(NULL)
       self$defs <- self$defs[!mask, ]
-      return(status)
+      status
     },
 
     # Add one definition, arguments as in add_infectivity_profile().
-    add_quo = function(func, ...,
+    add_quo = function(func = NA_character_, ...,
                        status = NA_integer_, discr = NA,
                        min = NULL, max = NULL,
                        .warn_over = TRUE, .assert = FALSE) {
@@ -63,10 +63,19 @@ HousepiInfecProfile <- R6::R6Class(
       dots <- flatten_definition_dots(list(...))
       func_args <- housepi_extractor(!!!dots[names(dots) != "name"])
 
-      # check infectivity profile function
-      if (is.na(func)) stop_h(
-        "Incomplete definition: missing function name {.arg func}."
-      )
+      # function not named:
+      # * listed definition -> its label in the header;
+      # * single definition -> a type error, `NA` stopped by the caller.
+      if (is.numeric(func) || is.na(func)) {
+        label <- dots[["name"]]
+        if (!is.null(label)) stop_h(
+          "Missing {.arg func} of {self$family} {.val {label}}.",
+          paste("Supply a {.arg func} for a single definition,",
+                "or set it inside each listed one.")
+        )
+        stop_h("{.arg func} of {self$family} must be a non-empty string.",
+               format_type_error(func))
+      }
       assert_valid_status(status)
 
       # drop any previous definition

@@ -197,7 +197,7 @@ test_that("A definition named like a single-mode argument is not dropped", {
     expect_error(paste0(err, ".*reference"))
   data.frame(hh_id = "h1", status = 1, end_date = 20) |>
     new_housepi_model("case-ascertained", quiet = TRUE) |>
-    add_infectivity_profile(discr = TRUE) |>
+    add_infectivity_profile(profile = list(func = "gamma"), discr = TRUE) |>
     expect_error(paste0(err, ".*discr"))
 
   # the arguments multiple mode reads apply to every definition
@@ -206,6 +206,56 @@ test_that("A definition named like a single-mode argument is not dropped", {
     get_latent() |>
     getElement("status") |>
     expect_identical(c("1", "1"))
+})
+
+test_that("Single-mode arguments without the key name the missing key", {
+  err <- "[Mm]issing .%s. of the single %s definition"
+  mk_wrapper$model |>
+    add_parameter(prior = "uniform", max = 3) |>
+    expect_error(sprintf(err, "name", "parameter"))
+  hh_model <- data.frame(hh_id = "h1", status = 1, end_date = 20) |>
+    new_housepi_model("case-ascertained", quiet = TRUE)
+  hh_model |>
+    add_infectivity_profile(discr = TRUE) |>
+    expect_error(sprintf(err, "func", "infectivity profile"))
+
+  # a key set to `NA` is missing
+  mk_wrapper$model |>
+    add_parameter(name = NA, prior = "uniform", max = 3) |>
+    expect_error(sprintf(err, "name", "parameter"))
+  hh_model |>
+    add_infectivity_profile(func = NA, discr = FALSE, a = 1) |>
+    expect_error(sprintf(err, "func", "infectivity profile"))
+})
+
+test_that("A bulk definition built outside the call binds like the literal", {
+  param <- mk_wrapper$model |>
+    add_parameter(rho = list(prior = "uniform", max = 3)) |>
+    get_parameters()
+  def <- list(prior = "uniform", max = 3)
+  mk_wrapper$model |>
+    add_parameter(rho = def) |>
+    get_parameters() |>
+    expect_identical(param)
+  mk_wrapper$model |>
+    add_parameter(rho = c(list(prior = "uniform"), list(max = 3))) |>
+    get_parameters() |>
+    expect_identical(param)
+
+  # a name bound to no list stays a reference
+  mk_wrapper$model |>
+    add_parameter(rho = 1, rho_2 = rho) |>
+    get_parameters("rho_2") |>
+    getElement("func") |>
+    expect_identical("rho|P")
+
+  def_risk <- list(by = "member")
+  mk_member$model |>
+    add_group_risk(community = def_risk) |>
+    get_group_risks() |>
+    expect_identical(
+      get_group_risks(add_group_risk(mk_member$model, community = "member"))
+    )
 })
 
 test_that("Bulk import resolves symbols in the calling frame", {

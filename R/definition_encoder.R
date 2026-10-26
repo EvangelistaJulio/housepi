@@ -277,6 +277,14 @@ housepi_load_defin_quos <- function(self, implicit_name, xquos,
     )
     def_quo <- xquos[[i]]
     def_expr <- rlang::quo_get_expr(def_quo)
+    # symbol or call other than a named list() / c() -> its value, if a list
+    named <- rlang::is_call(def_expr, c("list", "c")) &&
+      any(nzchar(rlang::names2(rlang::call_args(def_expr))))
+    if (!named && rlang::is_symbolic(def_expr)) {
+      val <- tryCatch(suppressWarnings(rlang::eval_tidy(def_quo)),
+                      error = \(e) NULL)
+      if (rlang::is_bare_list(val)) def_expr <- rlang::call2("list", !!!val)
+    }
 
     if (rlang::is_call(def_expr, c("list", "c"))) {
       # pass arguments as quosures to add_quo

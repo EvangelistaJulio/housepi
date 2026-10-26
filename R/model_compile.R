@@ -322,6 +322,7 @@ bind_to_active_housepi_ <- function(custom_dll) {
 # @param compiled `list` As compile_model_() returns it.
 # @param options `list` As compile_options_() returns it.
 compile_dll_ <- function(cache_dir, compiled, options) {
+  # nolint next: object_usage_linter. read by the cli glue below
   label <- spaced_choice(compiled$name)
   if (!pkgbuild::has_build_tools()) stop_h(
     "No C++ compiler found to compile model {.val {label}}.",

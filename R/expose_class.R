@@ -552,7 +552,7 @@ get_reporting_process <- function(hh_model) {
 ########  Definitions  ########
 
 definition_helper_ <- c(
-  "Supply a {.arg name} for a single definition.",
+  "Supply a {.arg {key_arg}} for a single definition.",
   "Provide multiple definitions as {.code name = list()} pairs.",
   "Otherwise import an external list using {.arg import}."
 )
@@ -563,12 +563,14 @@ template_helper_ <- paste(
   '{.code import = "template"}.'
 )
 
-# Guard the inline (`...`) bulk form.
-assert_bulk_defs_ <- function(family, dots, has_template = FALSE) {
-  if (length(dots)) return(dots)
-  sms <- c("Missing or empty {family} definitions.", definition_helper_)
-  if (isTRUE(has_template)) sms <- c(sms, template_helper_)
-  stop_h(sms)
+# Stop on missing definitions, followed by the ways to supply them.
+# * `single` -> the single definition misses its key `key_arg`;
+# * otherwise -> no definition at all.
+stop_missing_defs_ <- function(family, key_arg, single, has_template = FALSE) {
+  header <- "Missing or empty {family} definitions."
+  if (single)
+    header <- "Missing {.arg {key_arg}} of the single {family} definition."
+  stop_h(header, definition_helper_, if (has_template) template_helper_)
 }
 
 # Name the formals given in an `add_*` call that only single mode reads.
@@ -589,17 +591,11 @@ assert_no_reserved_defs_ <- function(singles) {
 }
 
 # Reject `import` combined with single-mode arguments or inline `...` pairs.
-assert_no_def_mixing_ <- function(key, dots, singles) {
+assert_no_def_mixing_ <- function(key, dots, singles, key_arg) {
   if (!is.null(key) || length(dots) || length(singles)) stop_h(
     "Mixing imported definitions with single and multiple definitions",
     definition_helper_
   )
-}
-
-# Build the quosure list for the explicit `import` bulk form.
-defs_to_quos_ <- function(import, key, dots, singles, env) {
-  assert_no_def_mixing_(key, dots, singles)
-  convert_list_to_quosures(import, env)
 }
 
 # Whether `import` is the sentinel selecting the definitions the model ships.
@@ -624,10 +620,7 @@ template_defs_ <- function(compiled, family) {
 }
 
 # Load the templated definitions shipped with the package.
-# * sentinel with single-mode or inline `...` pairs -> error.
-add_template_defs_ <- function(holder, compiled, family, append, key, dots,
-                               singles) {
-  assert_no_def_mixing_(key, dots, singles)
+add_template_defs_ <- function(holder, compiled, family, append) {
   defs <- template_defs_(compiled, family)
   if (!is.null(defs))
     holder$add_quo_list(convert_list_to_quosures(defs), append = isTRUE(append))
@@ -636,27 +629,34 @@ add_template_defs_ <- function(holder, compiled, family, append, key, dots,
 # Add the definitions of the list-like `add_*` modes.
 # * `import = "template"`, an `import` list, inline `...` pairs -> added
 #   through `$add_quo_list()`;
+# * `import` with single-mode arguments or inline `...` pairs -> error;
+# * single mode, `key` `NA` -> error, as when missing;
 # * single mode, `key` given -> `FALSE`, left to the caller,
 #   which captures its own arguments, the definitions dropped first
 #   when not `append`.
 # @param call Caller's `match.call(expand.dots = FALSE)`.
-# @param listed `character()` Formals these modes read,
+# @param listed `character()` Formals these modes read, the key first,
 # besides `...`, `import` and `append`.
 # Any other formal the call sets belongs to single mode.
 add_listed_defs_ <- function(holder, compiled, family, key, import, append,
                              dots, env, call, listed,
                              has_template = FALSE, ...) {
   singles <- single_args_(call, listed)
-  if (has_template && is_template_import_(import)) {
-    add_template_defs_(holder, compiled, family, append, key, dots, singles)
+  template <- has_template && is_template_import_(import)
+  if (length(import)) assert_no_def_mixing_(key, dots, singles, listed[1])
+  if (template) {
+    add_template_defs_(holder, compiled, family, append)
   } else if (length(import)) {
-    holder$add_quo_list(defs_to_quos_(import, key, dots, singles, env),
+    holder$add_quo_list(convert_list_to_quosures(import, env),
                         append = append, ...)
   } else if (is.null(key)) {
+    if (!length(dots))
+      stop_missing_defs_(family, listed[1], length(singles) > 0, has_template)
     assert_no_reserved_defs_(singles)
-    holder$add_quo_list(assert_bulk_defs_(family, dots, has_template),
-                        append = append, ...)
+    holder$add_quo_list(dots, append = append, ...)
   } else {
+    if (isTRUE(is.na(key)))
+      stop_missing_defs_(family, listed[1], single = TRUE, has_template)
     if (isFALSE(append)) holder$add_quo_list(list(), append = FALSE, ...)
     return(FALSE)
   }
