@@ -60,6 +60,30 @@ test_that("Rendered text keeps data braces literal through a later cli pass", {
     expect_error("[Dd]id you mean.*a\\{b\\}")
 })
 
+test_that("A cli condition from an engine callback keeps its bullets", {
+  hh_model <- data.frame(hh_id = "h1", status = 0) |>
+    new_housepi_model("test")
+  warner <- function(x) {
+    cli::cli_warn(c("Reported.", i = "A hint."))
+    x
+  }
+  aborter <- \(x) cli::cli_abort(c("Failed.", i = "A hint."))
+
+  # the condition reaches the caller as the callback raised it
+  relayed <- hh_model |>
+    add_reporting_process(wide = warner) |>
+    run_simulation() |>
+    expect_warning("Reported")
+  conditionMessage(relayed) |>
+    expect_identical(conditionMessage(tryCatch(warner(), warning = identity)))
+  relayed <- hh_model |>
+    add_reporting_process(wide = aborter) |>
+    run_simulation() |>
+    expect_error("Failed")
+  conditionMessage(relayed) |>
+    expect_identical(conditionMessage(tryCatch(aborter(), error = identity)))
+})
+
 test_that("Find closest match suggests close options", {
   # typo within distance 1
   result <- find_closest_match("alpa", c("alpha", "beta"))

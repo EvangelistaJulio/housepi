@@ -407,7 +407,7 @@ test_that("Parameter defined as a function tracks its dependencies", {
     add_parameter(alpha = 1e-4, beta = hh_size_ref^-gamma,
                   gamma = list(prior = "uniform"), hh_size_ref = 4)
   get_parameters(hh_model)$func_args[[2]] |>
-    expect_identical(c(x = "hh_size_ref|P", x2 = "minus|x|[gamma|P]"))
+    expect_identical(c(x = "hh_size_ref|P", x2 = "-|x|[gamma|P]"))
 
   # both sampled and function-derived parameters appear in the trace
   draws <- hh_model |>

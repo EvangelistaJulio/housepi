@@ -18,6 +18,7 @@ namespace housepi
         Numeric,
         Pointer,
         Function,
+        Operator,
         Parameter,
         Latent,
         Observation,

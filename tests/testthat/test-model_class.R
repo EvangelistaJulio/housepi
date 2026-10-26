@@ -648,6 +648,17 @@ test_that("Simulation rejects wrong arguments", {
     expect_s3_class("data.frame")
 })
 
+test_that("A missing data column names what requires it, in simulation too", {
+  hh_model <- data.frame(hh_id = "h1", status = 1) |>
+    new_housepi_model("case_ascertained")
+  hh_model |>
+    evaluate_log_lik() |>
+    expect_error("missing data column.*end_date.*[Rr]equired by transmission")
+  hh_model |>
+    run_simulation() |>
+    expect_error("missing data column.*end_date.*[Rr]equired by transmission")
+})
+
 test_that("Param table with degenerate columns raises an ESS error", {
   new_housepi_model(model = "test") |>
     run_simulation(draws = posterior::as_draws_df(

@@ -150,6 +150,7 @@ warn_h <- function(...) {
 #' Restyle any condition raised beneath `expr` through the cli emitter,
 #' split on newlines into a header and hints.
 #' * C++ condition -> recognised by class, rendered as cli markup;
+#' * rlang condition, raised by an R callback -> passed on, its bullets kept;
 #' * foreign condition -> shown literally.
 #' @noRd
 with_cpp_conditions <- function(expr) {
@@ -159,9 +160,11 @@ with_cpp_conditions <- function(expr) {
   }
   withCallingHandlers(
     tryCatch(expr, error = function(e) {
+      if (inherits(e, "rlang_error")) stop(e)
       reemit(e, "stop", inherits(e, "housepi::TrustedException"))
     }),
     warning = function(w) {
+      if (inherits(w, "rlang_warning")) return()
       reemit(w, "warn", inherits(w, "housepi_cpp_warning"))
       invokeRestart("muffleWarning")
     }

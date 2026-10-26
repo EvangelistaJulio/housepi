@@ -6,6 +6,9 @@
 # Reserved constant names forbidden as definition names.
 .reserved_math_consts <- c("pi")
 
+# Operators passed to the engine as spelled, each building its function there.
+.operators <- c("+", "-", "*", "/", "^")
+
 # Coerce an R Date value to its numeric day count.
 coerce_date_ <- function(x) {
   if (inherits(x, "Date")) as.numeric(unclass(x))
@@ -55,7 +58,7 @@ assert_valid_arg_keys <- function(keys) {
 
 # Format a call over encoded arguments as a typed housepi definition.
 housepi_format_call <- function(func_name, func_args) {
-  if (!func_name %in% c("+", "*"))
+  if (!func_name %in% .operators)
     assert_valid_character(func_name, "function name")
 
   assert_valid_arg_keys(names(func_args))
@@ -120,12 +123,12 @@ housepi_func_from_call <- function(call, env = rlang::global_env()) {
   args <- lapply(rlang::call_args(call), strip_useless_parens)
 
   # map to function name
-  # `+` and `*` stay operators, apart from their reductions sum() and prod()
+  # * operator -> kept as spelled;
+  # * unary `+` -> its operand;
+  # * binary `-` -> sum chain, `a - b` read as `a + (-b)`.
   func_name <- switch(rlang::call_name(call),
                       `+` = if (length(args) == 1) NA_character_ else "+",
-                      `-` = if (length(args) == 1) "minus" else "+",
-                      `/` = "div",
-                      `^` = "pow",
+                      `-` = if (length(args) == 1) "-" else "+",
                       rlang::call_name(call))
 
   # flatten operator chains to avoid nested calls

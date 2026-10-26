@@ -272,6 +272,8 @@ namespace housepi::str
             return "pointer";
         case ErrType::Function:
             return "function";
+        case ErrType::Operator:
+            return "operator";
         case ErrType::Parameter:
             return "parameter";
         case ErrType::Latent:

@@ -371,8 +371,8 @@ test_that("Latent function definition is correct", {
   augm$func |> expect_identical("+")
   augm$func_args[[1]] |>
     expect_identical(c(x = "layer_1|A",
-                       x2 = "minus|x|[layer_2|A]",
-                       x3 = "minus|x|[layer_3|A]"))
+                       x2 = "-|x|[layer_2|A]",
+                       x3 = "-|x|[layer_3|A]"))
 
   # alternative function call definitions
   by_args <- hh_model |>
@@ -2075,6 +2075,25 @@ test_that("A model argument reading an empty cell names member and household", {
                         ".*for\\s+household\\s+.h1.",
                         ".*observation .record. for\\s+individual\\s+.2.",
                         "\\s+\\(status\\s+1\\)"))
+})
+
+test_that("A call reading an empty cell is named as written", {
+  hh_data <- data.frame(hh_id = "h1", status = 1, datum = c(2, NA, 4),
+                        record = 0)
+  # `1 - datum` reads datum through its unary minus
+  reads <- list("operator\\s+.[+]." = quote(datum + 1),
+                "operator\\s+.-." = quote(1 - datum),
+                "operator\\s+.[*]." = quote(datum * 2),
+                "operator\\s+./." = quote(datum / 2),
+                "operator\\s+.\\^." = quote(datum^2),
+                "function\\s+.sum." = quote(sum(datum, 1)))
+  for (op in names(reads)) {
+    hh_data |>
+      new_housepi_model("test") |>
+      add_observation(record = list(model = "normal", mean = !!reads[[op]])) |>
+      run_simulation() |>
+      expect_error(paste0("[Dd]ata .datum. has no value.*", op))
+  }
 })
 
 test_that("Household observations aggregate a data column across members", {

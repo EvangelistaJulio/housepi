@@ -79,7 +79,8 @@ test_that("Rlang parentheses are interpreted correctly", {
   housepi_extractor(((alpha / beta))) |>
     expect_equal(housepi_extractor(alpha / beta))
   housepi_extractor((delta * (alpha / beta) ^ gamma)) |>
-    expect_equal(housepi_extractor(delta * pow(alpha / beta, gamma)))
+    expect_identical(paste0("*|x:x2|[delta|?]:",
+                            "[^|x:x2|[/|x:x2|[alpha|?]:[beta|?]]:[gamma|?]]"))
 })
 
 test_that("Rlang basic identity assignments work as expected", {
@@ -88,16 +89,20 @@ test_that("Rlang basic identity assignments work as expected", {
 
   housepi_extractor(alpha) |> expect_identical("alpha|?")
   housepi_extractor(+alpha) |> expect_identical("alpha|?")
-  housepi_extractor(-alpha) |> expect_identical("minus|x|[alpha|?]")
+  housepi_extractor(-alpha) |> expect_identical("-|x|[alpha|?]")
 })
 
 test_that("Rlang arithmetic operations work as expected", {
   housepi_extractor(alpha + beta) |>
     expect_identical("+|x:x2|[alpha|?]:[beta|?]")
   housepi_extractor((alpha) - (beta)) |>
-    expect_identical("+|x:x2|[alpha|?]:[minus|x|[beta|?]]")
+    expect_identical("+|x:x2|[alpha|?]:[-|x|[beta|?]]")
   housepi_extractor(alpha * (beta)) |>
     expect_identical("*|x:x2|[alpha|?]:[beta|?]")
+  housepi_extractor(alpha / beta) |>
+    expect_identical("/|x:x2|[alpha|?]:[beta|?]")
+  housepi_extractor(alpha^beta) |>
+    expect_identical("^|x:x2|[alpha|?]:[beta|?]")
 })
 
 test_that("Operator chains are flattened, explicit reductions are not", {
@@ -177,9 +182,9 @@ test_that("Rlang nested expression", {
   housepi_extractor(a + 3 * b) |>
     expect_identical("+|x:x2|[a|?]:[*|x:x2|[3|N]:[b|?]]")
   housepi_extractor(a + b - c) |>
-    expect_identical("+|x:x2:x3|[a|?]:[b|?]:[minus|x|[c|?]]")
+    expect_identical("+|x:x2:x3|[a|?]:[b|?]:[-|x|[c|?]]")
   housepi_extractor(a - b - c) |>
-    expect_identical("+|x:x2:x3|[a|?]:[minus|x|[b|?]]:[minus|x|[c|?]]")
+    expect_identical("+|x:x2:x3|[a|?]:[-|x|[b|?]]:[-|x|[c|?]]")
   housepi_extractor(log(+ alpha)) |>
     expect_identical("log|x|[alpha|?]")
   housepi_extractor(log(a * 3 * b)) |>

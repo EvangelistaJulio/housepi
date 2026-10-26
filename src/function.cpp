@@ -7,6 +7,8 @@
 #include <cmath>
 #include <memory>
 #include <string>
+#include <string_view>
+#include <utility>
 #include <vector>
 
 #include "tools/dictionary.h"
@@ -55,6 +57,10 @@ namespace housepi
             static NamePool_ pool;
             return pool;
         }
+
+        /// Operator spellings, each with the function it builds.
+        constexpr std::pair<std::string_view, std::string_view> operators_[] = {
+            {"+", "sum"}, {"-", "minus"}, {"*", "prod"}, {"/", "div"}, {"^", "pow"}};
     }
 
     //////////////////////////////  Interval arithmetic  //////////////////////////////
@@ -436,7 +442,12 @@ namespace housepi
 
     std::string Function::str() const
     {
-        return str::format(err_family_) + " " + msg::val(name());
+        std::string label = name();
+        if (err_family_ == ErrType::Operator)
+            for (const auto &[symbol, func] : operators_)
+                if (func == label)
+                    label = symbol;
+        return str::format(err_family_) + " " + msg::val(label);
     }
 
     [[noreturn]] void Function::raise_undefined_call_err_(const std::string &call_name) const
@@ -919,15 +930,20 @@ namespace housepi
                                                   const SearchOrder &order,
                                                   bool flag)
         {
-            // an operator builds the function it spells
-            if (name == "+")
-                name = "sum";
-            if (name == "*")
-                name = "prod";
+            // an operator builds the function it spells, named as spelled in errors
+            const auto *op = std::find_if(std::begin(operators_), std::end(operators_),
+                                          [&](const auto &o) { return o.first == name; });
+            const bool is_operator = op != std::end(operators_);
+            if (is_operator)
+                name = op->second;
 
             for (Kind kind : order)
                 if (auto output = instance(kind).create(name, flag))
+                {
+                    if (is_operator)
+                        output->set_err_family(ErrType::Operator);
                     return output;
+                }
 
             msg::stop(
                 "Unknown " + str::format(err_type) + " " + msg::val(std::string(name)) + "." +

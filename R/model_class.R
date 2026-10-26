@@ -153,9 +153,9 @@ HousepiModel <- R6::R6Class(
       required <- private$get_required_data_wide_()
 
       # simulating -> observations are generated, not required
-      if (isTRUE(simulating)) {
-        required <- setdiff(required, private$augm_$observation_names)
-      }
+      # subsetting keeps the source names the message reads
+      if (isTRUE(simulating))
+        required <- required[!required %in% private$augm_$observation_names]
 
       # a deterministic observation produces a surrogate data column
       cols <- private$coding_$data_wide$cols
