@@ -278,7 +278,7 @@ HousepiCalibrationCheck <- R6::R6Class(
     initialize = function(hh_model, nrep = 200L, houses = NA_integer_,
                           structure_sampler = sample_house_structure,
                           rank_draws = 99L,
-                          steps = 1000L, thin = 5L, adapt = 500L,
+                          steps = 2000L, thin = 10L, adapt = 1000L,
                           chains = 4L, threads = 1L,
                           progress = TRUE, ...) {
       nrep <- assert_count_(nrep, "Number of replicates")
@@ -416,7 +416,7 @@ check_calibration <- function(hh_model,
                               houses = NA_integer_,
                               structure_sampler = sample_house_structure,
                               rank_draws = 99L,
-                              steps = 1000L, thin = 5L, adapt = 500L,
+                              steps = 2000L, thin = 10L, adapt = 1000L,
                               chains = 4L, threads = 1L,
                               progress = TRUE,
                               ...) {

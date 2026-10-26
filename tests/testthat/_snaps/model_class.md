@@ -1,4 +1,4 @@
-# Print behavior works as expected
+# A model prints with and without data and parameters
 
     Code
       print(new_housepi_model(model = "test"))

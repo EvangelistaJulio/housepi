@@ -11,7 +11,7 @@ mk_recov_data <- local({
 })
 
 # one replicate of two parameters at two household counts
-# NOTE: values chosen so every statistic is readable by hand
+# values chosen so every statistic is readable by hand
 mk_recov_frame <- local({
   estimates <- data.frame(
     houses = rep(c(10L, 20L), each = 2L), rep = 1L,
@@ -37,7 +37,7 @@ test_that("The household count defaults to the observed one", {
 
   # default sampling targets the observed household count
   struct <- sample_house_structure(mk_recov_data$data)
-  length(unique(struct$hh_id)) |> expect_identical(2L)
+  unique(struct$hh_id) |> expect_length(2L)
   # without a sampler the observed count stands, whatever count is asked
   expect_warning(
     houses <- sweep_houses_(mk_recov_data$data, houses = 6, verbatim = TRUE),
@@ -99,7 +99,7 @@ test_that("A table of values collapses to its point estimate", {
 
 ####  End-to-end  ####
 
-# a sweep short enough for the suite: every fit is too short to diagnose,
+# a sweep short enough for the suite: 10 draws per fit cap the ESS below 100,
 # so the whole run is flagged and its one aggregated warning is asserted below
 mk_recov <- local({
   hh_model <- flu_1918_frederick |>
@@ -107,8 +107,8 @@ mk_recov <- local({
     add_parameter(import = "template")
   draws <- data.frame(alpha = 0.15, beta = 0.20, gamma = 1)
   recovery <- hh_model |>
-    check_recovery(draws, nrep = 2, houses = c(20, 40),
-                   steps = 50, chains = 1, progress = FALSE) |>
+    check_recovery(draws, nrep = 2L, houses = c(20, 40),
+                   steps = 100L, chains = 1L, progress = FALSE) |>
     suppressWarnings()
   list(model = hh_model, draws = draws, recovery = recovery)
 })
@@ -234,15 +234,15 @@ test_that("A failed replicate stops the fits sampled with it", {
   fit_wave(list(hh_data_2, hh_data), outer = 1L, failed = 1L) |> expect_lt(10)
 })
 
-test_that("A run too short to diagnose is flagged whole", {
+test_that("A run too short to mix is flagged whole", {
   expect_warning(
     recovery <- check_recovery(
-      mk_recov$model, mk_recov$draws, nrep = 2, houses = 20, steps = 50,
-      chains = 1, progress = FALSE
+      mk_recov$model, mk_recov$draws, nrep = 2L, houses = 20L, steps = 100L,
+      chains = 1L, progress = FALSE
     ),
     "raised 1 distinct warning"
   )
-  recovery$warnings$message |> expect_match("[Tt]otal sample size")
+  recovery$warnings$message |> expect_match("[Ff]lagged parameter draws")
   recovery$warnings$count |> expect_identical(2L)
   # the print closes on the distinct warning count
   helper_print_lines(print(recovery)) |>
@@ -323,8 +323,8 @@ test_that("Recovery checks of one model pool their replicates", {
   recovery_2 <- flu_1918_frederick |>
     new_housepi_model("final-size") |>
     add_parameter(import = "template") |>
-    check_recovery(mk_recov$draws, nrep = 1, houses = c(40, 60),
-                   steps = 50, chains = 1, progress = FALSE,
+    check_recovery(mk_recov$draws, nrep = 1L, houses = c(40, 60),
+                   steps = 100L, chains = 1L, progress = FALSE,
                    time_step = 0.05) |>
     suppressWarnings()
   combined <- c(recovery, recovery_2)
@@ -345,9 +345,10 @@ test_that("Recovery checks of one model pool their replicates", {
 test_that("Recovery checks of different runs do not combine", {
   recovery <- mk_recov$recovery
   rerun <- function(hh_model = mk_recov$model, draws = mk_recov$draws,
-                    steps = 50, ...) {
-    check_recovery(hh_model, draws, nrep = 1, houses = 20, steps = steps,
-                   chains = 1, progress = FALSE, ...) |>
+                    steps = 100L, ...) {
+    hh_model |>
+      check_recovery(draws, nrep = 1L, houses = 20L, steps = steps,
+                     chains = 1L, progress = FALSE, ...) |>
       suppressWarnings()
   }
 

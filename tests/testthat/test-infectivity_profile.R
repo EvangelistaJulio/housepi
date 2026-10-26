@@ -150,7 +150,7 @@ test_that("A new profile overwrites the previous one", {
   get_infectivity_profiles(hh_model)$func |> expect_identical("gamma")
   expect_warning(
     hh_model <- add_infectivity_profile(hh_model, func = "lognormal"),
-    regexp = "Overwriting"
+    "Overwriting"
   )
   get_infectivity_profiles(hh_model)$func |> expect_identical("lognormal")
 })
@@ -198,9 +198,7 @@ test_that("A discrete-time model resolves a bare latent to the lattice", {
 
   # the flat lattice law owns every integer value in the window, so a bound that
   # is not one has no reading, and the error names the latent that carries it
-  sms <- tryCatch(mk(0.5), error = conditionMessage)
-  sms |> expect_match("min.*uniform.*discrete")
-  sms |> expect_match("infec_time")
+  mk(0.5) |> expect_error("min.*uniform.*discrete.*infec_time")
 })
 
 test_that("A profile dependency reached through 'min' is reported", {
@@ -249,13 +247,6 @@ test_that("A profile transmitting at generation time 0 is refused", {
     evaluate_log_lik() |>
     expect_error("non-zero at generation")
 
-  # FIXME: disabled assert in simulation because of clash with status-specific
-  # same behavior must occur in simulation
-  # mk_infec$model |>
-  #   add_infectivity_profile("exponential") |>
-  #   run_simulation() |>
-  #   expect_error("non-zero at generation")
-
   # discretization resolves it automatically
   mk_infec$model |>
     add_infectivity_profile("exponential", discr = TRUE) |>
@@ -263,7 +254,7 @@ test_that("A profile transmitting at generation time 0 is refused", {
     expect_all_finite()
 
   # a registered profile considered as authored
-  # NOTE: 'ferretti20' is a custom with non-zero pdf at origin
+  # 'ferretti20' is a custom profile with non-zero pdf at origin
   mk_infec$model |>
     add_infectivity_profile("ferretti20", incub_period = 5) |>
     evaluate_log_lik() |>

@@ -101,7 +101,7 @@ test_that("Associate param names decorates table and marks reference", {
 
   # absolute by default: every stratum keeps its own parameter
   abs_res <- associate_group_param_names(tbl, prefix = "sus", reference = NULL)
-  (".reference" %in% abs_res$param_name) |> expect_false()
+  abs_res$param_name |> expect_disjoint(".reference")
   abs_res$param_name |> expect_match("^sus_")
 })
 
@@ -110,7 +110,7 @@ test_that("An empty logic table passes through grouping and ordering", {
     data.frame(age = character(), param_name = character(), n = integer())
   )
   tbl |> expect_nrow(0L)
-  ("rule_group" %in% colnames(tbl)) |> expect_true()
+  colnames(tbl) |> expect_contains("rule_group")
   reorder_risks_logic_table(tbl) |> expect_identical(tbl)
 })
 
@@ -144,7 +144,7 @@ test_that("Group risks integrate with data", {
   tidy <- get_group_risks(hh_model)
   tidy$group_risk |> expect_all_equal("community")
   # joint expansion: one rule group over both covariates
-  length(unique(tidy$rule_group)) |> expect_identical(1L)
+  unique(tidy$rule_group) |> expect_length(1L)
   colnames(tidy) |> expect_contains(c("age", "sex"))
   # absolute by default: no reference stratum
   sum(tidy$param_name == ".reference") |> expect_identical(0L)
@@ -157,7 +157,7 @@ test_that("Group risks integrate with data", {
   params$proposal |> expect_all_na()
 })
 
-test_that("Reference turns group risks relative with its own mcmc configuration", {
+test_that("Reference turns risks relative with its own mcmc configuration", {
   hh_model <- mk_risk$model |>
     add_group_risk("community", by = c("age", "sex"), joint = TRUE,
                    reference = ".auto")
@@ -210,7 +210,7 @@ test_that("Group risks expand on their own covariates only", {
     add_group_risk("susceptibility", by = "age") |>
     get_group_risks()
   risks$group_risk |> expect_setequal("susceptibility")
-  ("sus_age_child" %in% risks$param_name) |> expect_true()
+  risks$param_name |> expect_contains("sus_age_child")
 
   # without data the read surface warns and keeps the table shape
   expect_warning(
@@ -359,7 +359,7 @@ test_that("Parameter options work correctly", {
   params$proposal |> expect_all_na()
 })
 
-test_that("Load list works as expected", {
+test_that("Group risks load from a list of definitions", {
   tidy <- mk_risk$model |>
     add_group_risk(
       community = list(by = c("age", "sex"), prefix = "ct",
@@ -384,7 +384,7 @@ test_that("Group risks deal with custom logic table correctly", {
   tidy <- get_group_risks(hh_model)
   tidy$group_risk |> expect_all_equal("infectivity")
   # the custom strata drives the covariate column and the rows
-  ("isolation" %in% colnames(tidy)) |> expect_true()
+  colnames(tidy) |> expect_contains("isolation")
   tidy$param_name |> expect_setequal(c(".reference", "inf_isol"))
 
   # parameters generated for non-reference only
@@ -448,7 +448,7 @@ test_that("Group risk mixed auto and custom modes preserve strata entries", {
     expect_setequal(c(".reference", "inf_isol"))
   # both modes materialise their parameters
   param_names <- get_parameters(hh_model)$name
-  ("inf_isol" %in% param_names) |> expect_true()
+  param_names |> expect_contains("inf_isol")
   param_names |> expect_match("^com_", all = FALSE)
 
   add_group_risk(hh_model, "infectivity", by = "age") |>
@@ -917,7 +917,7 @@ test_that("An absolute risk collapses the baseline it scales", {
     run_inference(steps = 5L, thin = 1L, adapt = 0L, chains = 1L) |>
     suppressWarnings() |>
     summarise_draws()
-  ("alpha" %in% draws$variable) |> expect_false()
+  draws$variable |> expect_disjoint("alpha")
   draws$variable |> expect_match("^com_member", all = FALSE)
 })
 
@@ -938,7 +938,7 @@ test_that("A baseline pinned by an absolute risk follows its redeclaration", {
   by_name <- \(x) x[order(x$name), , drop = FALSE]
   by_name(get_parameters(hh_model_2)) |>
     expect_equal(by_name(get_parameters(hh_model)), ignore_attr = TRUE)
-  ("alpha" %in% get_parameters(hh_model_2)$name) |> expect_false()
+  get_parameters(hh_model_2)$name |> expect_disjoint("alpha")
   hh_model_2 |>
     evaluate_log_lik() |>
     expect_error("[Mm]issing parameter definition.*alpha")
@@ -961,7 +961,7 @@ test_that("Two absolute risks on one baseline are identifiable once pinned", {
 
 test_that("An absolute group risk holds its baseline at the reference", {
   # `community` names no reference, so it absorbs the scale `alpha` carried
-  # NOTE: even if baseline gets outside of its proposed prior domain
+  # even if baseline gets outside of its proposed prior domain
   expect_warning(
     hh_model <- mk_flu$model |>
       add_parameter(alpha = list(prior = "uniform", max = 0.7),
@@ -1016,35 +1016,39 @@ test_that("A declared baseline is collapsed at the decorator", {
 })
 
 test_that("A collapsed baseline is reported again only on a new declaration", {
-  warned <- function(x) {
-    any(grepl("[Bb]aseline.*constant reference", testthat::capture_warnings(x)))
-  }
   hh_model <- mk_flu$model |>
     add_parameter(beta = 0.1, gamma = 1, hh_size_ref = 4) |>
     add_parameter(alpha = list(prior = "uniform", min = 0, max = 1)) |>
     suppressWarnings() # suppress overwrite warning
-  warned(
-    hh_model <- add_group_risk(hh_model, "community", by = "member")
-  ) |>
-    expect_true()
+  expect_warning(
+    hh_model <- add_group_risk(hh_model, "community", by = "member"),
+    "[Bb]aseline.*constant reference"
+  )
 
   # an untouched baseline and a copy of the model say nothing more
-  warned(hh_model |> add_parameter(gamma = 2)) |> expect_false()
-  warned(hh_model$copy() |> add_parameter(gamma = 2)) |> expect_false()
+  hh_model |>
+    add_parameter(gamma = 2) |>
+    capture_warnings() |>
+    expect_no_match("[Bb]aseline")
+  hh_model$copy() |>
+    add_parameter(gamma = 2) |>
+    capture_warnings() |>
+    expect_no_match("[Bb]aseline")
 
   # a new range for the same prior is a new declaration
-  warned(
-    hh_model |>
-      add_parameter(alpha = list(prior = "uniform", min = 0, max = 2))
-  ) |>
-    expect_true()
+  hh_model |>
+    add_parameter(alpha = list(prior = "uniform", min = 0, max = 2)) |>
+    capture_warnings() |>
+    expect_match("[Bb]aseline.*constant reference", all = FALSE)
 
   # a baseline its risk released is reported again once re-collapsed
   released <- hh_model |>
     add_group_risk("community", by = "member", reference = "student") |>
     suppressWarnings() # suppress overwrite warning
   get_parameters(released, "alpha")$const |> expect_all_na()
-  warned(add_group_risk(released, "community", by = "member")) |> expect_true()
+  add_group_risk(released, "community", by = "member") |>
+    capture_warnings() |>
+    expect_match("[Bb]aseline.*constant reference", all = FALSE)
 })
 
 test_that("A measure table cannot give a collapsed baseline its scale back", {

@@ -121,7 +121,7 @@ test_that("Char data input handles NULL and data.frame", {
   exotic[["3"]] <- 2
   exotic[["if"]] <- 3
   exotic[["dose.2"]] <- 4
-  names(char_data_input_(exotic)) |> expect_identical(names(exotic))
+  char_data_input_(exotic) |> expect_named(names(exotic))
 })
 
 test_that("Draws are thinned evenly, first and last kept", {
@@ -262,7 +262,7 @@ test_that("Data factorization codes a labelled status column", {
 test_that("Data factorization flags discrete-valued columns", {
   discr <- cpp_data_factorize(mk_types$data)$discr
   discr |> expect_type("logical")
-  names(discr) |> expect_identical(colnames(mk_types$data))
+  discr |> expect_named(colnames(mk_types$data))
 
   discr[c("date_col", "int_col", "logic_col", "empty_int")] |>
     expect_all_true()

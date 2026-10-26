@@ -32,12 +32,11 @@ test_that("Ties with the truth are split at random", {
 test_that("The uniformity statistic separates spread ranks from piled ones", {
   threshold <- calibration_log_threshold_(100, 9, 0.05)
   # every rank of 0..9 ten times: the ECDF of the uniform exactly
-  (calibration_log_gamma_(rep(0:9, 10L), 9) >= threshold) |> expect_true()
+  calibration_log_gamma_(rep(0:9, 10L), 9) |> expect_gte(threshold)
   # posterior too narrow: ranks pile at both ends
-  (calibration_log_gamma_(rep(c(0L, 9L), 50L), 9) < threshold) |>
-    expect_true()
+  calibration_log_gamma_(rep(c(0L, 9L), 50L), 9) |> expect_lt(threshold)
   # posterior biased: ranks pile on one side
-  (calibration_log_gamma_(rep(0:4, 20L), 9) < threshold) |> expect_true()
+  calibration_log_gamma_(rep(0:4, 20L), 9) |> expect_lt(threshold)
 })
 
 test_that("The threshold is the largest level whose band holds at 0.95", {
@@ -163,7 +162,7 @@ test_that("A sweep reproduces from a seed at any thread count", {
 
 test_that("Calibration refuses a sweep it cannot rank", {
   hh_model <- mk_calib$model
-  check_calibration(hh_model, steps = 50, chains = 1, progress = FALSE) |>
+  check_calibration(hh_model, steps = 100L, chains = 1L, progress = FALSE) |>
     expect_error("[Ss]tores 10 draws.*fewer than.*rank_draws")
   check_calibration(hh_model, rank_draws = 0, progress = FALSE) |>
     expect_error("[Nn]umber of ranked draws")
@@ -228,5 +227,5 @@ test_that("Latent inference is calibrated against the prior", {
   # a test at level 0.001, so a calibrated sampler fails one run in 1000
   nrep <- calibration$summarise()$nrep
   threshold <- calibration_log_threshold_(nrep, 99, 0.001)
-  (calibration$summarise()$log_gamma >= threshold) |> expect_true()
+  (calibration$summarise()$log_gamma >= threshold) |> expect_all_true()
 })

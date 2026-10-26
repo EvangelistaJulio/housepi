@@ -144,7 +144,7 @@ test_that("With no transmission only a random household member is infected", {
   simulated$infec_time[infected] |> expect_all_equal(0)
 
   # inference fails without definition
-  nrow(get_latent(hh_model)) |> expect_identical(0L)
+  get_latent(hh_model) |> expect_nrow(0L)
   hh_model |>
     evaluate_log_lik() |>
     expect_error("[Mm]issing latent definition.*infec_time")
@@ -152,7 +152,7 @@ test_that("With no transmission only a random household member is infected", {
   # definitions stay unchanged
   # over 100 households the introduction is not always the same member
   member <- ave(seq_along(simulated$hh_id), simulated$hh_id, FUN = seq_along)
-  (length(unique(member[infected])) > 1) |> expect_true()
+  unique(member[infected]) |> length() |> expect_gt(1L)
 })
 
 test_that("A saturated transmission infects every member", {

@@ -140,19 +140,19 @@ test_that("Active fields are read-only", {
 test_that("Draws getters return each block", {
   hh_fit <- mk_draws$fit
   param <- get_parameter_draws(hh_fit)
-  posterior::is_draws(param) |> expect_true()
+  param |> expect_s3_class("draws")
   posterior::niterations(param) |> expect_identical(100L)
 
   # no latent is traced
   get_latent_draws(hh_fit) |> expect_warning("[Ee]mpty draws")
 
   log_lik <- get_log_lik_draws(hh_fit)
-  posterior::is_draws(log_lik) |> expect_true()
+  log_lik |> expect_s3_class("draws")
   posterior::nvariables(log_lik) |> expect_gt(0)
 
   # parameter names, log_lik[...] and lprior (loo / priorsense names)
   complete <- get_complete_draws(hh_fit)
-  posterior::is_draws(complete) |> expect_true()
+  complete |> expect_s3_class("draws")
   n_house <- posterior::nvariables(log_lik)
   posterior::variables(complete) |>
     expect_identical(c(posterior::variables(param),
@@ -178,10 +178,11 @@ test_that("Print behavior is stable", {
   print(local_results) |> expect_snapshot(transform = helper_scrub_secs)
 })
 
-test_that("A short run records one warning, under its sample size", {
+test_that("A short run records one warning per flagged draws block", {
+  # 100 draws on one chain: the ESS stays below 100
   flagged <- mk_draws$fit$warnings
   flagged |> expect_nrow(1L)
-  flagged$message |> expect_match("[Ss]ample size was below")
+  flagged$message |> expect_match("[Ff]lagged parameter draws")
   flagged$count |> expect_identical(1L)
   # the print closes on the warning count
   helper_print_lines(print(mk_draws$fit)) |>
@@ -198,7 +199,7 @@ test_that("A quiet run holds back the warnings it records", {
   }
   # the same run is silent or not, and records the same warnings either way
   expect_no_warning(quiet <- run(FALSE))
-  expect_warning(loud <- run(TRUE), "[Ss]ample size was below")
+  expect_warning(loud <- run(TRUE), "ESS.*below 100 per chain")
   quiet$warnings |> expect_identical(loud$warnings)
 })
 
@@ -212,10 +213,10 @@ test_that("A quiet run holds back its build warnings too", {
       run_inference(steps = 20L, chains = 1L, adapt = 0L, thin = 1L,
                     threads = threads, warn = warn)
   }
-  # the run is too short to diagnose, so it warns twice
+  # 20 draws cap the ESS below 100, so the run warns twice
   run(TRUE) |>
     expect_warning("[Rr]educing .threads.") |>
-    expect_warning("[Ss]ample size was below")
+    expect_warning("ESS.*below 100 per chain")
   expect_no_warning(hh_fit <- run(FALSE))
   # a build warning is held back but never recorded: only diagnostics are
   hh_fit$warnings$message |> expect_no_match("threads")
@@ -254,7 +255,7 @@ test_that("Pointwise log-lik is carried into the complete-draws bundle", {
     pointwise <- draws_to_frame(get_log_lik_draws(hh_fit))
     bundle <- draws_to_frame(get_complete_draws(hh_fit))
     ll_cols <- grep("^log_lik\\[", colnames(bundle))
-    length(ll_cols) |> expect_identical(ncol(pointwise))
+    ll_cols |> expect_length(ncol(pointwise))
     unname(bundle[, ll_cols]) |> expect_equal(unname(pointwise))
   }
   expect_same_pointwise(mk_draws$fit)
@@ -339,8 +340,7 @@ test_that("Runs of one model bind their chains", {
   posterior::nchains(get_log_lik_draws(combined)) |> expect_identical(3L)
   combined$inference_secs |>
     expect_equal(hh_fit$inference_secs + hh_fit_2$inference_secs)
-  combined$warnings$message |>
-    expect_match("[Ss]ample size was below", all = FALSE)
+  combined$warnings$message |> expect_match("[Ff]lagged parameter draws")
   # the runs combined are left as they were
   posterior::nchains(get_parameter_draws(hh_fit)) |> expect_identical(1L)
 })

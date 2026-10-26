@@ -32,7 +32,7 @@ test_that("Model choice helper handles malformed input", {
   # NA falls back to 'test' with a warning
   expect_warning(
     hh_model <- new_housepi_model(model = NA_character_),
-    regexp = "test"
+    "test"
   )
   hh_model$name |> expect_identical("test")
 
@@ -73,7 +73,7 @@ test_that("Compile flags are validated against model source", {
 test_that("as_template is refused for a built-in template", {
   expect_warning(
     hh_model <- new_housepi_model(model = "test", as_template = TRUE),
-    regexp = "browse_templates"
+    "browse_templates"
   )
   # construction still succeeds
   hh_model$name |> expect_identical("test")

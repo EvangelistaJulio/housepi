@@ -14,24 +14,18 @@ posterior::summarize_draws
 # Thresholds for the post-inference diagnostic warnings.
 # \insertRef{vehtari_rank_normalization_2021}{housepi}
 diagnostic_ <- list(
-  # min sample size
-  ss_min = 400,
-  # max Rhat
-  rhat_max = 1.05,
-  # ESS ratio
-  # 10% bayesplot/HMC default is unrealistic for Metropolis
-  neff_min = 0.01,
-  # min absolute ESS
-  ess_min = 100
+  # R-hat flagged at or above
+  rhat_bound = 1.01,
+  # min Bulk and Tail ESS per chain: 50 per split chain
+  ess_chain_min = 100
 )
 
 # What each diagnostic flags, worded once for the warnings and the docs.
 diagnostic_flags_ <- list(
-  short = sprintf("Total sample size was below %d", diagnostic_[["ss_min"]]),
-  rhat = sprintf("R-hat > %.2f", diagnostic_[["rhat_max"]]),
+  rhat = sprintf("R-hat of %.2f or more", diagnostic_[["rhat_bound"]]),
   ess = sprintf(
-    "Bulk Effective Sample Size (ESS) below %d or %.0f%% of the draws",
-    diagnostic_[["ess_min"]], 100. * diagnostic_[["neff_min"]]
+    "Bulk or Tail Effective Sample Size (ESS) below %d per chain",
+    diagnostic_[["ess_chain_min"]]
   )
 )
 
@@ -213,20 +207,19 @@ summarize_draws.HousepiPosteriorDraws <- summarise_draws.HousepiPosteriorDraws
 
 ########  HousepiPosteriorDraws  ########
 
-# Per-variable R-hat and Bulk ESS of a draws block over a sample of size `ss`,
+# Per-variable R-hat, Bulk and Tail ESS of a draws block over `nchains` chains,
 # and which of them fail.
 # * undefined diagnostic -> `NA`.
-diagnose_block_ <- function(d, ss) {
+diagnose_block_ <- function(d, nchains) {
   if (is.null(d) || posterior::nvariables(d) == 0L) return(NULL)
   # a capped ESS on a short sample is reported as a low ESS finding
   sm <- as.data.frame(suppressWarnings(posterior::summarise_draws(
-    d, rhat = posterior::rhat, ess_bulk = posterior::ess_bulk
+    d, rhat = posterior::rhat, ess_bulk = posterior::ess_bulk,
+    ess_tail = posterior::ess_tail
   )))
-  # R-hat rounded to 2 dp, matching the 3 significant figures summarise_draws()
-  # shows: 1.0512 prints as 1.05 and is not flagged
-  sm$bad_rhat <- round(sm$rhat, 2) > diagnostic_[["rhat_max"]]
-  sm$bad_ess <- sm$ess_bulk <
-    max(diagnostic_[["ess_min"]], diagnostic_[["neff_min"]] * ss)
+  sm$bad_rhat <- sm$rhat >= diagnostic_[["rhat_bound"]]
+  ess_min <- diagnostic_[["ess_chain_min"]] * nchains
+  sm$bad_ess <- sm$ess_bulk < ess_min | sm$ess_tail < ess_min
   sm
 }
 
@@ -269,33 +262,22 @@ check_diagnostics_one_ <- function(sm, draws_kind) {
 }
 
 # Stan-style post-inference diagnostics: the message blocks to report,
-# and the per-parameter R-hat, Bulk ESS and flag.
-# * short sample -> its findings under one block of its own.
+# and the per-parameter R-hat, Bulk and Tail ESS and flag.
 # See https://mc-stan.org/learn-stan/diagnostics-warnings.html
 check_diagnostics_ <- function(draws) {
-  niter <- posterior::niterations(draws$point_log_lik)
   nchains <- posterior::nchains(draws$point_log_lik)
-  ss <- niter * nchains
-  short <- ss < diagnostic_[["ss_min"]]
-
-  sm <- lapply(draws[c("param", "latent")], diagnose_block_, ss = ss)
+  sm <- lapply(draws[c("param", "latent")], diagnose_block_, nchains = nchains)
   found <- Filter(Negate(is.null), list(
     check_diagnostics_one_(sm$param, "parameter"),
     check_diagnostics_one_(sm$latent, "latent variable")
   ))
   # the header is interpolated here, so it is recorded as literal text
-  blocks <- if (short) list(c(
-    paste0(diagnostic_flags_$short, "."),
-    unlist(lapply(found, `[[`, "findings")),
-    "Estimates may be unreliable."
-  )) else lapply(found, function(f) {
-    c(f$header, f$findings, f$hint)
-  })
+  blocks <- lapply(found, function(f) c(f$header, f$findings, f$hint))
 
   param <- sm$param
   if (!is.null(param)) param <- data.frame(
-    param[c("variable", "rhat", "ess_bulk")],
-    flagged = short | !param$bad_rhat %in% FALSE | !param$bad_ess %in% FALSE
+    param[c("variable", "rhat", "ess_bulk", "ess_tail")],
+    flagged = !param$bad_rhat %in% FALSE | !param$bad_ess %in% FALSE
   )
   list(blocks = blocks, param = param)
 }
@@ -363,7 +345,7 @@ HousepiPosteriorDraws <- R6::R6Class(
     # engine seed of each run the chains come from
     seed_ = NA_real_,
     warnings_ = NULL,
-    # per-parameter R-hat, Bulk ESS and convergence verdict
+    # per-parameter R-hat, Bulk and Tail ESS and convergence verdict
     diagnostics_ = NULL,
 
     # Record Stan-style diagnostics of the draws, then report them.
@@ -381,7 +363,7 @@ HousepiPosteriorDraws <- R6::R6Class(
   active = list(
     #' @field warnings `r rd_warnings_`
     #' They hold the convergence diagnostics the run flagged.
-    #' Per-variable R-hat and Bulk ESS behind a flag
+    #' Per-variable R-hat, Bulk and Tail ESS behind a flag
     #' are read from [summarise_draws()].
     warnings = function(value) {
       assert_read_only_(value, "warnings")

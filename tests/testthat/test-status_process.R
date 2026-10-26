@@ -103,7 +103,7 @@ test_that("The status process reads back one row per rule", {
 
   # no status process declared
   status <- get_status_process(mk_latent$model)
-  nrow(status) |> expect_identical(0L)
+  status |> expect_nrow(0L)
   colnames(status) |> expect_identical(c("status", "weight", "n", "rule_group"))
 })
 

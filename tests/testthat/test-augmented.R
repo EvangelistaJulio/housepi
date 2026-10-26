@@ -59,7 +59,9 @@ on_integer_lattice <- function(x) {
 }
 
 # draws of a run as a data frame of its latent traces
-latent_frame <- \(x) draws_to_frame(get_latent_draws(x))
+latent_frame <- function(x) {
+  draws_to_frame(get_latent_draws(x))
+}
 
 ####  Latent definitions  ####
 
@@ -157,11 +159,9 @@ test_that("A latent without a model rejects incomplete definitions", {
 })
 
 test_that("Passing a prior raises a hint on model", {
-  sms <- mk_latent$model |>
+  mk_latent$model |>
     add_latent(hidden = list(prior = "uniform", min = -1, max = 2)) |>
-    tryCatch(error = conditionMessage)
-  sms |> expect_match("[Ss]pare.*prior.*hidden")
-  sms |> expect_match("[Dd]id you mean.*model")
+    expect_error("[Ss]pare.*prior.*hidden.*[Dd]id you mean.*model")
 })
 
 test_that("A func definition is deterministic", {
@@ -186,22 +186,20 @@ test_that("A func definition is deterministic", {
 
 test_that("A name is resolved, not guessed", {
   # a name two holders answer to is never read
-  sms <- mk_latent$model |>
+  mk_latent$model |>
     add_parameter(datum = list(prior = "gamma", shape = 2, scale = 1)) |>
     add_observation(record = list(model = "normal", mean = datum, sd = 1)) |>
     evaluate_log_lik() |>
-    tryCatch(error = conditionMessage)
-  sms |> expect_match("[Cc]ould not resolve the source of .datum.")
-  sms |> expect_match("[Dd]eclared both as data column and parameter")
-  sms |> expect_match("[Rr]ename one of them")
+    expect_error(paste0("[Cc]ould not resolve the source of .datum.",
+                        ".*[Dd]eclared both as data column and parameter",
+                        ".*[Rr]ename one of them"))
 
   # nothing of that name anywhere: the defect is named, with the near miss
-  sms <- mk_latent$model |>
+  mk_latent$model |>
     add_observation(record = list(model = "normal", mean = datums, sd = 1)) |>
     evaluate_log_lik() |>
-    tryCatch(error = conditionMessage)
-  sms |> expect_match("[Cc]ould not resolve the source of .datums.")
-  sms |> expect_match("[Dd]id you mean .datum.")
+    expect_error(paste0("[Cc]ould not resolve the source of .datums.",
+                        ".*[Dd]id you mean .datum."))
 })
 
 test_that("A forward consumer waits resolves after declaration", {
@@ -554,12 +552,10 @@ test_that("A discrete latent resolves 'uniform' to the discrete distribution", {
 
   # the flat lattice law owns every integer value in the window, so a bound that
   # is not one has no reading, and the error names the latent that carries it
-  sms <- hh_model |>
+  hh_model |>
     add_latent("hidden", model = "uniform", min = 0.5, max = 3, discr = TRUE) |>
     evaluate_log_lik() |>
-    tryCatch(error = conditionMessage)
-  sms |> expect_match("min.*uniform.*discrete")
-  sms |> expect_match("hidden")
+    expect_error("min.*uniform.*discrete.*hidden")
 })
 
 test_that("A location off the integers is refused when discrete", {
@@ -787,7 +783,7 @@ test_that("Level is set per definition, the argument being the bulk default", {
     ) |>
     get_observations()
   level_of(mixed) |> expect_identical(expected)
-  ("args" %in% names(mixed)) |> expect_false()
+  names(mixed) |> expect_disjoint("args")
 
   # the argument is the default: entries not setting their own inherit it
   mk_latent$model |>
@@ -1042,12 +1038,12 @@ test_that("A surrogate observation overwrites the corresponding data column", {
 
   # the data view reports the derived value before evaluation
   unique(get_data_wide(hh_model)[["record_2"]]) |> expect_identical(2)
-  ("record_3" %in% colnames(get_data_wide(hh_model))) |> expect_false()
+  colnames(get_data_wide(hh_model)) |> expect_disjoint("record_3")
 
   # and after evaluation
   evaluate_log_lik(hh_model) |> expect_all_finite()
   unique(get_data_wide(hh_model)[["record_2"]]) |> expect_identical(2)
-  ("record_3" %in% colnames(get_data_wide(hh_model))) |> expect_false()
+  colnames(get_data_wide(hh_model)) |> expect_disjoint("record_3")
 
   # simulated observations are for all members, latent just for infected
   simulated <- run_simulation(hh_model)
@@ -1140,8 +1136,7 @@ test_that("A household reduction folds its argument over the members", {
     expect_equal(5)
   # with no datum at all there is nothing to fold
   reduce(quote(max(datum) + 1), transform(hh_data, datum = NA_real_)) |>
-    is.na() |>
-    expect_true()
+    expect_all_na()
 
   # a per-member column outside any reduction has no household value
   reduce(quote(datum + 1)) |>
@@ -1205,13 +1200,8 @@ test_that("A surrogate column proves the requirement its model asks", {
     expect_equal(rep(4, 4))
 
   # the refusal names the definition and the place it was built for
-  sms <- tryCatch(mk(quote(sum(datum))), error = conditionMessage)
-  sms |> expect_match("[Hh]ousehold observation")
-  sms |> expect_match("h1")
-  sms <- tryCatch(mk(quote(datum_2 / 4), level = "member"),
-                  error = conditionMessage)
-  sms |> expect_match("individual")
-  sms |> expect_match("m1")
+  mk(quote(sum(datum))) |> expect_error("[Hh]ousehold observation.*h1")
+  mk(quote(datum_2 / 4), level = "member") |> expect_error("individual.*m1")
 })
 
 test_that("Data-bound household observation rejects latent dependence", {
@@ -1265,7 +1255,7 @@ test_that("Independence proposal inherits the model location shift", {
 })
 
 test_that("Latent variables moving together sample their models", {
-  # no proposal declared: the two latents move jointly, `layer_1` on its log coordinate
+  # no proposal declared: latents move jointly, `layer_1` on its log coordinate
   # `hidden` reads `layer_1` as its mean, a ridge of width 0.1
   # a lost Jacobian draws `layer_1` from a gamma of shape 3, mean 1.5
   hh_fit <- data.frame(id = "m1", hh_id = "h1", status = 1, obs = 0) |>
@@ -1282,12 +1272,15 @@ test_that("Latent variables moving together sample their models", {
 })
 
 test_that("A latent bounded through a function of another moves alone", {
-  # `hidden` reads `layer_1` through `shifted`: moving them together biases `layer_1` to a mean above 3
+  # `hidden` reads `layer_1` through `shifted`:
+  # moving them together biases `layer_1` to a mean above 3
   hh_fit <- data.frame(id = "m1", hh_id = "h1", status = 1, obs = 0) |>
     new_housepi_model("test") |>
-    add_latent(layer_1 = list(model = "gamma", shape = 4, scale = 0.5),
-               shifted = list(func = layer_1 + 0),
-               hidden = list(model = "uniform", min = shifted, max = shifted + 1)) |>
+    add_latent(
+      layer_1 = list(model = "gamma", shape = 4, scale = 0.5),
+      shifted = list(func = layer_1 + 0),
+      hidden = list(model = "uniform", min = shifted, max = shifted + 1)
+    ) |>
     helper_flat_sink(loc = hidden) |>
     run_inference(steps = 40000L, adapt = 500L, thin = 1L, chains = 2L) |>
     suppressWarnings()
@@ -1378,7 +1371,7 @@ test_that("Draws requested where no latent is sampled are ignored", {
     new_housepi_model("test") |>
     add_latent("hidden", model = "uniform") |>
     helper_flat_sink(loc = hidden) |>
-    run_inference(steps = 5L, chains = 1L, adapt = 0L,
+    run_inference(steps = 5L, chains = 1L, adapt = 0L, thin = 1L,
                   id_draws = c("m1", "m2")) |>
     expect_warning("[Ii]gnored draws of non infected individual .m2.") |>
     suppressWarnings()
@@ -1386,7 +1379,8 @@ test_that("Draws requested where no latent is sampled are ignored", {
   # a model sampling no latent at all has nothing to trace
   mk_latent$model |>
     add_parameter(rho = list(prior = "uniform")) |>
-    run_inference(steps = 5L, chains = 1L, adapt = 0L, id_draws = "m1") |>
+    run_inference(steps = 5L, chains = 1L, adapt = 0L, thin = 1L,
+                  id_draws = "m1") |>
     expect_warning("[Ii]gnored.*id_draws.*no latent variables") |>
     suppressWarnings()
 })
@@ -1546,14 +1540,14 @@ test_that("A latent degenerate domain warns and collapses", {
     add_latent("hidden", model = "uniform", min = datum, max = datum_2,
                loc = 2) |>
     helper_flat_sink(loc = hidden)
-  # the short run also skips the convergence diagnostics
+  # 20 draws cap the ESS below 100, so the diagnostics warn too
   expect_warning(
     expect_warning(
       hh_fit <- hh_model |>
-        run_inference(steps = 400L, chains = 1L, adapt = 50L),
+        run_inference(steps = 20L, chains = 1L, adapt = 50L, thin = 1L),
       "[Cc]ollapsed .*latent .hidden. to constant"
     ),
-    "[Ss]ample size was below"
+    "ESS.*below 100 per chain"
   )
   draws <- as.data.frame(get_latent_draws(hh_fit))
   draws$m1_hidden |> expect_all_equal(3)
@@ -1580,7 +1574,7 @@ test_that("A latent degenerate domain warns and collapses", {
   unlist(lapply(simulated, `[[`, "hidden")) |> expect_all_equal(3)
 })
 
-test_that("Nested definitions works as expected", {
+test_that("Nested latents are sampled through their transformation", {
   hh_model <- new_housepi_model(model = "test") |>
     # define Box-Muller transformation
     add_latent(norm = list(model = "normal"),
@@ -1598,11 +1592,11 @@ test_that("Nested definitions works as expected", {
   # no parameters nor priors, only latent
   get_parameter_draws(hh_fit) |> expect_warning("[Ee]mpty draws")
   posterior::nvariables(get_latent_draws(hh_fit)) |>
-    expect_identical(dim(get_latent(hh_model))[1])
+    expect_identical(nrow(get_latent(hh_model)))
 
   # the S3 method of summarise_draws dispatches on the fit
   out_vars <- posterior::summarise_draws(hh_fit)[["variable"]]
-  startsWith(out_vars, "tommy") |> expect_all_true()
+  out_vars |> expect_match("^tommy")
 
   # empirical tests for goodness of Gaussian distribution
   probs <- c(0.025, 0.5, 0.975)
@@ -1668,18 +1662,24 @@ test_that("The latents of a member that declare no proposal move in a block", {
   sampler$moves$member |> expect_setequal(c("m1", "m2"))
   sampler$moves$name |> expect_setequal(c("hidden", "hidden_2"))
   sampler$moves$coord |> expect_all_equal("logit")
-  sampler$moves$block |> as.vector() |> sort() |> expect_identical(c(1L, 1L, 2L, 2L))
+  sampler$moves$block |>
+    as.vector() |>
+    sort() |>
+    expect_identical(c(1L, 1L, 2L, 2L))
   sampler$blocks$member |> expect_setequal(c("m1", "m2"))
   vapply(sampler$blocks$jump_cov, nrow, integer(1)) |> expect_all_equal(2L)
-  sampler$blocks$jump_cov[[1]] |> dim() |> expect_identical(c(2L, 2L))
-  sampler$blocks$jump_cov[[1]] |> rownames() |> expect_setequal(c("hidden", "hidden_2"))
+  sampler$blocks$jump_cov[[1]] |> expect_dim(c(2L, 2L))
+  sampler$blocks$jump_cov[[1]] |>
+    rownames() |>
+    expect_setequal(c("hidden", "hidden_2"))
 
   # a declared proposal moves alone
-  sampler <- run(hidden = list(model = "uniform", min = 0, max = 5, proposal = "rw"))
+  sampler <- run(hidden = list(model = "uniform", max = 5, proposal = "rw"))
   sampler$moves$block |> expect_all_na()
-  sampler$moves$proposal[sampler$moves$name == "hidden"] |> expect_all_equal("rw")
+  sampler$moves$proposal[sampler$moves$name == "hidden"] |>
+    expect_all_equal("rw")
   sampler$moves$proposal[sampler$moves$name == "hidden_2"] |> expect_all_na()
-  sampler$blocks |> nrow() |> expect_identical(0L)
+  sampler$blocks |> expect_nrow(0L)
 })
 
 test_that("Evaluating a model allocates its latent storage", {
@@ -1688,8 +1688,8 @@ test_that("Evaluating a model allocates its latent storage", {
     add_latent("hidden", model = "uniform")
   evaluate_log_lik(hh_model)
   augmented <- inspect_augmented_data(hh_model)
-  is.data.frame(augmented) |> expect_true()
-  ("hidden" %in% colnames(augmented)) |> expect_true()
+  augmented |> expect_s3_class("data.frame")
+  colnames(augmented) |> expect_contains("hidden")
 })
 
 ####  Observation end-to-end  ####
@@ -2067,16 +2067,13 @@ test_that("A column needed for every member is not drawn with infection", {
 })
 
 test_that("A model argument reading an empty cell names member and household", {
-  sms <- data.frame(hh_id = "h1", status = 1, datum = c(2, NA, 4),
-                    record = 0) |>
+  data.frame(hh_id = "h1", status = 1, datum = c(2, NA, 4), record = 0) |>
     new_housepi_model("test") |>
     add_observation(record = list(model = "normal", mean = datum + 1)) |>
     run_simulation() |>
-    tryCatch(error = conditionMessage)
-  sms |> expect_match("[Dd]ata .datum. has no value")
-  sms |> expect_match("observation .record. for\\s+individual\\s+.2.")
-  sms |> expect_match(".2.\\s+\\(status\\s+1\\)")
-  sms |> expect_match("\\(status\\s+1\\)\\s+for\\s+household\\s+.h1.")
+    expect_error(paste0("[Dd]ata .datum. has no value",
+                        ".*observation .record. for\\s+individual\\s+.2.",
+                        "\\s+\\(status\\s+1\\)\\s+for\\s+household\\s+.h1."))
 })
 
 test_that("Household observations aggregate a data column across members", {
@@ -2208,8 +2205,8 @@ test_that("Escaped label is configurable", {
     run_simulation()
 
   # weak transmission leaves escapees, labelled per the construction argument
-  ("healthy" %in% levels(simulated$status)) |> expect_true()
-  any(as.character(simulated$status) == "healthy") |> expect_true()
+  levels(simulated$status) |> expect_contains("healthy")
+  as.character(simulated$status) |> expect_contains("healthy")
 })
 
 test_that("Status-specific blocks alone cover every drawn status", {
@@ -2247,10 +2244,8 @@ test_that("Status-specific blocks alone cover every drawn status", {
     onset = list(func = infec_time + incub, status = 1),
     weights = c(0, 1)
   )
-  sms <- tryCatch(suppressWarnings(run_simulation(uncovered)),
-                  error = conditionMessage)
-  sms |> expect_match("status 2")
-  grepl("generic latent definition", sms) |> expect_false()
+  cnd <- suppressWarnings(run_simulation(uncovered)) |> expect_error("status 2")
+  conditionMessage(cnd) |> expect_no_match("generic latent definition")
 
   # a generic block on its own still serves every drawn status
   generic <- mk(

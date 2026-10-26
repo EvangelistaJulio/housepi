@@ -188,9 +188,9 @@ The draws come as [posterior](https://CRAN.R-project.org/package=posterior) obje
 #| label: run-inference
 # run the Monte Carlo specifying its settings (equal to default)
 hh_fit <- hh_model |>
-  run_inference(steps = 1000, # steps per chain, after adaptation
-                thin = 5,     # keep one step every five
-                adapt = 500,  # adaptation steps, run before `steps`
+  run_inference(steps = 2000, # steps per chain, after adaptation
+                thin = 10,    # keep one step every ten
+                adapt = 1000, # adaptation steps, run before `steps`
                 chains = 4,   # independent chains
                 threads = 1)  # parallel threads
 

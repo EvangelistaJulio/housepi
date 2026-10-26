@@ -88,6 +88,6 @@ test_that("Housepi defininition showcaser converts encoded defs to readable", {
                      stringsAsFactors = FALSE)
   result <- housepi_defin_showcaser(defs)
   result$func |> expect_identical("log")
-  ("func_args" %in% colnames(result)) |> expect_true()
+  colnames(result) |> expect_contains("func_args")
   result$min |> expect_equal(0)
 })

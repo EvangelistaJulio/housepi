@@ -28,7 +28,7 @@ One row per replicate and parameter
 ties split at random;}
 \item{rhat, ess_bulk}{Convergence diagnostics of the fit;}
 \item{flagged}{\code{TRUE} when the diagnostics flagged the parameter:
-Total sample size was below 400; R-hat > 1.05; Bulk Effective Sample Size (ESS) below 100 or 1\% of the draws,
+R-hat of 1.01 or more; Bulk or Tail Effective Sample Size (ESS) below 100 per chain,
 or when its bulk effective sample size is below \code{rank_draws}.}
 }}
 
@@ -95,9 +95,9 @@ Use \code{\link[=check_calibration]{check_calibration()}} instead of calling \ve
   houses = NA_integer_,
   structure_sampler = sample_house_structure,
   rank_draws = 99L,
-  steps = 1000L,
-  thin = 5L,
-  adapt = 500L,
+  steps = 2000L,
+  thin = 10L,
+  adapt = 1000L,
   chains = 4L,
   threads = 1L,
   progress = TRUE,

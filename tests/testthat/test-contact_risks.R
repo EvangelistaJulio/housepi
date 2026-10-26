@@ -138,7 +138,7 @@ test_that("Non-joint produces independent per-covariate tables", {
                      prior = "lognormal", sdlog = 1.) |>
     get_contact_risks()
 
-  length(unique(tidy$rule_group)) |> expect_identical(2L)
+  unique(tidy$rule_group) |> expect_length(2L)
 
   # all age pairs are observed: 2 x 2
   sum(tidy$rule_group == 1) |> expect_identical(4L)
@@ -178,13 +178,13 @@ test_that("Auto mode with two joint covariates behaves correctly", {
                      prior = "lognormal", sdlog = 1.) |>
     get_contact_risks()
 
-  # NOTE: 3 observed types: <child,M>, <child,F>, <adult,M>
+  # 3 observed types: <child,M>, <child,F>, <adult,M>
   # 7 observed pairs: 9 pairs - <child,M><child,F> - (<->)
   tidy |> expect_nrow(7L)
   unique(tidy$rule_group) |> expect_length(1L)
   sum(tidy$param_name == ".reference") |> expect_identical(1L)
 
-  # NOTE: symmetric pairs by default:
+  # symmetric pairs by default:
   # 3 heterogeneous: <child,M><child,F> <adult,M><child,F> <adult,M><child,M>
   # 1 homogeneous: <adult,M><adult,M> (reference)
   setdiff(unique(tidy$param_name), ".reference") |> expect_length(3L)
@@ -698,7 +698,7 @@ test_that("Contact risk definition work as expected", {
   # no contact risk defs -> empty matrix
   contact_risks <- inspect_state(hh_model, "h2")$contact_risks
   is.matrix(contact_risks) |> expect_true()
-  dim(contact_risks) |> expect_identical(c(0L, 0L))
+  contact_risks |> expect_dim(c(0L, 0L))
 
   # mutually exclusive strata
   strata <- tibble::tribble(
@@ -719,7 +719,7 @@ test_that("Contact risk definition work as expected", {
   # matrix is n x n with a null diagonal
   snapshot <- inspect_state(hh_model, "h2")
   n <- nrow(snapshot$data_wide)
-  dim(snapshot$contact_risks) |> expect_equal(c(n, n))
+  snapshot$contact_risks |> expect_dim(c(n, n))
   unname(diag(snapshot$contact_risks)) |> expect_equal(rep(0., n))
 
   # every off-diagonal cell resolves to the reference (1)
@@ -759,13 +759,11 @@ test_that("Contact risks raise an error for incompatible models", {
 test_that("A baseline moves with the contact risks coupled to it", {
   # the father-mother pair is the reference and every other pair shares one
   # risk, so the baseline and that risk trade off along a ridge
-  hh_data <- flu_2014_matsumoto[
-    flu_2014_matsumoto$hh_id %in% unique(flu_2014_matsumoto$hh_id)[1:1200], ]
-  strata <- tibble::tribble(
-    ~from_member, ~to_member, ~param_name,
-    "father",     "mother",   ".reference",
-    NA,           NA,         "ctr_rest"
-  )
+  mask <- flu_2014_matsumoto$hh_id %in% unique(flu_2014_matsumoto$hh_id)[1:1200]
+  hh_data <- flu_2014_matsumoto[mask, ]
+  strata <- tibble::tribble(~from_member, ~to_member, ~param_name,
+                            "father",     "mother",   ".reference",
+                            NA,           NA,         "ctr_rest")
   hh_model <- hh_data |>
     new_housepi_model("final-size") |>
     add_parameter(alpha = 0.01, gamma = 1, hh_size_ref = 5L,
@@ -816,15 +814,16 @@ test_that("A baseline moves with the contact risks coupled to it", {
   sampler <- inspect_state(hh_model_2)$.sampler
   sampler$moves$name |> expect_setequal(c("beta", "ctr_rest"))
   sampler$moves$block |> expect_identical(c(1L, 1L))
-  sampler$blocks |> nrow() |> expect_identical(1L)
+  sampler$blocks |> expect_nrow(1L)
   sampler$blocks$member |> expect_all_na()
   block_cor <- cov2cor(sampler$blocks$jump_cov[[1]])
   block_cor[1L, 2L] |> expect_lt(-0.8)
   # a declared proposal leaves no block, and says so
   sampler <- inspect_state(hh_model_3)$.sampler
   sampler$moves$block |> expect_all_na()
-  sampler$moves$proposal[sampler$moves$name == "ctr_rest"] |> expect_identical("rw_log")
-  sampler$blocks |> nrow() |> expect_identical(0L)
+  sampler$moves$proposal[sampler$moves$name == "ctr_rest"] |>
+    expect_identical("rw_log")
+  sampler$blocks |> expect_nrow(0L)
 })
 
 ####  Strata pins  ####
@@ -861,7 +860,7 @@ test_that("Infected members under different contact rules are kept apart", {
     expect_equal(ll, tolerance = 1e-4)
 
   # a member with another self-contact is not merged with the others
-  (abs(log_lik(hh_data, ff = 0.5) - ll) > 1e-2) |> expect_true()
+  abs(log_lik(hh_data, ff = 0.5) - ll) |> expect_gt(1e-2)
 })
 
 test_that("A contact strata const pins the stratum, with no prior", {

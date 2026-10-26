@@ -1,4 +1,4 @@
-# Nested definitions works as expected
+# Nested latents are sampled through their transformation
 
     Code
       print(hh_model)

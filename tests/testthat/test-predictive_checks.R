@@ -38,9 +38,7 @@ test_that("Measures require the columns they aggregate over", {
 
 test_that("Attack rate is averaged per household size", {
   # empty call: columns c(hh_size, ar)
-  measure_ar_by_hh_size(NULL) |>
-    dim() |>
-    expect_identical(c(0L, 2L))
+  measure_ar_by_hh_size(NULL) |> expect_dim(c(0L, 2L))
 
   result <- measure_ar_by_hh_size(mk_houses$data)
   result |> expect_named(c("hh_size", "ar"), ignore.order = TRUE)
@@ -52,9 +50,7 @@ test_that("Attack rate is averaged per household size", {
 
 test_that("Secondary attack rate is averaged per household size", {
   # empty call: columns c(hh_size, sar)
-  measure_sar_by_hh_size(NULL) |>
-    dim() |>
-    expect_identical(c(0L, 2L))
+  measure_sar_by_hh_size(NULL) |> expect_dim(c(0L, 2L))
 
   result <- measure_sar_by_hh_size(mk_houses$data)
   result |> expect_named(c("hh_size", "sar"), ignore.order = TRUE)
@@ -66,12 +62,10 @@ test_that("Secondary attack rate is averaged per household size", {
 
 test_that("Cases are tabulated on the complete household size grid", {
   # empty call: columns c(hh_size, 0)
-  measure_cases_by_hh_size(NULL) |>
-    dim() |>
-    expect_identical(c(0L, 2L))
+  measure_cases_by_hh_size(NULL) |> expect_dim(c(0L, 2L))
 
   result <- measure_cases_by_hh_size(mk_houses$data)
-  ("hh_size" %in% colnames(result)) |> expect_true()
+  colnames(result) |> expect_contains("hh_size")
   result$hh_size |> expect_setequal(c(2, 3))
 })
 
@@ -197,8 +191,7 @@ test_that("Replicate credible intervals bound each other", {
 
   # named vector path: all-NA returns NA
   ppc_frame_apply_cri(list(c(x = NA_real_), c(x = NA_real_)))[["x"]] |>
-    is.na() |>
-    expect_true()
+    expect_all_na()
 })
 
 test_that("Credible intervals are formatted on vectors and frames", {
@@ -236,7 +229,7 @@ test_that("Credible intervals are formatted on vectors and frames", {
     mean_frame, data.frame(a = c(0, 1), b = c(2, 3)), upper_frame
   )
   result |> expect_s3_class("data.frame")
-  dim(result) |> expect_identical(dim(mean_frame))
+  result |> expect_dim(dim(mean_frame))
 
   # mismatched data.frame dimensions
   format_credible_interval(mean_frame, data.frame(a = c(0)), upper_frame) |>
@@ -522,7 +515,7 @@ test_that("Without draws, the check draws parameters from their prior", {
   ppc_2$thin_ess |> expect_false()
 })
 
-test_that("Predicted cases by house size works as expected", {
+test_that("An epidemic predictive check formats counts per household size", {
   ppc <- check_predictive(mk_ppc$model, mk_ppc$fit) |>
     suppressWarnings()
   class(ppc)[1] |> expect_identical("HousepiEpiPredictiveCheck")

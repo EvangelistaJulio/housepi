@@ -6,9 +6,9 @@
 \usage{
 run_inference(
   hh_model,
-  steps = 1000L,
-  thin = 5L,
-  adapt = 500L,
+  steps = 2000L,
+  thin = 10L,
+  adapt = 1000L,
   chains = 4L,
   threads = 1L,
   id_draws = NA,
@@ -78,7 +78,7 @@ A parameter whose prior or bounds read another of them moves alone,
 as does a risk whose number of members or pairs is unknown.
 }
 \details{
-The run warns on any of: Total sample size was below 400; R-hat > 1.05; Bulk Effective Sample Size (ESS) below 100 or 1\% of the draws.
+The run warns on any of: R-hat of 1.01 or more; Bulk or Tail Effective Sample Size (ESS) below 100 per chain.
 R-hat and bulk ESS are the rank-normalized ones of
 \insertCite{vehtari_rank_normalization_2021;textual}{housepi}.
 }

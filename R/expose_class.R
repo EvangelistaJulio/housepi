@@ -1419,7 +1419,7 @@ inspect_state <- function(hh_model, hh_id = NULL) {
 #'   posterior::summarize_draws()
 #' @export
 run_inference <- function(hh_model,
-                          steps = 1000L, thin = 5L, adapt = 500L,
+                          steps = 2000L, thin = 10L, adapt = 1000L,
                           chains = 4L, threads = 1L,
                           id_draws = NA,
                           progress = TRUE,

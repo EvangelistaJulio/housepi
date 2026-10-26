@@ -8,4 +8,5 @@
         Chains: 1
         Parameters: 3
         Inference time: <secs>
+      ! Warning: 1 issue flagged, see `$warnings`.
 

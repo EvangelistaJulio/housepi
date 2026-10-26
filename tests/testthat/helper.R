@@ -63,6 +63,11 @@ expect_nrow <- function(object, n) {
   testthat::expect_identical(nrow(object), n)
 }
 
+# Expect dimensions of `object` identical to `d`.
+expect_dim <- function(object, d) {
+  testthat::expect_identical(dim(object), d)
+}
+
 # convert draws to data.frame
 draws_to_frame <- function(x) {
   as.data.frame(posterior::as_draws_matrix(x))

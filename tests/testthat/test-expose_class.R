@@ -166,7 +166,7 @@ test_that("Status probabilities import as a list or from the template", {
     hh_model <- add_status_process(mk_wrapper$model, import = "template"),
     "[Nn]o template status process definitions.*test model"
   )
-  nrow(get_status_process(hh_model)) |> expect_identical(0L)
+  get_status_process(hh_model) |> expect_nrow(0L)
 })
 
 test_that("A definition named like a single-mode argument is not dropped", {
@@ -321,7 +321,7 @@ test_that("Progress bar prints every `progress` seconds until interrupted", {
   # every line reports a percentage: the interrupted bar prints no closing line
   # interactive prints overwrite one line, each led by a carriage return
   bar <- grep("^sample [|]", unlist(strsplit(printed, "\r")), value = TRUE)
-  (length(bar) >= 2L) |> expect_true()
+  length(bar) |> expect_gte(2L)
   bar |> expect_match("%")
   # elapsed whole seconds before "<", one second apart
   secs <- as.integer(sub(".*% ([0-9]+)s<.*", "\\1", bar))
@@ -361,8 +361,7 @@ test_that("Group risk wrapper input branches", {
     expect_error("1 rule no member resolves to.*member = .unknown.")
 
   # append = FALSE drops the existing group risks
-  ("susceptibility" %in% get_group_risks(hh_model)[["group_risk"]]) |>
-    expect_true()
+  get_group_risks(hh_model)[["group_risk"]] |> expect_contains("susceptibility")
   hh_model |>
     add_group_risk(community = list(by = "member"), append = FALSE) |>
     get_group_risks() |>
@@ -393,7 +392,7 @@ test_that("Contact risk wrapper input branches", {
   get_contact_risks(mk_member$model) |> expect_nrow(0L)
   nrow(get_contact_risks(hh_model)) |> expect_gt(0L)
   # the rebuilt parameter is exposed on the returned model
-  ("ctr_student" %in% get_parameters(hh_model)$name) |> expect_true()
+  get_parameters(hh_model)$name |> expect_contains("ctr_student")
 
   # second call warns about overwrite
   hh_model |>

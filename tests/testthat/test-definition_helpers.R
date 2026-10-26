@@ -38,7 +38,7 @@ test_that("housepi_walk_definition handles recursive and terminal nodes", {
 
   # block-based definition
   result <- housepi_walk_definition("[alpha|A]:[beta|A]", "A")
-  ("alpha" %in% result || "beta" %in% result) |> expect_true()
+  result |> expect_setequal(c("alpha", "beta"))
 
   # NA / NULL / empty string return NULL
   housepi_walk_definition(NA, "A") |> expect_null()
@@ -47,6 +47,6 @@ test_that("housepi_walk_definition handles recursive and terminal nodes", {
 
   # deduplication
   result <- housepi_walk_definition("[alpha|A]:[alpha|A]", "A")
-  length(result) |> expect_identical(1L)
+  result |> expect_length(1L)
   result |> expect_identical("alpha")
 })

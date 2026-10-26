@@ -447,7 +447,7 @@ test_that("Parameter template import loads the shipped definitions", {
   # the test model carries no template at all: warn and add nothing
   expect_warning(
     hh_model <- add_parameter(mk_param$model, import = "template"),
-    regexp = "test model"
+    "test model"
   )
   get_parameters(hh_model) |> expect_nrow(0L)
 })

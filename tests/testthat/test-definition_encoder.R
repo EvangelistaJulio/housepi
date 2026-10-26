@@ -72,8 +72,7 @@ test_that("Resolution rewrites the unresolved terminals only", {
   # an empty dictionary settles nothing
   housepi_resolve_definition("alpha|?", character()) |>
     expect_identical("alpha|?")
-  is.na(housepi_resolve_definition(NA_character_, dict)) |>
-    expect_true()
+  housepi_resolve_definition(NA_character_, dict) |> expect_all_na()
 })
 
 test_that("Rlang parentheses are interpreted correctly", {

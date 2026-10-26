@@ -55,7 +55,7 @@ The data only lends its households to the simulated studies.
 # Rank the prior draws
 
 `check_calibration()` simulates each study on households drawn with replacement from the attached data by `sample_house_structure()`, as many as in Frederick.
-Each fit runs four chains of 1000 steps and keeps every fifth draw, as `run_inference()` does by default.
+Each fit runs with `run_inference()` default MCMC configuration.
 The drawn value is ranked among 99 draws thinned evenly from these 800:
 
 ```{r}
@@ -68,16 +68,9 @@ calibration
 calibration$overview
 ```
 
-```{r}
-#| label: calibration-cost
-#| include: false
-sweep_minutes <- with(calibration$overview, nrep * mean_inference_secs) / 60
-n_flagged <- calibration$overview$n_flagged
-```
-
-The `r calibration$nrep` fits took `r round(sweep_minutes, 1)` minutes on one thread.
 A rank is uniform only if the 99 draws it is taken among behave like independent ones.
-A parameter is flagged when its bulk effective sample size [@vehtari_rank_normalization_2021] falls below 99, or when its fit fails the convergence diagnostics: here `r n_flagged` of `r calibration$nrep` replicates were flagged.
+A parameter is flagged when its bulk effective sample size [@vehtari_rank_normalization_2021] falls below 99,
+or when its fit fails the convergence diagnostics: here `r calibration$overview$n_flagged` of `r calibration$nrep` replicates were flagged.
 
 The rank of every parameter in every replicate is stored in `calibration$estimates`.
 Uniform ranks fill each bin of ten ranks with about `r calibration$nrep / 10` replicates:

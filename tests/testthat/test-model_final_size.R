@@ -133,7 +133,7 @@ build_house_model <- function(house, par, groups, contacts) {
   new_housepi_model(house, "final-size") |>
     add_group_risk(import = groups) |>
     add_contact_risk(import = contacts) |>
-    # FIXME: this overwrites group risk parameters, opaque to user and risky
+    # UPDATE: this overwrites group risk parameters, opaque to user and risky
     add_parameter(import = par, append = FALSE)
 }
 
@@ -239,8 +239,7 @@ test_that("A household with too many risk partitions to evaluate is refused", {
   # many members in few risk partitions are not refused
   build_strata_model(c(9, 8)) |>
     evaluate_log_lik() |>
-    is.finite() |>
-    expect_true()
+    expect_all_finite()
 })
 
 ####  Log-likelihood  ####
@@ -433,8 +432,7 @@ test_that("Infection rates below the machine epsilon keep their probability", {
   hh_model |>
     add_group_risk("susceptibility", by = "age", reference = ".auto") |>
     evaluate_log_lik() |>
-    is.finite() |>
-    expect_false()
+    expect_identical(-Inf)
 })
 
 test_that("Chain binomial raises if the log-likelihood is not a number", {

@@ -215,7 +215,7 @@ test_that("Household snapshot reads before any definition is pushed", {
     "data_wide", "parameters", "group_risks", "contact_risks", "latent",
     "latent_log_lik", "observation_log_lik", "transmission_log_lik"
   )
-  names(snapshot) |> expect_identical(field_names)
+  snapshot |> expect_named(field_names)
 
   for (f in c("parameters", "group_risks", "latent",
               "latent_log_lik", "observation_log_lik")) {
@@ -259,9 +259,7 @@ test_that("Household snapshot reports a household once it is evaluated", {
 
   # each evaluation starts afresh from the definitions
   evaluate_log_lik(hh_model, "h1")
-  inspect_state(hh_model, "h1")$transmission_log_lik |>
-    is.finite() |>
-    expect_true()
+  inspect_state(hh_model, "h1")$transmission_log_lik |> expect_all_finite()
   expect_unevaluated(hh_model, "h2")
 
   # every household evaluated
@@ -279,7 +277,7 @@ test_that("Household snapshot reports a household once it is evaluated", {
   hh_model_3 <- new_housepi_model(dummy_household, "test")
   evaluate_log_lik(hh_model_3)
   snapshot <- inspect_state(hh_model_3, "house")
-  snapshot$transmission_log_lik |> is.finite() |> expect_true()
+  snapshot$transmission_log_lik |> expect_all_finite()
   snapshot$model_quantities |> expect_null()
 })
 
@@ -317,7 +315,7 @@ test_that("Data long format is correctly handled", {
     expect_s3_class("data.frame")
 })
 
-test_that("inspect_state reads the parameters and the sampler without a household", {
+test_that("inspect_state reads parameters and sampler", {
   hh_model <- data.frame(hh_id = c(1, 1, 2, 2), status = c(1, 0, 1, 1)) |>
     new_housepi_model("final-size") |>
     add_parameter(import = "template")
@@ -334,10 +332,12 @@ test_that("inspect_state reads the parameters and the sampler without a househol
   state$.sampler$moves$block |> expect_all_na()
   (state$.sampler$moves$scale > 0) |> expect_all_true()
   state$.sampler$moves$member |> expect_all_na()
-  state$.sampler$blocks |> nrow() |> expect_identical(0L)
+  state$.sampler$blocks |> expect_nrow(0L)
 
   # a household adds its own entries, the sampler last
-  inspect_state(hh_model, 1) |> names() |> tail(2L) |>
+  inspect_state(hh_model, 1) |>
+    names() |>
+    tail(2L) |>
     expect_identical(c("model_quantities", ".sampler"))
 
   # a household is one identifier, or NULL
@@ -345,7 +345,7 @@ test_that("inspect_state reads the parameters and the sampler without a househol
   hh_model |> inspect_state(c(1, 2)) |> expect_error("single household ID")
 })
 
-test_that("Print behavior works as expected", {
+test_that("A model prints with and without data and parameters", {
   # 'test' model
   print(new_housepi_model(model = "test")) |>
     expect_snapshot()
@@ -523,7 +523,7 @@ test_that("Posterior memory is checked against R's vector limit", {
   limit <- mem.maxVSize()
   withr::defer(mem.maxVSize(limit))
   mem.maxVSize(1e9)
-  expect_equal(mem.maxVSize(), 1e9)
+  mem.maxVSize() |> expect_equal(1e9)
   mk_frederick$template |>
     run_inference(steps = 1e15, chains = 1L) |>
     expect_error("[Pp]osterior draws would exceed R.s memory limit")
@@ -585,12 +585,14 @@ test_that("id_draws selections are resolved before the run", {
     helper_flat_sink(loc = hidden)
 
   hh_model |>
-    run_inference(steps = 5L, chains = 1L, id_draws = list(member = "m1")) |>
+    run_inference(steps = 5L, chains = 1L, thin = 1L,
+                  id_draws = list(member = "m1")) |>
     expect_error("[Uu]nknown .id_draws. name.*member")
 
   # NULL stores no latent draw
   hh_model |>
-    run_inference(steps = 5L, chains = 1L, adapt = 0L, id_draws = NULL) |>
+    run_inference(steps = 5L, chains = 1L, adapt = 0L, thin = 1L,
+                  id_draws = NULL) |>
     suppressWarnings() |>
     get_latent_draws() |>
     suppressWarnings() |>
@@ -599,7 +601,8 @@ test_that("id_draws selections are resolved before the run", {
 
   # NA, the default, follows a household
   hh_model |>
-    run_inference(steps = 5L, chains = 1L, adapt = 0L, id_draws = NA) |>
+    run_inference(steps = 5L, chains = 1L, adapt = 0L, thin = 1L,
+                  id_draws = NA) |>
     suppressWarnings() |>
     get_latent_draws() |>
     suppressWarnings() |>
@@ -745,7 +748,7 @@ test_that("A simulation with a reporting process is reproducible", {
       \(x) dplyr::mutate(dplyr::rowwise(x), flag = runif(1))
     )
   simulated <- withr::with_seed(1, run_simulation(hh_model))
-  ("flag" %in% colnames(simulated)) |> expect_true()
+  colnames(simulated) |> expect_contains("flag")
   withr::with_seed(1, run_simulation(hh_model)) |>
     expect_identical(simulated)
 })

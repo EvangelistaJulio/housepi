@@ -266,7 +266,7 @@ HousepiRecoveryCheck <- R6::R6Class(
     initialize = function(hh_model, draws = NULL,
                           nrep = 50L, houses = NA_integer_,
                           structure_sampler = sample_house_structure,
-                          steps = 1000L, thin = 5L, adapt = 500L,
+                          steps = 2000L, thin = 10L, adapt = 1000L,
                           chains = 4L, threads = 1L,
                           progress = TRUE, ...) {
       nrep <- assert_count_(nrep, "Number of replicates")
@@ -363,7 +363,7 @@ check_recovery <- function(hh_model,
                            nrep = 50L,
                            houses = NA_integer_,
                            structure_sampler = sample_house_structure,
-                           steps = 1000L, thin = 5L, adapt = 500L,
+                           steps = 2000L, thin = 10L, adapt = 1000L,
                            chains = 4L, threads = 1L,
                            progress = TRUE,
                            ...) {

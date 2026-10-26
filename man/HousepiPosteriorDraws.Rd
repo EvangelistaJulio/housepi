@@ -51,7 +51,7 @@ recorded whether or not they were reported, and counted by the print.
 \item{count}{Times it was raised.}
 }
 They hold the convergence diagnostics the run flagged.
-Per-variable R-hat and Bulk ESS behind a flag
+Per-variable R-hat, Bulk and Tail ESS behind a flag
 are read from \code{\link[=summarise_draws]{summarise_draws()}}.}
 
     \item{\code{inference_secs}}{\code{numeric(1)}

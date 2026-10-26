@@ -168,7 +168,7 @@ test_that("Constant arguments and bounds are checked at definition", {
 
 test_that("set_source_name_ assigns names to vector", {
   result <- set_source_name_(c("a", "b"), "param")
-  names(result) |> expect_identical(c("param", "param"))
+  result |> expect_named(c("param", "param"))
   unname(result) |> expect_identical(c("a", "b"))
 
   # NULL input: returns NULL

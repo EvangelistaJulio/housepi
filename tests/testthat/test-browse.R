@@ -352,8 +352,8 @@ test_that("Arithmetic kernels have no log surface", {
                             discrete = discrete, x = x)
   }
   fold <- c(3.3, 5.5, 6.6)
-  # NOTE: avoid half-values: C++ std::round uses round-half-away-from-zero
-  # while R's round() uses round-half-to-even (crazy...)
+  # no half-values: C++ std::round rounds half away from zero,
+  # R's round() rounds half to even
   x_step <- c(-3, -2.7, -1.3, -1, -0.3, 0, 0.4, 1.3, 2.7, 4)
 
   arith("minus", list(), \(x) -x)
@@ -603,9 +603,9 @@ test_that("Gamma and lognormal accept a mean/sd parametrization", {
   for (name in names(canonical)) {
     d_can <- do.call(browse_distributions, c(list(name), canonical[[name]]))
     d_alt <- browse_distributions(name, mean = m, sd = s)
-    d_alt$pdf(x) |> expect_equal(d_can$pdf(x), info = name)
-    d_alt$cdf(x) |> expect_equal(d_can$cdf(x), info = name)
-    d_alt$log_pdf(x) |> expect_equal(d_can$log_pdf(x), info = name)
+    d_alt$pdf(x) |> expect_equal(d_can$pdf(x))
+    d_alt$cdf(x) |> expect_equal(d_can$cdf(x))
+    d_alt$log_pdf(x) |> expect_equal(d_can$log_pdf(x))
   }
 })
 
@@ -843,7 +843,7 @@ test_that("quantile matches R reference for standard distributions", {
   for (case in cases) {
     distr <- do.call(browse_distributions, c(case[1], case[[2]]))
     ref <- stats_ref("q", case[[3]], case[[if (length(case) == 4) 4 else 2]])
-    distr$quantile(p) |> expect_equal(ref(p), info = case[[1]])
+    distr$quantile(p) |> expect_equal(ref(p))
   }
 })
 
@@ -867,12 +867,9 @@ test_that("quantile is truncation-aware", {
   )
   for (case in cases) {
     distr <- do.call(browse_distributions, case$args)
-    distr$quantile(p) |>
-      expect_equal(case$ref(p), tolerance = 1e-10, info = case$args[[1]])
-    all(distr$quantile(p) >= max(-Inf, case$args$min)) |>
-      expect_true(info = paste(case$args[[1]], "above min"))
-    all(distr$quantile(p) <= min(Inf, case$args$max)) |>
-      expect_true(info = paste(case$args[[1]], "below max"))
+    distr$quantile(p) |> expect_equal(case$ref(p), tolerance = 1e-10)
+    (distr$quantile(p) >= max(-Inf, case$args$min)) |> expect_all_true()
+    (distr$quantile(p) <= min(Inf, case$args$max)) |> expect_all_true()
   }
 })
 
@@ -915,16 +912,15 @@ test_that("rand() is reproducible and plausible for all distributions", {
   )
   for (cc in cases) {
     d <- do.call(browse_distributions, cc$args)
-    nm <- cc$args[[1]]
     set.seed(42L)
     x1 <- d$rand(50L)
     set.seed(42L)
-    d$rand(50L) |> expect_identical(x1, info = nm)
+    d$rand(50L) |> expect_identical(x1)
     big <- d$rand(2000L)
-    all(big >= 0) |> expect_true(info = nm)
-    if (cc$int) all(big == floor(big)) |> expect_true(info = nm)
-    if (!is.null(cc$max)) all(big <= cc$max) |> expect_true(info = nm)
-    mean(big) |> expect_equal(cc$mean, tolerance = 0.15, info = nm)
+    (big >= 0) |> expect_all_true()
+    if (cc$int) (big == floor(big)) |> expect_all_true()
+    if (!is.null(cc$max)) (big <= cc$max) |> expect_all_true()
+    mean(big) |> expect_equal(cc$mean, tolerance = 0.15)
   }
 })
 
