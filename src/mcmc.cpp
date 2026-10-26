@@ -138,7 +138,7 @@ namespace housepi
                                                  const Household *house_ptr) const
     {
         std::unique_ptr<Function> func = registry::create_function(
-            node.func, ErrType::Function, registry::func_distr_kinds(false));
+            node.func, ErrType::Function, registry::func_distr_search_order(false));
         if (is_house_fold(node, house_ptr))
             func->set_eval_as_fold();
 

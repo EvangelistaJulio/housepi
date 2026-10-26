@@ -809,7 +809,7 @@ test_that("Level is set per definition, the argument being the bulk default", {
   # an unknown level is rejected per definition
   mk_latent$model |>
     add_observation(record_2 = list(func = 1, level = "unknown")) |>
-    expect_error("should be one of")
+    expect_error("[Uu]nknown .level. .unknown")
 
   # 'level' is meaningless outside observations
   mk_latent$model |>
@@ -2072,8 +2072,9 @@ test_that("A model argument reading an empty cell names member and household", {
     add_observation(record = list(model = "normal", mean = datum + 1)) |>
     run_simulation() |>
     expect_error(paste0("[Dd]ata .datum. has no value",
+                        ".*for\\s+household\\s+.h1.",
                         ".*observation .record. for\\s+individual\\s+.2.",
-                        "\\s+\\(status\\s+1\\)\\s+for\\s+household\\s+.h1."))
+                        "\\s+\\(status\\s+1\\)"))
 })
 
 test_that("Household observations aggregate a data column across members", {

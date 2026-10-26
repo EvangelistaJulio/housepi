@@ -70,6 +70,14 @@ test_that("Compile flags are validated against model source", {
     expect_error("discrete time")
 })
 
+test_that("Unknown or partial compile options are refused", {
+  new_housepi_model(model = "test", typo_option = 42) |>
+    expect_error("[Uu]nexpected argument.*typo_option")
+  # a prefix of `discr` is not read as `discr`
+  new_housepi_model(model = "test", discrete = TRUE) |>
+    expect_error("[Uu]nexpected argument.*discrete")
+})
+
 test_that("as_template is refused for a built-in template", {
   expect_warning(
     hh_model <- new_housepi_model(model = "test", as_template = TRUE),

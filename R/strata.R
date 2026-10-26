@@ -46,7 +46,8 @@ assert_data_covariates <- function(covariates, headers) {
   missing <- setdiff(covariates, headers)
   if (length(missing)) stop_h(
     "Unknown covariate{?s}: {.field {missing}}.",
-    "Check your data headers."
+    find_closest_match(unlist(missing), headers,
+                       otherwise = "Check your data headers.")
   )
 }
 

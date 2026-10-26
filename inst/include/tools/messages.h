@@ -76,17 +76,27 @@ namespace housepi::msg
     inline std::string val(const std::string &x) { return "{.val " + x + "}"; }
     inline std::string field(const std::string &x) { return "{.field " + x + "}"; }
     inline std::string code(const std::string &x) { return "{.code " + x + "}"; }
+    /// Show housepi call `call`, run on click.
+    inline std::string run(const std::string &call) { return "{.run [" + call + "](housepi::" + call + ")}"; }
+    /// Show `?topic`, opening the housepi help page on click.
+    inline std::string help(const std::string &topic)
+    {
+        return "{.run [?" + topic + "](utils::help(\"" + topic + "\", \"housepi\"))}";
+    }
     /// Tag a message line as an alert bullet (`!`) instead of the default hint.
     inline std::string alert(const std::string &x) { return "\x1F!" + x; }
     /// Set the cli pluralization count of a following `{?singular/plural}`.
     template <class T>
     inline std::string qty(const T &v) { return "{cli::qty(" + std::to_string(v.size()) + ")}"; }
 
-    /// Append context `ctx` to the last sentence of message `what`.
+    /// Append context `ctx` to the first line of message `what`, ahead of its hint lines.
     inline std::string join(std::string what, const std::string &ctx)
     {
-        if (!what.empty() && what.back() == '.')
-            what.back() = ' ';
-        return what + ctx + ".";
+        size_t end = what.find('\n');
+        if (end == std::string::npos)
+            end = what.size();
+        if (end > 0 && what[end - 1] == '.')
+            what.erase(--end, 1);
+        return what.insert(end, " " + ctx + ".");
     }
 }

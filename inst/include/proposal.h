@@ -112,7 +112,7 @@ namespace housepi
             : distr_(registry::create_distribution(
                   distr_name,
                   ErrType::Proposal,
-                  registry::distr_kinds(prior->is_discretized()))),
+                  registry::distr_search_order(prior->is_discretized()))),
               prior_(prior)
         {
             for (const auto &[key, attr] : args)
@@ -239,7 +239,7 @@ namespace housepi
             : distr_(registry::create_distribution(
                   distr_name,
                   ErrType::Proposal,
-                  registry::distr_kinds(is_discr)))
+                  registry::distr_search_order(is_discr)))
         {
             is_adaptive_ = na::is(scale);
             distr_->reshape(is_discr);
@@ -508,6 +508,12 @@ namespace housepi
         return name == RndWalkProposal::NAME ||
                name == RndWalkProposal::LOG_NAME ||
                name == RndWalkUnifProposal::NAME;
+    }
+
+    /// Names a declared proposal takes besides a distribution name.
+    inline std::vector<std::string> kernel_names()
+    {
+        return {ForwardProposal::NAME, RndWalkProposal::NAME, RndWalkProposal::LOG_NAME, RndWalkUnifProposal::NAME};
     }
 
     /// Whether declared proposal `prop` may adapt its scale on a variable it builds.

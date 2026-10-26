@@ -345,11 +345,9 @@ namespace housepi::str
 
     std::string find_closest(std::string_view input,
                              const std::vector<std::string> &options,
+                             std::string_view otherwise,
                              size_t min_dist)
     {
-        if (options.empty())
-            return "";
-
         std::string closest = "";
         // shorter inputs tolerate fewer edits
         size_t dist_closest = std::min(min_dist, input.size() / 2);
@@ -365,12 +363,9 @@ namespace housepi::str
                 }
             }
 
-        // prepare a message
         if (!closest.empty())
             return "\nDid you mean " + msg::val(closest) + "?";
-        if (options.size() == 1)
-            return "\nAvailable option is " + format(options);
-        return "\nAvailable options are: " + format(options);
+        return "\n" + std::string(otherwise);
     }
 
     //////  List parsers  //////

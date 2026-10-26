@@ -301,6 +301,14 @@ test_that("Function arguments are validated", {
     expect_error("Unnamed argument")
   browse_functions("pow", x2 = 5, y2 = 3) |>
     expect_error("Unused argument.*y2.*[Dd]id you mean")
+  # no close argument points to the call showing them
+  browse_functions("pow", x2 = 5, unrelated = 3) |>
+    expect_error("Unused argument.*unrelated.*browse_functions..pow")
+  # no close name points to the registry browser
+  browse_functions("unrelated") |>
+    expect_error("[Uu]nknown function.*browse_functions")
+  browse_distributions("unrelated") |>
+    expect_error("[Uu]nknown distribution.*browse_distributions")
   browse_functions("pow", discr = TRUE)$func(x) |>
     expect_error("undefined method")
   # a minimum below the domain of the function

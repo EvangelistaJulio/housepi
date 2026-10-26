@@ -95,33 +95,54 @@ namespace housepi
         /// Defined in source, so every DLL shares one instance.
         RegFunctions &instance(Kind kind);
 
-        /// Distribution registries in lookup order.
+        /// Registries searched for a name, in order: the first carrying it wins.
+        struct SearchOrder
+        {
+            std::vector<Kind> kinds; /// Registries, in search order.
+
+            auto begin() const { return kinds.begin(); }
+            auto end() const { return kinds.end(); }
+
+            /// Whether some registry carries `name`.
+            bool contains(std::string_view name) const;
+            /// List the names registered, in order of first appearance.
+            std::vector<std::string> names() const;
+        };
+
+        /// Distribution registries.
         /// * name in both registries -> the discrete one when `discr`.
-        std::vector<Kind> distr_kinds(bool discr);
-        /// Deterministic function registries in lookup order.
-        std::vector<Kind> func_kinds();
-        /// Function, distribution and infectivity-profile registries in lookup order.
+        SearchOrder distr_search_order(bool discr);
+        /// Deterministic function registries.
+        SearchOrder func_search_order();
+        /// Function, distribution and infectivity-profile registries.
         /// * name in both distribution registries -> the discrete one when `discr`.
-        std::vector<Kind> func_distr_kinds(bool discr);
+        SearchOrder func_distr_search_order(bool discr);
+        /// Infectivity-profile registry, then the distribution registries.
+        /// * name in both distribution registries -> the discrete one when `discr`.
+        SearchOrder infec_profile_search_order(bool discr);
 
         /// Create a function from the first registry carrying the name.
-        /// An NA name carries no definition and yields a null pointer.
+        /// * no registry carries it -> error suggesting the closest registered name.
+        /// @param flag Evaluation flag passed to the registry: primitive for a function, cumulative for a distribution.
         std::unique_ptr<Function> create_function(
             std::string_view name,
             ErrType err_type,
-            const std::vector<Kind> &kinds,
-            bool is_prim = false);
+            const SearchOrder &order,
+            bool flag = false);
 
-        /// Create a distribution from the first kind carrying the name.
+        /// Create a distribution from the first registry carrying the name.
         /// An NA name carries no definition and yields a null pointer.
+        /// @param order Distribution registries only, as the distribution and profile search orders hold.
         std::unique_ptr<Distribution> create_distribution(
             std::string_view name,
             ErrType err_type,
-            const std::vector<Kind> &kinds,
+            const SearchOrder &order,
             bool is_cumul = false);
 
-        /// List the names registered across the given kinds.
-        std::vector<std::string> list_names(const std::vector<Kind> &kinds);
+        /// Clickable R call showing registered entry `name` and its arguments.
+        /// * profile or distribution -> the browser of its registry;
+        /// * any other name -> `browse_functions()`.
+        std::string browse_call(std::string_view name);
     }
 }
 

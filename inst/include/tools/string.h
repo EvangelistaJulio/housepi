@@ -43,11 +43,12 @@ namespace housepi::str
     /// Return distinct entries of `v`, in order of first appearance.
     std::vector<std::string> unique(const std::vector<std::string> &v);
 
-    /// Find the closest match, or list the options when none is close enough.
+    /// Suggest the closest option as a hint line.
     /// The accepted distance is capped by half the length of the input.
-    /// @todo Reconsider listing every option when no match is close.
+    /// * no option close enough -> `otherwise`, naming where the options are shown.
     std::string find_closest(std::string_view input,
                              const std::vector<std::string> &options,
+                             std::string_view otherwise,
                              size_t min_dist = MIN_DIST);
 
     /// Remove quotes and line breaks.

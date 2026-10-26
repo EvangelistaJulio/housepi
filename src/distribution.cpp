@@ -35,7 +35,6 @@ using discrete_up_policy = boost::math::policies::policy<
 #include "tools/math.h"
 #include "tools/messages.h"
 #include "tools/string.h"
-#include "tools/vector.h"
 
 #include "distribution.h"
 #include "registry.h"
@@ -62,40 +61,15 @@ namespace housepi
             return output;
         }
 
-        namespace
-        {
-            /// Resolve a kind to its singleton registry.
-            /// Kinds holding plain functions are rejected.
-            const RegDistributions &distr_instance_(Kind kind,
-                                                    ErrType err_type)
-            {
-                if (!is_distribution_kind(kind))
-                    msg::stop("Registry does not hold " + str::format(err_type) + " objects.");
-                return static_cast<const RegDistributions &>(instance(kind));
-            }
-        }
-
         std::unique_ptr<Distribution> create_distribution(std::string_view name,
                                                           ErrType err_type,
-                                                          const std::vector<Kind> &kinds,
+                                                          const SearchOrder &order,
                                                           bool is_cumul)
         {
             if (na::is(name))
                 return nullptr;
-
-            std::vector<std::string> options = {};
-            for (Kind kind : kinds)
-            {
-                const RegDistributions &reg = distr_instance_(kind, err_type);
-                if (auto output = reg.create(name, is_cumul))
-                    return std::unique_ptr<Distribution>(
-                        static_cast<Distribution *>(output.release()));
-                vect::append(options, reg.names());
-            }
-
-            msg::stop(
-                "Unknown " + str::format(err_type) + " " + msg::val(std::string(name)) + "." +
-                str::find_closest(name, options));
+            return std::unique_ptr<Distribution>(
+                static_cast<Distribution *>(create_function(name, err_type, order, is_cumul).release()));
         }
     }
 }

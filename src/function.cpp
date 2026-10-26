@@ -489,7 +489,7 @@ namespace housepi
         vect::append(options, {"loc", "min", "max", "x"});
         msg::stop(
             "Unused argument " + msg::arg(std::string(key)) + " in " + str() + "." +
-            str::find_closest(key, options));
+            str::find_closest(key, options, "Show its arguments with " + registry::browse_call(name()) + "."));
     }
 
     Attribute &Function::append_arg_(std::string_view key)
@@ -834,35 +834,90 @@ namespace housepi
             }
         }
 
-        std::vector<Kind> distr_kinds(bool discr)
+        //////  SearchOrder  //////
+
+        bool SearchOrder::contains(std::string_view name) const
         {
-            return discr ? std::vector<Kind>{Kind::Discrete, Kind::Continuous}
-                         : std::vector<Kind>{Kind::Continuous, Kind::Discrete};
+            return std::any_of(begin(), end(), [&](Kind kind)
+                               { return instance(kind).contains(name); });
         }
-        std::vector<Kind> func_kinds()
+        std::vector<std::string> SearchOrder::names() const
         {
-            return {Kind::Custom, Kind::Transcendental, Kind::Arithmetic};
-        }
-        std::vector<Kind> func_distr_kinds(bool discr)
-        {
-            return discr ? std::vector<Kind>{Kind::Custom, Kind::Transcendental, Kind::Arithmetic,
-                                             Kind::Discrete, Kind::Continuous, Kind::InfecProfile}
-                         : std::vector<Kind>{Kind::Custom, Kind::Transcendental, Kind::Arithmetic,
-                                             Kind::Continuous, Kind::Discrete, Kind::InfecProfile};
+            std::vector<std::string> out = {};
+            for (Kind kind : kinds)
+                vect::append(out, instance(kind).names());
+            return str::unique(out);
         }
 
-        std::vector<std::string> list_names(const std::vector<Kind> &kinds)
+        SearchOrder distr_search_order(bool discr)
         {
-            std::vector<std::string> options = {};
-            for (Kind kind : kinds)
-                vect::append(options, instance(kind).names());
-            return str::unique(options);
+            return {discr ? std::vector<Kind>{Kind::Discrete, Kind::Continuous}
+                          : std::vector<Kind>{Kind::Continuous, Kind::Discrete}};
+        }
+        SearchOrder func_search_order()
+        {
+            return {{Kind::Custom, Kind::Transcendental, Kind::Arithmetic}};
+        }
+        SearchOrder func_distr_search_order(bool discr)
+        {
+            return {vect::concatenate(vect::concatenate(func_search_order().kinds, distr_search_order(discr).kinds),
+                                      {Kind::InfecProfile})};
+        }
+        SearchOrder infec_profile_search_order(bool discr)
+        {
+            return {vect::concatenate({Kind::InfecProfile}, distr_search_order(discr).kinds)};
+        }
+
+        namespace
+        {
+            /// R function showing the names `kind` registers.
+            std::string browser_(Kind kind)
+            {
+                switch (kind)
+                {
+                case Kind::Custom:
+                case Kind::Arithmetic:
+                case Kind::Transcendental:
+                    return "browse_functions";
+                case Kind::Continuous:
+                case Kind::Discrete:
+                    return "browse_distributions";
+                default: // case Kind::InfecProfile
+                    return "browse_infectivity_profiles";
+                }
+            }
+
+            /// Hint naming the R functions that show the names `order` registers.
+            std::string browse_hint_(const SearchOrder &order)
+            {
+                std::vector<std::string> fns;
+                for (Kind kind : order)
+                    fns.push_back(browser_(kind));
+                fns = str::unique(fns);
+
+                std::string out = "Show the available names with " + msg::run(fns[0] + "()");
+                for (size_t i = 1; i < fns.size(); ++i)
+                    out += (i + 1 < fns.size() ? ", " : " and ") + msg::run(fns[i] + "()");
+                return out + ".";
+            }
+        }
+
+        std::string browse_call(std::string_view name)
+        {
+            std::string browser = browser_(Kind::Custom);
+            for (Kind kind : {Kind::InfecProfile, Kind::Continuous, Kind::Discrete})
+                if (instance(kind).contains(name))
+                {
+                    browser = browser_(kind);
+                    break;
+                }
+            return msg::run(browser + "(\"" + std::string(name) + "\")");
         }
 
         std::unique_ptr<Function> create_function(std::string_view name,
                                                   ErrType err_type,
-                                                  const std::vector<Kind> &kinds,
-                                                  bool is_prim)
+                                                  const SearchOrder &order,
+                                                  bool flag)
         {
             // an operator builds the function it spells
             if (name == "+")
@@ -870,13 +925,13 @@ namespace housepi
             if (name == "*")
                 name = "prod";
 
-            for (Kind kind : kinds)
-                if (auto output = instance(kind).create(name, is_prim))
+            for (Kind kind : order)
+                if (auto output = instance(kind).create(name, flag))
                     return output;
 
             msg::stop(
                 "Unknown " + str::format(err_type) + " " + msg::val(std::string(name)) + "." +
-                str::find_closest(name, list_names(kinds)));
+                str::find_closest(name, order.names(), browse_hint_(order)));
         }
     }
 }

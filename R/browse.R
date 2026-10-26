@@ -380,6 +380,12 @@ get_template_dir <- function(x) {
   NA_character_
 }
 
+# Hint pointing to the template listing.
+browse_templates_hint_ <- paste(
+  "Show the available templates with",
+  "{.run [browse_templates()](housepi::browse_templates())}."
+)
+
 #' Suggest the closest template name to a mistyped `x`, as "did you mean".
 #' @noRd
 find_closest_template_name <- function(x) {
@@ -388,8 +394,8 @@ find_closest_template_name <- function(x) {
   flat_options <- spaced_choice(options)
   # no suggestion for trivial mistakes
   sms <- find_closest_match(flat_choice, flat_options)
-  if (endsWith(sms, "?") && nchar(flat_choice) > 3) return(sms)
-  c("Show available templates calling {.fn browse_templates}.")
+  if (length(sms) && nchar(flat_choice) > 3) return(sms)
+  browse_templates_hint_
 }
 
 #' Show the names of the available template models.

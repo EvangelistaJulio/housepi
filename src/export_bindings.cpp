@@ -218,8 +218,8 @@ namespace housepi
 
             ExposeBase(std::string name,
                        ErrType family,
-                       std::vector<registry::Kind> reg_kinds)
-                : ptr_(registry::create_function(name, family, reg_kinds, false)),
+                       const registry::SearchOrder &order)
+                : ptr_(registry::create_function(name, family, order, false)),
                   family_(family) {}
             virtual ~ExposeBase() = default;
 
@@ -341,10 +341,10 @@ namespace housepi
         {
         public:
             static ErrType family() { return ErrType::Function; }
-            static std::vector<registry::Kind> reg_kinds() { return registry::func_kinds(); }
+            static registry::SearchOrder search_order() { return registry::func_search_order(); }
 
             ExposeFunction(std::string name, bool /*discr*/)
-                : ExposeBase(std::move(name), family(), reg_kinds()) {}
+                : ExposeBase(std::move(name), family(), search_order()) {}
 
             MAKE_EXPOSE_METHOD_CALL(func, ptr_->func(v))
             MAKE_EXPOSE_METHOD_CALL(log_func, ptr_->log_func(v))
@@ -355,13 +355,13 @@ namespace housepi
         {
         public:
             static ErrType family() { return ErrType::Distribution; }
-            static std::vector<registry::Kind> reg_kinds(bool discr = false)
+            static registry::SearchOrder search_order(bool discr = false)
             {
-                return registry::distr_kinds(discr);
+                return registry::distr_search_order(discr);
             }
 
             ExposeDistribution(std::string name, bool discr)
-                : ExposeBase(std::move(name), family(), reg_kinds(discr)) {}
+                : ExposeBase(std::move(name), family(), search_order(discr)) {}
 
             bool is_discrete() const override final { return distr_()->support().on_integers(); }
             bool is_positive() const override final { return distr_()->support().is_positive(); }
@@ -408,15 +408,13 @@ namespace housepi
         {
         public:
             static ErrType family() { return ErrType::InfecProfile; }
-            static std::vector<registry::Kind> reg_kinds(bool discr = false)
+            static registry::SearchOrder search_order(bool discr = false)
             {
-                std::vector<registry::Kind> out = {registry::Kind::InfecProfile};
-                vect::append(out, registry::distr_kinds(discr));
-                return out;
+                return registry::infec_profile_search_order(discr);
             }
 
             ExposeInfecProfile(std::string name, bool discr)
-                : ExposeBase(std::move(name), family(), reg_kinds(discr))
+                : ExposeBase(std::move(name), family(), search_order(discr))
             {
                 // core errors say "infectivity profile X", not the Distribution default "distribution X"
                 if (ptr_)
@@ -442,11 +440,11 @@ namespace housepi
             return obj.release();
         }
 
-        /// List every name the family accepts, from the registry kinds it looks up.
+        /// List every name the family accepts, from the registries it searches.
         template <class Expose>
         std::vector<std::string> list_options_()
         {
-            return registry::list_names(Expose::reg_kinds());
+            return Expose::search_order().names();
         }
 
         //////////////////////////////  MCMC : imports from Rcpp  //////////////////////////////

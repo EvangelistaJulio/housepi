@@ -179,12 +179,8 @@ namespace housepi
     {
         parse::Definition parser(func);
 
-        std::vector<registry::Kind> kinds = {registry::Kind::InfecProfile};
-        for (registry::Kind r : registry::distr_kinds(discr))
-            kinds.push_back(r);
-
         std::unique_ptr<Distribution> output = registry::create_distribution(
-            parser.root.func, ErrType::InfecProfile, kinds);
+            parser.root.func, ErrType::InfecProfile, registry::infec_profile_search_order(discr));
 
         for (const auto &node : parser.root.children)
         {
@@ -1257,7 +1253,7 @@ namespace housepi
             std::unique_ptr<Function> func = registry::create_function(
                 parser.root.func,
                 ErrType::Function,
-                registry::func_distr_kinds(row.is_discr),
+                registry::func_distr_search_order(row.is_discr),
                 row.is_fcumul);
             if (translator_.is_house_fold(parser.root, house))
                 func->set_eval_as_fold();

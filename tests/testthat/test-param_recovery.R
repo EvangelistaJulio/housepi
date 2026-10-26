@@ -275,7 +275,7 @@ test_that("Every estimated parameter needs a simulation value", {
                  progress = FALSE,
                  draws = data.frame(alpha = 0.15, beta = 0.2, gamma = 1,
                                     rho = 1)) |>
-    expect_warning("[Nn]o parameter named") |>
+    expect_warning("[Nn]o parameter named.*get_parameters") |>
     suppressWarnings()
 })
 

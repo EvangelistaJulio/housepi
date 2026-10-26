@@ -404,7 +404,8 @@ subset_definitions_ <- function(defs, name, col = "name") {
   unmatched <- setdiff(name, defs[[col]])
   if (length(unmatched)) stop_h(
     "No definition{?s} named {.val {unmatched}}.",
-    find_closest_match(unmatched, defs[[col]])
+    find_closest_match(unmatched, defs[[col]],
+                       otherwise = "Omit {.arg name} to show every definition.")
   )
   out <- defs[defs[[col]] %in% name, , drop = FALSE]
   rownames(out) <- NULL
@@ -864,7 +865,8 @@ add_observation <- function(hh_model, name = NULL,
                             import = NULL, append = TRUE) {
   stopifnothousepi(hh_model)
   # bulk default: a per-definition 'level =' overrides it (see add_quo)
-  level <- match.arg(level)
+  level <- match_choice_(level, c("member", "house"), "level",
+                         "add_observation")
   new_obj <- hh_model$copy()
   pvt <- new_obj$.__enclos_env__$private
 

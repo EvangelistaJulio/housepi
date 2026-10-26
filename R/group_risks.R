@@ -309,9 +309,14 @@ lacks_reference_ <- function(tables) {
 #' @return `list` `params`, invisibly.
 #' @noRd
 assert_known_params_names <- function(strata, params) {
-  unknown <- setdiff(names(params), setdiff(strata$param_name, ".reference"))
+  declared <- setdiff(strata$param_name, ".reference")
+  unknown <- setdiff(names(params), declared)
   if (length(unknown)) stop_h(
-    "Unknown parameter{?s} in {.arg params}: {.val {unknown}}."
+    "Unknown parameter{?s} in {.arg params}: {.val {unknown}}.",
+    find_closest_match(
+      unknown, declared,
+      otherwise = "Name a {.field param_name} of the {.arg strata} table."
+    )
   )
   invisible(params)
 }
@@ -507,7 +512,7 @@ tidyup_group_risk_tables <- function(all_tables) {
 #' @param name `character(1)` | `NULL` Name of the risk, when it has one.
 #' @noRd
 unwrap_risk_config_ <- function(prior, proposal, min, max, dots, family,
-                               name = NULL) {
+                                name = NULL) {
   prior <- housepi_smart_unwrap(prior, "prior")
   proposal <- housepi_smart_unwrap(proposal, "proposal")
   min <- housepi_smart_unwrap(min, "min")
@@ -519,7 +524,7 @@ unwrap_risk_config_ <- function(prior, proposal, min, max, dots, family,
   assert_no_sibling_dist_arg(args, family, name)
 
   config <- c(list(prior = prior), as.list(args),
-             list(min = min, max = max, proposal = proposal))
+              list(min = min, max = max, proposal = proposal))
   is_default <- vapply(config, \(x) isTRUE(is.na(x)), logical(1))
   # all defaults -> resolved once the data tells absolute from relative
   if (all(is_default)) return(NULL)
@@ -549,8 +554,11 @@ auto_group_reference_ <- function(by, reference) {
   if (length(by) != length(reference)) stop_h(
     "Arguments {.arg {c('by', 'reference')}} should have equal dimensions."
   )
-  else if (length(setdiff(names(reference), by)) != 0) stop_h(
-    "Unrecognized names in reference list."
+  unknown <- setdiff(names(reference), by)
+  if (length(unknown)) stop_h(
+    "Unknown covariate{?s} in {.arg reference}: {.val {unknown}}.",
+    find_closest_match(unknown, by,
+                       otherwise = "Name each entry after a {.arg by} column.")
   )
   reference <- as.list(reference)
   stats::setNames(reference, by)
@@ -894,7 +902,10 @@ HousepiGroupRisk <- R6::R6Class(
       if (length(notused)) stop_h(
         "Unused group risk{?s}: {.val {notused}}.",
         "The model reads no group risk of that name.",
-        find_closest_match(notused, required)
+        find_closest_match(
+          notused, required,
+          otherwise = "Print the model to show the group risks it reads."
+        )
       )
       invisible(self)
     },

@@ -56,6 +56,14 @@ test_that("Data provided at construction is exposed via get_data_wide", {
   hh_data$status |> expect_identical(flu_1918_baltimore$status)
 })
 
+test_that("A getter refusing a name points to the close one, or to all", {
+  hh_model <- mk_wrapper$model |> add_parameter(rho = 1)
+  get_parameters(hh_model, "rhoo") |>
+    expect_error("[Nn]o definition named .rhoo.*[Dd]id you mean .rho")
+  get_parameters(hh_model, "unknown") |>
+    expect_error("[Nn]o definition named .unknown.*[Oo]mit .name.")
+})
+
 test_that("Variadic labels are not swallowed by formal matching", {
   # single-letter categorical weights c/d/p would partial-match the
   # const/discr/prior formals of add_parameter; they reach the prior call
@@ -252,7 +260,14 @@ test_that("add_observation routes every input branch on `level`", {
   # an unknown level is rejected before anything is stored
   hh_model |>
     add_observation(record_2 = min(datum), level = "unknown") |>
-    expect_error("should be one of")
+    expect_error("[Uu]nknown .level. .unknown")
+  # a prefix of a level is not read as that level
+  hh_model |>
+    add_observation(record_2 = min(datum), level = "hous") |>
+    expect_error("[Uu]nknown .level.*[Dd]id you mean .house")
+  hh_model |>
+    add_observation(record_2 = min(datum), level = "h") |>
+    expect_error("[Uu]nknown .level.*add_observation")
 })
 
 test_that("Reporting process wrapper replaces only the slots passed", {

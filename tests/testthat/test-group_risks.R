@@ -261,7 +261,7 @@ test_that("An automatic reference names an observed stratum of its axes", {
   mk_risk$model |>
     add_group_risk("susceptibility", by = "age",
                    reference = list(sex = "M")) |>
-    expect_error("[Uu]nrecognized names in reference list")
+    expect_error("[Uu]nknown covariate.*reference.*sex.*[Nn]ame each entry")
 })
 
 test_that("Group risks reference support behaves as expected", {
@@ -321,6 +321,16 @@ test_that("A group risk cannot combine 'by' with a custom 'strata' table", {
     expect_error("[Ii]mpossible.*at the same time")
 })
 
+test_that("A group risk the model does not read is refused", {
+  mk_risk$model |>
+    add_group_risk(infectivty = list(by = "age")) |>
+    expect_error("[Uu]nused group risk.*[Dd]id you mean .infectivity")
+  # no close name points to the model summary
+  mk_risk$model |>
+    add_group_risk(unrelated = list(by = "age")) |>
+    expect_error("[Uu]nused group risk.*[Pp]rint the model")
+})
+
 test_that("A risk prior outside the naming convention is refused", {
   mk_risk$model |>
     add_group_risk("susceptibility", by = "age", prior = "uniform|x") |>
@@ -374,7 +384,27 @@ test_that("Group risks load from a list of definitions", {
   tidy$param_name |> expect_match("^sus_", all = FALSE)
 })
 
+test_that("An unknown covariate in a group risk points to the close one", {
+  mk_risk$model |>
+    add_group_risk("susceptibility", by = "agee") |>
+    expect_error("[Uu]nknown covariate.*agee.*[Dd]id you mean .age")
+  mk_risk$model |>
+    add_group_risk("susceptibility", by = "age", reference = c(agee = "adult")) |>
+    expect_error("[Uu]nknown covariate.*reference.*[Dd]id you mean .age")
+})
+
 ####  Custom strata definitions  ####
+
+test_that("An unknown name in params points to the strata table", {
+  mk_risk$model |>
+    add_group_risk("infectivity", strata = mk_risk$strata,
+                   params = list(inf_isl = list(prior = "uniform"))) |>
+    expect_error("[Uu]nknown parameter.*inf_isl.*[Dd]id you mean .inf_isol")
+  mk_risk$model |>
+    add_group_risk("infectivity", strata = mk_risk$strata,
+                   params = list(unrelated = list(prior = "uniform"))) |>
+    expect_error("[Uu]nknown parameter.*unrelated.*param_name")
+})
 
 test_that("Group risks deal with custom logic table correctly", {
   hh_model <- mk_risk$model |>

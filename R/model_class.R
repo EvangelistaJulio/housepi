@@ -345,8 +345,7 @@ HousepiModel <- R6::R6Class(
                    inline_cli_("Declared both as {source_labels_[claims]}."),
                    "Rename one of them.")
         } else {
-          sms <- c(sms, nothing,
-                   find_closest_match(nm, declared, list_options = FALSE))
+          sms <- c(sms, nothing, find_closest_match(nm, declared))
         }
       }
       wall_or_return_(sms, wall)

@@ -80,7 +80,8 @@ assert_household_data <- function(data, model) {
     sms <- c("Data should be an object of class {.cls data.frame}.",
              `!` = format_type_error(data))
     if (is.character(data) && length(data) == 1) sms <- c(sms,
-      "Did you mean {.code new_housepi_model(model = \"{data}\")}?"
+      paste0("Did you mean {.run [new_housepi_model(model = \"{data}\")]",
+             "(housepi::new_housepi_model(model = \"{data}\"))}?")
     )
     stop_h(sms)
   }
@@ -97,7 +98,7 @@ model_choice_ <- function(model) {
   if (all(is.na(model) | is.null(model))) {
     warn_h(
       "No model specified: falling back to {.val test} model.",
-      "To show available templates, run {.run browse_templates()}."
+      browse_templates_hint_
     )
     return("test")
   }
@@ -114,17 +115,14 @@ model_choice_ <- function(model) {
 
 # Process user options for compilation.
 compile_options_ <- function(quiet, ...) {
+  assert_advanced_settings_(c("discr", "flags", "libs", "paths"), ...)
   options <- list(...)
-  paths <- character()
-  flags <- character()
-  libs <- character()
-
-  if ("paths" %in% names(options)) paths <- as.character(options$paths)
-  if ("flags" %in% names(options)) flags <- as.character(options$flags)
-  if ("libs" %in% names(options)) libs <- as.character(options$libs)
+  paths <- as.character(options[["paths"]])
+  flags <- as.character(options[["flags"]])
+  libs <- as.character(options[["libs"]])
 
   # process time discrete option
-  if (isTRUE(options$discr)) flags <- c(flags, "_HOUSEPI_DISCRETE_TIME")
+  if (isTRUE(options[["discr"]])) flags <- c(flags, "_HOUSEPI_DISCRETE_TIME")
 
   list(quiet = isTRUE(quiet), paths = paths, flags = flags, libs = libs)
 }
@@ -328,7 +326,7 @@ compile_dll_ <- function(cache_dir, compiled, options) {
   if (!pkgbuild::has_build_tools()) stop_h(
     "No C++ compiler found to compile model {.val {label}}.",
     `!` = "Custom and discrete-time models compile at run time.",
-    "Diagnose with {.code pkgbuild::check_build_tools(debug = TRUE)}."
+    "Diagnose with {.run pkgbuild::check_build_tools(debug = TRUE)}."
   )
   # compile the dynamic library
   withr::with_envvar(

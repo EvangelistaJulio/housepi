@@ -56,8 +56,8 @@ test_that("Rendered text keeps data braces literal through a later cli pass", {
   txt <- inline_cli_("Got {datum}.")
   cli::format_inline(txt) |> expect_identical("Got a{b} and {c}.")
   # the error names the brace-carrying option verbatim
-  stop_h("Unknown entry.", find_closest_match("unrelated", datum)) |>
-    expect_error("Available options.*a\\{b\\}")
+  stop_h("Unknown entry.", find_closest_match("a{b", datum)) |>
+    expect_error("[Dd]id you mean.*a\\{b\\}")
 })
 
 test_that("Find closest match suggests close options", {
@@ -66,12 +66,16 @@ test_that("Find closest match suggests close options", {
   result |> expect_match("Did you mean", all = FALSE)
   result |> expect_match("alpha", all = FALSE)
 
+  # a short input tolerates fewer edits
+  find_closest_match("sex", c("age", "beta")) |> expect_null()
+
   # min_dist = 0 disables suggestions
   find_closest_match("alpa", c("alpha"), min_dist = 0) |> expect_null()
 
-  # no close match returns available options
-  result <- find_closest_match("unknown", c("alpha", "beta"))
-  result |> expect_match("Available option", all = FALSE)
+  # no close match never lists the options, it returns the fallback hint
+  find_closest_match("unknown", c("alpha", "beta")) |> expect_null()
+  find_closest_match("unknown", c("alpha", "beta"), otherwise = "See docs.") |>
+    expect_identical("See docs.")
 
   # empty options
   find_closest_match("x", character(0)) |> expect_identical(c())

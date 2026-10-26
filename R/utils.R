@@ -317,29 +317,21 @@ spaced_choice <- function(x) {
 }
 
 #' Suggest the option closest to `input`, as a hint.
+#' The accepted distance is capped by half the length of the input.
 #' @param min_dist `integer(1)` Threshold for minimal distance.
-#' @param list_options `logical(1)` List the options when none is close.
+#' @param otherwise `character()` Hint when no option is close,
+#'   naming where the options are shown.
 #' @noRd
 find_closest_match <- function(input, options, min_dist = 3,
-                               list_options = TRUE) {
-  output <- c()
-
-  len_opts <- length(options)
-  if (len_opts > 0 && min_dist > 0) {
-    dists <- utils::adist(input, options)
-    idxs <- apply(dists, 1, min) <= min_dist
-
-    if (any(idxs)) {
-      closest <- options[apply(dists[idxs, , drop = FALSE], 1, which.min)]
-      output <- vapply(closest, \(x) inline_cli_("Did you mean {.val {x}}?"),
-                       character(1), USE.NAMES = FALSE)
-    }
-
-    if (!all(idxs) && isTRUE(list_options)) output <- c(output, inline_cli_(
-      "Available option{?s} {?is/are}: {.val {options}}."
-    ))
-  }
-  output
+                               otherwise = NULL) {
+  if (!length(options) || min_dist <= 0) return(otherwise)
+  dists <- utils::adist(input, options)
+  # shorter inputs tolerate fewer edits
+  idxs <- apply(dists, 1, min) <= pmin(min_dist, nchar(input) %/% 2)
+  if (!any(idxs)) return(otherwise)
+  closest <- options[apply(dists[idxs, , drop = FALSE], 1, which.min)]
+  vapply(closest, \(x) inline_cli_("Did you mean {.val {x}}?"),
+         character(1), USE.NAMES = FALSE)
 }
 
 # Format an invalid-type error.
@@ -409,12 +401,28 @@ assert_advanced_settings_ <- function(allowed, ...) {
   for (nm in names(dots)) {
     if (!nm %in% allowed) stop_h(
       "Unexpected argument {.arg {nm}} passed through {.code ...}.",
-      # suggest, without printing every advanced option
-      find_closest_match(nm, setdiff(allowed, names(dots)),
-                         list_options = FALSE)
+      find_closest_match(nm, setdiff(allowed, names(dots)))
     )
   }
   invisible()
+}
+
+#' Match `value` to one of `choices`, exactly.
+#' * `value` identical to `choices` -> the first, as for an unset formal.
+#' @param arg `character(1)` Argument name, as printed.
+#' @param help `character(1)` Help topic documenting the choices.
+#' @noRd
+match_choice_ <- function(value, choices, arg, help) {
+  if (identical(value, choices)) return(choices[[1]])
+  if (rlang::is_string(value) && value %in% choices) return(value)
+  pointer <- paste0("See {.run [?{help}](utils::help(\"{help}\", ",
+                    "\"housepi\"))} for the accepted values.")
+  stop_h(
+    "Unknown {.arg {arg}} {.val {value}}.",
+    if (rlang::is_string(value))
+      find_closest_match(value, choices, otherwise = pointer)
+    else pointer
+  )
 }
 
 #' Format settings for the import_settings Rcpp method.

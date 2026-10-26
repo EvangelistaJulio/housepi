@@ -164,7 +164,8 @@ HousepiAugmented <- R6::R6Class(
           "{.arg level} is reserved to observations.",
           "Declare {.val {name}} with {.fn add_observation}."
         )
-        .kind <- match.arg(level, c("member", "house"))
+        .kind <- match_choice_(level, c("member", "house"), "level",
+                               "add_observation")
       }
 
       # status on a household observation -> error, one value per household

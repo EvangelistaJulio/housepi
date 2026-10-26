@@ -268,7 +268,13 @@ test_that("Invalid proposal name is rejected", {
   mk_param$model |>
     add_parameter("rho", prior = "uniform", proposal = "unknown") |>
     run_inference(steps = 1L, chains = 1L) |>
-    expect_error("[Uu]nknown proposal.*unknown")
+    expect_error("[Uu]nknown proposal .unknown. for parameter.*add_parameter")
+  # a random-walk name is suggested alongside the distributions, the context
+  # closes the first line
+  mk_param$model |>
+    add_parameter("rho", prior = "uniform", proposal = "rww") |>
+    expect_error(paste0("[Uu]nknown proposal .rww. for parameter .rho.\\.\\n",
+                        ".*[Dd]id you mean .rw."))
 })
 
 test_that("Lognormal proposal rejects unsupported domains", {

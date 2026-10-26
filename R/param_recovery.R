@@ -23,7 +23,11 @@ recovery_pins_ <- function(hh_model, draws, point_estimate) {
   unknown <- setdiff(names(given), declared)
   if (length(unknown)) warn_h(
     "No parameter named {.val {unknown}} in the model.",
-    `!` = "Its {.arg draws} value is ignored."
+    `!` = "Its {.arg draws} value is ignored.",
+    find_closest_match(
+      unknown, declared,
+      otherwise = "Show the model parameters with {.fn get_parameters}."
+    )
   )
   given <- given[intersect(names(given), declared)]
   given[!is.na(given)]

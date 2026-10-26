@@ -63,7 +63,7 @@ namespace housepi
     void Variable::init_distr(std::string_view opt, bool discr)
     {
         distr_ = registry::create_distribution(
-            opt, ErrType::Distribution, registry::distr_kinds(discr));
+            opt, ErrType::Distribution, registry::distr_search_order(discr));
     }
 
     void Variable::reshape_distribution(bool is_discr)
@@ -138,10 +138,7 @@ namespace housepi
         }
         catch (const std::exception &e)
         {
-            std::string sm = e.what();
-            if (!sm.empty() && sm.back() == '.')
-                sm.pop_back();
-            msg::stop(sm + " for " + str() + ".");
+            msg::stop(msg::join(e.what(), "for " + str()));
         }
     }
 
@@ -179,6 +176,14 @@ namespace housepi
     void Variable::helper_init_independence_proposal_(const std::string &proposal,
                                                       const dict<Attribute> &args)
     {
+        // unknown name -> suggest the random walks and `forward` alongside the distributions
+        const registry::SearchOrder order = registry::distr_search_order(distr_->is_discretized());
+        if (!order.contains(proposal))
+            msg::stop(
+                "Unknown proposal " + msg::val(proposal) + "." +
+                str::find_closest(proposal, vect::concatenate(kernel_names(), order.names()),
+                                  "See the " + msg::arg("proposal") + " argument in " + msg::help("add_parameter") + "."));
+
         // valid by construction: no per-move validity check
         prop_ = std::make_unique<IndependenceProposal>(proposal, args, distr_.get());
         move_mode_ = Move::Independence;
@@ -498,7 +503,7 @@ namespace housepi
 
         // function mode
         var.init_function(registry::create_function(
-            row.func.root.func, ErrType::Function, registry::func_kinds()));
+            row.func.root.func, ErrType::Function, registry::func_search_order()));
 
         // bind function arguments
         for (const auto &child : row.func.root.children)
