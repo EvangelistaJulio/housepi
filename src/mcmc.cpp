@@ -327,32 +327,41 @@ namespace housepi
             bool is_default = id_draws.size() == 0 && house_draws.empty();
 
             LatentDraws_ seen;
+            std::vector<std::string> known_id, known_house;
             std::vector<const Household *> eligible;
 
-            // collect explicit selections, or eligible households for the default
+            // collect explicit selections and the identifiers they name, or eligible households for the default
             for (const Household &house : data_wide)
             {
-                if (house.n_infected_status() == 0)
-                    continue;
-
                 if (is_default)
                 {
-                    eligible.push_back(&house);
+                    if (house.n_infected_status() > 0)
+                        eligible.push_back(&house);
                     continue;
                 }
 
-                if (vect::contains(house_draws, data_wide.hh_id(house)))
-                    for (const Individual &indiv : house.infected_indivs())
+                const bool is_house = vect::contains(house_draws, data_wide.hh_id(house));
+                if (is_house)
+                    known_house.emplace_back(data_wide.hh_id(house));
+                for (const Individual &indiv : house)
+                {
+                    const bool is_indiv = vect::contains(id_draws, data_wide.id(indiv));
+                    if (is_indiv)
+                        known_id.emplace_back(data_wide.id(indiv));
+                    if ((is_house || is_indiv) && indiv.is_infected_status())
                         seen.store(data_wide, house, indiv);
-                else
-                    for (const Individual &indiv : house.infected_indivs())
-                        if (vect::contains(id_draws, data_wide.id(indiv)))
-                            seen.store(data_wide, house, indiv);
+                }
             }
 
-            // warn on draws not found in the data
-            std::vector<std::string> missed_id = vect::difference(id_draws, seen.ids);
-            std::vector<std::string> missed_house = vect::difference(house_draws, seen.hh_ids);
+            // a draw naming no member or household stops, a known one without infection warns
+            const std::vector<std::string> unknown =
+                vect::concatenate(vect::difference(id_draws, known_id), vect::difference(house_draws, known_house));
+            if (!unknown.empty())
+                msg::stop(
+                    "Unknown " + msg::arg("id_draws") + " " + msg::qty(unknown) +
+                    "identifier{?s} " + str::format(unknown));
+            const std::vector<std::string> missed_id = vect::difference(id_draws, seen.ids);
+            const std::vector<std::string> missed_house = vect::difference(house_draws, seen.hh_ids);
             if (!missed_id.empty())
                 msg::warn(
                     "Ignored draws of non infected " + msg::qty(missed_id) +

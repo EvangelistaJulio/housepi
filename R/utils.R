@@ -61,7 +61,7 @@ quiet_warnings_$on <- FALSE
 #' printed every `progress` seconds.
 #' * `progress` FALSE or 0 -> `bar` is `NULL`;
 #' * `progress` TRUE -> one print per second;
-#' * knitted document or notebook chunk -> closing line alone.
+#' * knitted document -> closing line alone.
 #' Leaving `code` closes the bar:
 #' * returned -> with its closing line;
 #' * failed -> its line ended, before the error prints;
@@ -72,13 +72,13 @@ quiet_warnings_$on <- FALSE
 with_progress_ <- function(progress, label, total, code) {
   pace <- as.double(progress[[1L]])
   if (is.na(pace) || pace <= 0) return(code(NULL))
-  # a document stacks every print as its own message block
-  document <- isTRUE(getOption("knitr.in.progress")) ||
-    isTRUE(getOption("rstudio.notebook.executing"))
+  # a knitted document ignores carriage returns, so its prints pile up
+  document <- isTRUE(getOption("knitr.in.progress"))
   # half the console, at most 39 symbols: squares on UTF-8 output, "#" otherwise
   bar <- .engine$progress_open(label, total, pace,
                                min(getOption("width"), 78L) %/% 2L,
                                interactive(), document,
+                               cli::num_ansi_colors(stderr()) > 1L,
                                if (cli::is_utf8_output()) "\u25a0" else "#")
   out <- withCallingHandlers(code(bar),
                              error = \(e) .engine$progress_crash(bar))

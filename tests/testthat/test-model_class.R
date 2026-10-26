@@ -589,6 +589,15 @@ test_that("id_draws selections are resolved before the run", {
                   id_draws = list(member = "m1")) |>
     expect_error("[Uu]nknown .id_draws. name.*member")
 
+  # an identifier naming no member or household stops
+  hh_model |>
+    run_inference(steps = 5L, chains = 1L, thin = 1L, id_draws = "m3") |>
+    expect_error("[Uu]nknown .id_draws. identifier.*m3")
+  hh_model |>
+    run_inference(steps = 5L, chains = 1L, thin = 1L,
+                  id_draws = list(id = "m1", hh_id = "h2")) |>
+    expect_error("[Uu]nknown .id_draws. identifier.*h2")
+
   # NULL stores no latent draw
   hh_model |>
     run_inference(steps = 5L, chains = 1L, adapt = 0L, thin = 1L,

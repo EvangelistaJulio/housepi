@@ -63,6 +63,7 @@ namespace housepi
         /// Open a bar named `text` over `total` units, printed every `thintime` seconds.
         /// @param barwidth Symbols in a full bar.
         /// @param is_document Whether the output is a knitted document, which overrides `is_interactive`.
+        /// @param is_coloured Whether the output renders ANSI colours.
         /// @param symbol Character filling the bar.
         ProgressBar(std::string text,
                     double total,
@@ -70,9 +71,11 @@ namespace housepi
                     unsigned barwidth,
                     bool is_interactive,
                     bool is_document,
+                    bool is_coloured,
                     std::string symbol)
             : interactive_(is_interactive && !is_document),
               document_(is_document),
+              coloured_(is_coloured),
               symbol_(std::move(symbol)),
               text_(std::move(text)),
               barwidth_(barwidth),
@@ -136,6 +139,7 @@ namespace housepi
 
         const bool interactive_;       /// Whether prints overwrite the current line.
         const bool document_;          /// Whether only the closing line prints.
+        const bool coloured_;          /// Whether the bar is filled in green.
         const std::string symbol_;     /// Character filling the bar.
         const std::string text_;       /// Text heading the bar.
         const unsigned barwidth_ = 33; /// Bar total size.
@@ -152,14 +156,15 @@ namespace housepi
         double secs_() const { return std::chrono::duration<double>(Clock::now() - start_).count(); }
 
         /// Write into `os` the text and the bar filled at progress `prog`.
-        /// * interactive -> led by a carriage return, bar in green.
+        /// * interactive -> led by a carriage return;
+        /// * coloured -> bar in green.
         void line_(std::ostream &os, double prog) const
         {
             const unsigned where = prog * barwidth_;
-            os << (interactive_ ? "\r" : "") << text_ << " |" << (interactive_ ? ANSI_GREEN : "");
+            os << (interactive_ ? "\r" : "") << text_ << " |" << (coloured_ ? ANSI_GREEN : "");
             for (unsigned u = 0; u < where; ++u)
                 os << symbol_;
-            os << (interactive_ ? ANSI_RESET : "") << std::setw(barwidth_ - where) << "" << "| ";
+            os << (coloured_ ? ANSI_RESET : "") << std::setw(barwidth_ - where) << "" << "| ";
         }
 
         /// Print line `oss`, ended on `end` or when non-interactive.

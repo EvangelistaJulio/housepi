@@ -1329,12 +1329,14 @@ namespace housepi
         /// Open progress bar `name` over `total` units, printed every `pace` seconds.
         /// @param width Symbols in a full bar.
         /// @param is_document Whether the output is a knitted document.
+        /// @param is_coloured Whether the output renders ANSI colours.
         /// @param symbol Character filling the bar.
         Rcpp::XPtr<ProgressBar> progress_open(std::string name, double total, double pace, unsigned width,
-                                              bool is_interactive, bool is_document, std::string symbol)
+                                              bool is_interactive, bool is_document, bool is_coloured,
+                                              std::string symbol)
         {
             return Rcpp::XPtr<ProgressBar>(
-                new ProgressBar(name, total, pace, width, is_interactive, is_document, symbol), true);
+                new ProgressBar(name, total, pace, width, is_interactive, is_document, is_coloured, symbol), true);
         }
 
         /// Close progress bar `ptr` with its closing line.
