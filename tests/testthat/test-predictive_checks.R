@@ -541,16 +541,45 @@ test_that("An epidemic predictive check formats counts per household size", {
       "attack_rate", "sec_attack_rate", "cases_distr"
     )
 
-  # set_max_hh_size and drop
+  # a bound set to NULL or NA is removed
+  hh_size <- ppc$format_sec_attack_rate()$hh_size
   ppc$set_max_hh_size(3)
   (ppc$format_sec_attack_rate()$hh_size <= 3) |> expect_all_true()
-  ppc$drop_max_hh_size()
-
-  # set_min_hh_size and drop
+  ppc$set_max_hh_size(NULL)
+  ppc$format_sec_attack_rate()$hh_size |> expect_identical(hh_size)
   ppc$set_min_hh_size(3)
   (ppc$format_sec_attack_rate()$hh_size >= 3) |> expect_all_true()
   (ppc$format_attack_rate()$hh_size >= 3) |> expect_all_true()
-  ppc$drop_min_hh_size()
+  ppc$set_min_hh_size(NA)
+  ppc$format_sec_attack_rate()$hh_size |> expect_identical(hh_size)
+
+  # a clone formats with its own bounds
+  ppc_2 <- ppc$clone()$set_max_hh_size(3)
+  (ppc_2$format_sec_attack_rate()$hh_size <= 3) |> expect_all_true()
+  ppc$format_sec_attack_rate()$hh_size |> expect_identical(hh_size)
+})
+
+test_that("A case-ascertained check leaves the attack rate out", {
+  # households enter the study through a case
+  hh_model <- sarscov2_2021_icofs |>
+    dplyr::filter(hh_id %in% utils::head(unique(hh_id), 20)) |>
+    dplyr::mutate(end_date = 21) |>
+    new_housepi_model("case-ascertained") |>
+    add_infectivity_profile(import = "template")
+  param_table <- data.frame(alpha = 1e-3, beta = 0.5, gamma = 1,
+                            hh_size_ref = 4)
+  ppc <- hh_model |>
+    check_predictive(param_table, nrep = 2L, progress = FALSE) |>
+    suppressWarnings()
+  ppc$attack_rate |> expect_null()
+  ppc$format_attack_rate |> expect_null()
+  ppc$format_sec_attack_rate() |> expect_s3_class("data.frame")
+  ppc$format_cases_distr() |> expect_length(3)
+
+  # the name stays reserved
+  hh_model |>
+    check_predictive(param_table, attack_rate = \(x) 1, nrep = 2L) |>
+    expect_error("[Aa]ttack_rate.*already used")
 })
 
 test_that("Epi PPC honours min/max_hh_size arguments", {

@@ -56,6 +56,9 @@ public:
     /// Whether the model requires an infectivity profile definition.
     bool has_infec_profile() const override final { return true; }
 
+    /// Whether households enter the study through a case.
+    bool has_case_ascertainment() const override final { return true; }
+
     /// Assert no member has missing status.
     void init_model_for_evaluation() override final { assert_no_missing_status(); }
 

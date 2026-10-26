@@ -183,8 +183,8 @@ We can compare the secondary attack rates observed, predicted by the posterior:
 #|  Secondary attack rates by household size comparing posterior predictions (orange) and observed data (black points with sample sizes).
 #|  Predicted values show median estimates with 95% credible intervals.
 
-# we drop maximum house size before proceeding
-ppc$drop_max_hh_size()
+# we remove the maximum house size before proceeding
+ppc$set_max_hh_size(NULL)
 
 col_dict <- c(posterior = "coral", observed = "black")
 nudge_prior <- position_nudge(x = -0.25)

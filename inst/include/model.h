@@ -95,6 +95,8 @@ namespace housepi
         virtual bool has_contact_risk() const { return false; }
         /// Whether the model requires an infectivity profile definition.
         virtual bool has_infec_profile() const { return false; }
+        /// Whether households enter the study through a case.
+        virtual bool has_case_ascertainment() const { return false; }
 
         /// Recompute the cached quantities of `house` read by the transmission model.
         virtual void update_house_transmission_cache(const Household & /*house*/) {}

@@ -1525,6 +1525,11 @@ namespace housepi
             return mcmc_ptr->model->has_infec_profile();
         }
 
+        bool has_case_ascertainment(Rcpp::XPtr<MCMC> mcmc_ptr)
+        {
+            return mcmc_ptr->model->has_case_ascertainment();
+        }
+
         double evaluate_log_lik(Rcpp::XPtr<MCMC> mcmc_ptr, std::string hh_id)
         {
             return mcmc_ptr->evaluate_log_lik(hh_id);
@@ -1743,6 +1748,7 @@ RCPP_MODULE(housepi)
     Rcpp::function("import_param_table", &import_param_table);
     Rcpp::function("has_contact_risk", &has_contact_risk);
     Rcpp::function("has_infec_profile", &has_infec_profile);
+    Rcpp::function("has_case_ascertainment", &has_case_ascertainment);
     Rcpp::function("export_data_wide", &export_data_wide);
     Rcpp::function("export_data_long", &export_data_long);
     Rcpp::function("summarise_house_cases", &summarise_house_cases);

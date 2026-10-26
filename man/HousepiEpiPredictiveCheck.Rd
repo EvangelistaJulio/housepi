@@ -8,6 +8,20 @@
 Prior or posterior predictive check of standard epidemiological measures
 by household size, observed against predicted:
 cases distribution, attack rate and secondary attack rate.
+On a case-ascertained model, such as \link{template_case_ascertained},
+households enter the study through a case,
+and the attack rate is not checked.
+
+Each checked measure comes with a method formatting it,
+restricted to the household size bounds:
+\describe{
+\item{\code{format_attack_rate()}}{\code{data.frame} of observed and predicted
+attack rates, with the number of households of each size;}
+\item{\code{format_sec_attack_rate()}}{\code{data.frame} of observed and predicted
+secondary attack rates, with the number of households with a case;}
+\item{\code{format_cases_distr()}}{\code{list} of \code{data.frame}:
+\code{predicted}, \code{cri_lower}, \code{cri_upper}.}
+}
 }
 \examples{
 hh_model <- flu_1918_frederick |>
@@ -26,12 +40,7 @@ ppc$format_attack_rate()
   \itemize{
     \item \href{#method-HousepiEpiPredictiveCheck-initialize}{\code{HousepiEpiPredictiveCheck$new()}}
     \item \href{#method-HousepiEpiPredictiveCheck-set_min_hh_size}{\code{HousepiEpiPredictiveCheck$set_min_hh_size()}}
-    \item \href{#method-HousepiEpiPredictiveCheck-drop_min_hh_size}{\code{HousepiEpiPredictiveCheck$drop_min_hh_size()}}
     \item \href{#method-HousepiEpiPredictiveCheck-set_max_hh_size}{\code{HousepiEpiPredictiveCheck$set_max_hh_size()}}
-    \item \href{#method-HousepiEpiPredictiveCheck-drop_max_hh_size}{\code{HousepiEpiPredictiveCheck$drop_max_hh_size()}}
-    \item \href{#method-HousepiEpiPredictiveCheck-format_attack_rate}{\code{HousepiEpiPredictiveCheck$format_attack_rate()}}
-    \item \href{#method-HousepiEpiPredictiveCheck-format_sec_attack_rate}{\code{HousepiEpiPredictiveCheck$format_sec_attack_rate()}}
-    \item \href{#method-HousepiEpiPredictiveCheck-format_cases_distr}{\code{HousepiEpiPredictiveCheck$format_cases_distr()}}
     \item \href{#method-HousepiEpiPredictiveCheck-clone}{\code{HousepiEpiPredictiveCheck$clone()}}
   }
 }
@@ -90,9 +99,9 @@ each with parameters drawn from their prior. \code{NA} is then an error.}
 Whether to thin \code{draws} to their bulk effective sample size (ESS).
 Ignored without \code{draws} or with a plain \code{data.frame}.}
       \item{\code{min_hh_size}}{\code{integer(1)} Minimum household size retained in the outputs.
-If \code{NA}, no lower bound is applied.}
+If \code{NA} or \code{NULL}, no lower bound is applied.}
       \item{\code{max_hh_size}}{\code{integer(1)} Maximum household size retained in the outputs.
-If \code{NA}, no upper bound is applied.}
+If \code{NA} or \code{NULL}, no upper bound is applied.}
       \item{\code{threads}}{\code{integer(1)} Number of threads for parallel household runs.}
       \item{\code{progress}}{\code{numeric(1)} | \code{logical(1)} Control the progress bar,
 one of:
@@ -112,7 +121,7 @@ In a knitted document, only its closing line prints.}
 \if{html}{\out{<a id="method-HousepiEpiPredictiveCheck-set_min_hh_size"></a>}}
 \if{latex}{\out{\hypertarget{method-HousepiEpiPredictiveCheck-set_min_hh_size}{}}}
 \subsection{\code{HousepiEpiPredictiveCheck$set_min_hh_size()}}{
-  Set minimum household size to consider in result outputs.
+  Set the minimum household size of the formatted outputs.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{HousepiEpiPredictiveCheck$set_min_hh_size(n)}
@@ -121,21 +130,9 @@ In a knitted document, only its closing line prints.}
   \subsection{Arguments}{
     \if{html}{\out{<div class="arguments">}}
     \describe{
-      \item{\code{n}}{\code{integer(1)} Minimum household size to consider.
-If \code{NA}, restore observed minimum.}
+      \item{\code{n}}{\code{integer(1)} Minimum household size retained in the outputs.
+If \code{NA} or \code{NULL}, no lower bound is applied.}
     }
-    \if{html}{\out{</div>}}
-  }
-}
-
-\if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HousepiEpiPredictiveCheck-drop_min_hh_size"></a>}}
-\if{latex}{\out{\hypertarget{method-HousepiEpiPredictiveCheck-drop_min_hh_size}{}}}
-\subsection{\code{HousepiEpiPredictiveCheck$drop_min_hh_size()}}{
-  Restore minimum household size to observed minimum.
-  \subsection{Usage}{
-    \if{html}{\out{<div class="r">}}
-    \preformatted{HousepiEpiPredictiveCheck$drop_min_hh_size()}
     \if{html}{\out{</div>}}
   }
 }
@@ -144,7 +141,7 @@ If \code{NA}, restore observed minimum.}
 \if{html}{\out{<a id="method-HousepiEpiPredictiveCheck-set_max_hh_size"></a>}}
 \if{latex}{\out{\hypertarget{method-HousepiEpiPredictiveCheck-set_max_hh_size}{}}}
 \subsection{\code{HousepiEpiPredictiveCheck$set_max_hh_size()}}{
-  Set maximum household size to consider in result outputs.
+  Set the maximum household size of the formatted outputs.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{HousepiEpiPredictiveCheck$set_max_hh_size(n)}
@@ -153,73 +150,10 @@ If \code{NA}, restore observed minimum.}
   \subsection{Arguments}{
     \if{html}{\out{<div class="arguments">}}
     \describe{
-      \item{\code{n}}{\code{integer(1)} Maximum household size to consider.
-If \code{NA}, restore observed maximum.}
+      \item{\code{n}}{\code{integer(1)} Maximum household size retained in the outputs.
+If \code{NA} or \code{NULL}, no upper bound is applied.}
     }
     \if{html}{\out{</div>}}
-  }
-}
-
-\if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HousepiEpiPredictiveCheck-drop_max_hh_size"></a>}}
-\if{latex}{\out{\hypertarget{method-HousepiEpiPredictiveCheck-drop_max_hh_size}{}}}
-\subsection{\code{HousepiEpiPredictiveCheck$drop_max_hh_size()}}{
-  Restore maximum household size to observed maximum.
-  \subsection{Usage}{
-    \if{html}{\out{<div class="r">}}
-    \preformatted{HousepiEpiPredictiveCheck$drop_max_hh_size()}
-    \if{html}{\out{</div>}}
-  }
-}
-
-\if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HousepiEpiPredictiveCheck-format_attack_rate"></a>}}
-\if{latex}{\out{\hypertarget{method-HousepiEpiPredictiveCheck-format_attack_rate}{}}}
-\subsection{\code{HousepiEpiPredictiveCheck$format_attack_rate()}}{
-  Format observed and predicted attack rates
-by household size.
-Sizes outside the set household size bounds are not returned.
-  \subsection{Usage}{
-    \if{html}{\out{<div class="r">}}
-    \preformatted{HousepiEpiPredictiveCheck$format_attack_rate()}
-    \if{html}{\out{</div>}}
-  }
-  \subsection{Returns}{
-    \code{data.frame}
-  }
-}
-
-\if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HousepiEpiPredictiveCheck-format_sec_attack_rate"></a>}}
-\if{latex}{\out{\hypertarget{method-HousepiEpiPredictiveCheck-format_sec_attack_rate}{}}}
-\subsection{\code{HousepiEpiPredictiveCheck$format_sec_attack_rate()}}{
-  Format observed and predicted secondary attack rates
-by household size.
-Sizes outside the set household size bounds are not returned.
-  \subsection{Usage}{
-    \if{html}{\out{<div class="r">}}
-    \preformatted{HousepiEpiPredictiveCheck$format_sec_attack_rate()}
-    \if{html}{\out{</div>}}
-  }
-  \subsection{Returns}{
-    \code{data.frame}
-  }
-}
-
-\if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-HousepiEpiPredictiveCheck-format_cases_distr"></a>}}
-\if{latex}{\out{\hypertarget{method-HousepiEpiPredictiveCheck-format_cases_distr}{}}}
-\subsection{\code{HousepiEpiPredictiveCheck$format_cases_distr()}}{
-  Format observed and predicted cases distributions
-by household size.
-Sizes outside the set household size bounds are not returned.
-  \subsection{Usage}{
-    \if{html}{\out{<div class="r">}}
-    \preformatted{HousepiEpiPredictiveCheck$format_cases_distr()}
-    \if{html}{\out{</div>}}
-  }
-  \subsection{Returns}{
-    \code{list} of \code{data.frame}: \code{predicted}, \code{cri_lower}, \code{cri_upper}.
   }
 }
 

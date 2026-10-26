@@ -57,10 +57,10 @@ Whether to thin \code{draws} to their bulk effective sample size (ESS).
 Ignored without \code{draws} or with a plain \code{data.frame}.}
 
 \item{min_hh_size}{\code{integer(1)} Minimum household size retained in the outputs.
-If \code{NA}, no lower bound is applied. Only with \code{epi = TRUE}.}
+If \code{NA} or \code{NULL}, no lower bound is applied. Only with \code{epi = TRUE}.}
 
 \item{max_hh_size}{\code{integer(1)} Maximum household size retained in the outputs.
-If \code{NA}, no upper bound is applied. Only with \code{epi = TRUE}.}
+If \code{NA} or \code{NULL}, no upper bound is applied. Only with \code{epi = TRUE}.}
 
 \item{threads}{\code{integer(1)} Number of threads for parallel household runs.}
 
@@ -87,7 +87,8 @@ as in \code{\link[=run_simulation]{run_simulation()}}, for a prior predictive ch
 With posterior draws, it is a posterior predictive check.
 It checks standard epidemiological measures by household size:
 \describe{
-\item{\code{"attack_rate"}}{see \link{measure_ar_by_hh_size};}
+\item{\code{"attack_rate"}}{see \link{measure_ar_by_hh_size},
+not checked on a case-ascertained model;}
 \item{\code{"sec_attack_rate"}}{see \link{measure_sar_by_hh_size};}
 \item{\code{"cases_distr"}}{see \link{measure_cases_by_hh_size}.}
 }

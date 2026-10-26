@@ -4,9 +4,9 @@
 ##
 
 rd_min_hh_size_ <- "`integer(1)` Minimum household size retained in the outputs.
-If `NA`, no lower bound is applied."
+If `NA` or `NULL`, no lower bound is applied."
 rd_max_hh_size_ <- "`integer(1)` Maximum household size retained in the outputs.
-If `NA`, no upper bound is applied."
+If `NA` or `NULL`, no upper bound is applied."
 rd_measure_dots_ <- "Named `function`s computing measures from data.
 Each returns a `numeric()`, a `list` or a `data.frame`.
 Names must be unique and cannot match a member of the returned object."
@@ -606,11 +606,69 @@ helper_combine_obs_pred <- function(obsdf, preddf) {
   combined
 }
 
+# Restrict a by-hh_size data.frame to sizes in [min_hh_size, max_hh_size].
+# * `NA` bound -> no bound on that side.
+ppc_filter_hh_size <- function(df, min_hh_size = NA, max_hh_size = NA) {
+  if (!is.na(min_hh_size)) df <- df[df$hh_size >= min_hh_size, ]
+  if (!is.na(max_hh_size)) df <- df[df$hh_size <= max_hh_size, ]
+  df
+}
+
+# Format a rate by household size, observed against predicted.
+# @param measure `list` Measure: `observed`, `predicted`, `cri_lower`,
+# `cri_upper`.
+# @param rate `character(1)` Column holding the rate in each frame.
+# @param counts `data.frame` Household size, then number of households.
+ppc_format_rate <- function(measure, rate, counts,
+                            min_hh_size = NA, max_hh_size = NA) {
+  hh_size <- measure$observed$hh_size
+  ppc_filter_hh_size(data.frame(
+    hh_size = hh_size,
+    observed = measure$observed[[rate]],
+    predicted = measure$predicted[[rate]],
+    cri_lower = measure$cri_lower[[rate]],
+    cri_upper = measure$cri_upper[[rate]],
+    counts = counts[[2]][match(hh_size, counts$hh_size)]
+  ), min_hh_size, max_hh_size)
+}
+
+# Format the cases distribution by household size, observed against predicted.
+# @return `list` of `data.frame`: `predicted`, `cri_lower`, `cri_upper`.
+ppc_format_cases_distr <- function(measure, min_hh_size = NA,
+                                   max_hh_size = NA) {
+  cases <- helper_filter_tables(measure, min_hh_size, max_hh_size)
+
+  # empty frame as a placeholder for Credible Interval
+  na_df <- cases$observed
+  na_df[] <- lapply(na_df, \(col) if (is.numeric(col)) NA else col)
+  na_df$hh_size <- cases$observed$hh_size
+
+  list(
+    predicted = helper_combine_obs_pred(cases$observed, cases$predicted),
+    cri_lower = helper_combine_obs_pred(na_df, cases$cri_lower),
+    cri_upper = helper_combine_obs_pred(na_df, cases$cri_upper)
+  )
+}
+
 #' @title Standard epidemiological prior or posterior predictive check
 #' @description
 #' Prior or posterior predictive check of standard epidemiological measures
 #' by household size, observed against predicted:
 #' cases distribution, attack rate and secondary attack rate.
+#' On a case-ascertained model, such as [template_case_ascertained],
+#' households enter the study through a case,
+#' and the attack rate is not checked.
+#'
+#' Each checked measure comes with a method formatting it,
+#' restricted to the household size bounds:
+#' \describe{
+#' \item{`format_attack_rate()`}{`data.frame` of observed and predicted
+#' attack rates, with the number of households of each size;}
+#' \item{`format_sec_attack_rate()`}{`data.frame` of observed and predicted
+#' secondary attack rates, with the number of households with a case;}
+#' \item{`format_cases_distr()`}{`list` of `data.frame`:
+#' `predicted`, `cri_lower`, `cri_upper`.}
+#' }
 #' @examples
 #' hh_model <- flu_1918_frederick |>
 #'   new_housepi_model("final-size") |>
@@ -636,15 +694,21 @@ HousepiEpiPredictiveCheck <- R6::R6Class(
     measure_topics_ = c(attack_rate = "measure_ar_by_hh_size",
                         sec_attack_rate = "measure_sar_by_hh_size",
                         cases_distr = "measure_cases_by_hh_size"),
-
-    # Restrict a by-hh_size data.frame to the set [min_hh_size_, max_hh_size_].
-    filter_hh_size_ = function(df) {
-      if (!is.na(private$min_hh_size_))
-        df <- df[df$hh_size >= private$min_hh_size_, ]
-      if (!is.na(private$max_hh_size_))
-        df <- df[df$hh_size <= private$max_hh_size_, ]
-      df
-    }
+    # body of method `format_<measure>`, evaluated in the object
+    formats_ = list(
+      attack_rate = quote(ppc_format_rate(
+        self$attack_rate, "ar", private$house_counts_[c("hh_size", "total")],
+        private$min_hh_size_, private$max_hh_size_
+      )),
+      sec_attack_rate = quote(ppc_format_rate(
+        self$sec_attack_rate, "sar",
+        private$house_counts_[c("hh_size", "at_least_1_case")],
+        private$min_hh_size_, private$max_hh_size_
+      )),
+      cases_distr = quote(ppc_format_cases_distr(
+        self$cases_distr, private$min_hh_size_, private$max_hh_size_
+      ))
+    )
   ),
 
   ####  Public  ####
@@ -686,16 +750,27 @@ HousepiEpiPredictiveCheck <- R6::R6Class(
       private$labelled_ <- !is.null(get_reporting_process(hh_model)$wide) ||
         length(measure_dots_(...)$measures) || length(measures_long)
 
-      # initialize parent class HousepiPredictiveCheck
-      super$initialize(
-        hh_model = hh_model, draws = draws,
+      # case-ascertained model -> attack rate not checked
+      standard <- list(
         attack_rate = \(x) measure_ar_by_hh_size(x, esc),
         sec_attack_rate = \(x) measure_sar_by_hh_size(x, esc),
-        cases_distr = \(x) measure_cases_by_hh_size(x, esc),
-        ...,
+        cases_distr = \(x) measure_cases_by_hh_size(x, esc)
+      )
+      mcmc_ptr <- hh_model$.__enclos_env__$private$mcmc_ptr_
+      if (.engine$has_case_ascertainment(mcmc_ptr)) standard$attack_rate <- NULL
+
+      # formatter of each checked measure, enclosed in the object:
+      # a clone rebinds it to its own fields
+      for (m in names(standard)) self[[paste0("format_", m)]] <-
+        rlang::new_function(list(), private$formats_[[m]],
+                            self$.__enclos_env__)
+
+      # initialize parent class HousepiPredictiveCheck
+      rlang::inject(super$initialize(
+        hh_model = hh_model, draws = draws, !!!standard, ...,
         measures_long = measures_long, nrep = nrep, thin_ess = thin_ess,
         threads = threads, progress = progress
-      )
+      ))
       private$house_counts_ <- helper_house_counts(get_data_wide(hh_model), esc)
       self$set_min_hh_size(min_hh_size)
       self$set_max_hh_size(max_hh_size)
@@ -703,95 +778,18 @@ HousepiEpiPredictiveCheck <- R6::R6Class(
       invisible(self)
     },
 
-    #' @description Set minimum household size to consider in result outputs.
-    #' @param n `integer(1)` Minimum household size to consider.
-    #' If `NA`, restore observed minimum.
+    #' @description Set the minimum household size of the formatted outputs.
+    #' @param n `r rd_min_hh_size_`
     set_min_hh_size = function(n) {
-      private$min_hh_size_ <- n
+      private$min_hh_size_ <- if (is.null(n)) NA_integer_ else n
       invisible(self)
     },
 
-    #' @description Restore minimum household size to observed minimum.
-    drop_min_hh_size = function() {
-      self$set_min_hh_size(NA_integer_)
-      invisible(self)
-    },
-
-    #' @description Set maximum household size to consider in result outputs.
-    #' @param n `integer(1)` Maximum household size to consider.
-    #' If `NA`, restore observed maximum.
+    #' @description Set the maximum household size of the formatted outputs.
+    #' @param n `r rd_max_hh_size_`
     set_max_hh_size = function(n) {
-      private$max_hh_size_ <- n
+      private$max_hh_size_ <- if (is.null(n)) NA_integer_ else n
       invisible(self)
-    },
-
-    #' @description Restore maximum household size to observed maximum.
-    drop_max_hh_size = function() {
-      self$set_max_hh_size(NA_integer_)
-      invisible(self)
-    },
-
-    #' @description Format observed and predicted attack rates
-    #' by household size.
-    #' Sizes outside the set household size bounds are not returned.
-    #' @return `data.frame`
-    format_attack_rate = function() {
-      # convert internal list to data.frame
-      output <- data.frame(
-        hh_size = self$attack_rate$observed$hh_size,
-        observed = self$attack_rate$observed$ar,
-        predicted = self$attack_rate$predicted$ar,
-        cri_lower = self$attack_rate$cri_lower$ar,
-        cri_upper = self$attack_rate$cri_upper$ar,
-        counts = private$house_counts_$total[
-          match(self$attack_rate$observed$hh_size,
-                private$house_counts_$hh_size)
-        ]
-      )
-      # filter to household size bounds if applicable
-      private$filter_hh_size_(output)
-    },
-
-    #' @description Format observed and predicted secondary attack rates
-    #' by household size.
-    #' Sizes outside the set household size bounds are not returned.
-    #' @return `data.frame`
-    format_sec_attack_rate = function() {
-      # convert internal list to data.frame
-      output <- data.frame(
-        hh_size = self$sec_attack_rate$observed$hh_size,
-        observed = self$sec_attack_rate$observed$sar,
-        predicted = self$sec_attack_rate$predicted$sar,
-        cri_lower = self$sec_attack_rate$cri_lower$sar,
-        cri_upper = self$sec_attack_rate$cri_upper$sar,
-        counts = private$house_counts_$at_least_1_case[
-          match(self$sec_attack_rate$observed$hh_size,
-                private$house_counts_$hh_size)
-        ]
-      )
-      # filter to household size bounds if applicable
-      private$filter_hh_size_(output)
-    },
-
-    #' @description Format observed and predicted cases distributions
-    #' by household size.
-    #' Sizes outside the set household size bounds are not returned.
-    #' @return `list` of `data.frame`: `predicted`, `cri_lower`, `cri_upper`.
-    format_cases_distr = function() {
-      # filter according to household size bounds
-      cases <- helper_filter_tables(self$cases_distr,
-                                    private$min_hh_size_, private$max_hh_size_)
-
-      # empty frame as a placeholder for Credible Interval
-      na_df <- cases$observed
-      na_df[] <- lapply(na_df, \(col) if (is.numeric(col)) NA else col)
-      na_df$hh_size <- cases$observed$hh_size
-
-      list(
-        predicted = helper_combine_obs_pred(cases$observed, cases$predicted),
-        cri_lower = helper_combine_obs_pred(na_df, cases$cri_lower),
-        cri_upper = helper_combine_obs_pred(na_df, cases$cri_upper)
-      )
     }
   )
 )
@@ -806,7 +804,8 @@ HousepiEpiPredictiveCheck <- R6::R6Class(
 #' With posterior draws, it is a posterior predictive check.
 #' It checks standard epidemiological measures by household size:
 #' \describe{
-#' \item{`"attack_rate"`}{see [measure_ar_by_hh_size];}
+#' \item{`"attack_rate"`}{see [measure_ar_by_hh_size],
+#' not checked on a case-ascertained model;}
 #' \item{`"sec_attack_rate"`}{see [measure_sar_by_hh_size];}
 #' \item{`"cases_distr"`}{see [measure_cases_by_hh_size].}
 #' }
