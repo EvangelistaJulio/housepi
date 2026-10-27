@@ -404,8 +404,11 @@ HousepiPosteriorDraws <- R6::R6Class(
       # store cpp draws converted to posterior
       tag <- \(df) tag_rcpp_draws_(df, chain)
       lp <- .engine$flush_param_log_prior_draws(ptr)
+      # parameter columns in the order of get_parameters()
+      param <- .engine$flush_param_draws(ptr)
+      param <- param[sort_definitions_(data.frame(name = names(param)))$name]
       private$draws_ <- list(
-        param = tag(.engine$flush_param_draws(ptr)),
+        param = tag(param),
         lprior = tag(if (length(lp)) data.frame(lprior = rowSums(lp))),
         latent = tag(.engine$flush_latent_draws(ptr)),
         point_log_lik = tag(.engine$flush_house_log_lik_draws(ptr))

@@ -43,6 +43,13 @@ test_that("Assert valid definition name rejects invalid names", {
     expect_error("cannot start with a dot")
   assert_valid_definition_name(".ration", "latent") |>
     expect_error("cannot start with a dot")
+  # a name starts with a letter, in every family
+  assert_valid_definition_name("10", "parameter") |>
+    expect_error("must start with a letter")
+  assert_valid_definition_name("_rho", "latent") |>
+    expect_error("must start with a letter")
+  assert_valid_definition_name("2_record", "observation") |>
+    expect_error("must start with a letter")
   # valid names pass
   assert_valid_definition_name("alpha", "parameter") |> expect_null()
   assert_valid_definition_name("beta_1", "parameter") |> expect_null()

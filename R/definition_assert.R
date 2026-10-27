@@ -251,6 +251,9 @@ assert_valid_definition_name <- function(x, family) {
       "Name {.val {x}} of {family} cannot start with a dot.",
       "A leading dot is reserved to the definitions housepi generates itself."
     )
+    if (!grepl("^[A-Za-z]", x)) stop_h(
+      "Name {.val {x}} of {family} must start with a letter."
+    )
   }
   invisible()
 }

@@ -18,8 +18,9 @@ mk_latent_draws <- local({
   hh_model <- data.frame(hh_id = 1, id = c("m1", "m2"),
                          status = c(1, 0), obs = 0) |>
     new_housepi_model("test") |>
-    add_parameter(rho = list(prior = "uniform"),
-                  rho_2 = list(prior = "uniform")) |>
+    # declared out of order: draws follow get_parameters(), not declaration
+    add_parameter(rho_2 = list(prior = "uniform"),
+                  rho = list(prior = "uniform")) |>
     add_latent(hidden = list(model = "uniform")) |>
     helper_flat_sink(loc = hidden)
   hh_fit <- hh_model |>
@@ -289,9 +290,9 @@ test_that("A model without parameters returns empty parameter draws", {
 test_that("Draws accessors subset the variables they return", {
   hh_fit <- mk_latent_draws$fit
 
-  # asking for nothing returns everything
+  # asking for nothing returns everything, in the order of get_parameters()
   posterior::variables(get_parameter_draws(hh_fit)) |>
-    expect_setequal(c("rho", "rho_2"))
+    expect_identical(get_parameters(mk_latent_draws$model)$name)
   posterior::variables(get_parameter_draws(hh_fit, "rho")) |>
     expect_identical("rho")
   posterior::variables(get_parameter_draws(hh_fit, "rho_2")) |>
