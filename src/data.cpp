@@ -4,7 +4,8 @@
  */
 
 #include <algorithm>
-#include <functional>
+#include <cstdint>
+#include <cstring>
 #include <limits>
 #include <map>
 #include <numeric>
@@ -39,7 +40,11 @@ namespace housepi
                model.house_member_vec_keys(),
                model.house_double_vec_keys(),
                model.house_double_mtx_keys()),
-          long_format(model.long_keys()) {}
+          long_format(model.long_keys())
+    {
+        // the transmission model reads its data keys per member
+        wide.add_eq_class_covariates(model.data_keys());
+    }
 
     //////////////////////////////  Household  //////////////////////////////
 
@@ -306,7 +311,7 @@ namespace housepi::data
     void Wide::build_helper_fill_report_data_()
     {
         report_house.total = house_vector_.size();
-        report_house.distinct = report_house.total;
+        report_house.eq_classes = report_house.total;
 
         // set report counts
         for (const Household &house : house_vector_)
@@ -330,8 +335,16 @@ namespace housepi::data
 
     namespace
     {
-        /// Whether member `a` sorts before `b`, by status then covariates `data_list`.
-        /// * missing cell -> a class of its own, ordered last, so the equivalence stays transitive.
+        /// Bits of the cell of covariate `d` for `indiv`, as compared in equivalence keys.
+        std::uint64_t cell_bits_(const State &state, size_t d, const Individual &indiv)
+        {
+            const double x = state.readcell(d, indiv).value();
+            std::uint64_t bits;
+            std::memcpy(&bits, &x, sizeof bits);
+            return bits;
+        }
+
+        /// Whether member `a` sorts before `b`, by status then cell bits of covariates `data_list`.
         bool indiv_less_(const std::unordered_set<size_t> &data_list,
                          const State &state,
                          const Individual &a,
@@ -341,11 +354,9 @@ namespace housepi::data
                 return a.status() < b.status();
             for (size_t d : data_list)
             {
-                const double x = state.readcell(d, a).value(), y = state.readcell(d, b).value();
-                const bool na_x = na::is(x), na_y = na::is(y);
-                if (na_x != na_y)
-                    return na_y;
-                if (!na_x && x != y)
+                const std::uint64_t x = cell_bits_(state, d, a);
+                const std::uint64_t y = cell_bits_(state, d, b);
+                if (x != y)
                     return x < y;
             }
             return false;
@@ -364,115 +375,85 @@ namespace housepi::data
             return order;
         }
 
-        struct FrequencyMapper_
+        /// Households of each equivalence class, keyed on their sorted members.
+        /// * key: status, then cell bits of covariates `data_list`, per sorted member;
+        /// * NA cell -> equivalent to NA only.
+        std::map<std::vector<std::uint64_t>, std::vector<size_t>> partition_houses_(
+            const std::unordered_set<size_t> &data_list,
+            const State &state,
+            const std::vector<Household> &house_vector)
         {
-            FrequencyMapper_(const std::unordered_set<size_t> data_list,
-                             const State &state)
-                : data_list_(data_list),
-                  state_(state) {}
-
-            /// Group households by hash of their sorted members.
-            std::map<size_t, std::vector<size_t>> define_hash_groups(
-                const std::vector<Household> &house_vector)
+            std::map<std::vector<std::uint64_t>, std::vector<size_t>> output;
+            for (size_t H = 0; H < house_vector.size(); ++H)
             {
-                std::map<size_t, std::vector<size_t>> output;
-
-                for (size_t H = 0; H < house_vector.size(); ++H)
+                const Household &house = house_vector[H];
+                std::vector<std::uint64_t> key;
+                for (MemberIdx i : sorted_members_(data_list, state, house))
                 {
-                    const Household &house = house_vector[H];
-
-                    // equal house sizes share seeding
-                    size_t seed = std::hash<size_t>{}(house.size());
-                    // combine hashes over sorted members
-                    for (MemberIdx i : sorted_members_(data_list_, state_, house))
-                    {
-                        const Individual &indiv = house.at(i);
-                        hash_combine_(seed, std::hash<StatusLvl>{}(indiv.status()));
-                        for (size_t d : data_list_)
-                            hash_combine_(seed, std::hash<double>{}(state_.readcell(d, indiv).value()));
-                    }
-                    output[seed].emplace_back(H);
+                    const Individual &indiv = house.at(i);
+                    key.push_back(indiv.status());
+                    for (size_t d : data_list)
+                        key.push_back(cell_bits_(state, d, indiv));
                 }
-
-                return output;
+                output[std::move(key)].emplace_back(H);
             }
-
-        private:
-            const std::unordered_set<size_t> data_list_; /// Covariates hashed into equivalence classes.
-            const State &state_;                         /// Read-cells of every member.
-
-            /// Combine hash `h` into `seed`, golden-ratio mixing.
-            /// Based on @cite james_boostcontainerhash_2022.
-            static void hash_combine_(size_t &seed, size_t h)
-            {
-#if __x86_64__ || __ppc64__ || __aarch64__ || _WIN64
-                seed ^= h + 0x9e3779b97f4a7c15ULL + (seed << 12) + (seed >> 4);
-#else
-                seed ^= h + 0x9e3779b9 + (seed << 6) + (seed >> 2);
-#endif
-            }
-        };
+            return output;
+        }
     }
 
-    void Wide::set_eq_class_data_names(const std::vector<std::string> &data_list)
+    void Wide::add_eq_class_covariates(const std::vector<std::string> &data_list)
     {
         for (size_t d : consult(data_list))
             eq_class_covariates_.emplace(d);
     }
 
-    void Wide::init_eq_classes(bool force_unique, const State &state)
+    void Wide::init_eq_classes(bool force_singleton, const State &state)
     {
-        if (force_unique)
+        if (force_singleton)
         {
-            helper_init_unique_eq_classes_();
+            helper_init_singleton_eq_classes_();
             return;
         }
 
-        // compute frequency-relevant hash for each household
-        std::map<size_t, std::vector<size_t>> hash_groups =
-            FrequencyMapper_(eq_class_covariates_, state).define_hash_groups(house_vector_);
+        const std::map<std::vector<std::uint64_t>, std::vector<size_t>> partition =
+            partition_houses_(eq_class_covariates_, state, house_vector_);
+        report_house.eq_classes = partition.size();
 
-        // update number of distinct frequency groups
-        report_house.distinct = hash_groups.size();
-
-        // init all unique households and skip if it's the case
-        if (report_house.total == report_house.distinct)
+        // no two households equivalent
+        if (report_house.total == report_house.eq_classes)
         {
-            helper_init_unique_eq_classes_();
+            helper_init_singleton_eq_classes_();
             return;
         }
 
-        // compute frequency heads and weights
+        // first household of each class as its representative
         eq_classes_.clear();
-        eq_classes_.reserve(report_house.distinct);
-        for (const auto &[hash, group] : hash_groups)
+        eq_classes_.reserve(report_house.eq_classes);
+        for (const auto &[key, houses] : partition)
         {
-            const size_t refer_restrict = eq_classes_.size();
-            for (size_t H : group)
-                at(H).eq_class_ = static_cast<EqClassIdx>(refer_restrict);
-
-            eq_classes_.emplace_back(group);
+            for (size_t H : houses)
+                at(H).eq_class_ = static_cast<EqClassIdx>(eq_classes_.size());
+            eq_classes_.emplace_back(houses);
         }
     }
 
-    std::vector<MemberIdx> Wide::map_head_members(const Household &house, const State &state) const
+    std::vector<MemberIdx> Wide::map_rep_members(const Household &house, const State &state) const
     {
-        const Household &head = eq_class_head(house.eq_class());
-        const std::vector<MemberIdx> head_order = sorted_members_(eq_class_covariates_, state, head);
+        const Household &rep = eq_class_rep(house.eq_class());
+        const std::vector<MemberIdx> rep_order = sorted_members_(eq_class_covariates_, state, rep);
         const std::vector<MemberIdx> house_order = sorted_members_(eq_class_covariates_, state, house);
 
         std::vector<MemberIdx> output(house.size());
         for (size_t k = 0; k < house.size(); ++k)
-            output[head_order[k]] = house_order[k];
+            output[rep_order[k]] = house_order[k];
         return output;
     }
 
-    void Wide::helper_init_unique_eq_classes_()
+    void Wide::helper_init_singleton_eq_classes_()
     {
-        // restore distinct count
-        report_house.distinct = report_house.total;
+        report_house.eq_classes = report_house.total;
 
-        // skip if already unique equivalence classes
+        // one class per household in place -> nothing to rebuild
         if (eq_classes_.size() == report_house.total)
             return;
 
@@ -480,7 +461,7 @@ namespace housepi::data
         eq_classes_.resize(report_house.total);
         for (size_t H = 0; H < report_house.total; ++H)
         {
-            eq_classes_[H].head_ = H;
+            eq_classes_[H].rep_ = H;
             at(H).eq_class_ = static_cast<EqClassIdx>(H);
         }
     }
@@ -559,19 +540,19 @@ namespace housepi::data
 
     void State::allocate_transm_log_lik(const Wide &wide)
     {
-        transm_log_lik_.assign(wide.eq_class_size(), LogProba());
-        evaluated_.assign(wide.eq_class_size(), false);
+        transm_log_lik_.assign(wide.n_eq_classes(), LogProba());
+        evaluated_.assign(wide.n_eq_classes(), false);
     }
 
     void State::allocate_cache(const Wide &wide)
     {
-        evaluated_.assign(wide.eq_class_size(), false);
-        previous_.resize(wide.eq_class_size());
-        current_.resize(wide.eq_class_size());
+        evaluated_.assign(wide.n_eq_classes(), false);
+        previous_.resize(wide.n_eq_classes());
+        current_.resize(wide.n_eq_classes());
 
-        for (size_t R = 0; R < wide.eq_class_size(); ++R)
+        for (size_t R = 0; R < wide.n_eq_classes(); ++R)
         {
-            size_t hh_size = wide.eq_class_head(R).size();
+            size_t hh_size = wide.eq_class_rep(R).size();
             Cache_ &prev = previous_[R];
             Cache_ &curr = current_[R];
 

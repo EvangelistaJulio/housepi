@@ -198,8 +198,8 @@ namespace housepi
                 route.classes.size(),
                 [&](size_t k) -> double
                 {
-                    const Household &house = data_wide.eq_class_head(route.classes[k]);
-                    return commit_transm_log_lik_ratio_(house) * data_wide.eq_class_weight(route.classes[k]);
+                    const Household &house = data_wide.eq_class_rep(route.classes[k]);
+                    return commit_transm_log_lik_ratio_(house) * data_wide.eq_class_size(route.classes[k]);
                 },
                 settings.budget.inner);
             tot_log_lik.transm.increment(delta);
@@ -212,7 +212,7 @@ namespace housepi
 
             tot_log_lik.transm.recover();
             for (size_t R : route.classes)
-                recover_transm_log_lik_(data.wide().eq_class_head(R));
+                recover_transm_log_lik_(data.wide().eq_class_rep(R));
         }
 
         //////  Latent moves  //////

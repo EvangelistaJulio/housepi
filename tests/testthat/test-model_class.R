@@ -501,6 +501,38 @@ test_that("Flu 2014 Matsumoto is correctly pre-processed", {
     expect_identical(454L)
 })
 
+test_that("Households apart in any covariate fall in distinct classes", {
+  # `h1` and `h2` share size and status, and differ in both covariates
+  hh_data <- data.frame(hh_id = c("h1", "h2"), status = 1,
+                        datum = c(1, 2.125), datum_2 = c(1, 2))
+  strata <- data.frame(datum = c(1, 2.125), datum_2 = c(1, 2),
+                       param_name = c(".reference", "rho"))
+  hh_model <- new_housepi_model(hh_data, "final-size") |>
+    add_group_risk("community", strata = strata,
+                   params = list(rho = list(const = 4))) |>
+    add_parameter(alpha = 0.3, beta = 0.5, gamma = 0, hh_size_ref = 1)
+
+  summary <- summarise_house_cases(hh_model)
+  summary$count[summary$metric == "classes"] |> expect_identical(2L)
+  log_lik <- vapply(c("h1", "h2"), \(id) evaluate_log_lik(hh_model, id), 0)
+  evaluate_log_lik(hh_model) |> expect_equal(sum(log_lik))
+})
+
+test_that("Households apart in a column the model reads fall in distinct classes", {
+  # `h1` and `h2` differ only in `end_date`, infection times fixed
+  hh_data <- data.frame(hh_id = rep(c("h1", "h2"), each = 2),
+                        status = c(1, 0, 1, 0), end_date = c(10, 10, 30, 30))
+  hh_model <- new_housepi_model(hh_data, "case-ascertained") |>
+    add_infectivity_profile(import = "template") |>
+    add_parameter(alpha = 0.01, beta = 0.5, gamma = 1, hh_size_ref = 4) |>
+    add_latent("infec_time", const = 0)
+
+  summary <- summarise_house_cases(hh_model)
+  summary$count[summary$metric == "classes"] |> expect_identical(2L)
+  log_lik <- vapply(c("h1", "h2"), \(id) evaluate_log_lik(hh_model, id), 0)
+  evaluate_log_lik(hh_model) |> expect_equal(sum(log_lik))
+})
+
 ####  Posterior sampling  ####
 
 test_that("Model class inconsistent inference throw errors", {

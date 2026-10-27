@@ -775,7 +775,7 @@ namespace housepi
                 {"household", "no cases", house.no_cases, pct_house(house.no_cases)},
                 {"household", "at least 1 case", house.at_least_1_case, pct_house(house.at_least_1_case)},
                 {"household", "at least 2 cases", house.at_least_2_cases, pct_house(house.at_least_2_cases)},
-                {"household", "classes", house.distinct, NA_REAL}};
+                {"household", "classes", house.eq_classes, NA_REAL}};
 
             Rcpp::CharacterVector level(rows.size()), metric(rows.size());
             Rcpp::IntegerVector count(rows.size());
@@ -983,7 +983,7 @@ namespace housepi
         }
 
         /// Snapshot the quantities the model exports for `house`, with member ids as names and dimnames.
-        /// * read from the class head, mapped onto the members of `house`;
+        /// * read from the class representative, mapped onto the members of `house`;
         /// * household not evaluated at the current state -> empty list.
         Rcpp::List rcpp_snapshot_model_quantities(Rcpp::XPtr<MCMC> mcmc_ptr,
                                                   const Household &house)
@@ -992,11 +992,11 @@ namespace housepi
                 return Rcpp::List::create();
 
             const data::Wide &data_wide = mcmc_ptr->data.wide();
-            const Household &head = data_wide.eq_class_head(house.eq_class());
-            HouseQuantities out(head.size());
-            mcmc_ptr->model->export_house_quantities(head, out);
+            const Household &rep = data_wide.eq_class_rep(house.eq_class());
+            HouseQuantities out(rep.size());
+            mcmc_ptr->model->export_house_quantities(rep, out);
 
-            const std::vector<MemberIdx> member = data_wide.map_head_members(house, mcmc_ptr->data.state);
+            const std::vector<MemberIdx> member = data_wide.map_rep_members(house, mcmc_ptr->data.state);
             const Rcpp::CharacterVector ids = rcpp_ids(data_wide, house);
             const size_t n = house.size();
             Rcpp::List output;

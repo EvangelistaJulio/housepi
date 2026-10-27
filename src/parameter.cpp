@@ -631,8 +631,9 @@ namespace housepi
             for (const std::string &gstr : str::unique(input.at("group_risk")))
                 add_(gstr);
 
-            // the status is carried by the member: no data key, the equivalence-class hash mixes it in
-            data_wide.set_eq_class_data_names(
+            // the status is carried by the member:
+            // no data key, the equivalence-class key holds it
+            data_wide.add_eq_class_covariates(
                 vect::difference(data_headers, {rules::STATUS_KEY}));
 
             return data_headers;
@@ -711,7 +712,7 @@ namespace housepi
 
             ContactDefinitions defs(input, data_wide, param);
 
-            data_wide.set_eq_class_data_names(defs.data);
+            data_wide.add_eq_class_covariates(defs.data);
 
             // scale anchoring per rule group
             for (const auto &[gid, anchor] : read_scale_anchors<size_t>(

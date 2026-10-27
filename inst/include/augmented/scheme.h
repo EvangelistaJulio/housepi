@@ -97,8 +97,8 @@ namespace housepi::augm
         bool is_any_obs_model() const noexcept { return is_any_obs_model_; }
         /// Whether any member observation column is produced, model-carrying or deterministic.
         bool is_any_obs_node() const noexcept { return !list_obs_member.empty(); }
-        /// Whether definitions imply a unique household equivalence class.
-        bool is_unique_eq_class() const noexcept
+        /// Whether definitions imply one equivalence class per household.
+        bool is_singleton_eq_class() const noexcept
         {
             return is_any_sample() || is_any_latent_model() || is_any_obs_node();
         }

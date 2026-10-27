@@ -106,7 +106,7 @@ namespace housepi
         /// Compute the transmission log-likelihood of `house`.
         virtual double compute_house_transm_log_lik(const Household & /*house*/) = 0;
         /// Export named quantities of `house` at the current state into `out`.
-        /// * called on an equivalence-class head, once every class is evaluated;
+        /// * called on an equivalence-class representative, once every class is evaluated;
         /// * default -> nothing.
         /// @note A cache written by compute_house_transm_log_lik() may hold a rejected proposal.
         virtual void export_house_quantities(const Household & /*house*/, HouseQuantities & /*out*/) {}

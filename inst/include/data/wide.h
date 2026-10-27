@@ -90,27 +90,26 @@ namespace housepi::data
 
         //////  Equivalence classes  //////
 
-        /// Declare data columns `data_list` as equivalence-class keys.
-        void set_eq_class_data_names(const std::vector<std::string> &data_list);
-        /// Group households into equivalence classes, weighted by their frequency.
-        /// * equivalence class: households with the same likelihood, computed once;
-        /// * `force_unique` -> one class per household;
+        /// Add data columns `data_list` to the equivalence-class covariates.
+        void add_eq_class_covariates(const std::vector<std::string> &data_list);
+        /// Partition households into equivalence classes.
+        /// * equivalent households: same status and covariate cells per member, in sorted member order;
+        /// * equivalent households share one likelihood, computed on the class representative;
+        /// * `force_singleton` -> one class per household;
         /// * covariates read through the read-cells of `state`.
-        void init_eq_classes(bool force_unique, const State &state);
+        void init_eq_classes(bool force_singleton, const State &state);
 
-        /// Number of households in equivalence class `R`.
-        size_t eq_class_weight(size_t R) const noexcept { return eq_classes_[R].weight_; }
-        /// Equivalence class of household `H`.
-        EqClassIdx get_eq_class(size_t H) const noexcept { return house_vector_[H].eq_class_; }
         /// Number of equivalence classes.
-        size_t eq_class_size() const noexcept { return report_house.distinct; }
-        /// Head household of equivalence class `R`.
-        Household &eq_class_head(size_t R) noexcept { return at(eq_classes_[R].head_); }
-        const Household &eq_class_head(size_t R) const noexcept { return at(eq_classes_[R].head_); }
-        /// Member of `house` standing for each member of its class head, by head member index.
+        size_t n_eq_classes() const noexcept { return report_house.eq_classes; }
+        /// Number of households in equivalence class `R`.
+        size_t eq_class_size(size_t R) const noexcept { return eq_classes_[R].size_; }
+        /// Representative household of equivalence class `R`.
+        Household &eq_class_rep(size_t R) noexcept { return at(eq_classes_[R].rep_); }
+        const Household &eq_class_rep(size_t R) const noexcept { return at(eq_classes_[R].rep_); }
+        /// Member of `house` paired with each member of its class representative, by representative index.
         /// * equivalent members pair up in sorted order, so ties pair arbitrarily;
         /// * covariates read through the read-cells of `state`.
-        std::vector<MemberIdx> map_head_members(const Household &house, const State &state) const;
+        std::vector<MemberIdx> map_rep_members(const Household &house, const State &state) const;
 
         //////  Flags  //////
 
@@ -158,18 +157,18 @@ namespace housepi::data
 
         //////  Equivalence class  //////
 
-        /// Equivalence class: head household and number of households.
+        /// Equivalence class: representative household and number of households.
         struct EquivalenceClass_
         {
             EquivalenceClass_() = default;
-            EquivalenceClass_(const std::vector<size_t> &group)
-                : head_(group.front()),
-                  weight_(group.size()) {}
-            size_t head_ = na::INDEX; /// Head household.
-            size_t weight_ = 1;       /// Number of households.
+            EquivalenceClass_(const std::vector<size_t> &houses)
+                : rep_(houses.front()),
+                  size_(houses.size()) {}
+            size_t rep_ = na::INDEX; /// Representative household.
+            size_t size_ = 1;        /// Number of households.
         };
         std::vector<EquivalenceClass_> eq_classes_ = {};      /// Equivalence classes.
-        std::unordered_set<size_t> eq_class_covariates_ = {}; /// Covariates hashed into equivalence classes.
+        std::unordered_set<size_t> eq_class_covariates_ = {}; /// Covariates telling equivalence classes apart.
 
         //////  Helpers  //////
 
@@ -182,6 +181,6 @@ namespace housepi::data
         /// Fill the report from the loaded data.
         void build_helper_fill_report_data_();
         /// Initialize equivalence classes, one per household.
-        void helper_init_unique_eq_classes_();
+        void helper_init_singleton_eq_classes_();
     };
 }

@@ -80,7 +80,7 @@ namespace housepi
         /// Imported tables.
         struct Store_
         {
-            /// Register the data keys declared by `model`.
+            /// Register the data keys declared by `model`, also equivalence-class covariates.
             explicit Store_(const ModelBase &model);
 
             data::Wide wide;        /// Wide-format table.
