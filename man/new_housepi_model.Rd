@@ -32,7 +32,8 @@ Whether to store the compiled model as a local template.
 If \code{FALSE}, the model is recompiled in every new session.}
 
 \item{force}{\code{logical(1)}
-Whether to compile even when a cached model exists.}
+Whether to compile even when a cached model exists,
+for instance after editing a header under \code{paths}.}
 
 \item{quiet}{\code{logical(1)} Whether to hide compilation commands.}
 

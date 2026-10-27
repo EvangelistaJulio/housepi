@@ -85,7 +85,7 @@ Use \code{\link[=run_inference]{run_inference()}} instead of calling \verb{$new(
       \item{\code{name}}{Model name.}
       \item{\code{ptr}}{Internal engine handle.}
       \item{\code{secs}}{Wall-clock the engine timed the sampling loop at.}
-      \item{\code{fingerprint}}{Hashes of the data and definitions fitted.}
+      \item{\code{fingerprint}}{Engine, and hashes of the data and definitions fitted.}
     }
     \if{html}{\out{</div>}}
   }

@@ -340,7 +340,7 @@ HousepiPosteriorDraws <- R6::R6Class(
     secs_ = NA_real_,
     # engine settings of the run, seed, threads and chains aside
     settings_ = NULL,
-    # hashes of the data and definitions the run was fitted on
+    # engine, and hashes of the data and definitions the run was fitted on
     fingerprint_ = NULL,
     # engine seed of each run the chains come from
     seed_ = NA_real_,
@@ -388,7 +388,7 @@ HousepiPosteriorDraws <- R6::R6Class(
     #' @param name Model name.
     #' @param ptr Internal engine handle.
     #' @param secs Wall-clock the engine timed the sampling loop at.
-    #' @param fingerprint Hashes of the data and definitions fitted.
+    #' @param fingerprint Engine, and hashes of the data and definitions fitted.
     initialize = function(name, ptr, secs = NA_real_, fingerprint = NULL) {
       # inherit model name
       private$name_ <- as.character(name)

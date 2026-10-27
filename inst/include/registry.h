@@ -49,6 +49,7 @@ namespace housepi
         /// Map names to factories of Function objects.
         ///
         /// * each function type registers a factory under its `NAME`;
+        /// * a name registered again -> the last loaded factory;
         /// * new types are added without touching core code.
         class RegFunctions
         {
@@ -72,9 +73,9 @@ namespace housepi
             {
                 static_assert(std::is_base_of_v<Distribution, T> == is_distribution_kind(K),
                               "Class is registered under the wrong kind of registry.");
-                factory_map_.emplace(std::string(T::NAME),
-                                     []() -> std::unique_ptr<T>
-                                     { return std::make_unique<T>(); });
+                factory_map_.insert_or_assign(std::string(T::NAME),
+                                              []() -> std::unique_ptr<T>
+                                              { return std::make_unique<T>(); });
             }
 
         protected:
@@ -168,6 +169,7 @@ namespace housepi::registry
     /// Map names to factories of ModelBase objects.
     ///
     /// * model DLLs register their factory into this singleton at load time;
+    /// * a name registered again -> the last loaded factory;
     /// * the singleton lives in housepi.so: every model DLL shares one instance.
     class RegModels
     {
@@ -182,9 +184,9 @@ namespace housepi::registry
         template <typename T>
         void register_factory(const std::string &name)
         {
-            factory_map_.emplace(name,
-                                 []() -> std::unique_ptr<T>
-                                 { return std::make_unique<T>(); });
+            factory_map_.insert_or_assign(name,
+                                          []() -> std::unique_ptr<T>
+                                          { return std::make_unique<T>(); });
         }
 
         /// Create the model registered under `name`.

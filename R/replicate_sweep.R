@@ -114,13 +114,15 @@ sweep_cells_ <- function(replicates) {
 }
 
 #' Fingerprint of what the surveys are generated and fitted with:
+#' * engine -> its module name;
 #' * household structure the surveys are drawn from -> hashed;
 #' * definitions as the engine imports them -> hashed per family;
 #' * structure sampler and `wide` reporting process -> kept whole.
 #' @noRd
 sweep_fingerprint_ <- function(hh_model, structure, sampler) {
   pvt <- hh_model$.__enclos_env__$private
-  c(list(household_data = rlang::hash(structure)),
+  c(list(model = pvt$compiled_$module,
+         household_data = rlang::hash(structure)),
     lapply(pvt$payload_(), rlang::hash),
     list(structure_sampler = sampler,
          reporting_process = pvt$reporting_process_$wide))
@@ -137,7 +139,7 @@ HousepiSweep <- R6::R6Class(
   private = list(
     # sampler settings of the fits
     settings_ = NULL,
-    # hashes of the data and definitions the surveys are generated with
+    # engine, and hashes of the data and definitions the surveys come from
     fingerprint_ = NULL,
     estimates_ = NULL,
     replicates_ = NULL,

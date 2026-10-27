@@ -12,28 +12,9 @@ dll_file_ext <- function(name) {
   paste0(name, .Platform$dynlib.ext)
 }
 
-# Sidecar file recording the compile flags baked into a dll.
-dll_flags_file <- function(dll) {
-  paste0(dll, ".housepi.flags")
-}
-
 # Templated name convention (non-identifier characters become underscores).
 template_name <- function(path) {
   gsub("[^A-Za-z0-9_]", "_", basename(path))
-}
-
-# Append a random string to a templated name.
-random_name <- function(path) {
-  # generate a random string
-  str_len <- 8
-  str_name <- paste0(sample(c(letters, LETTERS, 0:9), str_len, replace = TRUE),
-                     collapse = "")
-  paste0(template_name(path), str_name)
-}
-
-# DLL file name, by the templated name convention.
-template_dll_file <- function(path) {
-  file.path(path, dll_file_ext(template_name(path)))
 }
 
 # Template name of a DLL file.
@@ -53,12 +34,22 @@ load_model_dll_ <- function(dll) {
   if (!is.null(dll) && !is.na(dll) && !is_dll_loaded(dll)) dyn.load(dll)
 }
 
-# Whether the build cache would overlap the model source.
-cache_overlaps_source <- function(cache, source) {
-  norm <- \(p) normalizePath(p, winslash = "/", mustWork = FALSE)
-  cache <- norm(cache)
-  source <- norm(source)
-  cache == source || startsWith(source, paste0(cache, "/"))
+# Path of the housepi image .engine uses:
+# R's PACKAGE="housepi" lookup picks the last loaded entry.
+active_housepi_lib_ <- function() {
+  hp_entries <- Filter(\(d) d[["name"]] == "housepi", getLoadedDLLs())
+  hp_entries[[length(hp_entries)]][["path"]]
+}
+
+# Module name of a model build: `name` and a hash of what its dll is built from,
+# the source, the compile options, housepi headers and image.
+module_name_ <- function(name, source_dir, options) {
+  headers <- list.files(system.file("include", package = "housepi"),
+                        recursive = TRUE, full.names = TRUE)
+  files <- c(file.path(source_dir, "model.cpp"), headers, active_housepi_lib_())
+  key <- rlang::hash(list(rlang::hash_file(files), sort(options$flags),
+                          options$paths, options$libs))
+  paste0(name, "_", substr(key, 1, 12))
 }
 
 # Whether model `name` is the test model.
@@ -148,19 +139,6 @@ assert_model_flags_ <- function(source_dir, flags, label) {
   invisible()
 }
 
-# Whether the flags match the existing dll.
-same_flags_as_dll_ <- function(dll, flags) {
-  # custom dll carries its flags in a sidecar for comparison
-  if (!is.na(dll) && file.exists(dll)) {
-    flags_file <- dll_flags_file(dll)
-    # unknown flags -> rebuild
-    if (!file.exists(flags_file)) return(FALSE)
-    return(setequal(flags, readLines(flags_file)))
-  }
-  # built-in templates have no extra flags
-  !length(flags)
-}
-
 # Assert source files exist.
 assert_source_files_ <- function(source_dir) {
   file_name <- file.path(source_dir, "model.cpp")
@@ -171,103 +149,28 @@ assert_source_files_ <- function(source_dir) {
   invisible()
 }
 
-# Cached dll still matching the source and the flags.
-# * nothing cached, or several dlls -> `NA`.
-find_cached_dll_ <- function(cache_dir, source_dir, flags) {
-  # the extension anchored so the flags sidecar next to the dll
-  # is not picked up as a second match
-  dlls <- list.files(cache_dir,
-                     pattern = paste0("\\", .Platform$dynlib.ext, "$"),
-                     full.names = TRUE)
-  if (length(dlls) == 1 &&
-        !untracked_changes(source_dir, dlls) &&
-        same_flags_as_dll_(dlls, flags))
-    return(dlls)
-  NA_character_
-}
-
-# Create the cache folder and copy the source code there.
-copy_source_code_ <- function(cache_dir, source_dir) {
-  # clean all previous files in the cache
-  unlink(list.files(cache_dir, full.names = TRUE), recursive = TRUE)
+# Create the build folder and copy the source code there.
+copy_source_code_ <- function(build_dir, source_dir) {
+  # leftovers of an interrupted build
+  unlink(build_dir, recursive = TRUE)
+  dir.create(file.path(build_dir, "src"),
+             showWarnings = FALSE, recursive = TRUE)
 
   # 'housepi' template package directory
   housepi_dir <- system.file("template", package = "housepi")
 
   # copy R folder from template
-  overwrite(file.path(housepi_dir, "R"), cache_dir, recursive = TRUE)
+  overwrite(file.path(housepi_dir, "R"), build_dir, recursive = TRUE)
 
   # copy single package files
   for (f in file.path(housepi_dir, c("NAMESPACE", "DESCRIPTION"))) {
-    overwrite(f, file.path(cache_dir, basename(f)))
+    overwrite(f, file.path(build_dir, basename(f)))
   }
 
   # copy model specific source files in the new folder
-  dir.create(file.path(cache_dir, "src"),
-             showWarnings = FALSE, recursive = TRUE)
   overwrite(file.path(source_dir, "model.cpp"),
-            file.path(cache_dir, "src", "model.cpp"))
+            file.path(build_dir, "src", "model.cpp"))
   invisible()
-}
-
-# Prepare the cache folder of a model to rebuild.
-# * `as_template` -> dll stored as a local template, replaced unless loaded;
-# * `force` -> compiled even when a cached model exists;
-# * otherwise -> a cached dll matching source and flags is reused.
-# @param compiled `list` As compile_model_() returns it.
-# @return `list` The `dll`, its `cache_dir`, and whether to `compile` it.
-stage_build_ <- function(compiled, as_template, force) {
-  name <- compiled$name
-  source_dir <- compiled$source_dir
-  dll <- compiled$dll
-  cache_dir <- file.path(tempdir(), template_name(name))
-
-  # nest one level if cache overlaps source so the latter is never deleted
-  if (cache_overlaps_source(cache_dir, source_dir))
-    cache_dir <- file.path(cache_dir, ".build")
-
-  if (!dir.exists(cache_dir))
-    if (!dir.create(cache_dir, recursive = TRUE,
-                    showWarnings = FALSE)) raise_permissions_error()
-
-  compile <- TRUE
-  if (as_template) {
-    if (file.exists(dll)) {
-      # check if dll is loaded
-      dll_info <- base::getLoadedDLLs()[[template_name(name)]]
-
-      if (is.null(dll_info) || isFALSE(dll_info[["dynamicLookup"]])) {
-        # safely remove previous template dll
-        unlink(dll)
-
-      } else {
-        compile <- FALSE
-        warn_h(
-          "Impossible to replace existing template in current session.",
-          `!` = paste("Warning raised because model changed",
-                      "or {.code force = TRUE}."),
-          "Start a new R session to re-compile your model as a template."
-        )
-      }
-    }
-
-  } else if (!force) {
-    # cached dll matching source and flags -> no compilation
-    cached <- find_cached_dll_(cache_dir, source_dir, compiled$flags)
-    if (!is.na(cached)) {
-      dll <- cached
-      compile <- FALSE
-    }
-  }
-
-  if (compile) {
-    # change dll name if not as template
-    if (!as_template)
-      dll <- file.path(cache_dir, dll_file_ext(random_name(source_dir)))
-    assert_source_files_(source_dir)
-    copy_source_code_(cache_dir, source_dir)
-  }
-  list(dll = dll, cache_dir = cache_dir, compile = compile)
 }
 
 # Generate flags used for environment compilation.
@@ -278,7 +181,7 @@ compile_envvars_ <- function(dll, paths = NULL, flags = NULL, libs = NULL) {
     flags
   )
   paths <- c(system.file("include", package = "housepi"), paths)
-  housepi_lib <- getLoadedDLLs()[["housepi"]][["path"]]
+  housepi_lib <- active_housepi_lib_()
 
   # collect RcppParallel flags
   rcpp_parallel_libs <- paste(utils::capture.output(
@@ -307,21 +210,23 @@ compile_envvars_ <- function(dll, paths = NULL, flags = NULL, libs = NULL) {
 # to the image .engine uses.
 bind_to_active_housepi_ <- function(custom_dll) {
   if (Sys.info()[["sysname"]] != "Darwin") return(invisible()) # nocov
-  # R's PACKAGE="housepi" lookup picks the last loaded entry, so the
-  # last one is what .engine resolves against.
-  hp_entries <- Filter(\(d) d[["name"]] == "housepi", getLoadedDLLs())
-  housepi_path <- hp_entries[[length(hp_entries)]][["path"]]
-  system2("install_name_tool",
-          c("-change", "housepi.so",
-            shQuote(housepi_path), shQuote(custom_dll)),
-          stdout = FALSE, stderr = FALSE)
+  out <- suppressWarnings(system2(
+    "install_name_tool",
+    c("-change", "housepi.so",
+      shQuote(active_housepi_lib_()), shQuote(custom_dll)),
+    stdout = TRUE, stderr = TRUE
+  ))
+  if (!is.null(attr(out, "status"))) stop_h(
+    "Failed to link the model to the loaded {.pkg housepi} library.",
+    `!` = "{.code install_name_tool} reported: {out}"
+  )
   invisible()
 }
 
-# Compile and load the source files inside the cache directory.
+# Compile the source files in a build folder into the dll of `compiled`.
 # @param compiled `list` As compile_model_() returns it.
 # @param options `list` As compile_options_() returns it.
-compile_dll_ <- function(cache_dir, compiled, options) {
+compile_dll_ <- function(compiled, options) {
   # nolint next: object_usage_linter. read by the cli glue below
   label <- spaced_choice(compiled$name)
   if (!pkgbuild::has_build_tools()) stop_h(
@@ -329,24 +234,22 @@ compile_dll_ <- function(cache_dir, compiled, options) {
     `!` = "Custom and discrete-time models compile at run time.",
     "Diagnose with {.run pkgbuild::check_build_tools(debug = TRUE)}."
   )
-  # compile the dynamic library
+  # build folder in the session cache, dropped once the dll is copied out
+  build_dir <- file.path(tempdir(), "housepi_models",
+                         get_template_from_dll(compiled$dll))
+  on.exit(unlink(build_dir, recursive = TRUE), add = TRUE)
+  copy_source_code_(build_dir, compiled$source_dir)
   withr::with_envvar(
     compile_envvars_(compiled$dll, paths = options$paths,
                      flags = options$flags, libs = options$libs),
-    pkgbuild::compile_dll(cache_dir,
+    pkgbuild::compile_dll(build_dir,
                           quiet = options$quiet,
                           compile_attributes = FALSE,
                           debug = FALSE)
   )
-  # copy DLL outside of the source directory
-  custom_dll <- file.path(cache_dir, "src", dll_file_ext("housepi.custom"))
+  custom_dll <- file.path(build_dir, "src", dll_file_ext("housepi.custom"))
   bind_to_active_housepi_(custom_dll)
   overwrite(custom_dll, compiled$dll)
-  # record the flags this dll was compiled with, for later flag checks
-  writeLines(compiled$flags, dll_flags_file(compiled$dll))
-  # drop other files
-  unlink(file.path(cache_dir, c("NAMESPACE", "DESCRIPTION", "src", "R")),
-         recursive = TRUE)
   invisible()
 }
 
@@ -356,7 +259,8 @@ compile_dll_ <- function(cache_dir, compiled, options) {
 # * `name` -> as chosen, unformatted;
 # * `source_dir` -> folder of its `model.cpp`;
 # * `dll` -> dynamic library, `NA` for a template the package ships built;
-# * `flags` -> compiler flags.
+# * `flags` -> compiler flags;
+# * `module` -> engine identity, `name` and the hash of its build.
 compile_model_ <- function(model = NA_character_, as_template = FALSE,
                            force = FALSE, quiet = FALSE, ...) {
   choice <- model_choice_(model)
@@ -366,9 +270,9 @@ compile_model_ <- function(model = NA_character_, as_template = FALSE,
   if (all(is.na(model) | is.null(model))) as_template <- FALSE
   options <- compile_options_(quiet, ...)
 
-  if (dir.exists(choice)) {
+  custom <- dir.exists(choice)
+  if (custom) {
     source_dir <- choice
-    dll <- template_dll_file(choice)
   } else if (!is.na(get_template_dir(choice))) {
     if (isTRUE(as_template)) warn_h(
       "Cannot store template {.val {label}} as a new template.",
@@ -378,22 +282,43 @@ compile_model_ <- function(model = NA_character_, as_template = FALSE,
     )
     as_template <- FALSE
     source_dir <- get_template_dir(choice)
-    dll <- NA_character_
   } else {
     stop_h("{.val {choice}} is not a folder nor a template name.",
            find_closest_template_name(choice))
   }
+  assert_source_files_(source_dir)
   assert_model_flags_(source_dir, options$flags, label)
 
-  compiled <- list(name = name, source_dir = source_dir, dll = dll,
-                   flags = options$flags)
-  # custom model -> rebuilt when its dll is missing or outdated
-  stale <- !is.na(dll) &&
-    (!file.exists(dll) || untracked_changes(source_dir, dll))
-  if (force || stale || !same_flags_as_dll_(dll, options$flags)) {
-    build <- stage_build_(compiled, as_template, force)
-    compiled$dll <- build$dll
-    if (build$compile) compile_dll_(build$cache_dir, compiled, options)
+  compiled <- list(name = name, source_dir = source_dir, dll = NA_character_,
+                   flags = options$flags, module = name)
+  # built-in template without flags -> the dll the package ships
+  if (!custom && !length(options$flags) && !force) return(compiled)
+
+  # dll named after its build: an edited source or option gets a new one
+  # * a template in the model folder, then the session cache;
+  # * `force` -> rebuilt in the last, under the next suffix free in session.
+  module <- compiled$module <- module_name_(name, source_dir, options)
+  dirs <- c(if (custom) source_dir,
+            if (!as_template) file.path(tempdir(), "housepi_models"))
+  dlls <- file.path(dirs, dll_file_ext(module))
+  built <- dlls[file.exists(dlls)]
+  compiled$dll <- if (force || !length(built)) dlls[length(dlls)] else built[1]
+  if (!force && length(built)) return(compiled)
+  n <- 0
+  while (is_dll_loaded(compiled$dll)) {
+    n <- n + 1
+    compiled$dll <- file.path(dirs[length(dirs)],
+                              dll_file_ext(paste0(module, "_", n)))
+  }
+  compile_dll_(compiled, options)
+
+  # earlier builds of a template, unless loaded in session
+  if (as_template) {
+    pattern <- paste0("^", name, "_[0-9a-f]{12}(_[0-9]+)?\\",
+                      .Platform$dynlib.ext, "$")
+    old <- setdiff(list.files(source_dir, pattern, full.names = TRUE),
+                   compiled$dll)
+    unlink(Filter(Negate(is_dll_loaded), old))
   }
   compiled
 }

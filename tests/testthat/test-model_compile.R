@@ -110,17 +110,6 @@ test_that("A custom model directory without model.cpp is rejected", {
   new_housepi_model(model = path) |> expect_error("empty_model.*was not found")
 })
 
-test_that("A build cache that cannot be created is reported", {
-  path <- file.path(tempfile(), "squatted_model")
-  dir.create(path, recursive = TRUE)
-  # the build cache is named after the model folder, under tempdir()
-  cache <- file.path(tempdir(), "squatted_model")
-  file.create(cache)
-  on.exit(unlink(c(dirname(path), cache), recursive = TRUE), add = TRUE)
-
-  new_housepi_model(model = path) |> expect_error("[Ff]ailed to generate")
-})
-
 ####  Runner  ####
 
 test_that("Model has no leaks", {
@@ -155,17 +144,18 @@ test_that("A model compiling at run time requires a compiler", {
     expect_error("[Nn]o.*compiler found")
 })
 
-test_that("A session template compiles user flags and warns when they change", {
+test_that("A session template compiles user flags and keeps loaded builds", {
   # a fresh name each run: a template loaded by an earlier run stays loaded
   path <- tempfile("session_template")
   on.exit(unlink(path, recursive = TRUE), add = TRUE)
   browse_templates("case-ascertained", path, replace = TRUE)
-  # dll of an earlier session, not loaded in this one: replaced, no warning
-  writeLines("stale", template_dll_file(path))
+  dll_files <- \() list.files(path, paste0("\\", .Platform$dynlib.ext, "$"))
+  # dll of an earlier build, not loaded in this session: deleted
+  stale <- paste0(basename(path), "_000000000000", .Platform$dynlib.ext)
+  writeLines("stale", file.path(path, stale))
 
   # build + load a discrete template: user paths, flags and libs reach the
-  # compile command as one token each, spaces included, and the flags are
-  # recorded in a sidecar
+  # compile command as one token each, spaces included
   inc <- file.path(tempdir(), "include dir")
   lib <- file.path(tempdir(), "lib dir")
   log <- suppressMessages(capture.output(
@@ -181,27 +171,23 @@ test_that("A session template compiles user flags and warns when they change", {
   log |> expect_match("-D_HOUSEPI_DISCRETE_TIME", fixed = TRUE)
   # the link command is echoed with its quotes already removed
   log |> expect_match(paste0("-L", lib), fixed = TRUE)
-  readLines(dll_flags_file(template_dll_file(path))) |>
-    expect_identical("_HOUSEPI_DISCRETE_TIME")
+  dll_files() |> expect_length(1)
 
   # a status template in the model folder is read by `import = "template"`
   dput(list(symptomatic = 0.6, asymptomatic = 0.4), file.path(path, "status.R"))
   status <- new_housepi_model(model = path, discr = TRUE, as_template = TRUE,
-                              quiet = TRUE) |>
+                              paths = inc, libs = lib, quiet = TRUE) |>
     add_status_process(import = "template") |>
     get_status_process()
   status$status |> expect_identical(c("symptomatic", "asymptomatic"))
   status$weight |> expect_equal(c(0.6, 0.4))
 
-  # the loaded discrete dll cannot be replaced by the continuous variant
-  new_housepi_model(model = path, as_template = TRUE, quiet = TRUE) |>
-    expect_warning("replace existing template")
-
-  # a dll whose flags sidecar is lost counts as unknown: rebuild is attempted
-  unlink(dll_flags_file(template_dll_file(path)))
-  new_housepi_model(model = path, discr = TRUE, as_template = TRUE,
-                    quiet = TRUE) |>
-    expect_warning("replace existing template")
+  # the continuous variant builds next to the loaded discrete one
+  suppressMessages(
+    new_housepi_model(model = path, as_template = TRUE, quiet = TRUE)
+  ) |>
+    expect_no_warning()
+  dll_files() |> expect_length(2)
 })
 
 test_that("Custom models share function registries", {
@@ -226,4 +212,87 @@ test_that("Custom models share function registries", {
   func$func(x) |> expect_equal(2 * exp(0.5 * x))
   func$prim(x) |> expect_equal(2 * exp(0.5 * x) / 0.5)
   func$log_func(x) |> expect_error("undefined")
+})
+
+test_that("Model folders sharing a name keep their own engine and functions", {
+  source <- readLines(
+    system.file("examples", "custom", "model.cpp", package = "housepi")
+  )
+  # a folder named `model`, its engine scoring -scale * alpha
+  # and its `growth` scaled by `scale`
+  make_folder <- function(scale) {
+    path <- file.path(tempfile(), "model")
+    dir.create(path, recursive = TRUE)
+    sub("-par(Param::alpha)", paste0("-", scale, " * par(Param::alpha)"),
+        source, fixed = TRUE) |>
+      sub(pattern = "return I0 * std::exp(r * x);",
+          replacement = paste0("return ", scale, " * I0 * std::exp(r * x);"),
+          fixed = TRUE) |>
+      writeLines(file.path(path, "model.cpp"))
+    path
+  }
+  log_lik <- function(hh_model) {
+    hh_model |>
+      add_parameter("alpha", const = 1) |>
+      add_latent(proba = list(model = "uniform", min = 0, max = 1)) |>
+      evaluate_log_lik()
+  }
+  paths <- vapply(c(1, 2, 1), make_folder, "")
+  on.exit(unlink(dirname(paths), recursive = TRUE), add = TRUE)
+  # a source older than the first build
+  Sys.setFileTime(file.path(paths[2], "model.cpp"), Sys.time() - 3600)
+  hh_data <- data.frame(hh_id = "h1", status = 0)
+
+  # a compile leaves the user's random stream alone
+  runif(1)
+  seed <- get(".Random.seed", globalenv())
+  hh_model <- suppressMessages(
+    new_housepi_model(hh_data, paths[1], force = TRUE, quiet = TRUE)
+  )
+  get(".Random.seed", globalenv()) |> expect_identical(seed)
+
+  log_lik(hh_model) |> expect_equal(-1)
+  suppressMessages(new_housepi_model(hh_data, paths[2], quiet = TRUE)) |>
+    log_lik() |>
+    expect_equal(-2)
+  # the last loaded dll owns the custom function
+  browse_functions("growth")$func(0) |> expect_equal(2)
+
+  # an identical source reuses the loaded dll, uncompiled
+  n_dlls <- length(getLoadedDLLs())
+  capture.output(
+    invisible(suppressMessages(new_housepi_model(hh_data, paths[3]))),
+    type = "output"
+  ) |>
+    expect_length(0)
+  length(getLoadedDLLs()) |> expect_equal(n_dlls)
+
+  # runs combine across folders of one engine, never across engines
+  hh_fits <- lapply(paths, function(path) {
+    suppressMessages(new_housepi_model(hh_data, path, quiet = TRUE)) |>
+      add_parameter("alpha", prior = "normal", mean = 1, sd = 2) |>
+      add_latent(proba = list(model = "uniform", min = 0, max = 1)) |>
+      run_inference(steps = 20, adapt = 0, chains = 1,
+                    progress = FALSE, warn = FALSE)
+  })
+  c(hh_fits[[1]], hh_fits[[3]]) |> expect_s3_class("HousepiPosteriorDraws")
+  c(hh_fits[[1]], hh_fits[[2]]) |> expect_error("differ in.*model")
+})
+
+test_that("A failed relink to the loaded housepi stops the build", {
+  skip_if_not(Sys.info()[["sysname"]] == "Darwin")
+  # an install_name_tool that fails, first on the PATH
+  bin <- tempfile("bin")
+  dir.create(bin)
+  on.exit(unlink(bin, recursive = TRUE), add = TRUE)
+  tool <- file.path(bin, "install_name_tool")
+  writeLines(c("#!/bin/sh", "echo 'simulated failure' >&2", "exit 1"), tool)
+  Sys.chmod(tool, "755")
+  withr::local_path(bin, action = "prefix")
+
+  custom <- system.file("examples", "custom", package = "housepi")
+  suppressMessages(
+    new_housepi_model(model = custom, force = TRUE, quiet = TRUE) |>
+      expect_error("link.*simulated failure")
+  )
 })

@@ -358,26 +358,6 @@ overwrite <- function(from, to, ...) {
 
 ########  Files  ########
 
-# Modification time, truncated.
-trunc_mtime <- function(path) {
-  max(trunc(file.info(path)$mtime))
-}
-
-#' Whether `dll` is older than the model source or the housepi installation.
-#' @param source_dir `character(1)` Path to source directory.
-#' @param dll `character(1)` Expected dynamic library file name.
-#' @noRd
-untracked_changes <- function(source_dir, dll) {
-  last_mod <- trunc_mtime(file.path(source_dir, "model.cpp"))
-
-  # last changed should be older than installation time
-  housepi_dir <- system.file("template", package = "housepi")
-  check_src_files <- list.files(housepi_dir, full.names = TRUE)
-  install_time <- trunc_mtime(check_src_files)
-
-  any(trunc_mtime(dll) < c(last_mod, install_time))
-}
-
 # File shipped by a model for each templated definition family.
 template_def_files <- c(parameter = "param.R",
                         latent = "latent.R",

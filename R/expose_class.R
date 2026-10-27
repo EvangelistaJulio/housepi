@@ -28,7 +28,8 @@ rd_mdl_astmpl_ <- "`logical(1)`
 Whether to store the compiled model as a local template.
 If `FALSE`, the model is recompiled in every new session."
 rd_mdl_force_ <- "`logical(1)`
-Whether to compile even when a cached model exists."
+Whether to compile even when a cached model exists,
+for instance after editing a header under `paths`."
 rd_mdl_quiet_ <- "`logical(1)` Whether to hide compilation commands."
 rd_mdl_escaped_ <- "`character(1)` Label of status code `0`,
 members outside the declared infected statuses,

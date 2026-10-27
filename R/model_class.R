@@ -58,7 +58,7 @@ HousepiModel <- R6::R6Class(
     infec_profile_ = NULL,
     reporting_process_ = NULL,
     collapse_seen_ = character(),
-    # hashes of the data and definitions of the last push at the wall
+    # engine, and hashes of the data and definitions, at the last wall push
     fingerprint_ = NULL,
 
     ####  Requirements  ####
@@ -671,8 +671,10 @@ HousepiModel <- R6::R6Class(
       # unresolved definitions wait for completeness or for the wall
       if (wall || private$latent_declaration_complete_(payload$latent))
         .engine$import_latent(mcmc_ptr, payload$latent)
-      if (wall) private$fingerprint_ <- c(as.list(private$data_hash_),
-                                          lapply(payload, rlang::hash))
+      if (wall) private$fingerprint_ <- c(
+        list(model = private$compiled_$module), as.list(private$data_hash_),
+        lapply(payload, rlang::hash)
+      )
 
       invisible(self)
     },
