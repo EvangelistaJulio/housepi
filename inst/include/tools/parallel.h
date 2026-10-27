@@ -35,6 +35,22 @@ namespace housepi::parallel
     {
         using Range = tbb::blocked_range<std::size_t>;
 
+        /// Set x87 precision of the calling thread to 64 bits, as on R's threads.
+        /// * Windows x86-64 -> TBB workers start at 53 bits, MinGW's libm computes on the x87;
+        /// * elsewhere -> no-op.
+        inline void x87_extended_precision() noexcept
+        {
+#if defined(_WIN32) && defined(__x86_64__)
+            unsigned short cw;
+            __asm__ volatile("fnstcw %0" : "=m"(cw));
+            if ((cw & 0x300) != 0x300)
+            {
+                cw |= 0x300;
+                __asm__ volatile("fldcw %0" : : "m"(cw));
+            }
+#endif
+        }
+
         /// Run `f()` on the calling thread, in slot 0 of a new arena of `n_slots` slots.
         /// * at most one slot -> `f()` in the current arena.
         /// @return Value of `f()`.
@@ -77,13 +93,15 @@ namespace housepi::parallel
     }
 
     /// Run `body(i)` for i in [0, n) across `workers` TBB workers.
-    /// * at most one worker -> serial loop on the calling thread.
+    /// * at most one worker -> serial loop on the calling thread;
+    /// * any chunk -> 64-bit x87 precision on the thread running it.
     template <class F>
     inline void for_each(std::size_t n, F &&body, std::size_t workers)
     {
         // run body over one chunk
         auto chunk = [&](const detail::Range &r)
         {
+            detail::x87_extended_precision();
             for (std::size_t i = r.begin(); i < r.end(); ++i)
                 body(i);
         };
@@ -95,7 +113,8 @@ namespace housepi::parallel
     }
 
     /// Run `body(i)` for i in [0, n) across `workers` TBB workers, reducing into `T` via `operator+=`.
-    /// * at most one worker -> serial loop on the calling thread.
+    /// * at most one worker -> serial loop on the calling thread;
+    /// * any chunk -> 64-bit x87 precision on the thread running it.
     /// @note `T` value-initializes to the identity.
     template <class T, class F>
     inline T for_reduce(std::size_t n, F &&body, std::size_t workers)
@@ -103,6 +122,7 @@ namespace housepi::parallel
         // accumulate body over one sub-range into acc
         auto chunk = [&](const detail::Range &r, T acc)
         {
+            detail::x87_extended_precision();
             for (std::size_t i = r.begin(); i < r.end(); ++i)
                 acc += body(i);
             return acc;
@@ -122,6 +142,7 @@ namespace housepi::parallel
     /// Run `body(i)` for i in [0, n) across `workers`, each unit in its own arena of `inner` slots.
     ///
     /// * unit thread -> slot 0 of its arena, so current_thread_index() stays below `inner`;
+    /// * unit -> 64-bit x87 precision on the thread running it;
     /// * at most one worker -> units in order on the calling thread;
     /// * first unit to throw -> raises `stop_flag`, a unit not yet started skips its body;
     /// * unit throwing Cancelled -> not recorded.
