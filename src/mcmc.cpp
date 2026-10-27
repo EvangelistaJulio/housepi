@@ -398,15 +398,15 @@ namespace housepi
             param_values.add(param.consult(p), sample_size);
     }
 
-    void Posterior::init_house_draws_(const data::Wide &data_wide,
+    void Posterior::init_house_draws_(const Data &data,
                                       Settings::Step sample_size)
     {
-        house_log_lik.cols.assign(data_wide.n_eq_classes(), std::vector<double>(sample_size, na::DOUBLE));
+        house_log_lik.cols.assign(data.n_eq_classes(), std::vector<double>(sample_size, na::DOUBLE));
 
-        for (const Household &house : data_wide)
+        for (const Household &house : data.wide())
         {
-            house_log_lik.names.push_back(data_wide.hh_id(house));
-            house_log_lik.source.push_back(house.eq_class());
+            house_log_lik.names.push_back(data.wide().hh_id(house));
+            house_log_lik.source.push_back(data.state.eq_class(house));
         }
     }
 
@@ -436,7 +436,7 @@ namespace housepi
         const Settings::Step sample_size = settings.c_sample_size * settings.n_chains;
 
         init_param_draws_(mcmc.param, sample_size);
-        init_house_draws_(mcmc.data.wide(), sample_size);
+        init_house_draws_(mcmc.data, sample_size);
         init_latent_draws_(mcmc.augm, mcmc.data.wide(), settings, sample_size);
     }
 
@@ -459,12 +459,12 @@ namespace housepi
 
         // pointwise household log-likelihood: transmission + observation + latent
         // with a latent or observation model, every household is its own equivalence class
-        const data::Wide &data_wide = mcmc.data.wide();
+        const Data &data = mcmc.data;
         const bool with_obs = mcmc.augm.scheme().is_any_obs_model();
         const bool with_model = mcmc.augm.scheme().is_any_latent_model();
-        for (size_t R = 0; R < data_wide.n_eq_classes(); ++R)
+        for (size_t R = 0; R < data.n_eq_classes(); ++R)
         {
-            const Household &rep = data_wide.eq_class_rep(R);
+            const Household &rep = data.eq_class_rep(R);
             double value = mcmc.data.state.transm_log_lik(rep).value();
             if (with_obs)
                 value += mcmc.house_obs_log_lik(rep);
@@ -499,8 +499,8 @@ namespace housepi
         if (!force_singleton && augm.scheme().list_latent_export.size() == 0)
             force_singleton = augm.size() > 0;
 
-        data.wide().init_eq_classes(force_singleton, data.state);
-        data.state.allocate_transm_log_lik(data.wide());
+        data.init_eq_classes(force_singleton);
+        data.state.allocate_transm_log_lik();
     }
 
     namespace infprof
@@ -721,9 +721,9 @@ namespace housepi
         data.reset_readcells(augm.get_produced_cols());
         augm.init_for_evaluation();
         data_wide.assert_required_everyone(data.state);
-        data_wide.init_eq_classes(augm.scheme().is_singleton_eq_class(), data.state);
+        data.init_eq_classes(augm.scheme().is_singleton_eq_class());
         data.state.allocate_cache(data_wide);
-        data.state.allocate_transm_log_lik(data_wide);
+        data.state.allocate_transm_log_lik();
 
         param.finalize();
         risks.finalize();
@@ -735,8 +735,8 @@ namespace housepi
         assert_valid_infectivity_profile();
 
         model->init_model_for_evaluation();
-        for (size_t R = 0; R < data_wide.n_eq_classes(); ++R)
-            model->init_house_for_evaluation(data_wide.eq_class_rep(R));
+        for (size_t R = 0; R < data.n_eq_classes(); ++R)
+            model->init_house_for_evaluation(data.eq_class_rep(R));
     }
 
     void MCMC::init_param_routes_()
@@ -757,10 +757,10 @@ namespace housepi
             if (route.terms.latent || route.terms.obs || houses_of[p].empty() || !param.is_risk_only(p))
                 continue;
             for (HouseIdx H : houses_of[p])
-                route.classes.push_back(data_wide.at(H).eq_class());
+                route.classes.push_back(data.state.eq_class(data_wide.at(H)));
             vect::sort_unique(route.classes);
             // every class reads it -> no gain
-            if (route.classes.size() == data_wide.n_eq_classes())
+            if (route.classes.size() == data.n_eq_classes())
                 route.classes.clear();
         }
         init_param_blocks_();
@@ -785,7 +785,7 @@ namespace housepi
             }
             // a member recomputing every class -> the block does
             vect::sort_unique(block.route.classes);
-            if (!is_sparse || block.route.classes.size() == data.wide().n_eq_classes())
+            if (!is_sparse || block.route.classes.size() == data.n_eq_classes())
                 block.route.classes.clear();
             pblocks_.push_back(std::move(block));
         }
@@ -795,8 +795,6 @@ namespace housepi
 
     void MCMC::commit_total_log_posterior_(const LogLikTerms &terms)
     {
-        data::Wide &data_wide = this->data.wide();
-
         if (terms.transm)
         {
             data.state.save_cache();
@@ -805,10 +803,10 @@ namespace housepi
 
         // with a latent or observation model, equivalence classes coincide with households
         LogLik ll = parallel::for_reduce<LogLik>(
-            data_wide.n_eq_classes(),
+            data.n_eq_classes(),
             [&](size_t R) -> LogLik
             {
-                return commit_house_log_posterior_(data_wide.eq_class_rep(R), terms) * data_wide.eq_class_size(R);
+                return commit_house_log_posterior_(data.eq_class_rep(R), terms) * data.eq_class_size(R);
             },
             settings.budget.inner);
         tot_log_lik.set(ll, terms);
@@ -840,9 +838,9 @@ namespace housepi
         tot_log_lik.recover(terms);
 
         // recover old log-likelihood values for households
-        for (size_t R = 0; R < data.wide().n_eq_classes(); ++R)
+        for (size_t R = 0; R < data.n_eq_classes(); ++R)
         {
-            const Household &house = data.wide().eq_class_rep(R);
+            const Household &house = data.eq_class_rep(R);
             recover_transm_log_lik_(house);
 
             // recover from commit_total_log_posterior_
@@ -894,8 +892,8 @@ namespace housepi
 
         // single serial pass
         LogLik ll;
-        for (size_t R = 0; R < data.wide().n_eq_classes(); ++R)
-            ll += init_guarded_commit_house_(data.wide().eq_class_rep(R)) * data.wide().eq_class_size(R);
+        for (size_t R = 0; R < data.n_eq_classes(); ++R)
+            ll += init_guarded_commit_house_(data.eq_class_rep(R)) * data.eq_class_size(R);
 
         tot_log_lik.set(ll, all_terms_());
     }

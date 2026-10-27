@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "tools/logproba.h"
+#include "tools/nan.h"
 #include "tools/vector.h"
 #include "data/household.h"
 #include "data/individual.h"
@@ -15,17 +16,23 @@
 
 //////////////////////////////  data::State  //////////////////////////////
 
+namespace housepi
+{
+    struct Data;
+}
+
 namespace housepi::data
 {
 #define MAKE_HOUSEPI_CACHE_ACCESSOR(TYPE, NAME)                                                                  \
-    TYPE &cache_##NAME(const Household &house, size_t e) noexcept { return current_[house.eq_class()].NAME[e]; } \
-    const TYPE &cache_##NAME(const Household &house, size_t e) const noexcept { return current_[house.eq_class()].NAME[e]; }
+    TYPE &cache_##NAME(const Household &house, size_t e) noexcept { return current_[eq_class(house)].NAME[e]; } \
+    const TYPE &cache_##NAME(const Household &house, size_t e) const noexcept { return current_[eq_class(house)].NAME[e]; }
 
     struct Wide;
 
     /// Mutable per-run storage of data, written by inference and simulation.
     ///
     /// * read-cells, per member and column;
+    /// * equivalence classes of households, set by Data;
     /// * transmission log-likelihood, per equivalence class;
     /// * model cache, current and last saved, per equivalence class;
     /// * whether the last two hold an evaluation, per equivalence class.
@@ -45,16 +52,16 @@ namespace housepi::data
         /// * evaluation only -> simulation re-wires the cells live.
         void finalize_readcells();
 
-        /// Allocate transmission log-likelihoods, one per equivalence class of `wide`.
+        /// Allocate transmission log-likelihoods, one per equivalence class.
         /// * clears the evaluated flags.
-        void allocate_transm_log_lik(const Wide &wide);
+        void allocate_transm_log_lik();
         /// Allocate model caches, per equivalence class of `wide`, sized by household and cache keys.
         /// * clears the evaluated flags.
         void allocate_cache(const Wide &wide);
         /// Flag whether transmission log-likelihoods and model caches hold an evaluation of every class.
         void set_evaluated(bool evaluated) noexcept { evaluated_.assign(evaluated_.size(), evaluated); }
         /// Flag the equivalence class of `house` as evaluated.
-        void set_evaluated(const Household &house) noexcept { evaluated_[house.eq_class()] = true; }
+        void set_evaluated(const Household &house) noexcept { evaluated_[eq_class(house)] = true; }
 
         /// Save every model cache.
         void save_cache() { previous_ = current_; }
@@ -73,13 +80,16 @@ namespace housepi::data
             return readcell_[Index::of(indiv)][d];
         }
 
+        /// Equivalence class of `house`.
+        EqClassIdx eq_class(const Household &house) const noexcept { return class_of_[Index::of(house)]; }
+
         /// Transmission log-likelihood of the equivalence class of `house`.
-        LogProba &transm_log_lik(const Household &house) noexcept { return transm_log_lik_[house.eq_class()]; }
+        LogProba &transm_log_lik(const Household &house) noexcept { return transm_log_lik_[eq_class(house)]; }
         /// Whether transmission log-likelihood and model cache hold an evaluation of the class of `house`.
-        /// * class not allocated in this state -> false.
+        /// * households not partitioned yet -> false.
         bool is_evaluated(const Household &house) const noexcept
         {
-            return house.eq_class() < evaluated_.size() && evaluated_[house.eq_class()];
+            return Index::of(house) < class_of_.size() && evaluated_[eq_class(house)];
         }
 
         /// Cached member value.
@@ -92,6 +102,19 @@ namespace housepi::data
         MAKE_HOUSEPI_CACHE_ACCESSOR(matrix, double_matrix)
 
     private:
+        friend struct housepi::Data; /// Partitions households into equivalence classes.
+
+        /// Equivalence class: representative household and number of households.
+        struct EquivalenceClass_
+        {
+            EquivalenceClass_() = default;
+            EquivalenceClass_(const std::vector<size_t> &houses)
+                : rep_(houses.front()),
+                  size_(houses.size()) {}
+            size_t rep_ = na::INDEX; /// Representative household.
+            size_t size_ = 1;        /// Number of households.
+        };
+
         /// Model cache of one equivalence class, by cache key.
         struct Cache_
         {
@@ -102,6 +125,9 @@ namespace housepi::data
         };
 
         std::vector<std::vector<Attribute>> readcell_ = {}; /// Read-cells, by member index and column.
+        std::vector<size_t> eq_class_covariates_ = {};      /// Covariates telling equivalence classes apart.
+        std::vector<EquivalenceClass_> eq_classes_ = {};    /// Equivalence classes.
+        std::vector<EqClassIdx> class_of_ = {};             /// Equivalence class, by household index.
         std::vector<LogProba> transm_log_lik_ = {};         /// Transmission log-likelihood, per equivalence class.
         std::vector<Cache_> current_ = {};                  /// Model cache, per equivalence class.
         std::vector<Cache_> previous_ = {};                 /// Model cache at the last save, per equivalence class.

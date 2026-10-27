@@ -557,9 +557,9 @@ namespace housepi
 
         //////////////////////////////  risks::Group  //////////////////////////////
 
-        void Group::build(data::Wide &data_wide,
-                          const Parameter &param,
-                          const str_table &input)
+        std::vector<std::string> Group::build(data::Wide &data_wide,
+                                              const Parameter &param,
+                                              const str_table &input)
         {
             // drop the previous build
             clear_optional_();
@@ -571,9 +571,9 @@ namespace housepi
             // covariate headers, or skip when nothing is declared nor defined
             std::vector<std::string> spec_headers = {};
             if (!input.empty())
-                spec_headers = helper_process_definitions_(data_wide, input);
+                spec_headers = helper_process_definitions_(input);
             else if (empty())
-                return;
+                return {};
             scale_anchors_.assign(size(), {});
 
             // group-risk name column, if any
@@ -616,10 +616,13 @@ namespace housepi
                         helper_init_unique_risk_(param, it->first);
                     base_[Index::of(indiv)] = it->second;
                 }
+
+            // the status is carried by the member:
+            // no data key, the equivalence-class key holds it
+            return vect::difference(spec_headers, {rules::STATUS_KEY});
         }
 
-        std::vector<std::string> Group::helper_process_definitions_(data::Wide &data_wide,
-                                                                    const str_table &input)
+        std::vector<std::string> Group::helper_process_definitions_(const str_table &input)
         {
             const std::vector<std::string> file_headers = {"group_risk", "param_name", "n", "rule_group"};
 
@@ -630,11 +633,6 @@ namespace housepi
             // register the group-risk names
             for (const std::string &gstr : str::unique(input.at("group_risk")))
                 add_(gstr);
-
-            // the status is carried by the member:
-            // no data key, the equivalence-class key holds it
-            data_wide.add_eq_class_covariates(
-                vect::difference(data_headers, {rules::STATUS_KEY}));
 
             return data_headers;
         }
@@ -701,18 +699,16 @@ namespace housepi
 
         //////////////////////////////  risks::Contact  //////////////////////////////
 
-        void Contact::build(data::Wide &data_wide,
-                            const Parameter &param,
-                            const str_table &input)
+        std::vector<std::string> Contact::build(data::Wide &data_wide,
+                                                const Parameter &param,
+                                                const str_table &input)
         {
             reset_store_(data_wide.report_house.total);
             scale_anchors_.clear();
             if (input.empty())
-                return;
+                return {};
 
             ContactDefinitions defs(input, data_wide, param);
-
-            data_wide.add_eq_class_covariates(defs.data);
 
             // scale anchoring per rule group
             for (const auto &[gid, anchor] : read_scale_anchors<size_t>(
@@ -761,6 +757,7 @@ namespace housepi
                                 mark_reads_(p, H);
                     }
             }
+            return defs.data;
         }
     }
 

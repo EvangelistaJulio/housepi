@@ -43,9 +43,10 @@ namespace housepi::risks
         /// Build group risks from rule table `input`, one block per unique member definition.
         /// * empty `input` -> every declared risk reads the reference.
         /// @note Run it even on an empty `input`, so declared risks are initialized.
-        void build(data::Wide &data_wide,
-                   const Parameter &param,
-                   const str_table &input);
+        /// @return Data columns the rules read, as equivalence-class covariates.
+        std::vector<std::string> build(data::Wide &data_wide,
+                                       const Parameter &param,
+                                       const str_table &input);
 
         /// Declare the keys `vec` a rule may stratify by infected status.
         /// * a risk read on a member without infected status is excluded.
@@ -100,10 +101,9 @@ namespace housepi::risks
         /// Give every status a rule keys on a slot of its own, leaving the rest on slot 0.
         /// @return Slot of each status level, as rule resolution reads it.
         StatusTable<StatusSlot> helper_init_status_slots_(const std::vector<std::string> &status_col);
-        /// Register the risk names of `input` and declare its covariates as equivalence-class keys.
+        /// Register the risk names of `input`.
         /// @return Covariate columns a rule may key on.
-        std::vector<std::string> helper_process_definitions_(data::Wide &data_wide,
-                                                             const str_table &input);
+        std::vector<std::string> helper_process_definitions_(const str_table &input);
         /// Append the block of one unique definition, a product of parameters per slot and key.
         /// @param cell_params Parameter keys per cell, slot-major.
         void helper_init_unique_risk_(const Parameter &param,

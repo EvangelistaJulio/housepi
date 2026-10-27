@@ -18,7 +18,7 @@ class Model final : public ModelBase
 {
 private:
     chain_binom::LookUpTables lut_;                /// Chain-binomial lookup tables.
-    std::vector<chain_binom::ShapeIdx> shape_idx_; /// Shape index in `lut_`, per equivalence class.
+    std::vector<chain_binom::ShapeIdx> shape_idx_; /// Shape index in `lut_`, per class representative household.
     std::vector<chain_binom::Scratch> scratch_;    /// Chain-binomial buffers, per thread slot.
 
 public:
@@ -106,10 +106,10 @@ public:
         // assert that the model is tractable
         chain_binom::assert_tractable(part_counts, K, str(house));
 
-        // assign a shape index to the equivalence class
-        if (shape_idx_.size() <= house.eq_class())
-            shape_idx_.resize(house.eq_class() + 1);
-        shape_idx_[house.eq_class()] = (K > 1 && K < n_infec) ? lut_.ensure_partitioned(part_counts, K) : 0;
+        // assign a shape index to the class representative
+        if (shape_idx_.size() <= Index::of(house))
+            shape_idx_.resize(Index::of(house) + 1);
+        shape_idx_[Index::of(house)] = (K > 1 && K < n_infec) ? lut_.ensure_partitioned(part_counts, K) : 0;
     }
 
     //////////////////////////////  Model : household log-likelihood  //////////////////////////////
@@ -184,7 +184,7 @@ public:
             scratch_[thread_slot()],
             house.n_infected_status(),
             cache_member(house, HouseMember::num_parts),
-            shape_idx_[house.eq_class()],
+            shape_idx_[Index::of(house)],
             cache_member_vector(house, HouseMemberVec::part_indexes),
             cache_double_vector(house, HouseDoubleVec::commu_escape_rate),
             cache_double_matrix(house, HouseDoubleMtx::p2p_escape_rate));

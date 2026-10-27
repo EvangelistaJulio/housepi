@@ -17,6 +17,7 @@ namespace housepi
 {
     class Individual;
     class MCMCBase;
+    struct Data;
     struct Parameter;
     struct Augmented;
     namespace data
@@ -65,7 +66,7 @@ namespace housepi
         void init_param_draws_(const Parameter &param,
                                Settings::Step sample_size);
         /// Initialize the household transmission log-likelihood draws of the posterior.
-        void init_house_draws_(const data::Wide &data_wide,
+        void init_house_draws_(const Data &data,
                                Settings::Step sample_size);
         /// Initialize the latent draws of the posterior.
         void init_latent_draws_(const Augmented &augm,

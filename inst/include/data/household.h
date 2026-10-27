@@ -7,7 +7,6 @@
 
 #include <vector>
 
-#include "tools/nan.h"
 #include "data/individual.h"
 
 //////////////////////////////  Household  //////////////////////////////
@@ -100,12 +99,9 @@ namespace housepi
 
         /// Number of household members.
         MemberIdx size() const noexcept { return hh_size_; }
-        /// Equivalence class index.
-        EqClassIdx eq_class() const noexcept { return eq_class_; }
 
     private:
         HouseIdx house_index_ = 0;               /// Internal household index.
-        EqClassIdx eq_class_ = na::UINDEX;       /// Equivalence class index.
         MemberIdx hh_size_ = 0;                  /// Number of household members.
         MemberIdx ninf_ = 0;                     /// Number of infected members.
         MemberIdx nsus_ = 0;                     /// Number of escaped members.

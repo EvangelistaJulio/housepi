@@ -501,13 +501,17 @@ namespace housepi
 
         void import_group_risk(Rcpp::XPtr<MCMC> mcmc_ptr, SEXP input)
         {
-            mcmc_ptr->risks.build_group(mcmc_ptr->data.wide(), mcmc_ptr->param, rdataframe_to<str_table>(input));
+            mcmc_ptr->data.set_eq_class_covariates(
+                Data::Source::GroupRisk,
+                mcmc_ptr->risks.build_group(mcmc_ptr->data.wide(), mcmc_ptr->param, rdataframe_to<str_table>(input)));
             mcmc_ptr->init_equivalence_class_compression();
         }
 
         void import_contact_risk(Rcpp::XPtr<MCMC> mcmc_ptr, SEXP input)
         {
-            mcmc_ptr->risks.build_contact(mcmc_ptr->data.wide(), mcmc_ptr->param, rdataframe_to<str_table>(input));
+            mcmc_ptr->data.set_eq_class_covariates(
+                Data::Source::ContactRisk,
+                mcmc_ptr->risks.build_contact(mcmc_ptr->data.wide(), mcmc_ptr->param, rdataframe_to<str_table>(input)));
             mcmc_ptr->init_equivalence_class_compression();
         }
 
@@ -775,7 +779,7 @@ namespace housepi
                 {"household", "no cases", house.no_cases, pct_house(house.no_cases)},
                 {"household", "at least 1 case", house.at_least_1_case, pct_house(house.at_least_1_case)},
                 {"household", "at least 2 cases", house.at_least_2_cases, pct_house(house.at_least_2_cases)},
-                {"household", "classes", house.eq_classes, NA_REAL}};
+                {"household", "classes", mcmc_ptr->data.n_eq_classes(), NA_REAL}};
 
             Rcpp::CharacterVector level(rows.size()), metric(rows.size());
             Rcpp::IntegerVector count(rows.size());
@@ -992,11 +996,11 @@ namespace housepi
                 return Rcpp::List::create();
 
             const data::Wide &data_wide = mcmc_ptr->data.wide();
-            const Household &rep = data_wide.eq_class_rep(house.eq_class());
+            const Household &rep = mcmc_ptr->data.eq_class_rep(mcmc_ptr->data.state.eq_class(house));
             HouseQuantities out(rep.size());
             mcmc_ptr->model->export_house_quantities(rep, out);
 
-            const std::vector<MemberIdx> member = data_wide.map_rep_members(house, mcmc_ptr->data.state);
+            const std::vector<MemberIdx> member = mcmc_ptr->data.map_rep_members(house);
             const Rcpp::CharacterVector ids = rcpp_ids(data_wide, house);
             const size_t n = house.size();
             Rcpp::List output;

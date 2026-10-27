@@ -193,13 +193,12 @@ namespace housepi
             if (route.classes.empty())
                 return commit_total_log_posterior_(route.terms);
 
-            const data::Wide &data_wide = data.wide();
             const double delta = parallel::for_reduce<double>(
                 route.classes.size(),
                 [&](size_t k) -> double
                 {
-                    const Household &house = data_wide.eq_class_rep(route.classes[k]);
-                    return commit_transm_log_lik_ratio_(house) * data_wide.eq_class_size(route.classes[k]);
+                    const Household &house = data.eq_class_rep(route.classes[k]);
+                    return commit_transm_log_lik_ratio_(house) * data.eq_class_size(route.classes[k]);
                 },
                 settings.budget.inner);
             tot_log_lik.transm.increment(delta);
@@ -212,7 +211,7 @@ namespace housepi
 
             tot_log_lik.transm.recover();
             for (size_t R : route.classes)
-                recover_transm_log_lik_(data.wide().eq_class_rep(R));
+                recover_transm_log_lik_(data.eq_class_rep(R));
         }
 
         //////  Latent moves  //////

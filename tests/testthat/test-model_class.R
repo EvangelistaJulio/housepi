@@ -533,6 +533,64 @@ test_that("Households apart in a column the model reads fall in distinct classes
   evaluate_log_lik(hh_model) |> expect_equal(sum(log_lik))
 })
 
+test_that("Evaluating a copy leaves the classes of the original in place", {
+  # `h1` and `h2` differ only in `datum`, `h3` in size
+  hh_data <- data.frame(hh_id = c("h1", "h1", "h2", "h2", "h3", "h3", "h3"),
+                        status = c(1, 0, 1, 0, 1, 1, 0),
+                        datum = c(1, 1, 2, 2, 1, 1, 1))
+  strata <- data.frame(datum = c(1, 2), param_name = c(".reference", "rho"))
+  hh_model <- new_housepi_model(hh_data, "final-size") |>
+    add_parameter(alpha = 0.3, beta = 0.5, gamma = 1, hh_size_ref = 2)
+  log_lik <- evaluate_log_lik(hh_model)
+  house_log_lik <- vapply(c("h1", "h2", "h3"),
+                          \(id) inspect_state(hh_model, id)$transmission_log_lik, 0)
+  sum(house_log_lik) |> expect_equal(log_lik)
+
+  # the copy tells `h1` and `h2` apart
+  hh_model_2 <- hh_model |>
+    add_group_risk("community", strata = strata,
+                   params = list(rho = list(const = 4)))
+  evaluate_log_lik(hh_model_2) |> expect_all_finite()
+  summarise_house_cases(hh_model_2) |>
+    subset(metric == "classes") |>
+    getElement("count") |>
+    expect_identical(3L)
+
+  summarise_house_cases(hh_model) |>
+    subset(metric == "classes") |>
+    getElement("count") |>
+    expect_identical(2L)
+  vapply(c("h1", "h2", "h3"),
+         \(id) inspect_state(hh_model, id)$transmission_log_lik, 0) |>
+    expect_identical(house_log_lik)
+})
+
+test_that("A replaced group risk leaves no covariate in the classes", {
+  # `datum` tells `h1` and `h2` apart, `datum_2` only what size does
+  hh_data <- data.frame(hh_id = c("h1", "h1", "h2", "h2", "h3", "h3", "h3"),
+                        status = c(1, 0, 1, 0, 1, 1, 0),
+                        datum = c(1, 1, 2, 2, 1, 1, 1),
+                        datum_2 = c(1, 1, 1, 1, 2, 2, 2))
+  strata <- data.frame(datum = c(1, 2), param_name = c(".reference", "rho"))
+  strata_2 <- data.frame(datum_2 = c(1, 2), param_name = c(".reference", "rho"))
+  hh_model <- new_housepi_model(hh_data, "final-size") |>
+    add_parameter(alpha = 0.3, beta = 0.5, gamma = 1, hh_size_ref = 2) |>
+    add_group_risk("community", strata = strata,
+                   params = list(rho = list(const = 4)))
+  summarise_house_cases(hh_model) |>
+    subset(metric == "classes") |>
+    getElement("count") |>
+    expect_identical(3L)
+
+  hh_model |>
+    add_group_risk("community", strata = strata_2,
+                   params = list(rho = list(const = 4)), append = FALSE) |>
+    summarise_house_cases() |>
+    subset(metric == "classes") |>
+    getElement("count") |>
+    expect_identical(2L)
+})
+
 ####  Posterior sampling  ####
 
 test_that("Model class inconsistent inference throw errors", {

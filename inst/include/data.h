@@ -5,6 +5,8 @@
 
 #pragma once
 
+#include <array>
+#include <cstdint>
 #include <memory>
 #include <string>
 #include <vector>
@@ -23,14 +25,22 @@ namespace housepi
     /// Data of a run.
     ///
     /// * imported tables, shared copy-on-write across engines;
-    /// * run state, owned by one engine.
+    /// * run state and equivalence classes, owned by one engine.
     struct Data
     {
         data::State state; /// Values written by inference and simulation.
 
-        /// Register the data keys declared by `model`.
-        explicit Data(const ModelBase &model)
-            : store_(std::make_shared<Store_>(model)) {}
+        /// Definitions reading data columns that tell equivalence classes apart.
+        enum class Source : std::uint8_t
+        {
+            Model,
+            GroupRisk,
+            ContactRisk,
+            Latent
+        };
+
+        /// Register the data keys declared by `model`, also equivalence-class covariates.
+        explicit Data(const ModelBase &model);
 
         //////  Setter  //////
 
@@ -42,11 +52,8 @@ namespace housepi
         }
 
         /// Build the wide-format table from `input`, then reset the read-cells over it.
-        void build_wide(const str_table &input)
-        {
-            wide().build(input);
-            state.reset_readcells(wide());
-        }
+        /// * equivalence-class covariates of definitions cleared.
+        void build_wide(const str_table &input);
         /// Build the long-format table from `input`, matched to the wide-format one.
         void build_long(const str_table &input) { long_format().build(wide(), input); }
 
@@ -60,6 +67,31 @@ namespace housepi
         }
         /// Finalize every Variable wired into a read-cell (see data::State::finalize_readcells).
         void finalize() { state.finalize_readcells(); }
+
+        //////  Equivalence classes  //////
+
+        /// Set the equivalence-class covariates of `source` to data columns `names`.
+        void set_eq_class_covariates(Source source, std::vector<std::string> names)
+        {
+            eq_class_covariates_[static_cast<size_t>(source)] = std::move(names);
+        }
+        /// Partition households into equivalence classes.
+        /// * equivalent households: same status and covariate cells per member, in sorted member order;
+        /// * equivalent households share one likelihood, computed on the class representative;
+        /// * `force_singleton` -> one class per household;
+        /// * covariates read through the read-cells of `state`.
+        void init_eq_classes(bool force_singleton);
+
+        /// Number of equivalence classes.
+        size_t n_eq_classes() const noexcept { return state.eq_classes_.size(); }
+        /// Number of households in equivalence class `R`.
+        size_t eq_class_size(size_t R) const noexcept { return state.eq_classes_[R].size_; }
+        /// Representative household of equivalence class `R`.
+        Household &eq_class_rep(size_t R) noexcept { return wide().at(state.eq_classes_[R].rep_); }
+        const Household &eq_class_rep(size_t R) const noexcept { return wide().at(state.eq_classes_[R].rep_); }
+        /// Member of `house` paired with each member of its class representative, by representative index.
+        /// * equivalent members pair up in sorted order, so ties pair arbitrarily.
+        std::vector<MemberIdx> map_rep_members(const Household &house) const;
 
         //////  Getter  //////
 
@@ -80,12 +112,15 @@ namespace housepi
         /// Imported tables.
         struct Store_
         {
-            /// Register the data keys declared by `model`, also equivalence-class covariates.
+            /// Register the data keys declared by `model`.
             explicit Store_(const ModelBase &model);
 
             data::Wide wide;        /// Wide-format table.
             data::Long long_format; /// Long-format table.
         };
         std::shared_ptr<Store_> store_; /// Imported tables, shared copy-on-write.
+
+        /// Data columns telling equivalence classes apart, by source.
+        std::array<std::vector<std::string>, 4> eq_class_covariates_ = {};
     };
 }

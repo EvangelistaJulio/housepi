@@ -34,9 +34,10 @@ namespace housepi::risks
 
         /// Build contact risks from rule table `input`.
         /// * contact risks are not symmetric a priori.
-        void build(data::Wide &data_wide,
-                   const Parameter &param,
-                   const str_table &input);
+        /// @return Data columns the rules read, as equivalence-class covariates.
+        std::vector<std::string> build(data::Wide &data_wide,
+                                       const Parameter &param,
+                                       const str_table &input);
 
         //////  Getter  //////
 

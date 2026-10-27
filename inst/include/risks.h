@@ -51,14 +51,14 @@ namespace housepi
         }
 
         /// Build group risks from rule table `input` (see risks::Group::build).
-        void build_group(data::Wide &data_wide, const Parameter &param, const str_table &input)
+        std::vector<std::string> build_group(data::Wide &data_wide, const Parameter &param, const str_table &input)
         {
-            group_.build(data_wide, param, input);
+            return group_.build(data_wide, param, input);
         }
         /// Build contact risks from rule table `input` (see risks::Contact::build).
-        void build_contact(data::Wide &data_wide, const Parameter &param, const str_table &input)
+        std::vector<std::string> build_contact(data::Wide &data_wide, const Parameter &param, const str_table &input)
         {
-            contact_.build(data_wide, param, input);
+            return contact_.build(data_wide, param, input);
         }
 
         /// Finalize both stores (see Attribute::finalize).

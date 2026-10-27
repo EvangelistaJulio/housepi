@@ -1437,6 +1437,7 @@ namespace housepi
         build_append_profile_(infec_profile); // add infectivity profile
 
         // skip if no latent definitions
+        mcmc_->data.set_eq_class_covariates(Data::Source::Latent, {});
         if (def_.empty())
             return;
 
@@ -1459,7 +1460,8 @@ namespace housepi
                     infected.emplace(indiv.status());
 
         // definition order per status, and equivalence-class covariates
-        mcmc_->data.wide().add_eq_class_covariates(
+        mcmc_->data.set_eq_class_covariates(
+            Data::Source::Latent,
             builder.order({infected.begin(), infected.end()}, mcmc_->param, status_process.is_defined()));
 
         // surrogate columns
