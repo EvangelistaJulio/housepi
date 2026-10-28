@@ -22,7 +22,7 @@
 #include "mcmc/settings.h"
 #include "model.h"
 #include "parameter.h"
-#include "risks.h"
+#include "rates.h"
 
 //////////////////////////////  MCMC  //////////////////////////////
 
@@ -81,10 +81,10 @@ namespace housepi
         {
             LogLikTerms terms = {}; /// Terms the move shifts.
             /// Equivalence classes reading the parameter.
-            /// * read by more than risks, or by every class -> empty, every class recomputed.
+            /// * read by more than rates, or by every class -> empty, every class recomputed.
             std::vector<size_t> classes = {};
         };
-        /// Parameters moving together, one block per baseline and the risks coupled to it.
+        /// Parameters moving together, one block per baseline and the rates coupled to it.
         struct ParamBlock
         {
             std::vector<size_t> keys = {}; /// Parameters, baseline first.
@@ -172,7 +172,7 @@ namespace housepi
         //////  Parameter moves  //////
 
         /// Attempt a move of parameter `p`.
-        /// * read by risks alone -> only the classes reading it are recomputed.
+        /// * read by rates alone -> only the classes reading it are recomputed.
         template <bool Adapt>
         void move_single_parameter_(size_t p);
         /// Attempt a move of parameter block `block`, adapting its factor.
@@ -282,7 +282,7 @@ namespace housepi
         }
 
         std::vector<ParamRoute> routes_ = {};  /// Route of each sampled parameter, by key.
-        std::vector<ParamBlock> pblocks_ = {}; /// Blocks of the run, see Risks::list_param_blocks().
+        std::vector<ParamBlock> pblocks_ = {}; /// Blocks of the run, see Rates::list_param_blocks().
         std::vector<char> in_pblock_ = {};     /// Whether each parameter belongs to a block.
         bool is_warm_ = false;                 /// Whether the adaptation warm-up runs, block members moving one at a time.
         double gain_ = 0.;                     /// Robbins-Monro gain of the scalar proposals at this step.

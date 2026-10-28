@@ -27,8 +27,8 @@
 #include "parameter.h"
 #include "proposal.h"
 #include "registry.h"
-#include "risks.h"
-#include "risks/definition.h"
+#include "rates.h"
+#include "rates/definition.h"
 #include "translator.h"
 #include "variable.h"
 
@@ -435,7 +435,7 @@ namespace housepi
         return false;
     }
 
-    bool Parameter::is_risk_only(size_t p) const
+    bool Parameter::is_rate_only(size_t p) const
     {
         if (is_declared(p) || vect::contains(scheme_.sample_cached, p))
             return false;
@@ -517,9 +517,9 @@ namespace housepi
         var.reshape_function(row.is_discr);
     }
 
-    //////////////////////////////  risks::Anchor  //////////////////////////////
+    //////////////////////////////  rates::Anchor  //////////////////////////////
 
-    namespace risks
+    namespace rates
     {
         bool ScaleAnchor::is_free(const Parameter &param) const
         {
@@ -540,12 +540,12 @@ namespace housepi
             return n;
         }
 
-        //////////////////////////////  risks::Store  //////////////////////////////
+        //////////////////////////////  rates::Store  //////////////////////////////
 
         void Store::finalize()
         {
-            for (Attribute &risk : flat_)
-                risk.finalize();
+            for (Attribute &rate : flat_)
+                rate.finalize();
         }
 
         void Store::reset_store_(size_t n_owners)
@@ -555,7 +555,7 @@ namespace housepi
             houses_of_param_.clear();
         }
 
-        //////////////////////////////  risks::Group  //////////////////////////////
+        //////////////////////////////  rates::Group  //////////////////////////////
 
         std::vector<std::string> Group::build(data::Wide &data_wide,
                                               const Parameter &param,
@@ -576,10 +576,10 @@ namespace housepi
                 return {};
             scale_anchors_.assign(size(), {});
 
-            // group-risk name column, if any
+            // group-rate name column, if any
             std::vector<std::string> g_input_vec = {};
-            if (input.count("group_risk"))
-                g_input_vec = input.at("group_risk");
+            if (input.count("group_rate"))
+                g_input_vec = input.at("group_rate");
             assert_status_stratified_(input, g_input_vec);
 
             // a storage slot of its own for every status level a rule keys on
@@ -589,15 +589,15 @@ namespace housepi
 
             const GroupDefinitions defs(input, data_wide, param, spec_headers, slot_of);
 
-            // scale anchoring per risk name and rule group
+            // scale anchoring per rate name and rule group
             for (const auto &[key, anchor] : read_scale_anchors<GroupKey>(
                      defs.row_param, read_row_units(input), [&](size_t r)
                      { return GroupKey{g_input_vec[r], defs.rules.row_gid[r]}; }))
                 scale_anchors_[consult(key.first)].push_back(anchor);
 
-            // unique definitions: parameter keys per status slot and risk, the reference left out
+            // unique definitions: parameter keys per status slot and rate, the reference left out
             const size_t n_keys = size();
-            std::map<std::vector<std::vector<size_t>>, RiskOffset> unique_defin_map;
+            std::map<std::vector<std::vector<size_t>>, RateOffset> unique_defin_map;
             for (Household &house : data_wide)
                 for (Individual &indiv : house)
                 {
@@ -611,9 +611,9 @@ namespace housepi
                             }
 
                     auto [it, is_new] = unique_defin_map.try_emplace(
-                        std::move(cell_params), static_cast<RiskOffset>(flat_.size()));
+                        std::move(cell_params), static_cast<RateOffset>(flat_.size()));
                     if (is_new)
-                        helper_init_unique_risk_(param, it->first);
+                        helper_init_unique_rate_(param, it->first);
                     base_[Index::of(indiv)] = it->second;
                 }
 
@@ -624,14 +624,14 @@ namespace housepi
 
         std::vector<std::string> Group::helper_process_definitions_(const str_table &input)
         {
-            const std::vector<std::string> file_headers = {"group_risk", "param_name", "n", "rule_group"};
+            const std::vector<std::string> file_headers = {"group_rate", "param_name", "n", "rule_group"};
 
             // every column but the template headers is a covariate
             std::vector<std::string> data_headers = extract_keys(input);
             vect::remove(data_headers, file_headers);
 
-            // register the group-risk names
-            for (const std::string &gstr : str::unique(input.at("group_risk")))
+            // register the group-rate names
+            for (const std::string &gstr : str::unique(input.at("group_rate")))
                 add_(gstr);
 
             return data_headers;
@@ -651,7 +651,7 @@ namespace housepi
                 if (vect::contains(status_stratified_, g))
                     continue;
                 msg::stop(
-                    "Group risk " + msg::val(g_input_vec[r]) +
+                    "Group rate " + msg::val(g_input_vec[r]) +
                     " cannot be stratified by the infected status.\n"
                     "It is read on members that carry no infected status yet.");
             }
@@ -678,7 +678,7 @@ namespace housepi
             return slot_of;
         }
 
-        void Group::helper_init_unique_risk_(const Parameter &param,
+        void Group::helper_init_unique_rate_(const Parameter &param,
                                              const std::vector<std::vector<size_t>> &cell_params)
         {
             // every cell starts at the reference: status rules never cover escaped members
@@ -686,7 +686,7 @@ namespace housepi
             for (size_t c = 0; c < cell_params.size(); ++c)
             {
                 flat_.emplace_back(VALUE_REFERENCE);
-                flat_.back().name(names[c % names.size()], ErrType::GroupRisk);
+                flat_.back().name(names[c % names.size()], ErrType::GroupRate);
 
                 // product of the parameters the cell resolves to
                 std::vector<const Attribute *> param_ptrs = {};
@@ -697,7 +697,7 @@ namespace housepi
             }
         }
 
-        //////////////////////////////  risks::Contact  //////////////////////////////
+        //////////////////////////////  rates::Contact  //////////////////////////////
 
         std::vector<std::string> Contact::build(data::Wide &data_wide,
                                                 const Parameter &param,
@@ -718,13 +718,13 @@ namespace housepi
 
             // pairs of covariate classes resolve on first encounter only
             const rules::CovariateClasses classes(data_wide, defs.keys);
-            std::vector<PairRisk> pair_risks(classes.count * classes.count);
+            std::vector<PairRate> pair_rates(classes.count * classes.count);
 
             // every household's matrix, row-major, into the one flat store
             size_t n_cells = 0;
             for (size_t H = 0; H < data_wide.report_house.total; ++H)
             {
-                base_[H] = static_cast<RiskOffset>(n_cells);
+                base_[H] = static_cast<RateOffset>(n_cells);
                 const size_t house_size = data_wide.at(H).size();
                 n_cells += house_size * house_size;
             }
@@ -738,8 +738,8 @@ namespace housepi
                 for (size_t from = 0; from < house_size; ++from)
                     for (size_t to = 0; to < house_size; ++to)
                     {
-                        PairRisk &pair =
-                            pair_risks[classes.of_indiv[Index::of(house.at(from))] * classes.count +
+                        PairRate &pair =
+                            pair_rates[classes.of_indiv[Index::of(house.at(from))] * classes.count +
                                        classes.of_indiv[Index::of(house.at(to))]];
                         if (!pair.resolved)
                         {
@@ -761,9 +761,9 @@ namespace housepi
         }
     }
 
-    //////////////////////////////  Risks  //////////////////////////////
+    //////////////////////////////  Rates  //////////////////////////////
 
-    bool Risks::same_partition(const Household &house,
+    bool Rates::same_partition(const Household &house,
                                MemberIdx i,
                                MemberIdx j) const
     {
@@ -771,11 +771,11 @@ namespace housepi
                contact_.same_contacts(house, i, j);
     }
 
-    std::vector<std::vector<HouseIdx>> Risks::list_houses_of_param(size_t n_params) const
+    std::vector<std::vector<HouseIdx>> Rates::list_houses_of_param(size_t n_params) const
     {
         std::vector<std::vector<HouseIdx>> out(n_params);
-        const risks::Store *group = &group_, *contact = &contact_;
-        for (const risks::Store *store : {group, contact})
+        const rates::Store *group = &group_, *contact = &contact_;
+        for (const rates::Store *store : {group, contact})
             for (size_t p = 0; p < store->houses_of_param().size(); ++p)
                 vect::append(out[p], store->houses_of_param()[p]);
         for (std::vector<HouseIdx> &houses : out)
@@ -783,28 +783,28 @@ namespace housepi
         return out;
     }
 
-    std::vector<std::vector<size_t>> Risks::list_param_blocks(const Parameter &param) const
+    std::vector<std::vector<size_t>> Rates::list_param_blocks(const Parameter &param) const
     {
         const auto is_movable = [&](size_t p)
         { return vect::contains(param.scheme().sample, p) && param.at(p).can_join_block(); };
 
         std::vector<std::vector<size_t>> blocks = {};
-        for (const risks::Anchor &anchor : anchors_)
+        for (const rates::Anchor &anchor : anchors_)
         {
             if (!is_movable(anchor.baseline))
                 continue;
             std::vector<size_t> block = {anchor.baseline};
-            const auto join = [&](const risks::ScaleAnchor &scaling)
+            const auto join = [&](const rates::ScaleAnchor &scaling)
             {
                 for (size_t p : scaling.list_heavy())
                     if (is_movable(p) && !vect::contains(block, p))
                         block.push_back(p);
             };
-            for (size_t g : anchor.risks)
-                for (const risks::ScaleAnchor &scaling : group_.scale_anchors(g))
+            for (size_t g : anchor.rates)
+                for (const rates::ScaleAnchor &scaling : group_.scale_anchors(g))
                     join(scaling);
             if (anchor.contacts)
-                for (const risks::ScaleAnchor &scaling : contact_.scale_anchors())
+                for (const rates::ScaleAnchor &scaling : contact_.scale_anchors())
                     join(scaling);
 
             // blocks sharing a member merge
@@ -842,9 +842,9 @@ namespace housepi
         return blocks;
     }
 
-    void Risks::assert_identifiability(const Parameter &param) const
+    void Rates::assert_identifiability(const Parameter &param) const
     {
-        for (const risks::Anchor &anchor : anchors_)
+        for (const rates::Anchor &anchor : anchors_)
         {
             size_t n_scale_free = 0;
             std::vector<std::string> free_names = {};
@@ -856,7 +856,7 @@ namespace housepi
                 free_names.emplace_back("contact");
             }
 
-            for (size_t g : anchor.risks)
+            for (size_t g : anchor.rates)
             {
                 const size_t n_group = group_.n_scale_free(g, param);
                 if (n_group == 0)
@@ -866,12 +866,12 @@ namespace housepi
                 free_names.emplace_back(group_.consult(g));
             }
 
-            // the R front end holds baselines at the reference for absolute risks
+            // the R front end holds baselines at the reference for absolute rates
             if (n_scale_free > 1)
                 msg::stop(
                     "The product of " + std::to_string(n_scale_free) + " absolute rule groups introduces non-identifiability: " +
                     str::format(free_names) +
-                    "\nRisks are absolute unless a " + msg::code("reference") + " is given: make all but one relative," +
+                    "\nRates are absolute unless a " + msg::code("reference") + " is given: make all but one relative," +
                     " naming their reference group or asking for " + msg::val(".auto") + ".");
         }
     }

@@ -54,7 +54,7 @@ namespace housepi
         wide().build(input);
         state.reset_readcells(wide());
         // definitions push their covariates again over the new data
-        for (Source source : {Source::GroupRisk, Source::ContactRisk, Source::Latent})
+        for (Source source : {Source::GroupRate, Source::ContactRate, Source::Latent})
             set_eq_class_covariates(source, {});
     }
 

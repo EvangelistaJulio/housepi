@@ -43,14 +43,14 @@ taking no \code{model}, depending on \code{level}:
 \item{\code{"member"}}{the value computed for every member;}
 \item{\code{"house"}}{one value for the whole household.
 The reductions \code{min()}, \code{max()}, \code{sum()} and \code{prod()} fold over the members
-a per-member value: a data column, a latent or a group risk.
+a per-member value: a data column, a latent or a group rate.
 Their argument is computed for each member, members with no value left out,
 e.g. \code{min(onset_date) + 21} or \code{max(test_date - onset_date)}.
 A per-member value read outside a reduction is an error.}
 } Either a plain value, the name of another definition,
 or an arithmetic expression combining them.
 A name is looked up among the latent variables, data columns, observations,
-group risks and parameters the model carries.
+group rates and parameters the model carries.
 Two of them sharing a name cannot be read.}
 
 \item{status}{\code{integer(1)} Infected status the definition is specific to.
@@ -63,14 +63,14 @@ If \code{NA}, inferred from the observed data column, or the model requirements.
 Relative to the location argument \code{loc}, when one is given. Either a plain value, the name of another definition,
 or an arithmetic expression combining them.
 A name is looked up among the latent variables, data columns, observations,
-group risks and parameters the model carries.
+group rates and parameters the model carries.
 Two of them sharing a name cannot be read.}
 
 \item{max}{\code{numeric(1)} Truncate to a maximum value.
 Relative to the location argument \code{loc}, when one is given. Either a plain value, the name of another definition,
 or an arithmetic expression combining them.
 A name is looked up among the latent variables, data columns, observations,
-group risks and parameters the model carries.
+group rates and parameters the model carries.
 Two of them sharing a name cannot be read.}
 
 \item{import}{Named \code{list} of pre-built definitions to import.

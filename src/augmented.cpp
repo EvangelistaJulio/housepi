@@ -258,13 +258,13 @@ namespace housepi
             return false;
         }
 
-        /// Whether a parsed definition subtree references any group risk.
-        static bool entry_has_group_risk(const parse::Entry &node)
+        /// Whether a parsed definition subtree references any group rate.
+        static bool entry_has_group_rate(const parse::Entry &node)
         {
-            if (parse::is_group_risk(node.type))
+            if (parse::is_group_rate(node.type))
                 return true;
             for (const parse::Entry &child : node.children)
-                if (entry_has_group_risk(child))
+                if (entry_has_group_rate(child))
                     return true;
             return false;
         }
@@ -276,7 +276,7 @@ namespace housepi
                 if (col->is_na())
                     continue;
                 if (col->consumes_latent() || col->consumes_parameter() ||
-                    entry_has_group_risk(col->root))
+                    entry_has_group_rate(col->root))
                     return false;
             }
             return true;
@@ -594,8 +594,8 @@ namespace housepi
                             read = "parameter " + msg::val(pstr);
                     for (const std::string &astr : col->list_latent_producers())
                         read = "latent " + msg::val(astr);
-                    if (read.empty() && entry_has_group_risk(col->root))
-                        read = "a group risk";
+                    if (read.empty() && entry_has_group_rate(col->root))
+                        read = "a group rate";
                     if (!read.empty())
                         msg::stop(
                             "Bound " + msg::arg(key) + " of latent " + msg::val(row.name) + " reads " + read +
@@ -1792,7 +1792,7 @@ namespace housepi
         {
             const std::string &astr = def_[surr.row].name;
             // a surrogate column must resolve from data
-            // a latent, parameter or group-risk source has no fixed value in inference
+            // a latent, parameter or group-rate source has no fixed value in inference
             // it would impose an indicator constraint
             if (!def_.is_pure_data(surr.row))
             {

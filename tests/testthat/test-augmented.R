@@ -1920,7 +1920,7 @@ test_that("A household-bound member observation bounds every member", {
 
   simulated$end_date |> expect_no_na()
   simulated$end_date |> expect_equal(simulated$start_date + 21)
-  # uninfected members leave the risk set at the end of follow-up
+  # uninfected members leave the rate set at the end of follow-up
   mean(simulated$status > 0) |> expect_lt(1)
   # the argument is computed for each member: an uninfected one draws no test
   # date and drops out of the fold

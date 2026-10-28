@@ -18,7 +18,7 @@ namespace housepi
     {
         struct Entry;
     }
-    namespace risks
+    namespace rates
     {
         struct Group;
     }
@@ -33,15 +33,15 @@ namespace housepi
     struct Translator
     {
         /// Bind the modules sources are read from.
-        /// * `data`, `group_risk`: read by member-specific sources.
+        /// * `data`, `group_rate`: read by member-specific sources.
         Translator(Parameter &param,
                    Augmented &augm,
                    const Data &data,
-                   const risks::Group &group_risk)
+                   const rates::Group &group_rate)
             : param_(param),
               augm_(augm),
               data_(data),
-              group_risk_(group_risk) {}
+              group_rate_(group_rate) {}
 
         /// Translate definition node `node` into an attribute.
         /// * within household `house_ptr`, no member bound -> a data cell is read through a fold only.
@@ -90,14 +90,14 @@ namespace housepi
         Parameter &param_;               /// Parameter key module.
         Augmented &augm_;                /// Latent key module.
         const Data &data_;               /// Data tables and key holder.
-        const risks::Group &group_risk_; /// Group-risk storage and key holder.
+        const rates::Group &group_rate_; /// Group-rate storage and key holder.
         mutable Attribute storage_;      /// Auxiliary storage attribute.
 
         /// Build function `node` into `storage_`, its arguments bound.
         void helper_store_read_function_(const parse::Entry &node,
                                          const Individual *indiv_ptr,
                                          const Household *house_ptr) const;
-        /// Whether `node` reads a member value (data cell, latent or group risk) outside an inner reduction.
+        /// Whether `node` reads a member value (data cell, latent or group rate) outside an inner reduction.
         bool reads_member_cell_(const parse::Entry &node) const;
         bool reads_member_cell_(const std::vector<parse::Entry> &nodes) const;
     };

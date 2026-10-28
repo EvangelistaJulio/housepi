@@ -110,7 +110,7 @@ summarise_house_cases(hh_model) |>
 ```
 
 The last row is the count of the equivalence classes, i.e. households that are indistinguishable by the
-model (same size, statuses, risks, etc).
+model (same size, statuses, rates, etc).
 The likelihood is then evaluated just once per class, and multiplied by the number of class members.
 
 At any moment we can re-export the full data with `get_data_wide()`.
@@ -153,19 +153,19 @@ We can call `add_parameter()` as follows:
 
 # single parameter definitions
 hh_model <- hh_model |>
-  # baseline community transmission risk
+  # baseline community transmission rate
   add_parameter(
     name = "alpha",   # name matching the model requirement
     prior = "uniform" # uniform prior
   ) |>
-  # within-household baseline person-to-person transmission risk
+  # within-household baseline person-to-person transmission rate
   add_parameter("beta", prior = "uniform")
 
 # append parameters using multiple definitions
 hh_model <- hh_model |>
   add_parameter(
     hh_size_ref = 6L,                # constant reference household size
-    gamma = list(prior = "uniform") # size-scaling of person-to-person risk
+    gamma = list(prior = "uniform") # size-scaling of person-to-person rate
   )
 
 # inspect parameter definitions
@@ -280,8 +280,8 @@ We can inspect the state of the current loaded model definitions just by printin
 hh_model
 ```
 
-By default, if no group risk definition is provided all values are set to 1 (reference value).
-To see how to associate group risks in heterogeneous models, see [Group risks](group_risks.html).
+By default, if no group rate definition is provided all values are set to 1 (reference value).
+To see how to associate group rates in heterogeneous models, see [Group rates](group_rates.html).
 We can overlook these alerts for the rest of the walk-through.
 The infectivity profile, instead, is mandatory for this model: above we loaded the one shipped with it, and [Infectivity profiles](infectivity_profiles.html) shows how to provide a custom definition.
 

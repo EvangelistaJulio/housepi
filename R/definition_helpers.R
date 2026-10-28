@@ -266,7 +266,7 @@ helper_definition_args <- function(proposal, dots, family, name = NULL) {
 # * otherwise -> sampled from its prior or model.
 helper_variable_move <- function(opts, family) {
   if (!is.na(opts$const) || !is.na(opts$func)) return(opts)
-  # prior for parameters/risks, model for latent/observations
+  # prior for parameters/rates, model for latent/observations
   dist_word <- family2model_col(family)
   if (identical(opts$kind, "latent") && is.na(opts[[dist_word]])) {
     headline <- paste("No {.arg {dist_word}} to sample from",

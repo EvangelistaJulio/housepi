@@ -8,14 +8,14 @@
 \description{
 \if{html}{\figure{logo.svg}{options: style='float: right' alt='logo' width='120'}}
 
-Statistical analysis and modelling of infectious disease transmission within households. Household transmission models are specified declaratively, fitted to data with Bayesian MCMC. It enables data augmentation, infectivity profiles, individual group and contact risks. Validation is supported through prior and posterior predictive checks, and parameter recovery checks.
+Statistical analysis and modelling of infectious disease transmission within households. Household transmission models are specified declaratively, fitted to data with Bayesian MCMC. It enables data augmentation, infectivity profiles, individual group and contact rates. Validation is supported through prior and posterior predictive checks, and parameter recovery checks.
 }
 \details{
 To create a model, call \code{\link[=new_housepi_model]{new_housepi_model()}}
 with one of the templated transmission models or a custom model.
 Provide household data at construction or later with \code{\link[=add_data_wide]{add_data_wide()}}.
 Specify the model features with the decorators \code{\link[=add_parameter]{add_parameter()}},
-\code{\link[=add_group_risk]{add_group_risk()}}, \code{\link[=add_contact_risk]{add_contact_risk()}}, \code{\link[=add_infectivity_profile]{add_infectivity_profile()}},
+\code{\link[=add_group_rate]{add_group_rate()}}, \code{\link[=add_contact_rate]{add_contact_rate()}}, \code{\link[=add_infectivity_profile]{add_infectivity_profile()}},
 \code{\link[=add_latent]{add_latent()}} and \code{\link[=add_observation]{add_observation()}}.
 Run the inference with \code{\link[=run_inference]{run_inference()}},
 extract draws with \code{\link[=get_parameter_draws]{get_parameter_draws()}}

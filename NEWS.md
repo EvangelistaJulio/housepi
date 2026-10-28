@@ -7,7 +7,7 @@ First tagged version.
   compiled at runtime.
 * Household data are imported in wide or long format (`add_data_wide()`, `add_data_long()`).
 * Parameters take priors and proposals written in a small DSL (`add_parameter()`).
-* Group and contact risks (`add_group_risk()`, `add_contact_risk()`) and infectivity
+* Group and contact rates (`add_group_rate()`, `add_contact_rate()`) and infectivity
   profiles (`add_infectivity_profile()`) shape transmission between members.
 * Unobserved quantities are handled by data augmentation: `add_latent()`, `add_observation()`,
   `add_status_process()` and `add_reporting_process()`.

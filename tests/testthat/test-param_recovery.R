@@ -289,7 +289,7 @@ test_that("A collapsed baseline takes no simulation value", {
     ) |>
       new_housepi_model("final-size") |>
       add_parameter(import = "template") |>
-      add_group_risk("community", by = "member"),
+      add_group_rate("community", by = "member"),
     "alpha.*constant reference"
   )
 

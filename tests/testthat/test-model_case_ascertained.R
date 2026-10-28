@@ -8,7 +8,7 @@ library(testthat)
 # household of three cases and four escapees, the introduction at day 0
 mk_house <- helper_onset_house
 
-# simulation over real households, the transmission risk left to each test
+# simulation over real households, the transmission rate left to each test
 mk_simulation <- local({
   hh_model <- sarscov2_2021_icofs |>
     dplyr::filter(hh_id %in% utils::head(unique(hh_id), 100)) |>
@@ -201,7 +201,7 @@ test_that("Sentinel against a member missing a follow-up date throws error", {
 
 test_that("Log-likelihood of case ascertained model is correct", {
   house <- mk_house$data[c("id", "hh_id", "status", "infec_time", "end_date")]
-  # risks far below the machine epsilon
+  # rates far below the machine epsilon
   tiny <- modifyList(mk_house$param, list(alpha = 1e-20, beta = 1e-20))
 
   for (discr in c(FALSE, TRUE)) {
@@ -214,7 +214,7 @@ test_that("Log-likelihood of case ascertained model is correct", {
       expect_equal(latent_infec_obs_log_lik(house, tiny, discr))
 
     # test complex print, discrete and continuous time:
-    # the discrete one has the community risk defined, the others stay default
+    # the discrete one has the community rate defined, the others stay default
     if (discr) {
       strata <- data.frame(age = c(NA, "child"),
                            param_name = c(".reference", "com_child"),
@@ -222,7 +222,7 @@ test_that("Log-likelihood of case ascertained model is correct", {
       hh_model <- house |>
         transform(age = c("adult", "child", rep("adult", 5))) |>
         build_onset_model(mk_house$param, discr) |>
-        add_group_risk("community", strata = strata)
+        add_group_rate("community", strata = strata)
     }
     print(hh_model) |> expect_snapshot()
   }
@@ -241,7 +241,7 @@ test_that("A case with no source of infection has zero likelihood", {
 
   for (discr in c(FALSE, TRUE)) {
     build_onset_model(hh_data, param, discr) |>
-      add_group_risk("community", strata = strata) |>
+      add_group_rate("community", strata = strata) |>
       evaluate_log_lik() |>
       expect_identical(-Inf)
   }
@@ -259,10 +259,10 @@ test_that("Model quantities are the rates of the force of infection", {
                const = c(NA, value))
   }
   hh_model <- build_onset_model(house, mk_house$param, FALSE) |>
-    add_group_risk(community = list(strata = strata("com_child", 2)),
+    add_group_rate(community = list(strata = strata("com_child", 2)),
                    susceptibility = list(strata = strata("sus_child", 3)),
                    infectivity = list(strata = strata("inf_child", 0.5))) |>
-    add_contact_risk(strata = data.frame(
+    add_contact_rate(strata = data.frame(
       from_age = c("child", NA), to_age = c("adult", NA),
       param_name = c("child_to_adult", ".reference"),
       const = c(1.5, NA)

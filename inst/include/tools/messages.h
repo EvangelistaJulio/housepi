@@ -23,7 +23,7 @@ namespace housepi
         Latent,
         Observation,
         HouseholdObservation,
-        GroupRisk,
+        GroupRate,
         Data,
         Distribution,
         InfecProfile,

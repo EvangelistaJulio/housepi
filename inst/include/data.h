@@ -34,8 +34,8 @@ namespace housepi
         enum class Source : std::uint8_t
         {
             Model,
-            GroupRisk,
-            ContactRisk,
+            GroupRate,
+            ContactRate,
             Latent
         };
 

@@ -37,7 +37,7 @@
 #include "measures.h"
 #include "parameter.h"
 #include "registry.h"
-#include "risks.h"
+#include "rates.h"
 #include "variable.h"
 
 //////////////////////////////  msg  //////////////////////////////
@@ -499,19 +499,19 @@ namespace housepi
             mcmc_ptr->data.state.set_evaluated(false);
         }
 
-        void import_group_risk(Rcpp::XPtr<MCMC> mcmc_ptr, SEXP input)
+        void import_group_rate(Rcpp::XPtr<MCMC> mcmc_ptr, SEXP input)
         {
             mcmc_ptr->data.set_eq_class_covariates(
-                Data::Source::GroupRisk,
-                mcmc_ptr->risks.build_group(mcmc_ptr->data.wide(), mcmc_ptr->param, rdataframe_to<str_table>(input)));
+                Data::Source::GroupRate,
+                mcmc_ptr->rates.build_group(mcmc_ptr->data.wide(), mcmc_ptr->param, rdataframe_to<str_table>(input)));
             mcmc_ptr->init_equivalence_class_compression();
         }
 
-        void import_contact_risk(Rcpp::XPtr<MCMC> mcmc_ptr, SEXP input)
+        void import_contact_rate(Rcpp::XPtr<MCMC> mcmc_ptr, SEXP input)
         {
             mcmc_ptr->data.set_eq_class_covariates(
-                Data::Source::ContactRisk,
-                mcmc_ptr->risks.build_contact(mcmc_ptr->data.wide(), mcmc_ptr->param, rdataframe_to<str_table>(input)));
+                Data::Source::ContactRate,
+                mcmc_ptr->rates.build_contact(mcmc_ptr->data.wide(), mcmc_ptr->param, rdataframe_to<str_table>(input)));
             mcmc_ptr->init_equivalence_class_compression();
         }
 
@@ -861,14 +861,14 @@ namespace housepi
             return frame.frame();
         }
 
-        /// Snapshot the group risks of the members of `house`.
-        Rcpp::DataFrame rcpp_snapshot_group_risks(Rcpp::XPtr<MCMC> mcmc_ptr,
+        /// Snapshot the group rates of the members of `house`.
+        Rcpp::DataFrame rcpp_snapshot_group_rates(Rcpp::XPtr<MCMC> mcmc_ptr,
                                                   const Household &house)
         {
-            const risks::Group &group_risk = mcmc_ptr->risks.group();
-            const std::vector<std::string> &headers = group_risk.all();
+            const rates::Group &group_rate = mcmc_ptr->rates.group();
+            const std::vector<std::string> &headers = group_rate.all();
 
-            if (headers.empty() || group_risk.is_empty())
+            if (headers.empty() || group_rate.is_empty())
                 return Rcpp::DataFrame::create();
 
             RcppFrame frame(1 + headers.size());
@@ -877,26 +877,26 @@ namespace housepi
             {
                 Rcpp::NumericVector col = frame.add_na(headers[c], house.size());
                 for (size_t i = 0; i < house.size(); ++i)
-                    col[i] = hsp_to_rcpp(group_risk.at(c, house.at(i)));
+                    col[i] = hsp_to_rcpp(group_rate.at(c, house.at(i)));
             }
             return frame.frame();
         }
 
-        /// Snapshot the contact risks of `house` as a from-by-to matrix, with member ids as dimnames.
-        /// * no contact risk defined -> empty 0x0 matrix.
-        Rcpp::NumericMatrix rcpp_snapshot_contact_risks(Rcpp::XPtr<MCMC> mcmc_ptr,
+        /// Snapshot the contact rates of `house` as a from-by-to matrix, with member ids as dimnames.
+        /// * no contact rate defined -> empty 0x0 matrix.
+        Rcpp::NumericMatrix rcpp_snapshot_contact_rates(Rcpp::XPtr<MCMC> mcmc_ptr,
                                                         const Household &house)
         {
-            const risks::Contact &contact_risk = mcmc_ptr->risks.contact();
+            const rates::Contact &contact_rate = mcmc_ptr->rates.contact();
 
-            if (contact_risk.is_empty())
+            if (contact_rate.is_empty())
                 return Rcpp::NumericMatrix(0, 0);
 
             const size_t n = house.size();
             Rcpp::NumericMatrix mtx(n, n);
             for (size_t i = 0; i < n; ++i)
                 for (size_t j = 0; j < n; ++j)
-                    mtx(i, j) = hsp_to_rcpp(contact_risk.value(house, i, j));
+                    mtx(i, j) = hsp_to_rcpp(contact_rate.value(house, i, j));
 
             const Rcpp::CharacterVector ids = rcpp_ids(mcmc_ptr->data.wide(), house);
             mtx.attr("dimnames") = Rcpp::List::create(ids, ids);
@@ -1161,8 +1161,8 @@ namespace housepi
                     Rcpp::_["data_wide"] = rcpp_snapshot_data_wide(mcmc_ptr, house),
                     Rcpp::_["data_long"] = rcpp_long_frame(mcmc_ptr->data, house),
                     Rcpp::_["parameters"] = rcpp_snapshot_param(mcmc_ptr),
-                    Rcpp::_["group_risks"] = rcpp_snapshot_group_risks(mcmc_ptr, house),
-                    Rcpp::_["contact_risks"] = rcpp_snapshot_contact_risks(mcmc_ptr, house),
+                    Rcpp::_["group_rates"] = rcpp_snapshot_group_rates(mcmc_ptr, house),
+                    Rcpp::_["contact_rates"] = rcpp_snapshot_contact_rates(mcmc_ptr, house),
                     Rcpp::_["latent"] = rcpp_snapshot_latent(mcmc_ptr, house),
                     Rcpp::_["infectivity_profiles"] = rcpp_snapshot_infec_profile(mcmc_ptr, house),
                     Rcpp::_["latent_log_lik"] = rcpp_snapshot_log_lik(mcmc_ptr, house, augm.scheme().list_latent_export),
@@ -1368,7 +1368,7 @@ namespace housepi
                 engine.augm.init_house_for_simulation(); // build household-level observations
                 data_wide.assert_required_everyone(engine.data.state, augm.get_live_cols());
                 engine.model->init_model_for_simulation(); // model-specific initialization
-                engine.risks.assert_identifiability(engine.param);
+                engine.rates.assert_identifiability(engine.param);
                 engine.augm.init_members_for_simulation(engine.status_process); // bind member definitions once per run
 
                 // @todo Assert the infectivity profile here.
@@ -1476,7 +1476,7 @@ namespace housepi
         MAKE_EXPORT_KEYS(data_keys, model->data_keys())
         MAKE_EXPORT_KEYS(long_keys, model->long_keys())
         MAKE_EXPORT_KEYS(param_keys, model->param_keys())
-        MAKE_EXPORT_KEYS(group_risk_keys, model->group_risk_keys())
+        MAKE_EXPORT_KEYS(group_rate_keys, model->group_rate_keys())
         MAKE_EXPORT_KEYS(latent_keys, model->latent_keys())
         // keys the model requests as discrete
         MAKE_EXPORT_KEYS(discrete_param_keys, param.discrete_keys())
@@ -1485,10 +1485,10 @@ namespace housepi
         // latents the model generates through transmission
         MAKE_EXPORT_KEYS(transmission_latent_keys, augm.transmission_keys())
 
-        /// Baselines the model anchors to risks, keyed by parameter name.
-        Rcpp::List risk_anchors(Rcpp::XPtr<MCMC> mcmc_ptr)
+        /// Baselines the model anchors to rates, keyed by parameter name.
+        Rcpp::List rate_anchors(Rcpp::XPtr<MCMC> mcmc_ptr)
         {
-            const std::vector<risks::Anchor> &anchors = mcmc_ptr->risks.anchors();
+            const std::vector<rates::Anchor> &anchors = mcmc_ptr->rates.anchors();
 
             Rcpp::List out(anchors.size());
             Rcpp::CharacterVector names(anchors.size());
@@ -1496,17 +1496,17 @@ namespace housepi
             {
                 names[a] = mcmc_ptr->param.consult(anchors[a].baseline);
                 out[a] = Rcpp::List::create(
-                    Rcpp::_["risks"] = Rcpp::wrap(mcmc_ptr->risks.group().consult(anchors[a].risks)),
+                    Rcpp::_["rates"] = Rcpp::wrap(mcmc_ptr->rates.group().consult(anchors[a].rates)),
                     Rcpp::_["contacts"] = anchors[a].contacts);
             }
             out.names() = names;
             return out;
         }
 
-        /// Group risks the model reads on members with infected status only.
-        Rcpp::CharacterVector risk_status_stratified(Rcpp::XPtr<MCMC> mcmc_ptr)
+        /// Group rates the model reads on members with infected status only.
+        Rcpp::CharacterVector rate_status_stratified(Rcpp::XPtr<MCMC> mcmc_ptr)
         {
-            const risks::Group &group = mcmc_ptr->risks.group();
+            const rates::Group &group = mcmc_ptr->rates.group();
             return Rcpp::wrap(group.consult(group.status_stratified()));
         }
 
@@ -1521,9 +1521,9 @@ namespace housepi
             dest->data.share(src->data);
         }
 
-        bool has_contact_risk(Rcpp::XPtr<MCMC> mcmc_ptr)
+        bool has_contact_rate(Rcpp::XPtr<MCMC> mcmc_ptr)
         {
-            return mcmc_ptr->model->has_contact_risk();
+            return mcmc_ptr->model->has_contact_rate();
         }
 
         bool has_infec_profile(Rcpp::XPtr<MCMC> mcmc_ptr)
@@ -1718,14 +1718,14 @@ RCPP_MODULE(housepi)
     Rcpp::function("data_keys", &data_keys);
     Rcpp::function("long_keys", &long_keys);
     Rcpp::function("param_keys", &param_keys);
-    Rcpp::function("group_risk_keys", &group_risk_keys);
+    Rcpp::function("group_rate_keys", &group_rate_keys);
     Rcpp::function("latent_keys", &latent_keys);
     Rcpp::function("discrete_param_keys", &discrete_param_keys);
     Rcpp::function("discrete_latent_keys", &discrete_latent_keys);
     Rcpp::function("transmission_latent_keys", &transmission_latent_keys);
     Rcpp::function("discrete_data_keys", &discrete_data_keys);
-    Rcpp::function("risk_anchors", &risk_anchors);
-    Rcpp::function("risk_status_stratified", &risk_status_stratified);
+    Rcpp::function("rate_anchors", &rate_anchors);
+    Rcpp::function("rate_status_stratified", &rate_status_stratified);
 
     Rcpp::function("measure_sar_by_hh_size", &measure_sar_by_hh_size);
     Rcpp::function("measure_ar_by_hh_size", &measure_ar_by_hh_size);
@@ -1744,15 +1744,15 @@ RCPP_MODULE(housepi)
     Rcpp::function("import_data_wide", &import_data_wide);
     Rcpp::function("import_data_long", &import_data_long);
     Rcpp::function("share_data_store", &share_data_store);
-    Rcpp::function("import_group_risk", &import_group_risk);
-    Rcpp::function("import_contact_risk", &import_contact_risk);
+    Rcpp::function("import_group_rate", &import_group_rate);
+    Rcpp::function("import_contact_rate", &import_contact_rate);
     Rcpp::function("import_settings", &import_settings);
     Rcpp::function("import_param", &import_param);
     Rcpp::function("import_infec_profile", &import_infec_profile);
     Rcpp::function("import_latent", &import_latent);
     Rcpp::function("import_status_process", &import_status_process);
     Rcpp::function("import_param_table", &import_param_table);
-    Rcpp::function("has_contact_risk", &has_contact_risk);
+    Rcpp::function("has_contact_rate", &has_contact_rate);
     Rcpp::function("has_infec_profile", &has_infec_profile);
     Rcpp::function("has_case_ascertainment", &has_case_ascertainment);
     Rcpp::function("export_data_wide", &export_data_wide);

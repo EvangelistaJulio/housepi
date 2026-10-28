@@ -86,13 +86,13 @@ namespace housepi
         virtual std::vector<std::string> house_double_mtx_keys() const { return {}; }
         virtual std::vector<std::string> long_keys() const { return {}; }
         virtual std::vector<std::string> param_keys() const { return {}; }
-        virtual std::vector<std::string> group_risk_keys() const { return {}; }
+        virtual std::vector<std::string> group_rate_keys() const { return {}; }
         virtual std::vector<std::string> latent_keys() const { return {}; }
 
         //////  Model  //////
 
-        /// Whether the model uses contact risks.
-        virtual bool has_contact_risk() const { return false; }
+        /// Whether the model uses contact rates.
+        virtual bool has_contact_rate() const { return false; }
         /// Whether the model requires an infectivity profile definition.
         virtual bool has_infec_profile() const { return false; }
         /// Whether households enter the study through a case.
@@ -127,18 +127,18 @@ namespace housepi
         /// Declare the model definition requirements.
         virtual void init_model_requirements() {}
 
-        /// Request that baseline parameter `p` and group risks `risks` share one reference.
-        /// @param contacts Whether contact risks scale the same term as `risks`.
-        void request_risk_identifiability(size_t p, std::vector<size_t> risks, bool contacts = false)
+        /// Request that baseline parameter `p` and group rates `rates` share one reference.
+        /// @param contacts Whether contact rates scale the same term as `rates`.
+        void request_rate_identifiability(size_t p, std::vector<size_t> rates, bool contacts = false)
         {
-            mcmc_->risks.request_identifiability(p, std::move(risks), contacts);
+            mcmc_->rates.request_identifiability(p, std::move(rates), contacts);
         }
 
-        /// Declare the group risks `vec` a rule may stratify by infected status.
-        /// @note Leave out risks read before a member's status is drawn in simulation.
-        void request_risk_status_stratified(std::vector<size_t> vec)
+        /// Declare the group rates `vec` a rule may stratify by infected status.
+        /// @note Leave out rates read before a member's status is drawn in simulation.
+        void request_rate_status_stratified(std::vector<size_t> vec)
         {
-            mcmc_->risks.request_status_stratified(std::move(vec));
+            mcmc_->rates.request_status_stratified(std::move(vec));
         }
 
         /// Request discrete parameters `vec`.
@@ -236,28 +236,28 @@ namespace housepi
         double aug(size_t a, const Individual &m) const { return mcmc_->aug(a, m); }
         /// Datum `d` of member `m`.
         double data(size_t d, const Individual &m) const { return mcmc_->data.at(d, m).value(); }
-        /// Group risk `g` of member `m`.
-        double group_risk(size_t g, const Individual &m) const { return mcmc_->risks.group().value(g, m); }
+        /// Group rate `g` of member `m`.
+        double group_rate(size_t g, const Individual &m) const { return mcmc_->rates.group().value(g, m); }
 
         /// Name of member `m`, for error messages.
         std::string str(const Individual &m) const { return mcmc_->data.wide().str(m); }
         /// Name of household `h`, for error messages.
         std::string str(const Household &h) const { return mcmc_->data.wide().str(h); }
 
-        /// Contact risk from member `from` to member `to` of `house`.
-        double contact_risk(const Household &house, MemberIdx from, MemberIdx to) const
+        /// Contact rate from member `from` to member `to` of `house`.
+        double contact_rate(const Household &house, MemberIdx from, MemberIdx to) const
         {
-            return mcmc_->risks.contact().value(house, from, to);
+            return mcmc_->rates.contact().value(house, from, to);
         }
-        /// Whether members `i` and `j` of `house` are equivalent according to risks.
-        bool is_same_risk_partition(const Household &house, MemberIdx i, MemberIdx j) const
+        /// Whether members `i` and `j` of `house` are equivalent according to rates.
+        bool is_same_rate_partition(const Household &house, MemberIdx i, MemberIdx j) const
         {
-            return mcmc_->risks.same_partition(house, i, j);
+            return mcmc_->rates.same_partition(house, i, j);
         }
-        /// Contact risk within the partition of member `i` (self-contact).
-        double intra_partition_contact_risk(const Household &house, MemberIdx i) const
+        /// Contact rate within the partition of member `i` (self-contact).
+        double intra_partition_contact_rate(const Household &house, MemberIdx i) const
         {
-            return mcmc_->risks.contact().intra_value(house, i);
+            return mcmc_->rates.contact().intra_value(house, i);
         }
 
         /// Instantaneous infectivity profile of member `m` at time `t`.

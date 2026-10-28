@@ -9,7 +9,7 @@
 #' with one of the templated transmission models or a custom model.
 #' Provide household data at construction or later with [add_data_wide()].
 #' Specify the model features with the decorators [add_parameter()],
-#' [add_group_risk()], [add_contact_risk()], [add_infectivity_profile()],
+#' [add_group_rate()], [add_contact_rate()], [add_infectivity_profile()],
 #' [add_latent()] and [add_observation()].
 #' Run the inference with [run_inference()],
 #' extract draws with [get_parameter_draws()]

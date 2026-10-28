@@ -71,11 +71,11 @@ A latent variable whose bounds or location read another of them,
 directly or through a function, moves alone.
 Parameters that declare no proposal move together the same way
 when a reference couples them:
-a baseline and each relative risk of its rule groups
+a baseline and each rate ratio of its rule groups
 matching at least a tenth as many members or pairs as the reference.
 They take as many joint moves per step as they have members.
 A parameter whose prior or bounds read another of them moves alone,
-as does a risk whose number of members or pairs is unknown.
+as does a rate whose number of members or pairs is unknown.
 }
 \details{
 The run warns on any of: R-hat of 1.01 or more; Bulk or Tail Effective Sample Size (ESS) below 100 per chain.

@@ -337,8 +337,8 @@ namespace housepi::chain_binom
             const size_t n_infec = std::accumulate(part_counts.begin(), part_counts.begin() + n_parts, size_t{0});
             msg::stop(
                 "The " + std::to_string(n_infec) + " infected members of " + where + " fall into " +
-                std::to_string(n_parts) + " risk partitions, too many to evaluate.\n" +
-                "Household members share a partition if their group and contact risks match.\n" +
+                std::to_string(n_parts) + " rate partitions, too many to evaluate.\n" +
+                "Household members share a partition if their group and contact rates match.\n" +
                 msg::alert("Computation time grows exponentially with the number of partitions.") +
                 "\nReduce the number of strata.");
         }

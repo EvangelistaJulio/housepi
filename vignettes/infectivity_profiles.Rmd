@@ -21,7 +21,7 @@ editor_options:
 knitr::opts_chunk$set(fig.width = 5, fig.height = 3)
 ```
 
-Time dependent transmission models require a choice for the infectivity profile $f$, defined as the instantaneous risk of secondary infection associated to a reference infector.
+Time dependent transmission models require a choice for the infectivity profile $f$, defined as the instantaneous rate of secondary infection associated to a reference infector.
 An infectivity profile is thus a function of the time from infection $t_{i}$ to transmission at time $t$, the "generation time" $t - t_{i}$. The profile can also depend on other infector covariates.
 
 In certain applications a profile has to be expressed as a function of the time from symptoms onset $t_{i}^\mathrm{ons}$ to transmission.

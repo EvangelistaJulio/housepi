@@ -52,8 +52,8 @@ HousepiModel <- R6::R6Class(
 
     param_ = NULL,
     augm_ = NULL,
-    group_risks_ = NULL,
-    contact_risks_ = NULL,
+    group_rates_ = NULL,
+    contact_rates_ = NULL,
     status_ = NULL,
     infec_profile_ = NULL,
     reporting_process_ = NULL,
@@ -97,14 +97,14 @@ HousepiModel <- R6::R6Class(
     # Data columns required by the model and by other definitions.
     get_required_data_wide_ = function() {
       c(private$required_of_model_(.engine$data_keys), # by the model
-        private$group_risks_$data_required,      # by group risks
-        private$contact_risks_$data_required,    # by contact risks
+        private$group_rates_$data_required,      # by group rates
+        private$contact_rates_$data_required,    # by contact rates
         private$required_of_declaration_("D"))   # by the latent declaration
     },
 
-    # Group risks required by the model and by other definitions.
-    get_required_group_risks_ = function() {
-      c(private$required_of_model_(.engine$group_risk_keys), # by the model
+    # Group rates required by the model and by other definitions.
+    get_required_group_rates_ = function() {
+      c(private$required_of_model_(.engine$group_rate_keys), # by the model
         private$required_of_declaration_("G"))   # by the latent declaration
     },
 
@@ -114,8 +114,8 @@ HousepiModel <- R6::R6Class(
         find_required_definitions(private$resolved_param_(), "P",
                                   c("const", "func", "min", "max"),
                                   private$param_$family), # by param functions
-        private$group_risks_$param_required,     # by group risks
-        private$contact_risks_$param_required,   # by contact risks
+        private$group_rates_$param_required,     # by group rates
+        private$contact_rates_$param_required,   # by contact rates
         private$required_of_declaration_("P"))   # by the latent declaration
     },
 
@@ -167,13 +167,13 @@ HousepiModel <- R6::R6Class(
       wall_or_return_(sms, wall)
     },
 
-    # Assert the model reads every group risk defined.
-    assert_group_risks_ = function() {
-      private$group_risks_$assert(private$get_required_group_risks_())
+    # Assert the model reads every group rate defined.
+    assert_group_rates_ = function() {
+      private$group_rates_$assert(private$get_required_group_rates_())
     },
 
     # Assert the model supports a feature.
-    # @param label `character(1)` Feature name, plural: "Contact risks".
+    # @param label `character(1)` Feature name, plural: "Contact rates".
     assert_feature_supported_ = function(supported, label) {
       if (supported) return(invisible(self))
       stop_h(
@@ -183,22 +183,22 @@ HousepiModel <- R6::R6Class(
     },
 
     # Pin baselines to the reference value, keyed by parameter name.
-    # * absolute risk -> baseline held at the reference value, declared or not;
+    # * absolute rate -> baseline held at the reference value, declared or not;
     # * baseline defined as a function -> not pinned, user's own scale.
-    # @return `list` of `character()` Risks pinning each baseline.
+    # @return `list` of `character()` Rates pinning each baseline.
     baseline_pins_ = function() {
-      anchors <- .engine$risk_anchors(private$mcmc_ptr_)
+      anchors <- .engine$rate_anchors(private$mcmc_ptr_)
       defs <- private$param_$defs
       pins <- list()
       for (name in names(anchors)) {
         # a baseline defined as a function carries the user's own scale
         row <- match(name, defs[["name"]])
         if (!is.na(row) && !is.na(defs[["func"]][row])) next
-        risks <- anchors[[name]]$risks
-        absolute <- risks[vapply(risks, private$group_risks_$is_absolute,
+        rates <- anchors[[name]]$rates
+        absolute <- rates[vapply(rates, private$group_rates_$is_absolute,
                                  logical(1))]
         if (isTRUE(anchors[[name]]$contacts) &&
-              private$contact_risks_$is_absolute()) {
+              private$contact_rates_$is_absolute()) {
           absolute <- c(absolute, "contact")
         }
         if (length(absolute)) pins[[name]] <- absolute
@@ -206,7 +206,7 @@ HousepiModel <- R6::R6Class(
       pins
     },
 
-    # Declared parameters, with the baselines absolute risks anchor
+    # Declared parameters, with the baselines absolute rates anchor
     # held at the reference value.
     # @return `HousepiParameter`
     effective_param_ = function() {
@@ -235,10 +235,10 @@ HousepiModel <- R6::R6Class(
       else paste(unlist(defs[row, ]), collapse = "|")
     },
 
-    # Warn once per declaration for each baseline an absolute risk absorbed,
+    # Warn once per declaration for each baseline an absolute rate absorbed,
     # discarding what its declaration asked for.
     # * `collapse_seen_` -> what was last reported;
-    # * baseline released by its risks -> forgotten.
+    # * baseline released by its rates -> forgotten.
     warn_baseline_collapse_ = function() {
       pins <- private$baseline_pins_()
       defs <- private$param_$defs
@@ -247,12 +247,12 @@ HousepiModel <- R6::R6Class(
         if (is.na(declared[[name]]) ||
               identical(unname(private$collapse_seen_[name]),
                         declared[[name]])) next
-        risks <- pins[[name]]
+        rates <- pins[[name]]
         value <- showcaser_extract_numeric(
           defs[["const"]][match(name, defs[["name"]])]
         )
         warn_h(
-          paste("Absolute {cli::qty(risks)} risk{?s} {.val {risks}}",
+          paste("Absolute {cli::qty(rates)} rate{?s} {.val {rates}}",
                 "{?has/have} no reference."),
           `!` = "Baseline {.val {name}} was turned into constant reference."
         )
@@ -262,7 +262,7 @@ HousepiModel <- R6::R6Class(
     },
 
     # Read a table of parameter values a run supplies.
-    # * value for a baseline an absolute risk holds at the reference -> error.
+    # * value for a baseline an absolute rate holds at the reference -> error.
     # @param table `data.frame` | path Values keyed by parameter name.
     # @param nrep `integer(1)` Rows kept at most, evenly spaced, all if `NA`.
     # @param thin_ess `logical(1)` Whether to thin by effective sample size.
@@ -276,7 +276,7 @@ HousepiModel <- R6::R6Class(
       helper_thin_even_(table, nrep)
     },
 
-    # Assert no value a run supplies targets a baseline an absolute risk holds
+    # Assert no value a run supplies targets a baseline an absolute rate holds
     # at the reference.
     # * `NA` cell -> passes, it supplies nothing.
     # @param given `list` | `data.frame` Values keyed by parameter name.
@@ -288,8 +288,8 @@ HousepiModel <- R6::R6Class(
       if (!length(held)) return(invisible(self))
       stop_h(
         "{.arg {arg}} sets {.val {held}} to a value other than 1.",
-        paste("An absolute risk leaves no scale for",
-              "{cli::qty(held)}{?it/them}: fold the factor into the risk",
+        paste("An absolute rate leaves no scale for",
+              "{cli::qty(held)}{?it/them}: fold the factor into the rate",
               "values, or name a {.code reference} group.")
       )
     },
@@ -363,30 +363,30 @@ HousepiModel <- R6::R6Class(
 
     ####  Build  ####
 
-    # Assert no risk is keyed on an observation column, at either level.
-    # A risk feeds the transmission model the observation is generated from,
+    # Assert no rate is keyed on an observation column, at either level.
+    # A rate feeds the transmission model the observation is generated from,
     # so its strata would depend on the order of declaration.
-    # @param module `R6` Group or contact risk holder.
-    assert_no_obs_risk_collision_ = function(module) {
+    # @param module `R6` Group or contact rate holder.
+    assert_no_obs_rate_collision_ = function(module) {
       obs <- union(private$augm_$observation_names,
                    private$augm_$surrogate_names)
       clash <- intersect(module$covariate_names, obs)
       if (length(clash)) stop_h(
         "A {module$family} is keyed on observation{?s} {.val {clash}}.",
-        paste("An observation is generated by the model, which the risk feeds:",
-              "it cannot stratify the risk it depends on."),
+        paste("An observation is generated by the model, which the rate feeds:",
+              "it cannot stratify the rate it depends on."),
         "Key the {module$family} on a data column."
       )
       invisible(self)
     },
 
-    # Assert and rebuild group or contact risks.
-    # @param ... Stratification axes only the group risks know about.
-    helper_build_risks_ = function(module, ...) {
+    # Assert and rebuild group or contact rates.
+    # @param ... Stratification axes only the group rates know about.
+    helper_build_rates_ = function(module, ...) {
       # proceed only if definitions exist
       if (!length(module$defs)) return(invisible(self))
 
-      private$assert_no_obs_risk_collision_(module)
+      private$assert_no_obs_rate_collision_(module)
 
       module$implement(get_data_wide(self), ...)
 
@@ -403,19 +403,19 @@ HousepiModel <- R6::R6Class(
       invisible(self)
     },
 
-    # Assert and pre-build group risks.
-    build_group_risks_ = function(wall = FALSE) {
+    # Assert and pre-build group rates.
+    build_group_rates_ = function(wall = FALSE) {
       status_codes <- private$status_codes_()
-      private$assert_group_risks_()
-      private$helper_build_risks_(
-        private$group_risks_, status_codes, wall,
-        stratified = .engine$risk_status_stratified(private$mcmc_ptr_)
+      private$assert_group_rates_()
+      private$helper_build_rates_(
+        private$group_rates_, status_codes, wall,
+        stratified = .engine$rate_status_stratified(private$mcmc_ptr_)
       )
     },
 
-    # Pre-build contact risks.
-    build_contact_risks_ = function() {
-      private$helper_build_risks_(private$contact_risks_)
+    # Pre-build contact rates.
+    build_contact_rates_ = function() {
+      private$helper_build_rates_(private$contact_rates_)
     },
 
     # Factorize and push wide-format data to the engine.
@@ -462,11 +462,11 @@ HousepiModel <- R6::R6Class(
                         private$status_dictionary_(), private$escaped_)
     },
 
-    # Drop the risk-derived parameters, re-derived after a data change.
+    # Drop the rate-derived parameters, re-derived after a data change.
     # Reads the pre-change logic tables, so it runs before the next rebuild_().
-    drop_stale_risk_params_ = function() {
-      stale <- c(names(private$group_risks_$parameters),
-                 names(private$contact_risks_$parameters))
+    drop_stale_rate_params_ = function() {
+      stale <- c(names(private$group_rates_$parameters),
+                 names(private$contact_rates_$parameters))
       for (p in stale) private$param_$remove(p)
       invisible(self)
     },
@@ -475,8 +475,8 @@ HousepiModel <- R6::R6Class(
     reset_definitions_ = function() {
       private$param_ <- HousepiParameter$new()
       private$augm_ <- HousepiAugmented$new()
-      private$group_risks_ <- HousepiGroupRisk$new()
-      private$contact_risks_ <- HousepiContactRisk$new()
+      private$group_rates_ <- HousepiGroupRate$new()
+      private$contact_rates_ <- HousepiContactRate$new()
       private$status_ <- HousepiStatusProcess$new()
       private$infec_profile_ <- HousepiInfecProfile$new()
       private$reporting_process_ <- list(wide = NULL, long = NULL)
@@ -491,17 +491,17 @@ HousepiModel <- R6::R6Class(
       invisible(self)
     },
 
-    # Drop group risks definitions, removing any associated parameters.
-    drop_group_risks_ = function() {
-      if (!is.null(private$group_risks_)) {
-        for (p in names(private$group_risks_$parameters)) {
+    # Drop group rates definitions, removing any associated parameters.
+    drop_group_rates_ = function() {
+      if (!is.null(private$group_rates_)) {
+        for (p in names(private$group_rates_$parameters)) {
           private$param_$remove(p)
         }
         if (!is.null(private$param_$defs) && !nrow(private$param_$defs)) {
           private$drop_parameters_()
         }
       }
-      private$group_risks_ <- HousepiGroupRisk$new()
+      private$group_rates_ <- HousepiGroupRate$new()
       private$rebuild_()
       invisible(self)
     },
@@ -517,7 +517,7 @@ HousepiModel <- R6::R6Class(
       private$augm_$status_labels
     },
 
-    # Engine infected-status codes, named after the labels a risk may key on.
+    # Engine infected-status codes, named after the labels a rate may key on.
     # * model knows labels -> labels win;
     # * integer-coded statuses -> their own dictionary, the codes the data
     #   carries and the status process draws, each standing for itself.
@@ -553,7 +553,7 @@ HousepiModel <- R6::R6Class(
         # an observation stands for a column, at either level:
         # datum in inference, generated value in simulation
         D = c(cols, needs(.engine$data_keys), obs),
-        G = c(names(private$group_risks_$defs), needs(.engine$group_risk_keys)),
+        G = c(names(private$group_rates_$defs), needs(.engine$group_rate_keys)),
         P = c(private$param_$defs[["name"]], needs(.engine$param_keys)),
         A = c(latent, needs(.engine$latent_keys))
       )
@@ -626,7 +626,7 @@ HousepiModel <- R6::R6Class(
     },
 
     # Re-push the R-side definitions to the engine, without hard validation,
-    # then report the baselines the risks absorbed.
+    # then report the baselines the rates absorbed.
     # Hard validation runs in build_full_().
     # @param wall `logical(1)` Whether to raise an error.
     rebuild_ = function(wall = FALSE) {
@@ -635,22 +635,22 @@ HousepiModel <- R6::R6Class(
       invisible(self)
     },
 
-    # Derive the risks from the data,
+    # Derive the rates from the data,
     # then push every definition the engine can already take.
     # @param wall `logical(1)` Whether to raise an error.
-    # @param derive `logical(1)` Whether to re-derive the risk tables.
+    # @param derive `logical(1)` Whether to re-derive the rate tables.
     push_definitions_ = function(wall = FALSE, derive = TRUE) {
-      # no data attached -> no risk to derive
+      # no data attached -> no rate to derive
       if (!private$has_data_wide_()) return(invisible(self))
 
       # settle the status dictionary first
       private$assert_status_()
 
-      # risks derive from their own covariates (they append to param_$defs)
-      if (derive && length(private$group_risks_$defs))
-        private$build_group_risks_(wall)
-      if (derive && length(private$contact_risks_$defs))
-        private$build_contact_risks_()
+      # rates derive from their own covariates (they append to param_$defs)
+      if (derive && length(private$group_rates_$defs))
+        private$build_group_rates_(wall)
+      if (derive && length(private$contact_rates_$defs))
+        private$build_contact_rates_()
 
       # defer the engine push while required data is incomplete
       if (length(private$assert_data_wide_(FALSE, simulating = TRUE)) > 0)
@@ -664,8 +664,8 @@ HousepiModel <- R6::R6Class(
       mcmc_ptr <- private$mcmc_ptr_
       payload <- private$payload_()
       .engine$import_param(mcmc_ptr, payload$parameters)
-      .engine$import_group_risk(mcmc_ptr, payload$group_risks)
-      .engine$import_contact_risk(mcmc_ptr, payload$contact_risks)
+      .engine$import_group_rate(mcmc_ptr, payload$group_rates)
+      .engine$import_contact_rate(mcmc_ptr, payload$contact_rates)
       .engine$import_infec_profile(mcmc_ptr, payload$infectivity_profile)
       private$push_status_process_(payload$status_process, derive)
       # unresolved definitions wait for completeness or for the wall
@@ -692,8 +692,8 @@ HousepiModel <- R6::R6Class(
       status <- private$status_
       list(
         parameters = private$resolved_param_(),
-        group_risks = private$group_risks_$expose_to_cpp(info_wide, codes),
-        contact_risks = private$contact_risks_$expose_to_cpp(info_wide),
+        group_rates = private$group_rates_$expose_to_cpp(info_wide, codes),
+        contact_rates = private$contact_rates_$expose_to_cpp(info_wide),
         infectivity_profile = private$resolved_profile_(),
         status_process = if (status$is_defined) list(
           table = status$expose_to_cpp(info_wide, codes),
@@ -760,7 +760,7 @@ HousepiModel <- R6::R6Class(
       # a column not yet attached is the likeliest cause of an unsettled source
       private$assert_sources_(wall = TRUE)
       private$assert_param_(wall = TRUE)
-      private$assert_group_risks_()
+      private$assert_group_rates_()
       private$assert_infec_profile_(wall = TRUE)
       # engine build reports unresolved read first
       private$rebuild_(wall = TRUE)
@@ -960,8 +960,8 @@ HousepiModel <- R6::R6Class(
       obj_priv <- obj$.__enclos_env__$private
 
       # clone every field but the runner, created afresh
-      for (field in c("compiled_", "param_", "augm_", "group_risks_",
-                      "contact_risks_", "status_", "infec_profile_",
+      for (field in c("compiled_", "param_", "augm_", "group_rates_",
+                      "contact_rates_", "status_", "infec_profile_",
                       "reporting_process_", "collapse_seen_", "escaped_",
                       "coding_", "data_hash_")) {
         obj_priv[[field]] <- helper_clone(private[[field]])
@@ -973,7 +973,7 @@ HousepiModel <- R6::R6Class(
       .engine$share_data_store(obj_priv$mcmc_ptr_, private$mcmc_ptr_)
 
       # fresh pointer needs definitions pushed to the engine
-      # cloned risk tables derive from the shared data, not re-derived
+      # cloned rate tables derive from the shared data, not re-derived
       obj_priv$push_definitions_(derive = FALSE)
 
       obj
@@ -1015,30 +1015,30 @@ HousepiModel <- R6::R6Class(
         list(fmt_assert_cli("Sources", unresolved))
       )
 
-      # inform about optional risks if dataset is suitable
+      # inform about optional rates if dataset is suitable
       cols_extra <- setdiff(private$coding_$data_wide$cols,
                             data_reserved_cols)
       if (length(cols_extra)) {
-        # group risks (optional: default when definitions are absent)
-        risks <- private$get_required_group_risks_()
-        if (length(risks)) {
-          risks <- intersect(risks, definition_missing_find(
-            risks, names(private$group_risks_$defs)
+        # group rates (optional: default when definitions are absent)
+        rates <- private$get_required_group_rates_()
+        if (length(rates)) {
+          rates <- intersect(rates, definition_missing_find(
+            rates, names(private$group_rates_$defs)
           ))
           blocks <- c(blocks, list(fmt_assert_cli(
-            "Group risks",
-            if (length(risks)) c(
-              "Using default group risks.",
-              inline_cli_("Available: {.val {risks}}.")
+            "Group rates",
+            if (length(rates)) c(
+              "Using default group rates.",
+              inline_cli_("Available: {.val {rates}}.")
             ) else NULL,
             minor = TRUE
           )))
         }
-        # contact risks (optional)
-        if (.engine$has_contact_risk(private$mcmc_ptr_)) {
+        # contact rates (optional)
+        if (.engine$has_contact_rate(private$mcmc_ptr_)) {
           blocks <- c(blocks, list(fmt_assert_cli(
-            "Contact risks",
-            if (!private$contact_risks_$assert()) "Using default contact risks."
+            "Contact rates",
+            if (!private$contact_rates_$assert()) "Using default contact rates."
             else NULL,
             minor = TRUE
           )))
@@ -1102,16 +1102,16 @@ export_to_cpp_standalone <- function(hh_model, outpath = "inst/standalone/") {
     "The standalone build reads no status process.",
     "Export a model without {.fn add_status_process}."
   )
-  pvt$build_group_risks_()
-  pvt$build_contact_risks_()
+  pvt$build_group_rates_()
+  pvt$build_contact_rates_()
 
   # the definitions as the engine imports them, with their sources resolved
   payload <- pvt$payload_()
   utils::write.csv(payload$latent,
                    file.path(outpath, "latent.csv"),
                    quote = FALSE, row.names = FALSE)
-  utils::write.csv(payload$contact_risks,
-                   file.path(outpath, "contact_risks.csv"),
+  utils::write.csv(payload$contact_rates,
+                   file.path(outpath, "contact_rates.csv"),
                    quote = FALSE, row.names = FALSE)
   utils::write.csv(.engine$export_data_wide(pvt$mcmc_ptr_),
                    file.path(outpath, "data_wide.csv"),
@@ -1119,8 +1119,8 @@ export_to_cpp_standalone <- function(hh_model, outpath = "inst/standalone/") {
   utils::write.csv(.engine$export_data_long(pvt$mcmc_ptr_),
                    file.path(outpath, "data_long.csv"),
                    quote = FALSE, row.names = FALSE)
-  utils::write.csv(payload$group_risks,
-                   file.path(outpath, "group_risks.csv"),
+  utils::write.csv(payload$group_rates,
+                   file.path(outpath, "group_rates.csv"),
                    quote = FALSE, row.names = FALSE)
   utils::write.csv(payload$infectivity_profile,
                    file.path(outpath, "infec.csv"),

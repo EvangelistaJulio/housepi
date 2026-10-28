@@ -40,7 +40,7 @@
 #include "model.h"
 #include "parameter.h"
 #include "registry.h"
-#include "risks.h"
+#include "rates.h"
 #include "translator.h"
 #include "variable.h"
 
@@ -124,9 +124,9 @@ namespace housepi
             {
                 return augm_.at(augm_.consult(node.value), *indiv_ptr);
             }
-            else if (parse::is_group_risk(node.type))
+            else if (parse::is_group_rate(node.type))
             {
-                return group_risk_.at(group_risk_.consult(node.value), *indiv_ptr);
+                return group_rate_.at(group_rate_.consult(node.value), *indiv_ptr);
             }
         }
 
@@ -167,7 +167,7 @@ namespace housepi
         if (node.is_terminal())
             return (parse::is_data_wide(node.type) && !augm_.def().has_row(node.value, augm::Kind::House)) ||
                    parse::is_latent(node.type) ||
-                   parse::is_group_risk(node.type);
+                   parse::is_group_rate(node.type);
         // an inner reduction folds its own operands
         if (is_reduction_(node.func))
             return false;
@@ -486,9 +486,9 @@ namespace housepi
     MCMCBase::MCMCBase(const ModelBase &model)
         : data(model),
           param(model.param_keys()),
-          risks(model.group_risk_keys()),
+          rates(model.group_rate_keys()),
           augm(this, model.latent_keys()),
-          translator(param, augm, data, risks.group()) {}
+          translator(param, augm, data, rates.group()) {}
     MCMCBase::~MCMCBase() = default;
 
     void MCMCBase::init_equivalence_class_compression()
@@ -726,12 +726,12 @@ namespace housepi
         data.state.allocate_transm_log_lik();
 
         param.finalize();
-        risks.finalize();
+        rates.finalize();
         augm.finalize();
         infec_profile.finalize();
         data.finalize();
 
-        risks.assert_identifiability(param);
+        rates.assert_identifiability(param);
         assert_valid_infectivity_profile();
 
         model->init_model_for_evaluation();
@@ -745,7 +745,7 @@ namespace housepi
         const augm::Scheme &as = augm.scheme();
         routes_.assign(param.size(), {});
 
-        const std::vector<std::vector<HouseIdx>> houses_of = risks.list_houses_of_param(param.size());
+        const std::vector<std::vector<HouseIdx>> houses_of = rates.list_houses_of_param(param.size());
         for (size_t p : param.scheme().sample)
         {
             ParamRoute &route = routes_[p];
@@ -753,8 +753,8 @@ namespace housepi
             route.terms.latent = as.is_any_latent_model() && as.param_produces_latent_log_lik(p);
             route.terms.obs = as.is_any_obs_model() && as.param_produces_obs_log_lik(p);
 
-            // read by risks alone -> the classes reading it
-            if (route.terms.latent || route.terms.obs || houses_of[p].empty() || !param.is_risk_only(p))
+            // read by rates alone -> the classes reading it
+            if (route.terms.latent || route.terms.obs || houses_of[p].empty() || !param.is_rate_only(p))
                 continue;
             for (HouseIdx H : houses_of[p])
                 route.classes.push_back(data.state.eq_class(data_wide.at(H)));
@@ -770,7 +770,7 @@ namespace housepi
     {
         pblocks_.clear();
         in_pblock_.assign(param.size(), 0);
-        for (std::vector<size_t> &keys : risks.list_param_blocks(param))
+        for (std::vector<size_t> &keys : rates.list_param_blocks(param))
         {
             ParamBlock block;
             block.keys = std::move(keys);

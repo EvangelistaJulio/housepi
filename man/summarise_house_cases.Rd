@@ -24,7 +24,7 @@ summarize_house_cases(hh_model)
 \description{
 Summarise cases from the statuses in the loaded household data.
 The row \code{classes} counts the equivalence classes,
-households the model cannot tell apart, e.g. same size, statuses and risks.
+households the model cannot tell apart, e.g. same size, statuses and rates.
 }
 \examples{
 hh_model <- new_housepi_model(flu_1918_frederick, "final_size")

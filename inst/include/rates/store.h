@@ -15,28 +15,28 @@
 #include "data/status.h"
 #include "function.h"
 
-//////////////////////////////  risks::Store  //////////////////////////////
+//////////////////////////////  rates::Store  //////////////////////////////
 
 namespace housepi
 {
-    /// Storage slot a status level reads in a risk store.
+    /// Storage slot a status level reads in a rate store.
     using StatusSlot = std::uint8_t;
-    /// Offset of a status slot within one risk definition.
+    /// Offset of a status slot within one rate definition.
     using SlotOffset = std::uint16_t;
-    /// Offset into a flat risk store.
-    using RiskOffset = std::uint32_t;
+    /// Offset into a flat rate store.
+    using RateOffset = std::uint32_t;
     /// Fixed-size table addressed by a status level.
     template <typename T>
     using StatusTable = std::array<T, 1 + std::numeric_limits<StatusLvl>::max()>;
 }
 
-namespace housepi::risks
+namespace housepi::rates
 {
-    /// Risk attributes of every unique definition, in one flat store.
+    /// Rate attributes of every unique definition, in one flat store.
     ///
     /// * reading one crosses a single indirection;
     /// * each owner maps to the offset its block starts at;
-    /// * owner: member for group risks, household for contact risks.
+    /// * owner: member for group rates, household for contact rates.
     struct Store
     {
     public:
@@ -48,8 +48,8 @@ namespace housepi::risks
         const std::vector<std::vector<HouseIdx>> &houses_of_param() const noexcept { return houses_of_param_; }
 
     protected:
-        std::vector<Attribute> flat_ = {};                        /// Risk attributes, one block per unique definition.
-        std::vector<RiskOffset> base_ = {};                       /// Offset each owner's block starts at.
+        std::vector<Attribute> flat_ = {};                        /// Rate attributes, one block per unique definition.
+        std::vector<RateOffset> base_ = {};                       /// Offset each owner's block starts at.
         std::vector<std::vector<HouseIdx>> houses_of_param_ = {}; /// Households reading each parameter.
 
         /// Record that household `H` reads parameter `p`.

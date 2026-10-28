@@ -282,8 +282,8 @@ namespace housepi::str
             return "observation";
         case ErrType::HouseholdObservation:
             return "household observation";
-        case ErrType::GroupRisk:
-            return "group risk";
+        case ErrType::GroupRate:
+            return "group rate";
         case ErrType::Data:
             return "data";
         case ErrType::Distribution:
@@ -656,8 +656,8 @@ namespace housepi::parse
                 str_type = "latent";
             else if (is_data_wide(type))
                 str_type = "data";
-            else if (is_group_risk(type))
-                str_type = "group_risk";
+            else if (is_group_rate(type))
+                str_type = "group_rate";
             else if (is_parameter(type))
                 str_type = "parameter";
             else // is_numeric

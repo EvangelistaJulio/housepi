@@ -112,7 +112,7 @@ e.g. `proposal_mean` and `proposal_sd`."
 rd_sources_ <- "Either a plain value, the name of another definition,
 or an arithmetic expression combining them.
 A name is looked up among the latent variables, data columns, observations,
-group risks and parameters the model carries.
+group rates and parameters the model carries.
 Two of them sharing a name cannot be read."
 rd_aug_status_ <- "`integer(1)` Infected status the definition is specific to.
 If `NA`, the definition applies to every infected member."
@@ -122,7 +122,7 @@ taking no `model`, depending on `level`:
   \\item{`\"member\"`}{the value computed for every member;}
   \\item{`\"house\"`}{one value for the whole household.
   The reductions `min()`, `max()`, `sum()` and `prod()` fold over the members
-  a per-member value: a data column, a latent or a group risk.
+  a per-member value: a data column, a latent or a group rate.
   Their argument is computed for each member, members with no value left out,
   e.g. `min(onset_date) + 21` or `max(test_date - onset_date)`.
   A per-member value read outside a reduction is an error.}
@@ -164,56 +164,59 @@ Cannot be combined with single or multiple definitions."
 rd_list_append_ <- "`logical(1)` Whether to append to the current definitions.
 If `FALSE`, the previous definitions are dropped."
 
-####  Risks  ####
+####  Rates  ####
 
-rd_risk_desc_ <- function(kind) {
-  sprintf("Add definitions of a %s risk by given data covariate(s).
-Each stratum carries its own absolute risk, unless a reference is chosen.
-Then every parameter multiplies the baseline risk of the reference stratum.
+rd_rate_desc_ <- function(kind) {
+  sprintf("Add definitions of a %s rate by given data covariate(s).
+The rate multiplies a transmission rate of the model.
+Each stratum carries its own absolute rate, unless a reference is chosen.
+Then every parameter is a rate ratio to the reference stratum.
+The probability of infection is \\eqn{1 - e^{-\\lambda}} for a rate \\eqn{\\lambda},
+so a rate ratio is not a risk ratio.
 If no MCMC options are provided,
-absolute risks are \\eqn{\\mathrm{uniform}} over their support,
+absolute rates are \\eqn{\\mathrm{uniform}} over their support,
 and relative ones \\eqn{\\mathrm{lognormal}[\\mu=0, \\sigma=3]}.
 Bypass automatic generation by providing a custom pre-built logic table.",
           kind)
 }
-rd_risk_prefix_ <- "`character(1)` Prefix to names of associated parameters."
+rd_rate_prefix_ <- "`character(1)` Prefix to names of associated parameters."
 rd_grr_prefix_ <- paste(
-  rd_risk_prefix_,
-  "If `NA`, the first 3 letters of the risk name."
+  rd_rate_prefix_,
+  "If `NA`, the first 3 letters of the rate name."
 )
-rd_risk_joint_ <- "`logical(1)` Whether covariates are joint.
+rd_rate_joint_ <- "`logical(1)` Whether covariates are joint.
 If `FALSE`, they are independent."
-rd_risk_strata_ <-
+rd_rate_strata_ <-
   "`data.frame` Individual covariates and relative `param_name`.
 Each row defines one stratum.
 A covariate left `NA` matches any value.
-Every member, or ordered pair of members for contact risks, must match a row,
+Every member, or ordered pair of members for contact rates, must match a row,
 and every row must be the best match of at least one of them,
 else the definition is refused.
 So is a table setting no covariate value,
 which treats every member alike as the baseline does.
 The table is used as written.
-A risk read on infected members is checked at every infected status
+A rate read on infected members is checked at every infected status
 a member may take, whether or not the data records it.
 Rows keyed on different covariates form separate rule groups,
-whose risks multiply.
+whose rates multiply.
 Use `.reference` in `param_name` to designate the reference group.
-A rule group without it leaves the risk absolute.
+A rule group without it leaves the rate absolute.
 The reserved numeric column `const` pins a stratum to that value,
 in inference and simulation, so that it carries no prior.
 The reference stratum takes none.
 Mutually exclusive with `by`."
-rd_risk_params_ <- "`list` Per-parameter MCMC configurations,
+rd_rate_params_ <- "`list` Per-parameter MCMC configurations,
 named as in `param_name`.
 Overrides shared prior/args for parameters specified in the list.
 A stratum pinned through the `strata` table takes no entry here.
 Ignored in automatic mode."
-rd_risk_reference_ <- function(cell) {
+rd_rate_reference_ <- function(cell) {
   sprintf("`list` Named covariates of the reference %s,
-whose risk becomes the unit that every other parameter multiplies.
+whose rate becomes the unit that every other parameter multiplies.
 Pass `\".auto\"` to take the %s with the largest sample size.
-Left empty, each stratum carries its own absolute risk.
-A covariate the reference does not name leaves the whole risk absolute.",
+Left empty, each stratum carries its own absolute rate.
+A covariate the reference does not name leaves the whole rate absolute.",
           cell, cell)
 }
 
@@ -337,8 +340,8 @@ add_data_wide <- function(hh_model, data) {
   if (is.null(data)) stop_h("Missing argument {.arg data}.")
   new_obj <- hh_model$copy()
   pvt <- new_obj$.__enclos_env__$private
-  # drop stale risk params (read pre-change tables) before re-importing data
-  pvt$drop_stale_risk_params_()
+  # drop stale rate params (read pre-change tables) before re-importing data
+  pvt$drop_stale_rate_params_()
   pvt$set_data_wide_(assert_household_data(data, NA_character_))
   pvt$rebuild_()
   new_obj
@@ -372,7 +375,7 @@ add_data_long <- function(hh_model, data_long) {
 #' @description
 #' Summarise cases from the statuses in the loaded household data.
 #' The row `classes` counts the equivalence classes,
-#' households the model cannot tell apart, e.g. same size, statuses and risks.
+#' households the model cannot tell apart, e.g. same size, statuses and rates.
 #' @param hh_model `r rd_model_in_`
 #' @return `data.frame` One row per metric:
 #' \describe{
@@ -417,7 +420,7 @@ subset_definitions_ <- function(defs, name, col = "name") {
 #' @description
 #' Return the definitions currently stored in the housepi model.
 #' Each variant returns one category: data, parameters, latent variables,
-#' observations, status process, group risks, contact risks,
+#' observations, status process, group rates, contact rates,
 #' infectivity profile or reporting process.
 #' @details
 #' `get_data_wide()` returns the individual-level data the model reads.
@@ -427,7 +430,7 @@ subset_definitions_ <- function(defs, name, col = "name") {
 #' is not part of the dataset, and is reported by [get_observations()].
 #' @param hh_model `r rd_model_in_`
 #' @param name `character()` Names of the definitions to return.
-#' `get_group_risks()` matches the name of the group risk.
+#' `get_group_rates()` matches the name of the group rate.
 #' If `NA`, all of them.
 #' @return `data.frame`
 #' `get_status_process()` returns one row per rule of the status process:
@@ -512,23 +515,23 @@ get_status_process <- function(hh_model) {
 
 #' @rdname get_definitions
 #' @export
-get_group_risks <- function(hh_model, name = NA) {
+get_group_rates <- function(hh_model, name = NA) {
   stopifnothousepi(hh_model)
   pvt <- hh_model$.__enclos_env__$private
-  pvt$group_risks_ |>
-    helper_show_risk_table(setdiff(risk_reserved_cols, risk_pin_cols),
+  pvt$group_rates_ |>
+    helper_show_rate_table(setdiff(rate_reserved_cols, rate_pin_cols),
                            pvt$has_data_wide_()) |>
-    sort_definitions_("group_risk", by_status = FALSE) |>
-    subset_definitions_(name, "group_risk")
+    sort_definitions_("group_rate", by_status = FALSE) |>
+    subset_definitions_(name, "group_rate")
 }
 
 #' @rdname get_definitions
 #' @export
-get_contact_risks <- function(hh_model) {
+get_contact_rates <- function(hh_model) {
   stopifnothousepi(hh_model)
   pvt <- hh_model$.__enclos_env__$private
-  pvt$contact_risks_ |>
-    helper_show_risk_table(c("param_name", "n", "rule_group"),
+  pvt$contact_rates_ |>
+    helper_show_rate_table(c("param_name", "n", "rule_group"),
                            pvt$has_data_wide_()) |>
     sort_definitions_("param_name", by_status = FALSE)
 }
@@ -979,19 +982,19 @@ add_status_process <- function(hh_model, ..., strata = NULL, import = NULL) {
   new_obj
 }
 
-########  Risks  ########
+########  Rates  ########
 
-#' @title Add a stratified group risk definition
-#' @description `r rd_risk_desc_("group")`
+#' @title Add a stratified group rate definition
+#' @description `r rd_rate_desc_("group")`
 #' `r rd_add_modes_`
 #' @param hh_model `r rd_model_in_`
 #' @param name `r rd_var_name_`
-#' @param by `list` Data columns of the covariates the group risk stratifies on.
+#' @param by `list` Data columns of the covariates the group rate stratifies on.
 #' The columns must be categorical.
-#' @param reference `r rd_risk_reference_("group")`
-#' @param joint `r rd_risk_joint_`
-#' @param strata `r rd_risk_strata_`
-#' @param params `r rd_risk_params_`
+#' @param reference `r rd_rate_reference_("group")`
+#' @param joint `r rd_rate_joint_`
+#' @param strata `r rd_rate_strata_`
+#' @param params `r rd_rate_params_`
 #' @param prior `r rd_var_prior_`
 #' @param ... `r rd_var_args_("prior", proposal = TRUE)`
 #' @param min `r rd_var_min_`
@@ -1008,18 +1011,18 @@ add_status_process <- function(hh_model, ..., strata = NULL, import = NULL) {
 #'
 #' # single: one susceptibility parameter per age class
 #' hh_model |>
-#'   add_group_risk("susceptibility", by = "age") |>
-#'   get_group_risks()
+#'   add_group_rate("susceptibility", by = "age") |>
+#'   get_group_rates()
 #'
-#' # inline bulk: relative risks, against a chosen or the most frequent group
+#' # inline bulk: rate ratios, against a chosen or the most frequent group
 #' hh_model |>
-#'   add_group_risk(
+#'   add_group_rate(
 #'     infectivity = list(by = "isolated", reference = ".auto"),
 #'     susceptibility = list(by = "vacc_status", reference = "unvaccinated")
 #'   ) |>
 #'   get_parameters()
 #' @export
-add_group_risk <-  function(hh_model,
+add_group_rate <-  function(hh_model,
                             name = NULL, by = NA_character_, ...,
                             reference = NULL, joint = FALSE,
                             strata = NULL, params = NULL,
@@ -1033,16 +1036,16 @@ add_group_risk <-  function(hh_model,
   pvt <- new_obj$.__enclos_env__$private
 
   # drop stale parameters and re-derive in `rebuild_()`
-  pvt$drop_stale_risk_params_()
-  if (is.null(name) && isFALSE(append)) pvt$drop_group_risks_()
+  pvt$drop_stale_rate_params_()
+  if (is.null(name) && isFALSE(append)) pvt$drop_group_rates_()
 
   #> import and multiple modes
-  if (!add_listed_defs_(pvt$group_risks_, pvt$compiled_,
-                        pvt$group_risks_$family, name, import, append,
+  if (!add_listed_defs_(pvt$group_rates_, pvt$compiled_,
+                        pvt$group_rates_$family, name, import, append,
                         rlang::enquos(...), rlang::caller_env(),
                         match.call(expand.dots = FALSE), "name")) {
     #> single mode
-    pvt$group_risks_$add_quo(name = name, by = by,
+    pvt$group_rates_$add_quo(name = name, by = by,
                              reference = reference, joint = joint,
                              strata = strata, params = params,
                              prior = prior, rlang::enquos(...),
@@ -1053,25 +1056,25 @@ add_group_risk <-  function(hh_model,
   new_obj
 }
 
-#' @title Add a pairwise contact risk definition
-#' @description `r rd_risk_desc_("contact")`
+#' @title Add a pairwise contact rate definition
+#' @description `r rd_rate_desc_("contact")`
 #' @param hh_model `r rd_model_in_`
 #' @param by `character()` Data columns of the covariates pairs are matched on.
 #' The columns must be categorical.
-#' @param reference `r rd_risk_reference_("pair")`
+#' @param reference `r rd_rate_reference_("pair")`
 #' Names can carry `from_`/`to_` prefixes matching `by`,
 #' or no prefix, applying to both ends.
-#' @param joint `r rd_risk_joint_`
+#' @param joint `r rd_rate_joint_`
 #' @param symmetric `logical(1)` Whether contact is symmetric.
 #' If `TRUE`, infector-infectee and infectee-infector pairs are equivalent.
-#' @param strata `r rd_risk_strata_`
-#' @param params `r rd_risk_params_`
+#' @param strata `r rd_rate_strata_`
+#' @param params `r rd_rate_params_`
 #' @param prior `r rd_var_prior_`
 #' @param ... `r rd_var_args_("prior", proposal = TRUE)`
 #' @param min `r rd_var_min_`
 #' @param max `r rd_var_max_`
 #' @param proposal `r rd_var_proposal_`
-#' @param prefix `r rd_risk_prefix_`
+#' @param prefix `r rd_rate_prefix_`
 #' @param import Named `list` of pre-built definition to import.
 #' Cannot be combined with the single definition.
 #' @return `r rd_model_out_`
@@ -1080,15 +1083,15 @@ add_group_risk <-  function(hh_model,
 #'
 #' # one parameter per pair of family roles, relative to the most frequent pair
 #' hh_model |>
-#'   add_contact_risk("member", reference = ".auto") |>
-#'   get_contact_risks()
+#'   add_contact_rate("member", reference = ".auto") |>
+#'   get_contact_rates()
 #'
 #' # asymmetric: infector-infectee and infectee-infector pairs differ
 #' hh_model |>
-#'   add_contact_risk("member", symmetric = FALSE) |>
-#'   get_contact_risks()
+#'   add_contact_rate("member", symmetric = FALSE) |>
+#'   get_contact_rates()
 #' @export
-add_contact_risk <- function(hh_model, by = NA_character_, ...,
+add_contact_rate <- function(hh_model, by = NA_character_, ...,
                              reference = NULL,
                              joint = FALSE, symmetric = TRUE,
                              strata = NULL, params = NULL,
@@ -1100,10 +1103,10 @@ add_contact_risk <- function(hh_model, by = NA_character_, ...,
   stopifnothousepi(hh_model)
   new_obj <- hh_model$copy()
   pvt <- new_obj$.__enclos_env__$private
-  pvt$assert_feature_supported_(.engine$has_contact_risk(pvt$mcmc_ptr_),
-                                "Contact risks")
+  pvt$assert_feature_supported_(.engine$has_contact_rate(pvt$mcmc_ptr_),
+                                "Contact rates")
   # the definition is replaced: its parameters are re-derived by `rebuild_()`
-  pvt$drop_stale_risk_params_()
+  pvt$drop_stale_rate_params_()
 
   # single definition, from an imported named list or the explicit arguments
   if (!length(import)) import <- list(
@@ -1113,7 +1116,7 @@ add_contact_risk <- function(hh_model, by = NA_character_, ...,
     min = rlang::enquo(min), max = rlang::enquo(max),
     proposal = proposal, prefix = prefix
   )
-  do.call(pvt$contact_risks_$add_quo, import)
+  do.call(pvt$contact_rates_$add_quo, import)
   pvt$rebuild_()
   new_obj
 }
@@ -1333,12 +1336,12 @@ inspect_state <- function(hh_model, hh_id = NULL) {
   if (!length(.engine$param_keys(pvt$mcmc_ptr_)) &&
         all(dim(out$parameters) == 0)) out$parameters <- NULL
   if (has_house) {
-    # group risks
-    if (!length(.engine$group_risk_keys(pvt$mcmc_ptr_)) &&
-          all(dim(out$group_risks) == 0)) out$group_risks <- NULL
-    # contact risks
-    if (!.engine$has_contact_risk(pvt$mcmc_ptr_) &&
-          all(dim(out$contact_risks) == 0)) out$contact_risks <- NULL
+    # group rates
+    if (!length(.engine$group_rate_keys(pvt$mcmc_ptr_)) &&
+          all(dim(out$group_rates) == 0)) out$group_rates <- NULL
+    # contact rates
+    if (!.engine$has_contact_rate(pvt$mcmc_ptr_) &&
+          all(dim(out$contact_rates) == 0)) out$contact_rates <- NULL
     # infectivity profiles
     if (!.engine$has_infec_profile(pvt$mcmc_ptr_) &&
           !length(out$infectivity_profiles)) {
@@ -1383,11 +1386,11 @@ inspect_state <- function(hh_model, hh_id = NULL) {
 #' directly or through a function, moves alone.
 #' Parameters that declare no proposal move together the same way
 #' when a reference couples them:
-#' a baseline and each relative risk of its rule groups
+#' a baseline and each rate ratio of its rule groups
 #' matching at least a tenth as many members or pairs as the reference.
 #' They take as many joint moves per step as they have members.
 #' A parameter whose prior or bounds read another of them moves alone,
-#' as does a risk whose number of members or pairs is unknown.
+#' as does a rate whose number of members or pairs is unknown.
 #' @param hh_model `r rd_model_in_`
 #' @param steps `r rd_smpl_steps_`
 #' @param thin `r rd_smpl_thin_`

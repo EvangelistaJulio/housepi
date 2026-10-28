@@ -1075,7 +1075,7 @@ test_that("browse_templates rejects '.' as destination path", {
 
 test_that("Model help pages name the keys the engine registers", {
   modules <- c(DATA = "Data", PARAM = "Parameters",
-               LATENT = "Latent", GROUP_RISK = "Group Risks")
+               LATENT = "Latent", GROUP_RATE = "Group Rates")
   for (name in c("final_size", "case_ascertained")) {
     cpp <- system.file("models", name, "model.cpp", package = "housepi") |>
       readLines() |>

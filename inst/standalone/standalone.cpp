@@ -22,7 +22,7 @@
 #include "mcmc.h"
 #include "mcmc/settings.h"
 #include "parameter.h"
-#include "risks.h"
+#include "rates.h"
 #include "standalone.h"
 
 //////////////////////////////  msg  //////////////////////////////
@@ -195,27 +195,27 @@ namespace housepi
         }
     }
 
-    void Options::read_group_risk(MCMCBase &model)
+    void Options::read_group_rate(MCMCBase &model)
     {
         try
         {
-            model.risks.build_group(model.data.wide(), model.param, read::csv_table(file.group_risk));
+            model.rates.build_group(model.data.wide(), model.param, read::csv_table(file.group_rate));
         }
         catch (const std::exception &e)
         {
-            msg::stop(std::string("While reading group risk definitions:\n") + e.what());
+            msg::stop(std::string("While reading group rate definitions:\n") + e.what());
         }
     }
 
-    void Options::read_contact_risk(MCMCBase &model)
+    void Options::read_contact_rate(MCMCBase &model)
     {
         try
         {
-            model.risks.build_contact(model.data.wide(), model.param, read::csv_table(file.contact_risk));
+            model.rates.build_contact(model.data.wide(), model.param, read::csv_table(file.contact_rate));
         }
         catch (const std::exception &e)
         {
-            msg::stop(std::string("While reading contact risk definitions:\n") + e.what());
+            msg::stop(std::string("While reading contact rate definitions:\n") + e.what());
         }
     }
 
@@ -467,11 +467,11 @@ namespace housepi
             else if (toup(carg) == "-L" || tolow(carg) == "--datalong")
                 file.data_long = argv[++carg_i];
 
-            else if (toup(carg) == "-G" || tolow(carg) == "--group-risks")
-                file.group_risk = argv[++carg_i];
+            else if (toup(carg) == "-G" || tolow(carg) == "--group-rates")
+                file.group_rate = argv[++carg_i];
 
-            else if (toup(carg) == "-C" || tolow(carg) == "--contact-risks")
-                file.contact_risk = argv[++carg_i];
+            else if (toup(carg) == "-C" || tolow(carg) == "--contact-rates")
+                file.contact_rate = argv[++carg_i];
 
             else if (toup(carg) == "-I" || tolow(carg) == "--infec-profile")
                 file.infec_profile = argv[++carg_i];
@@ -490,10 +490,10 @@ namespace housepi
 
             carg_i++; // move to the next command line argument
         }
-        assert();
+        assert_modes();
     }
 
-    void Options::assert()
+    void Options::assert_modes()
     {
         // check for a single option
         int aux = is_log_lik + is_infer + is_simulate;
@@ -524,8 +524,8 @@ namespace housepi
         opts.read_settings(engine);      // 2) Load Settings
         opts.read_param(engine);         // 3) Load Parameters
         opts.read_infec_profile(engine); // 4) Load Infectivity Profile
-        opts.read_group_risk(engine);    // 5) Load Group Risks
-        opts.read_contact_risk(engine);  // ... and Contact Risks
+        opts.read_group_rate(engine);    // 5) Load Group Rates
+        opts.read_contact_rate(engine);  // ... and Contact Rates
         opts.read_latent(engine);        // 6) Load Latent Variables
 
         //////  Execution  //////

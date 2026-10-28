@@ -87,7 +87,7 @@ ggplot(ppc_prior$format_attack_rate(),
 
 The prior intervals are wide and cover the observed rates: the priors allow the data without favoring it.
 Their medians sit above most observed rates, as uniform priors on transmission put more weight on large outbreaks than these data show.
-An observed value outside its prior interval would raise a warning to sign that the priors exclude what was observed and should be revised before inference. For example, with a too low community transmission risk we get
+An observed value outside its prior interval would raise a warning to sign that the priors exclude what was observed and should be revised before inference. For example, with a too low community transmission rate we get
 
 ```{r}
 #| label: warn-prior

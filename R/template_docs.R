@@ -29,20 +29,20 @@ NULL
 #' The index cases are not known a priori: the first generation is infected from the community.
 #' Each later generation is infected only by the members infected in the previous one.
 #' The likelihood of a household sums over every transmission chain that ends in the observed final size.
-#' Infected members share a risk partition when their group and contact risks match.
+#' Infected members share a rate partition when their group and contact rates match.
 #' A household is refused when its infected members fall into too many partitions to sum over.
 #' Up to 15 partitions are accepted when each holds a single member, fewer when partitions hold several.
 #'
 #' @section Parameters:
-#' * \code{alpha} \eqn{\alpha}{alpha}: baseline community transmission risk
-#' * \code{beta} \eqn{\beta}{beta}: baseline person-to-person transmission risk
-#' * \code{gamma} \eqn{\gamma}{gamma}: household-size scaling of person-to-person risk
+#' * \code{alpha} \eqn{\alpha}{alpha}: baseline community transmission rate, cumulated over the outbreak
+#' * \code{beta} \eqn{\beta}{beta}: baseline person-to-person transmission rate, cumulated over one generation
+#' * \code{gamma} \eqn{\gamma}{gamma}: household-size scaling of person-to-person rate
 #' * \code{hh_size_ref} \eqn{n_\mathrm{ref}}{n_ref}: size of reference household
 #'
-#' @section Group Risks:
-#' * \code{community} \eqn{\mu^\mathrm{com}}{mu^com}: predisposition to infection from community relative to reference
-#' * \code{susceptibility} \eqn{\mu^\mathrm{sus}}{mu^sus}: predisposition to infection relative to reference
-#' * \code{infectivity} \eqn{\mu^\mathrm{inf}}{mu^inf}: predisposition to transmission relative to reference
+#' @section Group Rates:
+#' * \code{community} \eqn{\mu^\mathrm{com}}{mu^com}: member factor on the community rate
+#' * \code{susceptibility} \eqn{\mu^\mathrm{sus}}{mu^sus}: member factor on the person-to-person rate it receives
+#' * \code{infectivity} \eqn{\mu^\mathrm{inf}}{mu^inf}: member factor on the person-to-person rate it exerts
 #'
 #' @section Transmission:
 #' \deqn{p^\mathrm{transm} = p^\mathrm{esc} \, p^\mathrm{inf}}{p^transm = p^esc p^inf}
@@ -64,7 +64,7 @@ NULL
 #' \eqn{q^\mathrm{com}_{i} = \exp\left(-\alpha \, \mu^\mathrm{com}_{i}\right)}{q^com_i = exp(-alpha mu^com_i)}
 #' * from member \eqn{j} to member \eqn{i}:
 #' \eqn{q^\mathrm{pp}_{ji} = \exp\left(-\beta \left(\tfrac{n_\mathrm{ref}}{n}\right)^{\gamma} \mu^\mathrm{inf}_{j} \, \mu^\mathrm{ctc}_{ji} \, \mu^\mathrm{sus}_{i}\right)}{q^pp_ji = exp(-beta (n_ref / n)^gamma mu^inf_j mu^ctc_ji mu^sus_i)}
-#' * \eqn{\mu^\mathrm{ctc}_{ji}}{mu^ctc_ji}: contact risk from member \eqn{j} to member \eqn{i}, equal to 1 unless set by [add_contact_risk()]
+#' * \eqn{\mu^\mathrm{ctc}_{ji}}{mu^ctc_ji}: contact rate from member \eqn{j} to member \eqn{i}, equal to 1 unless set by [add_contact_rate()]
 #'
 #' @section Model Quantities:
 #' [inspect_state()] reports in `model_quantities`:
@@ -72,8 +72,8 @@ NULL
 #' * \code{p2p_escape}: \eqn{q^\mathrm{pp}_{ji}}{q^pp_ji}, infector \eqn{j} by row and infectee \eqn{i} by column, 1 on the diagonal
 #'
 #' @section Notes:
-#' In a household of size \eqn{n} the baseline person-to-person risk is \eqn{\beta (n_\mathrm{ref}/n)^{\gamma}}{beta (n_ref / n)^gamma} \insertCite{cauchemez_bayesian_2004}{housepi},
-#' so \eqn{\beta}{beta} is the baseline risk in a household of size \eqn{n_\mathrm{ref}}{n_ref}.
+#' In a household of size \eqn{n} the baseline person-to-person rate is \eqn{\beta (n_\mathrm{ref}/n)^{\gamma}}{beta (n_ref / n)^gamma} \insertCite{cauchemez_bayesian_2004}{housepi},
+#' so \eqn{\beta}{beta} is the baseline rate in a household of size \eqn{n_\mathrm{ref}}{n_ref}.
 #' The choice of \eqn{n_\mathrm{ref}}{n_ref} leaves the likelihood unchanged, but \eqn{\beta}{beta} and \eqn{\gamma}{gamma} can become strongly correlated and chains mix slowly.
 #' Choose \eqn{n_\mathrm{ref}}{n_ref} from [measure_geom_mean_hh_size()] to keep them nearly uncorrelated.
 #'
@@ -100,9 +100,9 @@ NULL
 #' In simulation the primary case is drawn uniformly among the members \insertCite{cauchemez_bayesian_2004}{housepi}, and infected at time 0.
 #'
 #' @section Parameters:
-#' * \code{alpha} \eqn{\alpha}{alpha}: baseline community instantaneous transmission risk
+#' * \code{alpha} \eqn{\alpha}{alpha}: baseline community instantaneous transmission rate
 #' * \code{beta} \eqn{\beta}{beta}: baseline person-to-person instantaneous transmission rate
-#' * \code{gamma} \eqn{\gamma}{gamma}: household-size scaling of person-to-person risk
+#' * \code{gamma} \eqn{\gamma}{gamma}: household-size scaling of person-to-person rate
 #' * \code{hh_size_ref} \eqn{n_\mathrm{ref}}{n_ref}: size of reference household
 #'
 #' @section Latent:
@@ -117,10 +117,10 @@ NULL
 #' Inference samples infection times between plausible `min` and `max`,
 #' while observations inform about the timing.
 #'
-#' @section Group Risks:
-#' * \code{community} \eqn{\mu^\mathrm{com}}{mu^com}: predisposition to infection from community relative to reference
-#' * \code{susceptibility} \eqn{\mu^\mathrm{sus}}{mu^sus}: predisposition to infection relative to reference
-#' * \code{infectivity} \eqn{\mu^\mathrm{inf}}{mu^inf}: predisposition to transmission relative to reference
+#' @section Group Rates:
+#' * \code{community} \eqn{\mu^\mathrm{com}}{mu^com}: member factor on the community rate
+#' * \code{susceptibility} \eqn{\mu^\mathrm{sus}}{mu^sus}: member factor on the person-to-person rate it receives
+#' * \code{infectivity} \eqn{\mu^\mathrm{inf}}{mu^inf}: member factor on the person-to-person rate it exerts
 #'
 #' @section Transmission:
 #' \deqn{p^\mathrm{transm} = p^\mathrm{esc} \, p^\mathrm{inf}}{p^transm = p^esc p^inf}
@@ -130,7 +130,7 @@ NULL
 #' * Force of infection:
 #' \deqn{\lambda_{i}(t) = \alpha \, \mu^\mathrm{com}_{i} + \beta \left(\tfrac{n_\mathrm{ref}}{n}\right)^{\gamma} \mu^\mathrm{sus}_{i} \sum_{j:\,t_{j} < t} \mu^\mathrm{inf}_{j} \, \mu^\mathrm{ctc}_{ji} \, f_{j}(t - t_{j})}{lambda_i(t) = alpha mu^com_i + beta (n_ref / n)^gamma mu^sus_i sum_{j: t_j < t} mu^inf_j mu^ctc_ji f_j(t - t_j)}
 #' * \eqn{f_{j}}{f_j}: infectivity profile of member \eqn{j} as a function of time since its infection, set by [add_infectivity_profile()]
-#' * \eqn{\mu^\mathrm{ctc}_{ji}}{mu^ctc_ji}: contact risk from member \eqn{j} to member \eqn{i}, equal to 1 unless set by [add_contact_risk()]
+#' * \eqn{\mu^\mathrm{ctc}_{ji}}{mu^ctc_ji}: contact rate from member \eqn{j} to member \eqn{i}, equal to 1 unless set by [add_contact_rate()]
 #' * \eqn{t_{0}}{t_0}: introduction time, earliest infection time in the household
 #' * \eqn{i_{0}}{i_0}: primary case, infected at \eqn{t_{0}}{t_0} (on ties, the first in household order)
 #'
@@ -157,8 +157,8 @@ NULL
 #' * \code{p2p_rate}: \eqn{\beta \left(\tfrac{n_\mathrm{ref}}{n}\right)^{\gamma} \mu^\mathrm{inf}_{j} \, \mu^\mathrm{ctc}_{ji} \, \mu^\mathrm{sus}_{i}}{beta (n_ref / n)^gamma mu^inf_j mu^ctc_ji mu^sus_i}, multiplying \eqn{f_{j}(t - t_{j})}{f_j(t - t_j)}, infector \eqn{j} by row and infectee \eqn{i} by column, 0 on the diagonal
 #'
 #' @section Notes:
-#' In a household of size \eqn{n} the baseline person-to-person risk is \eqn{\beta (n_\mathrm{ref}/n)^{\gamma}}{beta (n_ref / n)^gamma} \insertCite{cauchemez_bayesian_2004}{housepi},
-#' so \eqn{\beta}{beta} is the baseline risk in a household of size \eqn{n_\mathrm{ref}}{n_ref}.
+#' In a household of size \eqn{n} the baseline person-to-person rate is \eqn{\beta (n_\mathrm{ref}/n)^{\gamma}}{beta (n_ref / n)^gamma} \insertCite{cauchemez_bayesian_2004}{housepi},
+#' so \eqn{\beta}{beta} is the baseline rate in a household of size \eqn{n_\mathrm{ref}}{n_ref}.
 #' The choice of \eqn{n_\mathrm{ref}}{n_ref} leaves the likelihood unchanged, but \eqn{\beta}{beta} and \eqn{\gamma}{gamma} can become strongly correlated and chains mix slowly.
 #' Choose \eqn{n_\mathrm{ref}}{n_ref} from [measure_geom_mean_hh_size()] to keep them nearly uncorrelated.
 #'

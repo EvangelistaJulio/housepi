@@ -10,38 +10,38 @@
 
 #include "tools/nan.h"
 
-//////////////////////////////  risks::Anchor  //////////////////////////////
+//////////////////////////////  rates::Anchor  //////////////////////////////
 
 namespace housepi
 {
     struct Parameter;
 }
 
-namespace housepi::risks
+namespace housepi::rates
 {
-    /// Share of the units of its reference from which a risk moves with its baseline.
+    /// Share of the units of its reference from which a rate moves with its baseline.
     constexpr double BLOCK_MIN_SHARE = 0.1;
 
-    /// Baseline parameter and the relative risks scaling it, as declared by the model.
+    /// Baseline parameter and the rate ratios scaling it, as declared by the model.
     struct Anchor
     {
-        size_t baseline;           /// Parameter scaled by the risks.
-        std::vector<size_t> risks; /// Group-risk keys scaling the baseline.
-        bool contacts;             /// Whether contact risks scale the same term.
+        size_t baseline;           /// Parameter scaled by the rates.
+        std::vector<size_t> rates; /// Group-rate keys scaling the baseline.
+        bool contacts;             /// Whether contact rates scale the same term.
     };
 
-    /// Scale anchoring of one rule group, read off its rules (see Risks::assert_identifiability).
+    /// Scale anchoring of one rule group, read off its rules (see Rates::assert_identifiability).
     ///
-    /// The risks are kept, not counted: whether they move depends on the pinning of the run.
-    /// @note Every member or pair reading the risk matches a rule of the group, asserted R-side.
+    /// The rates are kept, not counted: whether they move depends on the pinning of the run.
+    /// @note Every member or pair reading the rate matches a rule of the group, asserted R-side.
     struct ScaleAnchor
     {
         bool anchored = false;                   /// Whether a rule of the group names the reference.
-        std::vector<size_t> scaling_params = {}; /// Distinct risks the group applies.
+        std::vector<size_t> scaling_params = {}; /// Distinct rates the group applies.
         double n_reference = 0.;                 /// Units the reference rules resolve, NA if any is unknown.
         std::vector<double> n_params = {};       /// Units the rules of each of `scaling_params` resolve, NA if any is unknown.
 
-        /// List the risks holding at least a minimum share of the units of the reference.
+        /// List the rates holding at least a minimum share of the units of the reference.
         /// * no reference, or unknown units -> skipped.
         std::vector<size_t> list_heavy() const
         {
@@ -56,7 +56,7 @@ namespace housepi::risks
 
         /// Whether the overall scale of the rule group is free.
         /// * a rule names the reference -> not free;
-        /// * some risk applied is pinned -> not free, it fixes the level of the whole group.
+        /// * some rate applied is pinned -> not free, it fixes the level of the whole group.
         bool is_free(const Parameter &param) const;
     };
 

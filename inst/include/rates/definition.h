@@ -21,15 +21,15 @@
 #include "data/wide.h"
 #include "function.h"
 #include "parameter.h"
-#include "risks/anchor.h"
-#include "risks/store.h"
+#include "rates/anchor.h"
+#include "rates/store.h"
 #include "rules.h"
 
-//////////////////////////////  risks::read_scale_anchors  //////////////////////////////
+//////////////////////////////  rates::read_scale_anchors  //////////////////////////////
 
-namespace housepi::risks
+namespace housepi::rates
 {
-    constexpr double VALUE_REFERENCE = 1.0; /// Risk value of the reference.
+    constexpr double VALUE_REFERENCE = 1.0; /// Rate value of the reference.
 
     /// Read the units each rule resolves, NA when the table gives none or it is unknown.
     inline std::vector<double> read_row_units(const str_table &input)
@@ -44,7 +44,7 @@ namespace housepi::risks
 
     /// Read the scale anchoring of every rule group.
     /// * a rule naming the reference -> anchors its group, its units those of the reference;
-    /// * any other rule -> a risk its group applies, its units added to the risk's.
+    /// * any other rule -> a rate its group applies, its units added to the rate's.
     /// @param row_param Parameter key per rule, NA for the reference.
     /// @param row_units Units resolved by each rule, NA if unknown.
     /// @param key_of Rule-group key of row `r`.
@@ -76,12 +76,12 @@ namespace housepi::risks
         return anchors;
     }
 
-    //////////////////////////////  risks::GroupDefinitions  //////////////////////////////
+    //////////////////////////////  rates::GroupDefinitions  //////////////////////////////
 
-    /// Group-risk rule key: risk name and rule group.
+    /// Group-rate rule key: rate name and rule group.
     using GroupKey = std::pair<std::string, size_t>;
 
-    /// Group-risk rules, read against member covariates.
+    /// Group-rate rules, read against member covariates.
     ///
     /// * status cell -> rewritten to the slot of its level.
     struct GroupDefinitions : rules::Member
@@ -108,7 +108,7 @@ namespace housepi::risks
                         cell = slot_of[static_cast<StatusLvl>(cell)];
         }
 
-        /// Resolve the most specific matching rule per risk name and rule group.
+        /// Resolve the most specific matching rule per rate name and rule group.
         /// * covariates of `indiv` read at status slot `slot`.
         std::map<GroupKey, size_t> resolve(const data::Wide &data_wide,
                                            const Individual &indiv,
@@ -117,13 +117,13 @@ namespace housepi::risks
             return rules.resolve<GroupKey>(
                 probe(data_wide, indiv, slot),
                 [&](size_t r)
-                { return GroupKey{rules.input.at("group_risk")[r], rules.row_gid[r]}; });
+                { return GroupKey{rules.input.at("group_rate")[r], rules.row_gid[r]}; });
         }
     };
 
-    //////////////////////////////  risks::ContactDefinitions  //////////////////////////////
+    //////////////////////////////  rates::ContactDefinitions  //////////////////////////////
 
-    /// Contact-risk rules, read against the covariates of an ordered member pair.
+    /// Contact-rate rules, read against the covariates of an ordered member pair.
     ///
     /// * `from_` columns: covariates of the member transmitting;
     /// * `to_` columns: covariates of the member receiving, in the same order.
@@ -144,7 +144,7 @@ namespace housepi::risks
               rules(input, vect::concatenate(prefixed_(input, "from_"), prefixed_(input, "to_"))),
               row_param(param.find(input.at("param_name"))) {}
 
-        /// Resolve the parameters of the risks the pair `indiv_from` to `indiv_to` multiplies.
+        /// Resolve the parameters of the rates the pair `indiv_from` to `indiv_to` multiplies.
         /// * per rule group -> the most specific matching rule;
         /// * across groups -> the product, the reference left out.
         std::vector<size_t> associate_params(const data::Wide &data_wide,
@@ -179,11 +179,11 @@ namespace housepi::risks
         }
     };
 
-    /// Risks an ordered pair of covariate classes multiplies, resolved on first encounter.
-    struct PairRisk
+    /// Rates an ordered pair of covariate classes multiplies, resolved on first encounter.
+    struct PairRate
     {
-        std::vector<size_t> params = {};                /// Parameter keys of the risks the pair applies.
-        std::vector<const Attribute *> param_ptrs = {}; /// Risks the pair applies.
+        std::vector<size_t> params = {};                /// Parameter keys of the rates the pair applies.
+        std::vector<const Attribute *> param_ptrs = {}; /// Rates the pair applies.
         bool resolved = false;                          /// Whether the pair was resolved.
     };
 }

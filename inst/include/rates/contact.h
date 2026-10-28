@@ -10,10 +10,10 @@
 
 #include "tools/dictionary.h"
 #include "data/household.h"
-#include "risks/anchor.h"
-#include "risks/store.h"
+#include "rates/anchor.h"
+#include "rates/store.h"
 
-//////////////////////////////  risks::Contact  //////////////////////////////
+//////////////////////////////  rates::Contact  //////////////////////////////
 
 namespace housepi
 {
@@ -24,16 +24,16 @@ namespace housepi
     struct Parameter;
 }
 
-namespace housepi::risks
+namespace housepi::rates
 {
-    /// Contact risks of every ordered member pair, one row-major matrix per household.
+    /// Contact rates of every ordered member pair, one row-major matrix per household.
     struct Contact : public Store
     {
     public:
         //////  Setter  //////
 
-        /// Build contact risks from rule table `input`.
-        /// * contact risks are not symmetric a priori.
+        /// Build contact rates from rule table `input`.
+        /// * contact rates are not symmetric a priori.
         /// @return Data columns the rules read, as equivalence-class covariates.
         std::vector<std::string> build(data::Wide &data_wide,
                                        const Parameter &param,
@@ -41,7 +41,7 @@ namespace housepi::risks
 
         //////  Getter  //////
 
-        /// Whether members `i` and `j` of `house` have matching contact risks with every member.
+        /// Whether members `i` and `j` of `house` have matching contact rates with every member.
         /// * self-contacts and the contacts `i` to `j` and `j` to `i` must match too.
         bool same_contacts(const Household &house,
                            MemberIdx i,
@@ -65,7 +65,7 @@ namespace housepi::risks
             return true;
         }
 
-        /// Contact-risk attribute from member `from` to member `to`, row-major within `house`.
+        /// Contact-rate attribute from member `from` to member `to`, row-major within `house`.
         const Attribute &at(const Household &house,
                             MemberIdx from,
                             MemberIdx to) const noexcept
@@ -75,7 +75,7 @@ namespace housepi::risks
                              static_cast<size_t>(to));
         }
 
-        /// Contact-risk value within the partition of member `i` (self-contact attribute).
+        /// Contact-rate value within the partition of member `i` (self-contact attribute).
         /// * no definition -> 1.
         double intra_value(const Household &house,
                            MemberIdx i) const
@@ -83,7 +83,7 @@ namespace housepi::risks
             return is_empty() ? 1. : at(house, i, i).value();
         }
 
-        /// Contact-risk value from member `from` to member `to`.
+        /// Contact-rate value from member `from` to member `to`.
         /// * self-contact -> 0;
         /// * no definition -> 1.
         double value(const Household &house,

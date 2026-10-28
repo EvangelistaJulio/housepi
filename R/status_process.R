@@ -56,7 +56,7 @@ assert_status_strata_ <- function(strata) {
 
   rule_cols <- strata_cov_cols_(strata, status_reserved_cols)
   assert_valid_covariates(setdiff(rule_cols, "status"),
-                          c(data_reserved_cols, risk_reserved_cols))
+                          c(data_reserved_cols, rate_reserved_cols))
   dup <- which(duplicated(strata[rule_cols]))
   n_dup <- length(dup)
   if (n_dup) stop_h(

@@ -7,7 +7,7 @@ mk_wrapper <- local({
   list(model = new_housepi_model(model = "test"))
 })
 
-# households over a member covariate the risk wrappers stratify on
+# households over a member covariate the rate wrappers stratify on
 mk_member <- local({
   hh_model <- data.frame(
     hh_id = c(1, 1, 2, 2, 2),
@@ -29,10 +29,10 @@ test_that("Wrappers reject objects that are not a housepi model", {
   get_data_long(obj) |> expect_error(err)
   get_parameters(obj) |> expect_error(err)
   get_latent(obj) |> expect_error(err)
-  get_group_risks(obj) |> expect_error(err)
+  get_group_rates(obj) |> expect_error(err)
   get_infectivity_profiles(obj) |> expect_error(err)
   get_reporting_process(obj) |> expect_error(err)
-  add_contact_risk(obj) |> expect_error(err)
+  add_contact_rate(obj) |> expect_error(err)
   add_parameter(obj) |> expect_error(err)
   add_latent(obj) |> expect_error(err)
   add_infectivity_profile(obj, "gamma") |> expect_error(err)
@@ -40,7 +40,7 @@ test_that("Wrappers reject objects that are not a housepi model", {
   evaluate_log_lik(obj) |> expect_error(err)
   run_inference(obj) |> expect_error(err)
   run_simulation(obj) |> expect_error(err)
-  add_group_risk(obj) |> expect_error(err)
+  add_group_rate(obj) |> expect_error(err)
   check_predictive(obj, NULL) |> expect_error(err)
 })
 
@@ -193,7 +193,7 @@ test_that("A definition named like a single-mode argument is not dropped", {
                     level = "house") |>
     expect_error(paste0(err, ".*func"))
   mk_member$model |>
-    add_group_risk(community = "member", reference = ".auto") |>
+    add_group_rate(community = "member", reference = ".auto") |>
     expect_error(paste0(err, ".*reference"))
   data.frame(hh_id = "h1", status = 1, end_date = 20) |>
     new_housepi_model("case-ascertained", quiet = TRUE) |>
@@ -249,12 +249,12 @@ test_that("A bulk definition built outside the call binds like the literal", {
     getElement("func") |>
     expect_identical("rho|P")
 
-  def_risk <- list(by = "member")
+  def_rate <- list(by = "member")
   mk_member$model |>
-    add_group_risk(community = def_risk) |>
-    get_group_risks() |>
+    add_group_rate(community = def_rate) |>
+    get_group_rates() |>
     expect_identical(
-      get_group_risks(add_group_risk(mk_member$model, community = "member"))
+      get_group_rates(add_group_rate(mk_member$model, community = "member"))
     )
 })
 
@@ -393,26 +393,26 @@ test_that("Progress bar prints every `progress` seconds until interrupted", {
   diff(secs) |> expect_all_equal(1L)
 })
 
-####  Risk wrappers  ####
+####  Rate wrappers  ####
 
-test_that("Group risk wrapper input branches", {
-  hh_model <- add_group_risk(mk_member$model, "community", by = "member")
-  groups <- get_group_risks(hh_model)
+test_that("Group rate wrapper input branches", {
+  hh_model <- add_group_rate(mk_member$model, "community", by = "member")
+  groups <- get_group_rates(hh_model)
   nrow(groups) |> expect_gt(0)
 
   # the bulk form overwrites the single one with the same definition
   expect_warning(
-    hh_model_2 <- add_group_risk(hh_model, community = "member"),
+    hh_model_2 <- add_group_rate(hh_model, community = "member"),
     "[Oo]verwriting.*community"
   )
-  get_group_risks(hh_model_2) |> expect_identical(groups)
+  get_group_rates(hh_model_2) |> expect_identical(groups)
 
   # load custom definitions
   strata <- tibble::tribble(~member,   ~param_name,
                             "student", "sus_student",
                             NA,        ".reference")
   hh_model <- hh_model |>
-    add_group_risk(
+    add_group_rate(
       susceptibility = list(strata = strata, params = list(sus_student = 1.23))
     )
   get_parameters(hh_model, "sus_student")$const |> expect_equal(1.23)
@@ -422,19 +422,19 @@ test_that("Group risk wrapper input branches", {
                             "unknown", "sus_student",
                             NA,        ".reference")
   hh_model |>
-    add_group_risk("susceptibility", strata = strata, append = FALSE) |>
+    add_group_rate("susceptibility", strata = strata, append = FALSE) |>
     expect_error("1 rule no member resolves to.*member = .unknown.")
 
-  # append = FALSE drops the existing group risks
-  get_group_risks(hh_model)[["group_risk"]] |> expect_contains("susceptibility")
+  # append = FALSE drops the existing group rates
+  get_group_rates(hh_model)[["group_rate"]] |> expect_contains("susceptibility")
   hh_model |>
-    add_group_risk(community = list(by = "member"), append = FALSE) |>
-    get_group_risks() |>
-    getElement("group_risk") |>
+    add_group_rate(community = list(by = "member"), append = FALSE) |>
+    get_group_rates() |>
+    getElement("group_rate") |>
     expect_setequal("community")
 })
 
-test_that("Contact risk wrapper input branches", {
+test_that("Contact rate wrapper input branches", {
   strata <- tibble::tribble(
     ~from_member, ~to_member, ~param_name,
     "student",    "mother",   "ctr_student",
@@ -443,24 +443,24 @@ test_that("Contact risk wrapper input branches", {
 
   # 'by' and 'strata' together is ambiguous
   mk_member$model |>
-    add_contact_risk(by = "member", strata = strata) |>
+    add_contact_rate(by = "member", strata = strata) |>
     expect_error("[Ii]mpossible")
 
   # neither 'by' nor 'strata' is empty
   mk_member$model |>
-    add_contact_risk() |>
+    add_contact_rate() |>
     expect_error("[Ii]nvalid")
 
   # the wrapper returns a new model, leaving its input untouched
   hh_model <- mk_member$model |>
-    add_contact_risk(strata = strata, params = list(ctr_student = 1.21))
-  get_contact_risks(mk_member$model) |> expect_nrow(0L)
-  nrow(get_contact_risks(hh_model)) |> expect_gt(0L)
+    add_contact_rate(strata = strata, params = list(ctr_student = 1.21))
+  get_contact_rates(mk_member$model) |> expect_nrow(0L)
+  nrow(get_contact_rates(hh_model)) |> expect_gt(0L)
   # the rebuilt parameter is exposed on the returned model
   get_parameters(hh_model)$name |> expect_contains("ctr_student")
 
   # second call warns about overwrite
   hh_model |>
-    add_contact_risk(strata = strata, params = list(ctr_student = 1.21)) |>
+    add_contact_rate(strata = strata, params = list(ctr_student = 1.21)) |>
     expect_warning("[Oo]verwriting")
 })

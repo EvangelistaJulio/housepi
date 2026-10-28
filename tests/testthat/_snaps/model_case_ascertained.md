@@ -4,9 +4,9 @@
       print(hh_model)
     Message
       i Household transmission model "case ascertained" (`template`).
-      ! Group risks: using default group risks.
+      ! Group rates: using default group rates.
         Available: "community", "susceptibility", and "infectivity".
-      ! Contact risks: using default contact risks.
+      ! Contact rates: using default contact rates.
         A custom choice can be provided.
       v Data
       v Parameters
@@ -20,9 +20,9 @@
     Message
       i Household transmission model "case ascertained" (`template`).
       Model is set to discrete time mode.
-      ! Group risks: using default group risks.
+      ! Group rates: using default group rates.
         Available: "susceptibility" and "infectivity".
-      ! Contact risks: using default contact risks.
+      ! Contact rates: using default contact rates.
         A custom choice can be provided.
       v Data
       v Parameters

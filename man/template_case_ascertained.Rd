@@ -23,9 +23,9 @@ In simulation the primary case is drawn uniformly among the members \insertCite{
 \section{Parameters}{
 
 \itemize{
-\item \code{alpha} \eqn{\alpha}{alpha}: baseline community instantaneous transmission risk
+\item \code{alpha} \eqn{\alpha}{alpha}: baseline community instantaneous transmission rate
 \item \code{beta} \eqn{\beta}{beta}: baseline person-to-person instantaneous transmission rate
-\item \code{gamma} \eqn{\gamma}{gamma}: household-size scaling of person-to-person risk
+\item \code{gamma} \eqn{\gamma}{gamma}: household-size scaling of person-to-person rate
 \item \code{hh_size_ref} \eqn{n_\mathrm{ref}}{n_ref}: size of reference household
 }
 }
@@ -46,12 +46,12 @@ Inference samples infection times between plausible \code{min} and \code{max},
 while observations inform about the timing.
 }
 
-\section{Group Risks}{
+\section{Group Rates}{
 
 \itemize{
-\item \code{community} \eqn{\mu^\mathrm{com}}{mu^com}: predisposition to infection from community relative to reference
-\item \code{susceptibility} \eqn{\mu^\mathrm{sus}}{mu^sus}: predisposition to infection relative to reference
-\item \code{infectivity} \eqn{\mu^\mathrm{inf}}{mu^inf}: predisposition to transmission relative to reference
+\item \code{community} \eqn{\mu^\mathrm{com}}{mu^com}: member factor on the community rate
+\item \code{susceptibility} \eqn{\mu^\mathrm{sus}}{mu^sus}: member factor on the person-to-person rate it receives
+\item \code{infectivity} \eqn{\mu^\mathrm{inf}}{mu^inf}: member factor on the person-to-person rate it exerts
 }
 }
 
@@ -64,7 +64,7 @@ for a household of size \eqn{n} where member \eqn{i} has status \eqn{s_i = 1}{s_
 \item Force of infection:
 \deqn{\lambda_{i}(t) = \alpha \, \mu^\mathrm{com}_{i} + \beta \left(\tfrac{n_\mathrm{ref}}{n}\right)^{\gamma} \mu^\mathrm{sus}_{i} \sum_{j:\,t_{j} < t} \mu^\mathrm{inf}_{j} \, \mu^\mathrm{ctc}_{ji} \, f_{j}(t - t_{j})}{lambda_i(t) = alpha mu^com_i + beta (n_ref / n)^gamma mu^sus_i sum_{j: t_j < t} mu^inf_j mu^ctc_ji f_j(t - t_j)}
 \item \eqn{f_{j}}{f_j}: infectivity profile of member \eqn{j} as a function of time since its infection, set by \code{\link[=add_infectivity_profile]{add_infectivity_profile()}}
-\item \eqn{\mu^\mathrm{ctc}_{ji}}{mu^ctc_ji}: contact risk from member \eqn{j} to member \eqn{i}, equal to 1 unless set by \code{\link[=add_contact_risk]{add_contact_risk()}}
+\item \eqn{\mu^\mathrm{ctc}_{ji}}{mu^ctc_ji}: contact rate from member \eqn{j} to member \eqn{i}, equal to 1 unless set by \code{\link[=add_contact_rate]{add_contact_rate()}}
 \item \eqn{t_{0}}{t_0}: introduction time, earliest infection time in the household
 \item \eqn{i_{0}}{i_0}: primary case, infected at \eqn{t_{0}}{t_0} (on ties, the first in household order)
 }
@@ -98,8 +98,8 @@ for a household of size \eqn{n} where member \eqn{i} has status \eqn{s_i = 1}{s_
 
 \section{Notes}{
 
-In a household of size \eqn{n} the baseline person-to-person risk is \eqn{\beta (n_\mathrm{ref}/n)^{\gamma}}{beta (n_ref / n)^gamma} \insertCite{cauchemez_bayesian_2004}{housepi},
-so \eqn{\beta}{beta} is the baseline risk in a household of size \eqn{n_\mathrm{ref}}{n_ref}.
+In a household of size \eqn{n} the baseline person-to-person rate is \eqn{\beta (n_\mathrm{ref}/n)^{\gamma}}{beta (n_ref / n)^gamma} \insertCite{cauchemez_bayesian_2004}{housepi},
+so \eqn{\beta}{beta} is the baseline rate in a household of size \eqn{n_\mathrm{ref}}{n_ref}.
 The choice of \eqn{n_\mathrm{ref}}{n_ref} leaves the likelihood unchanged, but \eqn{\beta}{beta} and \eqn{\gamma}{gamma} can become strongly correlated and chains mix slowly.
 Choose \eqn{n_\mathrm{ref}}{n_ref} from \code{\link[=measure_geom_mean_hh_size]{measure_geom_mean_hh_size()}} to keep them nearly uncorrelated.
 }

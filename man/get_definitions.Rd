@@ -7,8 +7,8 @@
 \alias{get_latent}
 \alias{get_observations}
 \alias{get_status_process}
-\alias{get_group_risks}
-\alias{get_contact_risks}
+\alias{get_group_rates}
+\alias{get_contact_rates}
 \alias{get_infectivity_profiles}
 \alias{get_reporting_process}
 \title{Retrieve currently loaded data and definitions from a housepi model}
@@ -25,9 +25,9 @@ get_observations(hh_model, name = NA)
 
 get_status_process(hh_model)
 
-get_group_risks(hh_model, name = NA)
+get_group_rates(hh_model, name = NA)
 
-get_contact_risks(hh_model)
+get_contact_rates(hh_model)
 
 get_infectivity_profiles(hh_model)
 
@@ -37,7 +37,7 @@ get_reporting_process(hh_model)
 \item{hh_model}{\code{HousepiModel} object.}
 
 \item{name}{\code{character()} Names of the definitions to return.
-\code{get_group_risks()} matches the name of the group risk.
+\code{get_group_rates()} matches the name of the group rate.
 If \code{NA}, all of them.}
 }
 \value{
@@ -51,7 +51,7 @@ see \code{\link[=add_reporting_process]{add_reporting_process()}}.
 \description{
 Return the definitions currently stored in the housepi model.
 Each variant returns one category: data, parameters, latent variables,
-observations, status process, group risks, contact risks,
+observations, status process, group rates, contact rates,
 infectivity profile or reporting process.
 }
 \details{

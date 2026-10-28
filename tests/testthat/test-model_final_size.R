@@ -3,37 +3,37 @@ library(testthat)
 ####  Helpers  ####
 
 # infected member in class `a`, escaped member in class `b`: the homogeneous
-# branch (single risk partition). Class `a` is the reference class.
+# branch (single rate partition). Class `a` is the reference class.
 mk_homo <- local({
   groups <- list(community = list("class", reference = "a"),
                  susceptibility = list("class", reference = "a"),
                  infectivity = list("class", reference = "a"))
   contacts <- list(by = "class", symmetric = FALSE,
                    reference = c(from_class = "a", to_class = "b"))
-  grisks <- list(a = list(com = 1., sus = 1., inf = 1.),
+  grates <- list(a = list(com = 1., sus = 1., inf = 1.),
                  b = list(com = 2., sus = 3., inf = 0.2))
-  crisks <- list(class_b_to_class_a = 2.3)
+  crates <- list(class_b_to_class_a = 2.3)
 
   house <- data.frame(
     id = c("m1", "m2"), hh_id = "h1", status = c(1, 0),
     class = c("a", "b"),
-    community = c(1, grisks$b$com),
-    susceptibility = c(1, grisks$b$sus),
-    infectivity = c(1, grisks$b$inf)
+    community = c(1, grates$b$com),
+    susceptibility = c(1, grates$b$sus),
+    infectivity = c(1, grates$b$inf)
   )
 
   # parameters matching automatic names
   par <- c(list(alpha = 0.15, beta = 0.22, gamma = 1, hh_size_ref = 4),
-           crisks,
-           list(com_class_b = grisks$b$com,
-                sus_class_b = grisks$b$sus,
-                inf_class_b = grisks$b$inf))
+           crates,
+           list(com_class_b = grates$b$com,
+                sus_class_b = grates$b$sus,
+                inf_class_b = grates$b$inf))
 
   list(groups = groups, contacts = contacts, house = house,
-       crisks = crisks, par = par)
+       crates = crates, par = par)
 })
 
-# three risk classes, members sorted infected then escaped: `a`, `b`, `c` each
+# three rate classes, members sorted infected then escaped: `a`, `b`, `c` each
 # infected in a distinct class, taking the heterogeneous branch (fully
 # split). Class `a` is the reference class.
 mk_heter <- local({
@@ -42,10 +42,10 @@ mk_heter <- local({
                  infectivity = list("class", reference = "a"))
   contacts <- list(by = "class", symmetric = FALSE,
                    reference = c(from_class = "a", to_class = "b"))
-  grisks <- list(a = list(com = 1., sus = 1., inf = 1.),
+  grates <- list(a = list(com = 1., sus = 1., inf = 1.),
                  b = list(com = 2., sus = 3., inf = 0.2),
                  c = list(com = 0.5, sus = 0.8, inf = 1.5))
-  crisks <- list(class_b_to_class_a = 2.3,
+  crates <- list(class_b_to_class_a = 2.3,
                  class_a_to_class_c = 0.7,
                  class_c_to_class_a = 0.6,
                  class_b_to_class_c = 1.1,
@@ -56,26 +56,26 @@ mk_heter <- local({
     id = sprintf("m%s", seq(1, 4)), hh_id = "h1",
     status = c(rep(1, 3), 0),
     class = c("a", "b", rep("c", 2)),
-    community = c(1, grisks$b$com, rep(grisks$c$com, 2)),
-    susceptibility = c(1, grisks$b$sus, rep(grisks$c$sus, 2)),
-    infectivity = c(1, grisks$b$inf, rep(grisks$c$inf, 2))
+    community = c(1, grates$b$com, rep(grates$c$com, 2)),
+    susceptibility = c(1, grates$b$sus, rep(grates$c$sus, 2)),
+    infectivity = c(1, grates$b$inf, rep(grates$c$inf, 2))
   )
 
   # parameters matching automatic names
   par <- c(list(alpha = 0.15, beta = 0.22, gamma = 1, hh_size_ref = 4),
-           crisks,
-           list(com_class_b = grisks$b$com,
-                sus_class_b = grisks$b$sus,
-                inf_class_b = grisks$b$inf,
-                com_class_c = grisks$c$com,
-                sus_class_c = grisks$c$sus,
-                inf_class_c = grisks$c$inf))
+           crates,
+           list(com_class_b = grates$b$com,
+                sus_class_b = grates$b$sus,
+                inf_class_b = grates$b$inf,
+                com_class_c = grates$c$com,
+                sus_class_c = grates$c$sus,
+                inf_class_c = grates$c$inf))
 
   list(groups = groups, contacts = contacts, house = house,
-       crisks = crisks, par = par)
+       crates = crates, par = par)
 })
 
-# same three risk classes, but two of the three infected members share class
+# same three rate classes, but two of the three infected members share class
 # `c`: neither homogeneous nor fully split, taking the partitioned branch.
 mk_part <- local({
   groups <- list(community = list("class", reference = "a"),
@@ -83,10 +83,10 @@ mk_part <- local({
                  infectivity = list("class", reference = "a"))
   contacts <- list(by = "class", symmetric = FALSE,
                    reference = c(from_class = "a", to_class = "b"))
-  grisks <- list(a = list(com = 1., sus = 1., inf = 1.),
+  grates <- list(a = list(com = 1., sus = 1., inf = 1.),
                  b = list(com = 2., sus = 3., inf = 0.2),
                  c = list(com = 0.5, sus = 0.8, inf = 1.5))
-  crisks <- list(class_b_to_class_a = 2.3,
+  crates <- list(class_b_to_class_a = 2.3,
                  class_a_to_class_c = 0.7,
                  class_c_to_class_a = 0.6,
                  class_b_to_class_c = 1.1,
@@ -97,43 +97,43 @@ mk_part <- local({
     id = sprintf("m%s", seq(1, 4)), hh_id = "h1",
     status = c(rep(1, 3), 0),
     class = c("a", rep("c", 2), "b"),
-    community = c(1, rep(grisks$c$com, 2), grisks$b$com),
-    susceptibility = c(1, rep(grisks$c$sus, 2), grisks$b$sus),
-    infectivity = c(1, rep(grisks$c$inf, 2), grisks$b$inf)
+    community = c(1, rep(grates$c$com, 2), grates$b$com),
+    susceptibility = c(1, rep(grates$c$sus, 2), grates$b$sus),
+    infectivity = c(1, rep(grates$c$inf, 2), grates$b$inf)
   )
 
   # parameters matching automatic names
   par <- c(list(alpha = 0.15, beta = 0.22, gamma = 1, hh_size_ref = 4),
-           crisks,
-           list(com_class_b = grisks$b$com,
-                sus_class_b = grisks$b$sus,
-                inf_class_b = grisks$b$inf,
-                com_class_c = grisks$c$com,
-                sus_class_c = grisks$c$sus,
-                inf_class_c = grisks$c$inf))
+           crates,
+           list(com_class_b = grates$b$com,
+                sus_class_b = grates$b$sus,
+                inf_class_b = grates$b$inf,
+                com_class_c = grates$c$com,
+                sus_class_c = grates$c$sus,
+                inf_class_c = grates$c$inf))
 
   list(groups = groups, contacts = contacts, house = house,
-       crisks = crisks, par = par)
+       crates = crates, par = par)
 })
 
-# contact risk matrix of a house, the reference reading 1
-mk_ctr_mtx <- function(house, crisks) {
+# contact rate matrix of a house, the reference reading 1
+mk_ctr_mtx <- function(house, crates) {
   n <- nrow(house)
   output <- matrix(1., nrow = n, ncol = n)
   for (i in seq_len(n)) for (j in seq_len(n)) {
     key <- paste0("class_", house$class[i], "_to_class_", house$class[j])
     if (i == j) output[i, j] <- 0
-    else if (key %in% names(crisks)) output[i, j] <- crisks[[key]]
+    else if (key %in% names(crates)) output[i, j] <- crates[[key]]
   }
   output
 }
 
-# model over a house carrying the fixed risks and parameters
+# model over a house carrying the fixed rates and parameters
 build_house_model <- function(house, par, groups, contacts) {
   new_housepi_model(house, "final-size") |>
-    add_group_risk(import = groups) |>
-    add_contact_risk(import = contacts) |>
-    # UPDATE: this overwrites group risk parameters, opaque to user and risky
+    add_group_rate(import = groups) |>
+    add_contact_rate(import = contacts) |>
+    # UPDATE: this overwrites group rate parameters, opaque to user and risky
     add_parameter(import = par, append = FALSE)
 }
 
@@ -143,7 +143,7 @@ build_strata_model <- function(sizes) {
              datum = rep(as.character(seq_along(sizes)), sizes)) |>
     new_housepi_model("final-size") |>
     add_parameter(alpha = 0.1, beta = 0.3, gamma = 0, hh_size_ref = 4) |>
-    add_group_risk("susceptibility", by = "datum", reference = ".auto")
+    add_group_rate("susceptibility", by = "datum", reference = ".auto")
 }
 
 # probability of every transmission chain among infected members, given their
@@ -225,18 +225,18 @@ test_that("Chain binomial guards against misusage", {
     expect_error("not supported.*Choose a model")
 })
 
-test_that("A household with too many risk partitions to evaluate is refused", {
+test_that("A household with too many rate partitions to evaluate is refused", {
   # every infected member in its own stratum
   build_strata_model(rep(1, 16)) |>
     evaluate_log_lik() |>
-    expect_error("household .h1. fall into 16 risk partitions")
+    expect_error("household .h1. fall into 16 rate partitions")
 
   # fewer partitions, but a repeated pair of members doubles the terms to sum
   build_strata_model(c(2, rep(1, 14))) |>
     evaluate_log_lik() |>
-    expect_error("household .h1. fall into 15 risk partitions")
+    expect_error("household .h1. fall into 15 rate partitions")
 
-  # many members in few risk partitions are not refused
+  # many members in few rate partitions are not refused
   build_strata_model(c(9, 8)) |>
     evaluate_log_lik() |>
     expect_all_finite()
@@ -250,7 +250,7 @@ test_that("Single infected member log-likelihood is correct", {
     evaluate_log_lik() |>
     expect_equal(chain_binomial_log_lik(
       mk_homo$house, mk_homo$par,
-      mk_ctr_mtx(mk_homo$house, mk_homo$crisks)
+      mk_ctr_mtx(mk_homo$house, mk_homo$crates)
     ))
 })
 
@@ -261,7 +261,7 @@ test_that("Three infected members likelihood is correct", {
                     mk_heter$groups, mk_heter$contacts) |>
     evaluate_log_lik() |>
     expect_equal(chain_binomial_log_lik(
-      house, mk_heter$par, mk_ctr_mtx(house, mk_heter$crisks)
+      house, mk_heter$par, mk_ctr_mtx(house, mk_heter$crates)
     ))
 
   # mixed infected and escaped
@@ -270,19 +270,19 @@ test_that("Three infected members likelihood is correct", {
     evaluate_log_lik() |>
     expect_equal(chain_binomial_log_lik(
       mk_heter$house, mk_heter$par,
-      mk_ctr_mtx(mk_heter$house, mk_heter$crisks)
+      mk_ctr_mtx(mk_heter$house, mk_heter$crates)
     ))
 })
 
-test_that("Likelihood is correct when using risk partitions", {
-  # two of the three infected members are risk-equivalent, so the house
+test_that("Likelihood is correct when using rate partitions", {
+  # two of the three infected members are rate-equivalent, so the house
   # is neither homogeneous nor fully split, taking the partitioned branch
   build_house_model(mk_part$house, mk_part$par,
                     mk_part$groups, mk_part$contacts) |>
     evaluate_log_lik() |>
     expect_equal(chain_binomial_log_lik(
       mk_part$house, mk_part$par,
-      mk_ctr_mtx(mk_part$house, mk_part$crisks)
+      mk_ctr_mtx(mk_part$house, mk_part$crates)
     ))
 })
 
@@ -309,7 +309,7 @@ test_that("Likelihood sums to one over every final outcome of a household", {
 })
 
 test_that("Likelihood of a large household sums to one over its final sizes", {
-  # 22 risk-equivalent members: every outcome takes the homogeneous branch,
+  # 22 rate-equivalent members: every outcome takes the homogeneous branch,
   # and outcomes with as many infected share one probability
   n <- 22L
   houses <- do.call(rbind, lapply(0:n, function(k) {
@@ -328,18 +328,18 @@ test_that("Likelihood of a large household sums to one over its final sizes", {
     expect_equal(1)
 })
 
-test_that("A contact-risk mismatch keeps risk-equivalent members apart", {
-  # m2 and m3 share class `c`, so group risk alone would merge them: only the
-  # contact-risk check can still tell them apart. `member` is a fresh, unique
+test_that("A contact-rate mismatch keeps rate-equivalent members apart", {
+  # m2 and m3 share class `c`, so group rate alone would merge them: only the
+  # contact-rate check can still tell them apart. `member` is a fresh, unique
   # key so the override lands on one member without touching its class.
   house <- transform(mk_part$house, member = id)
-  par_base <- mk_part$par[!names(mk_part$par) %in% names(mk_part$crisks)]
+  par_base <- mk_part$par[!names(mk_part$par) %in% names(mk_part$crates)]
 
   build_break <- function(strata, override) {
     house |>
       new_housepi_model("final-size") |>
-      add_group_risk(import = mk_part$groups) |>
-      add_contact_risk(strata = strata, symmetric = FALSE) |>
+      add_group_rate(import = mk_part$groups) |>
+      add_contact_rate(strata = strata, symmetric = FALSE) |>
       add_parameter(import = c(par_base, override), append = FALSE)
   }
 
@@ -370,20 +370,20 @@ test_that("A contact-risk mismatch keeps risk-equivalent members apart", {
     expect_equal(chain_binomial_log_lik(house, mk_part$par, ctr_third))
 })
 
-test_that("A free baseline under an absolute risk is pinned on real data", {
+test_that("A free baseline under an absolute rate is pinned on real data", {
   # households carrying a sibling, so every member level of the strata is seen
   hh_data <- flu_2014_matsumoto |>
     dplyr::filter(hh_id %in% utils::head(
       unique(hh_id[member == "sibling"]), 500
     ))
 
-  # the template declares a free alpha, which the absolute community risk
+  # the template declares a free alpha, which the absolute community rate
   # leaves no scale for: it is pinned, and the anomaly is reported
   expect_warning(
     hh_model <- hh_data |>
       new_housepi_model("final-size") |>
       add_parameter(import = "template") |>
-      add_group_risk("community", by = "member"),
+      add_group_rate("community", by = "member"),
     "alpha.*turned.*reference"
   )
   params <- get_parameters(hh_model)
@@ -400,7 +400,7 @@ test_that("A free baseline under an absolute risk is pinned on real data", {
     NA,           NA,         "ctr_cross_generational"
   )
   hh_model |>
-    add_contact_risk(strata = strata) |>
+    add_contact_rate(strata = strata) |>
     get_parameters() |>
     subset(name == "beta", "const") |>
     unlist() |>
@@ -427,16 +427,16 @@ test_that("Infection rates below the machine epsilon keep their probability", {
     evaluate_log_lik() |>
     expect_equal(log(p_commu) - 1e-20 - 2e-20)
 
-  # heterogeneous branch: the risk names a reference, so `beta` stays extreme
+  # heterogeneous branch: the rate names a reference, so `beta` stays extreme
   # UPDATE: the recursion takes `1 - sum` over probabilities and returns -Inf
   hh_model |>
-    add_group_risk("susceptibility", by = "age", reference = ".auto") |>
+    add_group_rate("susceptibility", by = "age", reference = ".auto") |>
     evaluate_log_lik() |>
     expect_identical(-Inf)
 })
 
 test_that("Chain binomial raises if the log-likelihood is not a number", {
-  # a null person-to-person risk against an overflowing household-size scaling
+  # a null person-to-person rate against an overflowing household-size scaling
   # leaves the escape rate undefined, and the log-likelihood with it
   data.frame(id = c(1, 2), hh_id = "h1", status = c(1, 1)) |>
     new_housepi_model("final-size") |>
@@ -459,7 +459,7 @@ test_that("Escape probabilities follow the transmission formulas per member", {
   summary$count[summary$metric == "classes"] |> expect_equal(1)
 
   for (hh_data in list(house, house_2)) {
-    ctr <- mk_ctr_mtx(hh_data, mk_heter$crisks)
+    ctr <- mk_ctr_mtx(hh_data, mk_heter$crates)
     inspect_state(hh_model, hh_data$hh_id[1])$model_quantities |>
       expect_equal(escape_probas(hh_data, mk_heter$par, ctr))
   }
@@ -474,11 +474,11 @@ test_that("Escape probabilities follow the last accepted parameters of a run", {
     run_inference(hh_model, steps = 10L, thin = 1L, adapt = 0L, chains = 1L,
                   progress = FALSE, warn = FALSE)
 
-    # three members, default group and contact risks
+    # three members, default group and contact rates
     snapshot <- inspect_state(hh_model, "119")
-    n <- nrow(snapshot$group_risks)
+    n <- nrow(snapshot$group_rates)
     snapshot$model_quantities |>
-      expect_equal(escape_probas(snapshot$group_risks,
+      expect_equal(escape_probas(snapshot$group_rates,
                                  as.list(snapshot$parameters), 1 - diag(n)))
   }
 })

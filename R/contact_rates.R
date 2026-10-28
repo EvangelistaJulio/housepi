@@ -13,11 +13,11 @@ pair_cols_ <- function(covs) {
   c(paste0("from_", covs), paste0("to_", covs))
 }
 
-#' Build the logic table of contact risks, from/to paired columns.
+#' Build the logic table of contact rates, from/to paired columns.
 #' @param covariates `list` Covariate data column names.
 #' @return `data.frame` Columns `from_`, `to_` and the pair count `n`.
 #' @noRd
-contact_risk_logic_table <- function(data_wide, covariates) {
+contact_rate_logic_table <- function(data_wide, covariates) {
   # no hh_id -> households of size 1, no pairs
   if (!"hh_id" %in% colnames(data_wide)) return(NULL)
 
@@ -47,14 +47,14 @@ contact_risk_logic_table <- function(data_wide, covariates) {
   y[y$n > 0, , drop = FALSE]
 }
 
-#' Build the ordered member pairs a contact risk is checked against.
+#' Build the ordered member pairs a contact rate is checked against.
 #' @param data_wide Data the pairs come from.
 #' @param covs `character()` Covariates the rules key on.
 #' @return `data.frame` Columns `from_` and `to_` of `covs`,
 #' `.weight` the pairs each row holds, `.combo` its index.
 #' @noRd
 pair_cells_ <- function(data_wide, covs) {
-  pairs <- contact_risk_logic_table(data_wide, covs)
+  pairs <- contact_rate_logic_table(data_wide, covs)
   # no household structure -> no pair
   if (is.null(pairs)) pairs <- data.frame(
     lapply(stats::setNames(nm = pair_cols_(covs)), \(col) character()),
@@ -65,7 +65,7 @@ pair_cells_ <- function(data_wide, covs) {
   pairs
 }
 
-#' Name the parameters of a contact risk logic table.
+#' Name the parameters of a contact rate logic table.
 #' @param this_table `data.frame` Logic table with `from_` and `to_` columns.
 #' @param prefix `character(1)` Prefix of parameter names.
 #' @param reference Named vector with `from_`/`to_` prefixed names and values:
@@ -90,7 +90,7 @@ associate_contact_param_names <- function(this_table, prefix, reference,
   } else if (length(reference)) {
     idx_refer <- reference_rows_(this_table, colmask, reference)
     if (length(idx_refer) != 1) stop_h(
-      "Provided reference contact risk is not valid.",
+      "Provided reference contact rate is not valid.",
       `!` = paste(
         "The pair",
         "{reference_to_phrase(reference[grep(fp, names(reference))], fp)}",
@@ -101,7 +101,7 @@ associate_contact_param_names <- function(this_table, prefix, reference,
     )
   }
 
-  prefix <- format_risk_prefix_(prefix)
+  prefix <- format_rate_prefix_(prefix)
 
   # associate param names with one "from" and one "to" token
   this_table$param_name <- apply(
@@ -130,7 +130,7 @@ associate_contact_param_names <- function(this_table, prefix, reference,
 #' @return `data.frame` Input, invisibly.
 #' @noRd
 assert_paired_contact_cols <- function(strata) {
-  cols <- risk_cov_cols_(strata)
+  cols <- rate_cov_cols_(strata)
   from <- pair_covs_(cols)
   to <- sub("^to_", "", grep("^to_", cols, value = TRUE))
   unpaired <- c(paste0("from_", setdiff(from, to), recycle0 = TRUE),
@@ -147,7 +147,7 @@ assert_paired_contact_cols <- function(strata) {
 #' with the same `param_name`.
 #' @noRd
 fill_symmetric_gaps <- function(tbl) {
-  cov_cols <- risk_cov_cols_(tbl)
+  cov_cols <- rate_cov_cols_(tbl)
   nm <- colnames(tbl)
   flipped <- stats::setNames(tbl, ifelse(startsWith(nm, "from_"),
                                          sub("^from_", "to_", nm),
@@ -164,27 +164,27 @@ fill_symmetric_gaps <- function(tbl) {
   tbl
 }
 
-#' Bind contact risk sub-tables into one `data.frame`, columns unified.
+#' Bind contact rate sub-tables into one `data.frame`, columns unified.
 #' @noRd
-tidyup_contact_risk_tables <- function(tables) {
+tidyup_contact_rate_tables <- function(tables) {
   if (!length(tables)) return(data.frame())
 
   # covariates lead, the rule outcome (parameter, count, pins) closes the row
   present <- unique(unlist(lapply(tables, names)))
   tail_cols <- c("param_name", "n", "rule_group",
-                 intersect(risk_pin_cols, present))
-  all_cols <- c(sort(setdiff(present, risk_reserved_cols)),
+                 intersect(rate_pin_cols, present))
+  all_cols <- c(sort(setdiff(present, rate_reserved_cols)),
                 setdiff(tail_cols, "rule_group"))
 
-  combined <- do.call(rbind, lapply(tables, pad_risk_cols_, cols = all_cols))
+  combined <- do.call(rbind, lapply(tables, pad_rate_cols_, cols = all_cols))
   rownames(combined) <- NULL
-  combined <- risk_rule_groups_(combined)
-  combined <- reorder_risks_logic_table(combined)
+  combined <- rate_rule_groups_(combined)
+  combined <- reorder_rates_logic_table(combined)
   rownames(combined) <- NULL
   as.data.frame(combined[c(setdiff(names(combined), tail_cols), tail_cols)])
 }
 
-# Validate and shape the automatic reference of contact risks.
+# Validate and shape the automatic reference of contact rates.
 # * reference naming one column of a cell -> names every column of that cell;
 # * cell: the pair of one covariate, or of all covariates when `joint`.
 auto_contact_reference_ <- function(by, reference, joint = FALSE) {
@@ -205,7 +205,7 @@ auto_contact_reference_ <- function(by, reference, joint = FALSE) {
     # nolint next: object_usage_linter. read by the cli glue below
     pairs <- paste0(by, ' = "', eg_values, '"', collapse = ", ")
     stop_h(
-      "Provided reference contact risk is not valid.",
+      "Provided reference contact rate is not valid.",
       paste("{.arg reference} must be named using",
             "{cli::qty(by)}covariate{?s}:",
             "{.code reference = c({pairs})}.")
@@ -237,12 +237,12 @@ auto_contact_reference_ <- function(by, reference, joint = FALSE) {
   as.list(reference)
 }
 
-########  HousepiContactRisk  ########
+########  HousepiContactRate  ########
 
-#' Hold the contact-risk definition of a model.
+#' Hold the contact-rate definition of a model.
 #' @noRd
-HousepiContactRisk <- R6::R6Class(
-  classname = "HousepiContactRisk",
+HousepiContactRate <- R6::R6Class(
+  classname = "HousepiContactRate",
   cloneable = TRUE,
 
   ####  Private  ####
@@ -253,7 +253,7 @@ HousepiContactRisk <- R6::R6Class(
     # Add a definition in automatic mode.
     helper_auto_add_ = function(by, reference, prefix, joint, symmetric) {
       # validate covariates
-      assert_risk_covariates_(by)
+      assert_rate_covariates_(by)
 
       # load reference and validate reference names
       if (length(reference))
@@ -273,7 +273,7 @@ HousepiContactRisk <- R6::R6Class(
       assert_paired_contact_cols(strata)
       assert_valid_strata_(strata, params, reference, symmetric = symmetric)
       # cast covariate columns to character (consistent with auto mode)
-      cov_cols <- risk_cov_cols_(strata)
+      cov_cols <- rate_cov_cols_(strata)
       strata[cov_cols] <- lapply(strata[cov_cols], as.character)
       # store sentinel definition
       self$defs <- list(by = NA_character_, prefix = NA_character_,
@@ -300,7 +300,7 @@ HousepiContactRisk <- R6::R6Class(
 
       new_tables <- list()
       for (this_cov in covariates) {
-        this_table <- contact_risk_logic_table(data_wide, this_cov)
+        this_table <- contact_rate_logic_table(data_wide, this_cov)
         # missing covariate cell -> no level, its pairs match no rule
         cols <- pair_cols_(this_cov)
         if (!is.null(this_table))
@@ -323,8 +323,8 @@ HousepiContactRisk <- R6::R6Class(
     # Assert each observed ordered pair resolves to one rule per group.
     assert_rules_fit_ = function(data_wide) {
       covs <- unique(pair_covs_(unlist(lapply(self$logic_tables, names))))
-      assert_risk_fit_(self$logic_tables, pair_cells_(data_wide, covs),
-                       "Contact risk", "ordered pair", self$defs)
+      assert_rate_fit_(self$logic_tables, pair_cells_(data_wide, covs),
+                       "Contact rate", "ordered pair", self$defs)
       invisible(self)
     },
 
@@ -347,11 +347,11 @@ HousepiContactRisk <- R6::R6Class(
           # both sides of a pair read the same data column
           cols = stats::setNames(rep(this_cov, 2L), pair_cols_(this_cov))
         )
-        assert_no_dead_rules(this_table, unknown, risk_cov_cols_(this_table),
-                             "param_name", "Contact risk", "ordered pair")
+        assert_no_dead_rules(this_table, unknown, rate_cov_cols_(this_table),
+                             "param_name", "Contact rate", "ordered pair")
 
         if (symmetric) this_table <- fill_symmetric_gaps(this_table)
-        this_table$n <- count_risk_rules_(this_table,
+        this_table$n <- count_rate_rules_(this_table,
                                           pair_cells_(data_wide, this_cov))
         self$logic_tables[[i]] <- this_table
       }
@@ -362,13 +362,13 @@ HousepiContactRisk <- R6::R6Class(
   ####  Active  ####
 
   active = list(
-    # `list` Parameter definitions associated to contact risks.
+    # `list` Parameter definitions associated to contact rates.
     parameters = function(value) {
-      risk_params_(self$logic_tables, self$param_overrides, self$raw_params,
+      rate_params_(self$logic_tables, self$param_overrides, self$raw_params,
                    self$is_absolute())
     },
 
-    # `character()` Data columns required by contact risks.
+    # `character()` Data columns required by contact rates.
     data_required = function(value) {
       required <- self$defs[["by"]]
       if (is.null(required) || all(is.na(required))) return(character(0))
@@ -376,7 +376,7 @@ HousepiContactRisk <- R6::R6Class(
       set_source_name_(required, self$family)
     },
 
-    # `character()` Data columns the risks stratify on,
+    # `character()` Data columns the rates stratify on,
     # declared through `by` or carried by a custom logic table.
     covariate_names = function(value) {
       custom <- lapply(lapply(self$logic_tables, names), pair_covs_)
@@ -384,16 +384,16 @@ HousepiContactRisk <- R6::R6Class(
       unique(covs[!is.na(covs)])
     },
 
-    # `character()` Parameters required by contact risks.
+    # `character()` Parameters required by contact rates.
     param_required = function(value) {
       required <- setdiff(unlist(lapply(self$logic_tables, `[[`, "param_name")),
                           ".reference")
       set_source_name_(as.character(required), self$family)
     },
 
-    # `data.frame()` Contact risk definitions table.
+    # `data.frame()` Contact rate definitions table.
     tidy_table = function(value) {
-      tidyup_contact_risk_tables(self$logic_tables)
+      tidyup_contact_rate_tables(self$logic_tables)
     }
   ),
 
@@ -401,26 +401,26 @@ HousepiContactRisk <- R6::R6Class(
 
   public = list(
     # `character(1)` Holder family.
-    family = "contact risk",
+    family = "contact rate",
 
-    # `list` Current contact risk definition.
+    # `list` Current contact rate definition.
     defs = list(),
 
     # `list` | `NULL` Raw parameter definitions, `NULL` for the default.
     raw_params = NULL,
 
-    # `list` Logic tables of the contact risk pairs.
+    # `list` Logic tables of the contact rate pairs.
     logic_tables = list(),
 
     # `list` Per-parameter MCMC overrides.
     param_overrides = list(),
 
-    # Whether some rule group has no reference, making the risk absolute.
+    # Whether some rule group has no reference, making the rate absolute.
     is_absolute = function() {
-      risk_is_absolute_(self$defs, self$logic_tables)
+      rate_is_absolute_(self$defs, self$logic_tables)
     },
 
-    # Add the definition, arguments as in add_contact_risk().
+    # Add the definition, arguments as in add_contact_rate().
     add_quo = function(by = NA_character_, ...,
                        reference = NULL,
                        joint = FALSE, symmetric = TRUE,
@@ -441,11 +441,11 @@ HousepiContactRisk <- R6::R6Class(
       strata <- housepi_smart_unwrap(strata, "strata", null_ok = TRUE)
       params <- housepi_smart_unwrap(params, "params", null_ok = TRUE)
 
-      config <- unwrap_risk_config_(prior, proposal, min, max, list(...),
+      config <- unwrap_rate_config_(prior, proposal, min, max, list(...),
                                     self$family)
-      mode <- risk_mode_(by, strata, params)
+      mode <- rate_mode_(by, strata, params)
       if (.warn_over && length(self$defs)) warn_h(
-        "Overwriting previous contact risk definition."
+        "Overwriting previous contact rate definition."
       )
       if (mode == "auto") {
         private$helper_auto_add_(by, reference, prefix, joint, symmetric)
@@ -472,7 +472,7 @@ HousepiContactRisk <- R6::R6Class(
       invisible(self)
     },
 
-    # Whether a usable contact risk definition is held.
+    # Whether a usable contact rate definition is held.
     assert = function() {
       length(self$defs) &&
         (!all(is.na(self$defs[["by"]])) || self$defs[["mode"]] == "custom")
@@ -482,11 +482,11 @@ HousepiContactRisk <- R6::R6Class(
     # @param info `list` of `list`s Factor levels per data column.
     expose_to_cpp = function(info) {
       defs <- self$tidy_table
-      defs[risk_pin_cols] <- NULL
+      defs[rate_pin_cols] <- NULL
       # both ends of a pair encode against the levels of one data column
       encode_strata_levels_(defs, info,
                             key = \(col) sub("^(from|to)_", "", col),
-                            cols = risk_cov_cols_(defs))
+                            cols = rate_cov_cols_(defs))
     }
   )
 )

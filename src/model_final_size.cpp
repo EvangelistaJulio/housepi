@@ -22,28 +22,28 @@ private:
     std::vector<chain_binom::Scratch> scratch_;    /// Chain-binomial buffers, per thread slot.
 
 public:
-    HOUSEPI_DECLARE_GROUP_RISK_KEYS(community, susceptibility, infectivity)
+    HOUSEPI_DECLARE_GROUP_RATE_KEYS(community, susceptibility, infectivity)
     HOUSEPI_DECLARE_HOUSE_MEMBER_KEYS(num_parts)
     HOUSEPI_DECLARE_HOUSE_MEMBER_VEC_KEYS(order, part_counts, part_indexes)
     HOUSEPI_DECLARE_HOUSE_DOUBLE_VEC_KEYS(commu_escape_rate)
     HOUSEPI_DECLARE_HOUSE_DOUBLE_MTX_KEYS(p2p_escape_rate)
     HOUSEPI_DECLARE_PARAM_KEYS(alpha, beta, gamma, hh_size_ref)
 
-    /// Declare parameter and risk requirements.
+    /// Declare parameter and rate requirements.
     void init_model_requirements() override final
     {
         request_param_positive(
             {Param::alpha, Param::hh_size_ref});
-        request_risk_identifiability(
-            Param::alpha, {GroupRisk::community});
-        request_risk_identifiability(
-            Param::beta, {GroupRisk::susceptibility, GroupRisk::infectivity}, true);
-        request_risk_status_stratified(
-            {GroupRisk::infectivity});
+        request_rate_identifiability(
+            Param::alpha, {GroupRate::community});
+        request_rate_identifiability(
+            Param::beta, {GroupRate::susceptibility, GroupRate::infectivity}, true);
+        request_rate_status_stratified(
+            {GroupRate::infectivity});
     }
 
-    /// Whether the model uses contact risks.
-    bool has_contact_risk() const override final { return true; }
+    /// Whether the model uses contact rates.
+    bool has_contact_rate() const override final { return true; }
 
     /// Assert no member has missing status, then allocate buffers per thread slot.
     void init_model_for_evaluation() override final
@@ -52,7 +52,7 @@ public:
         scratch_.resize(n_threads());
     }
 
-    /// Order members of `house`, then group infected ones into risk partitions.
+    /// Order members of `house`, then group infected ones into rate partitions.
     /// * partitions needing more than chain_binom::MAX_TERMS terms -> error.
     void init_house_for_evaluation(const Household &house) override final
     {
@@ -79,7 +79,7 @@ public:
             // search existing partitions for a match
             MemberIdx p = K; // tentatively new
             for (MemberIdx oj = 0; oj < K; ++oj)
-                if (is_same_risk_partition(house, order[part_indexes[oj]], order[oi]))
+                if (is_same_rate_partition(house, order[part_indexes[oj]], order[oi]))
                     p = oj; // partitions are disjoint: at most one matches
 
             if (p == K)
@@ -114,11 +114,11 @@ public:
 
     //////////////////////////////  Model : household log-likelihood  //////////////////////////////
 
-    /// Return risk of infection from the community.
-    double community_risk() const { return par(Param::alpha); }
-    /// Return risk of infection from another member, scaled by household size.
+    /// Return rate of infection from the community.
+    double community_rate() const { return par(Param::alpha); }
+    /// Return rate of infection from another member, scaled by household size.
     /// Based on @cite cauchemez_bayesian_2004
-    double person_to_person_risk(MemberIdx house_size) const
+    double person_to_person_rate(MemberIdx house_size) const
     {
         return par(Param::beta) *
                std::exp(par(Param::gamma) * std::log(par(Param::hh_size_ref) / house_size));
@@ -135,8 +135,8 @@ public:
     {
         const MemberIdx house_size = house.size();
         const auto &order = cache_member_vector(house, HouseMemberVec::order);
-        const double commu_rate = community_risk();
-        const double p2p_rate = person_to_person_risk(house_size);
+        const double commu_rate = community_rate();
+        const double p2p_rate = person_to_person_rate(house_size);
 
         // escape rates
         auto &commu_mtx = cache_double_vector(house, HouseDoubleVec::commu_escape_rate);
@@ -147,12 +147,12 @@ public:
         {
             MemberIdx i = order[oi]; // member index, partition representative
             const Individual &indiv_i = house.at(i);
-            const double inf_i_scl = group_risk(GroupRisk::infectivity, indiv_i) * p2p_rate;
-            const double sus_i = group_risk(GroupRisk::susceptibility, indiv_i);
+            const double inf_i_scl = group_rate(GroupRate::infectivity, indiv_i) * p2p_rate;
+            const double sus_i = group_rate(GroupRate::susceptibility, indiv_i);
             const double sus_i_scl = p2p_rate * sus_i;
 
             // community
-            commu_mtx[oi] = commu_rate * group_risk(GroupRisk::community, indiv_i);
+            commu_mtx[oi] = commu_rate * group_rate(GroupRate::community, indiv_i);
 
             // person-to-person
             for (MemberIdx oj = 0; oj < oi; ++oj)
@@ -160,16 +160,16 @@ public:
                 MemberIdx j = order[oj];
                 const Individual &indiv_j = house.at(j);
                 // i infector, j infectee
-                p2p_mtx[oi][oj] = inf_i_scl * contact_risk(house, i, j) *
-                                  group_risk(GroupRisk::susceptibility, indiv_j);
+                p2p_mtx[oi][oj] = inf_i_scl * contact_rate(house, i, j) *
+                                  group_rate(GroupRate::susceptibility, indiv_j);
                 // j infector, i infectee
-                p2p_mtx[oj][oi] = group_risk(GroupRisk::infectivity, indiv_j) *
-                                  contact_risk(house, j, i) * sus_i_scl;
+                p2p_mtx[oj][oi] = group_rate(GroupRate::infectivity, indiv_j) *
+                                  contact_rate(house, j, i) * sus_i_scl;
             }
 
             // diagonal: intra-partition term, read by partitions
-            // contact_risk(house, i, i) is 0 by definition
-            p2p_mtx[oi][oi] = inf_i_scl * intra_partition_contact_risk(house, i) * sus_i;
+            // contact_rate(house, i, i) is 0 by definition
+            p2p_mtx[oi][oi] = inf_i_scl * intra_partition_contact_rate(house, i) * sus_i;
         }
     }
 
@@ -222,15 +222,15 @@ public:
     /// Simulate transmission within `house`, generation by generation.
     void simulate_single_house(Household &house) override final
     {
-        const double commu_rate = community_risk();
-        const double p2p_rate = person_to_person_risk(house.size());
+        const double commu_rate = community_rate();
+        const double p2p_rate = person_to_person_rate(house.size());
 
         //////  Generation 0: community infection  //////
 
         std::vector<MemberIdx> new_gen_set = {};
 
         for (Individual &indiv : house)
-            if (exponential() > commu_rate * group_risk(GroupRisk::community, indiv))
+            if (exponential() > commu_rate * group_rate(GroupRate::community, indiv))
                 set_escaped(house, indiv);
             else
             {
@@ -256,10 +256,10 @@ public:
 
                 double r = 0.;
                 for (MemberIdx j : old_gen_set)
-                    r += group_risk(GroupRisk::infectivity, house.at(j)) *
-                         contact_risk(house, j, i);
+                    r += group_rate(GroupRate::infectivity, house.at(j)) *
+                         contact_rate(house, j, i);
 
-                double sus_i = group_risk(GroupRisk::susceptibility, indiv_i);
+                double sus_i = group_rate(GroupRate::susceptibility, indiv_i);
                 if (exponential() < r * p2p_rate * sus_i)
                 {
                     set_infected(house, indiv_i);

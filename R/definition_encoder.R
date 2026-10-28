@@ -28,7 +28,7 @@ try_fold_const_ <- function(expr, env) {
 # Plain name of every definition source, keyed by its source letter.
 source_labels_ <- c(A = "latent variable",
                     D = "data column",
-                    G = "group risk",
+                    G = "group rate",
                     P = "parameter")
 
 # Encode leaf values with their source:

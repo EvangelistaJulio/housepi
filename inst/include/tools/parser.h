@@ -18,7 +18,7 @@ namespace housepi::parse
     {
         Latent = 'A',
         DataWide = 'D',
-        GroupRisk = 'G',
+        GroupRate = 'G',
         Numeric = 'N',
         Parameter = 'P',
     };
@@ -30,8 +30,8 @@ namespace housepi::parse
     inline bool is_latent(std::string_view s) { return is_(s, Type::Latent); }
     /// Whether type code `s` is wide data.
     inline bool is_data_wide(std::string_view s) { return is_(s, Type::DataWide); }
-    /// Whether type code `s` is group risk.
-    inline bool is_group_risk(std::string_view s) { return is_(s, Type::GroupRisk); }
+    /// Whether type code `s` is group rate.
+    inline bool is_group_rate(std::string_view s) { return is_(s, Type::GroupRate); }
     /// Whether type code `s` is numeric.
     inline bool is_numeric(std::string_view s) { return is_(s, Type::Numeric); }
     /// Whether type code `s` is parameter.

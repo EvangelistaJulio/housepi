@@ -113,8 +113,8 @@ articles:
     navbar: ~
     contents:
       - priors_and_proposals
-      - group_risks
-      - contact_risks
+      - group_rates
+      - contact_rates
       - data_augmentation
       - infectivity_profiles
       - predictive_checks

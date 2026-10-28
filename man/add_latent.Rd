@@ -67,7 +67,7 @@ Omitted for a latent the transmission model generates (see Details).}
 Relative to the location argument \code{loc}, when one is given. Either a plain value, the name of another definition,
 or an arithmetic expression combining them.
 A name is looked up among the latent variables, data columns, observations,
-group risks and parameters the model carries.
+group rates and parameters the model carries.
 Two of them sharing a name cannot be read. Without a \code{model},
 the bound the latent is sampled within in inference,
 reading only data, observations and constant parameters.}
@@ -76,7 +76,7 @@ reading only data, observations and constant parameters.}
 Relative to the location argument \code{loc}, when one is given. Either a plain value, the name of another definition,
 or an arithmetic expression combining them.
 A name is looked up among the latent variables, data columns, observations,
-group risks and parameters the model carries.
+group rates and parameters the model carries.
 Two of them sharing a name cannot be read. Without a \code{model},
 the bound the latent is sampled within in inference,
 reading only data, observations and constant parameters.}

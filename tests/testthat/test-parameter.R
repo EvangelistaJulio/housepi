@@ -493,7 +493,7 @@ test_that("A parameter meets the model definition requirements", {
 })
 
 test_that("Strict positivity propagates through a parameter function", {
-  # the community risk is required strictly positive and carries no
+  # the community rate is required strictly positive and carries no
   # discretization requirement, so it reads a function definition directly
   mk <- function(...) {
     mk_final_size$template |>

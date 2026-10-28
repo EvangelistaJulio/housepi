@@ -1,10 +1,10 @@
 ---
-title: "Contact risks"
+title: "Contact rates"
 output:
   rmarkdown::html_vignette:
     toc: true
 vignette: >
-  %\VignetteIndexEntry{Contact risks}
+  %\VignetteIndexEntry{Contact rates}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 editor_options:
@@ -21,10 +21,11 @@ editor_options:
 options(housepi.footer.sample = TRUE)
 ```
 
-Contact risks model transmission between groups of individuals within a household.
-Unlike group risks, contact risks are pairwise: they scale the person-to-person rate from one member to another.
-By default, risks are absolute, each pair introducing its own parameter.
-If a reference pair is introduced (constant 1), all other contact pairs become relative to it.
+Contact rates model transmission between groups of individuals within a household.
+Unlike group rates, contact rates are pairwise: they scale the person-to-person rate from one member to another.
+They are factors on that rate, not counts of contacts per unit time.
+By default, rates are absolute, each pair introducing its own parameter.
+If a reference pair is introduced (constant 1), every other pair becomes a rate ratio to it.
 We illustrate the API on the influenza survey in Matsumoto, which reports final sizes together with the family role of each member.
 To simplify this walkthrough, we regroup members as follows:
 
@@ -53,19 +54,19 @@ hh_model <- hh_model |>
 table(dataset$member)
 ```
 
-# Define absolute contact risks
+# Define absolute contact rates
 
-To associate contact risks to models that encode them, we call `add_contact_risk()`.
+To associate contact rates to models that encode them, we call `add_contact_rate()`.
 This reads one or more covariate columns and introduces a parameter per pair.
 
 ```{r}
 #| label: load-model-data
 hh_model |>
-  add_contact_risk("member") |>
-  get_contact_risks()
+  add_contact_rate("member") |>
+  get_contact_rates()
 ```
 
-Contact risks are paired, `from_member` (the infector), `to_member` (the infectee).
+Contact rates are paired, `from_member` (the infector), `to_member` (the infectee).
 Here `n` counts the ordered pairs observed in the data, and `param_name` names the associated parameter.
 Pairs that never occur are dropped.
 The `rule_group` column matters once rules overlap (see [strata tables](#strata-tables-and-specificity-rules)).
@@ -75,45 +76,45 @@ Set `symmetric = FALSE` to let them differ.
 
 ```{r}
 #| label: symmetry-count
-# disable symmetric risks
+# disable symmetric rates
 hh_model |>
-  add_contact_risk("member", symmetric = FALSE) |>
-  get_contact_risks()
+  add_contact_rate("member", symmetric = FALSE) |>
+  get_contact_rates()
 ```
 
 ```{r}
 #| label: count-new-params
 #| include: false
-# count the number of parameters associated to contact risks
-count_ctr <- function(x) length(unique(get_contact_risks(x)$param_name))
-c_diff <- count_ctr(add_contact_risk(hh_model, "member", symmetric = FALSE)) -
-  count_ctr(add_contact_risk(hh_model, "member"))
+# count the number of parameters associated to contact rates
+count_ctr <- function(x) length(unique(get_contact_rates(x)$param_name))
+c_diff <- count_ctr(add_contact_rate(hh_model, "member", symmetric = FALSE)) -
+  count_ctr(add_contact_rate(hh_model, "member"))
 ```
 
 Dropping symmetry splits every mixed pair in two, leaving the homologous pairs alone, and costing `r c_diff` new parameters to infer.
 
-# A reference pair makes the risks relative
+# A reference pair makes the rates relative
 
-Parameters associated to risks are collected alongside other declarations.
+Parameters associated to rates are collected alongside other declarations.
 ```{r}
 #| label: parameters-default
 hh_model |>
-  add_contact_risk("member") |>
+  add_contact_rate("member") |>
   get_parameters()
 ```
 
-Parameters inherit shared MCMC default configurations as in group risks (see [Group risks](group_risks.html)).
-By default, all contact risks are absolute and the baseline transmission `beta` non identifiable, so the model fixes it at 1.
-Instead, naming a `reference` pair makes it the unit, `beta` is freed, and every other parameter reads as a relative risk to the reference.
+Parameters inherit shared MCMC default configurations as in group rates (see [Group rates](group_rates.html)).
+By default, all contact rates are absolute and the baseline transmission `beta` non identifiable, so the model fixes it at 1.
+Instead, naming a `reference` pair makes it the unit, `beta` is freed, and every other parameter reads as a rate ratio to the reference.
 
 ```{r}
 #| label: custom-reference
 hh_model |>
-  add_contact_risk(
+  add_contact_rate(
     "member",
     reference = c(from_member = "child", to_member = "other")
   ) |>
-  get_contact_risks()
+  get_contact_rates()
 ```
 
 Passing an un-prefixed name applies the same value to both sides.
@@ -122,8 +123,8 @@ Passing an un-prefixed name applies the same value to both sides.
 #| label: reference-shorthand
 dataset |>
   new_housepi_model("final-size") |>
-  add_contact_risk("member", reference = "parent") |>
-  get_contact_risks()
+  add_contact_rate("member", reference = "parent") |>
+  get_contact_rates()
 ```
 
 Ask for `".auto"` to take the pair with the largest sample size, which here is parent to child:
@@ -131,8 +132,8 @@ Ask for `".auto"` to take the pair with the largest sample size, which here is p
 ```{r}
 #| label: auto-reference
 hh_model |>
-  add_contact_risk("member", reference = ".auto") |>
-  get_contact_risks()
+  add_contact_rate("member", reference = ".auto") |>
+  get_contact_rates()
 ```
 
 # Strata tables and specificity rules
@@ -150,11 +151,11 @@ strata <- tibble::tribble(
   NA,           NA,         ".reference",      NA
 )
 model_strata <- hh_model |>
-  add_contact_risk(strata = strata)
+  add_contact_rate(strata = strata)
 
-# show contact risk definitions
+# show contact rate definitions
 model_strata |>
-  get_contact_risks()
+  get_contact_rates()
 
 # extract the first household with all classes
 hh_id <- get_data_wide(model_strata) |>
@@ -167,8 +168,8 @@ state <- model_strata |>
   inspect_state(hh_id)
 # recall the data associated to household '1133'
 state$data_wide
-# export loaded contact risks
-state$contact_risks
+# export loaded contact rates
+state$contact_rates
 ```
 
 Contacts between a child and a parent got a parameter `child_to_parent`.
@@ -184,7 +185,7 @@ A bare number in `params` pins a parameter the same way.
 ## Ambiguous rules are rejected
 
 Rules that key on different columns cannot be ranked against each other.
-The `rule_group` column of `get_contact_risks()` reports which rules were compared together, and a catch-all rule that straddles two groups raises an error instead of picking a winner:
+The `rule_group` column of `get_contact_rates()` reports which rules were compared together, and a catch-all rule that straddles two groups raises an error instead of picking a winner:
 
 ```{r}
 #| label: strata-ambiguous
@@ -195,15 +196,15 @@ half_keyed <- tibble::tribble(
   NA,           NA,         ".reference"
 )
 
-# not ambiguos definiton for symmetric risks
+# not ambiguos definiton for symmetric rates
 hh_model |>
-  add_contact_risk(strata = half_keyed, symmetric = FALSE) |>
-  get_contact_risks()
+  add_contact_rate(strata = half_keyed, symmetric = FALSE) |>
+  get_contact_rates()
 
-# ambiguos definiton for symmetric risks
+# ambiguos definiton for symmetric rates
 hh_model |>
-  add_contact_risk(strata = half_keyed, symmetric = TRUE) |>
-  get_contact_risks()
+  add_contact_rate(strata = half_keyed, symmetric = TRUE) |>
+  get_contact_rates()
 ```
 
 Keying the first rule on both columns, as in the tables above, removes the choice and the definition goes through.
@@ -215,13 +216,13 @@ The relative parametrization estimates `beta` alongside the rates, and on this s
 `run_simulation()` holds `beta` at the same `1`, so a survey generated from these draws comes from the model that was fitted.
 
 ```{r}
-#| label: inference-contact-risks
+#| label: inference-contact-rates
 #| fig-alt: >
-#|  Five trace plots of the MCMC draws: the community risk alpha, the
+#|  Five trace plots of the MCMC draws: the community rate alpha, the
 #|  household-size exponent gamma, and the three pairwise transmission rates
 #|  between children and parents. Four chains are overlaid across iterations.
 hh_model <- hh_model |>
-  add_contact_risk("member") |>
+  add_contact_rate("member") |>
   add_parameter(import = "template")
 
 hh_fit <- hh_model |>
@@ -231,7 +232,7 @@ hh_fit |>
   bayesplot::mcmc_trace()
 ```
 
-The from/to table returned by `get_contact_risks()` joins the draws back onto the pair they belong to, which lays the estimates out as a contact matrix:
+The from/to table returned by `get_contact_rates()` joins the draws back onto the pair they belong to, which lays the estimates out as a contact matrix:
 
 ```{r}
 #| label: contact-matrix-plot
@@ -243,7 +244,7 @@ The from/to table returned by `get_contact_risks()` joins the draws back onto th
 library(ggplot2)
 
 hh_model |>
-  get_contact_risks() |>
+  get_contact_rates() |>
   dplyr::rename(variable = param_name) |>
   dplyr::left_join(summarise_draws(hh_fit), by = "variable") |>
   ggplot(aes(x = from_member, y = to_member, fill = median)) +

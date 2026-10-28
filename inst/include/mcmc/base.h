@@ -16,7 +16,7 @@
 #include "mcmc/posterior.h"
 #include "mcmc/settings.h"
 #include "parameter.h"
-#include "risks.h"
+#include "rates.h"
 #include "status_process.h"
 #include "translator.h"
 
@@ -37,7 +37,7 @@ namespace housepi
 
         Data data; /// Imported tables.
         Parameter param;
-        Risks risks;
+        Rates rates;
         InfecProfile infec_profile;
         StatusProcess status_process;
         Augmented augm;

@@ -3,7 +3,7 @@
 ## SPDX-License-Identifier: GPL-3.0-or-later
 ##
 
-# Strata tables shared by group risks, contact risks and the status process:
+# Strata tables shared by group rates, contact rates and the status process:
 # * a rule keys on covariates;
 # * an NA cell matches any value;
 # * the most specific matching rule of each rule group applies.

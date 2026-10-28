@@ -21,12 +21,12 @@ class Model final : public ModelBase
 public:
     HOUSEPI_DECLARE_LATENT_KEYS(infec_time)
     HOUSEPI_DECLARE_DATA_KEYS(end_date)
-    HOUSEPI_DECLARE_GROUP_RISK_KEYS(community, susceptibility, infectivity)
+    HOUSEPI_DECLARE_GROUP_RATE_KEYS(community, susceptibility, infectivity)
     HOUSEPI_DECLARE_HOUSE_MEMBER_KEYS(intro_case)
     HOUSEPI_DECLARE_HOUSE_DOUBLE_MTX_KEYS(inst, cumul)
     HOUSEPI_DECLARE_PARAM_KEYS(alpha, beta, gamma, hh_size_ref)
 
-    /// Declare data, parameter, risk and latent requirements.
+    /// Declare data, parameter, rate and latent requirements.
     void init_model_requirements() override final
     {
         request_data_discrete(
@@ -35,12 +35,12 @@ public:
             {Data::end_date});
         request_param_positive(
             {Param::alpha, Param::hh_size_ref});
-        request_risk_identifiability(
-            Param::alpha, {GroupRisk::community});
-        request_risk_identifiability(
-            Param::beta, {GroupRisk::susceptibility, GroupRisk::infectivity}, true);
-        request_risk_status_stratified(
-            {GroupRisk::infectivity});
+        request_rate_identifiability(
+            Param::alpha, {GroupRate::community});
+        request_rate_identifiability(
+            Param::beta, {GroupRate::susceptibility, GroupRate::infectivity}, true);
+        request_rate_status_stratified(
+            {GroupRate::infectivity});
         request_latent_transmission(
             {Latent::infec_time});
 #ifdef _HOUSEPI_DISCRETE_TIME
@@ -50,8 +50,8 @@ public:
 #endif
     }
 
-    /// Whether the model uses contact risks.
-    bool has_contact_risk() const override final { return true; }
+    /// Whether the model uses contact rates.
+    bool has_contact_rate() const override final { return true; }
 
     /// Whether the model requires an infectivity profile definition.
     bool has_infec_profile() const override final { return true; }
@@ -108,23 +108,23 @@ public:
         for (const Individual &indiv_s : house.escaped_indivs())
         {
             const double exposure = follow_up_end(indiv_s) - t_intro;
-            output -= alpha * exposure * group_risk(GroupRisk::community, indiv_s);
+            output -= alpha * exposure * group_rate(GroupRate::community, indiv_s);
         }
 
         for (MemberIdx i : house.infected_members())
         {
             const Individual &indiv_i = house.at(i);
-            const double mu_i = group_risk(GroupRisk::infectivity, indiv_i);
+            const double mu_i = group_rate(GroupRate::infectivity, indiv_i);
 
             for (MemberIdx s : house.escaped_members())
                 output -= mu_i * beta * cumul_mtx[i][s] *
-                          contact_risk(house, i, s) *
-                          group_risk(GroupRisk::susceptibility, house.at(s));
+                          contact_rate(house, i, s) *
+                          group_rate(GroupRate::susceptibility, house.at(s));
 
             if (i == i0)
                 continue;
 
-            // risk of infection from the other infected members j
+            // rate of infection from the other infected members j
             double roi_inst_i = 0.;
             double roi_cumul_i = 0.;
             for (MemberIdx j : house.infected_members())
@@ -132,14 +132,14 @@ public:
                 if (j == i)
                     continue;
 
-                const double mu_ji = group_risk(GroupRisk::infectivity, house.at(j)) *
-                                     contact_risk(house, j, i);
+                const double mu_ji = group_rate(GroupRate::infectivity, house.at(j)) *
+                                     contact_rate(house, j, i);
                 roi_inst_i += mu_ji * inst_mtx[j][i];
                 roi_cumul_i += mu_ji * cumul_mtx[j][i];
             }
 
-            const double a_i = alpha * group_risk(GroupRisk::community, indiv_i);
-            const double b_i = beta * group_risk(GroupRisk::susceptibility, indiv_i);
+            const double a_i = alpha * group_rate(GroupRate::community, indiv_i);
+            const double b_i = beta * group_rate(GroupRate::susceptibility, indiv_i);
 
             roi_inst_i *= b_i;
             roi_cumul_i *= b_i;
@@ -175,11 +175,11 @@ public:
         for (MemberIdx i = 0; i < house_size; ++i)
         {
             const Individual &indiv_i = house.at(i);
-            commu[i] = alpha * group_risk(GroupRisk::community, indiv_i);
-            const double inf_i = beta * group_risk(GroupRisk::infectivity, indiv_i);
+            commu[i] = alpha * group_rate(GroupRate::community, indiv_i);
+            const double inf_i = beta * group_rate(GroupRate::infectivity, indiv_i);
             for (MemberIdx j = 0; j < house_size; ++j)
                 if (j != i)
-                    p2p[i][j] = inf_i * contact_risk(house, i, j) * group_risk(GroupRisk::susceptibility, house.at(j));
+                    p2p[i][j] = inf_i * contact_rate(house, i, j) * group_rate(GroupRate::susceptibility, house.at(j));
         }
         out.vector("community_rate", std::move(commu));
         out.matrix("p2p_rate", std::move(p2p));
@@ -199,7 +199,7 @@ public:
         const MemberIdx j = Index::member(indiv_j);
         const double gentime = t_infec_j - t_infec_i;
 
-        // the reverse direction is set to 0: the risk of infection sums over every pair
+        // the reverse direction is set to 0: the rate of infection sums over every pair
         if (gentime > 0)
         { // i : infector, j : infectee
             inst_mtx[i][j] = infec_profile_inst(indiv_i, gentime);
@@ -381,7 +381,7 @@ public:
         }
     }
 
-    /// Instantaneous risk of infection of `indiv_i` at time `t_infec_i`, in simulation.
+    /// Instantaneous rate of infection of `indiv_i` at time `t_infec_i`, in simulation.
     double roi_inst_simulation(
         const Household &house,
         const Individual &indiv_i,
@@ -390,20 +390,20 @@ public:
         double beta) const
     {
         MemberIdx i = Index::member(indiv_i);
-        double roi = 0.; // instantaneous risk of infection
+        double roi = 0.; // instantaneous rate of infection
 
         // j : infector, i : infectee
         for (MemberIdx j : house.infected_members())
         {
             const Individual &indiv_j = house.at(j);
             const double gentime = t_infec_i - aug(Latent::infec_time, indiv_j);
-            roi += group_risk(GroupRisk::infectivity, indiv_j) *
-                   contact_risk(house, j, i) *
+            roi += group_rate(GroupRate::infectivity, indiv_j) *
+                   contact_rate(house, j, i) *
                    infec_profile_inst(indiv_j, gentime);
         }
 
-        return alpha * group_risk(GroupRisk::community, indiv_i) +
-               beta * group_risk(GroupRisk::susceptibility, indiv_i) * roi;
+        return alpha * group_rate(GroupRate::community, indiv_i) +
+               beta * group_rate(GroupRate::susceptibility, indiv_i) * roi;
     }
 };
 HOUSEPI_CLOSE_MODULE_NAMESPACE()

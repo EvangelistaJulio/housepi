@@ -212,12 +212,12 @@ test_that("Household snapshot reads before any definition is pushed", {
     inspect_state("house")
 
   field_names <- c(
-    "data_wide", "parameters", "group_risks", "contact_risks", "latent",
+    "data_wide", "parameters", "group_rates", "contact_rates", "latent",
     "latent_log_lik", "observation_log_lik", "transmission_log_lik"
   )
   snapshot |> expect_named(field_names)
 
-  for (f in c("parameters", "group_risks", "latent",
+  for (f in c("parameters", "group_rates", "latent",
               "latent_log_lik", "observation_log_lik")) {
     snapshot[[f]] |> expect_length(0)
   }
@@ -419,12 +419,12 @@ test_that("A copy is deep", {
   # definitions
   get_parameters(hh_model) |> expect_identical(get_parameters(hh_model_2))
   get_latent(hh_model) |> expect_identical(get_latent(hh_model_2))
-  get_group_risks(hh_model) |> expect_identical(get_group_risks(hh_model_2))
+  get_group_rates(hh_model) |> expect_identical(get_group_rates(hh_model_2))
 
   # changes on the original do not reach the copy
-  hh_model <- add_group_risk(hh_model, "susceptibility", by = "member") |>
+  hh_model <- add_group_rate(hh_model, "susceptibility", by = "member") |>
     suppressWarnings() # suppress baseline collapse warning
-  isTRUE(all.equal(get_group_risks(hh_model), get_group_risks(hh_model_2))) |>
+  isTRUE(all.equal(get_group_rates(hh_model), get_group_rates(hh_model_2))) |>
     expect_false()
 })
 
@@ -494,7 +494,7 @@ test_that("Flu 2014 Matsumoto is correctly pre-processed", {
 
   # fix expected equivalence classes by member composition
   hh_model |>
-    add_group_risk("community", by = "member") |>
+    add_group_rate("community", by = "member") |>
     summarise_house_cases() |>
     subset(level == "household" & metric == "classes") |>
     getElement("count") |>
@@ -508,7 +508,7 @@ test_that("Households apart in any covariate fall in distinct classes", {
   strata <- data.frame(datum = c(1, 2.125), datum_2 = c(1, 2),
                        param_name = c(".reference", "rho"))
   hh_model <- new_housepi_model(hh_data, "final-size") |>
-    add_group_risk("community", strata = strata,
+    add_group_rate("community", strata = strata,
                    params = list(rho = list(const = 4))) |>
     add_parameter(alpha = 0.3, beta = 0.5, gamma = 0, hh_size_ref = 1)
 
@@ -548,7 +548,7 @@ test_that("Evaluating a copy leaves the classes of the original in place", {
 
   # the copy tells `h1` and `h2` apart
   hh_model_2 <- hh_model |>
-    add_group_risk("community", strata = strata,
+    add_group_rate("community", strata = strata,
                    params = list(rho = list(const = 4)))
   evaluate_log_lik(hh_model_2) |> expect_all_finite()
   summarise_house_cases(hh_model_2) |>
@@ -565,7 +565,7 @@ test_that("Evaluating a copy leaves the classes of the original in place", {
     expect_identical(house_log_lik)
 })
 
-test_that("A replaced group risk leaves no covariate in the classes", {
+test_that("A replaced group rate leaves no covariate in the classes", {
   # `datum` tells `h1` and `h2` apart, `datum_2` only what size does
   hh_data <- data.frame(hh_id = c("h1", "h1", "h2", "h2", "h3", "h3", "h3"),
                         status = c(1, 0, 1, 0, 1, 1, 0),
@@ -575,7 +575,7 @@ test_that("A replaced group risk leaves no covariate in the classes", {
   strata_2 <- data.frame(datum_2 = c(1, 2), param_name = c(".reference", "rho"))
   hh_model <- new_housepi_model(hh_data, "final-size") |>
     add_parameter(alpha = 0.3, beta = 0.5, gamma = 1, hh_size_ref = 2) |>
-    add_group_risk("community", strata = strata,
+    add_group_rate("community", strata = strata,
                    params = list(rho = list(const = 4)))
   summarise_house_cases(hh_model) |>
     subset(metric == "classes") |>
@@ -583,7 +583,7 @@ test_that("A replaced group risk leaves no covariate in the classes", {
     expect_identical(3L)
 
   hh_model |>
-    add_group_risk("community", strata = strata_2,
+    add_group_rate("community", strata = strata_2,
                    params = list(rho = list(const = 4)), append = FALSE) |>
     summarise_house_cases() |>
     subset(metric == "classes") |>

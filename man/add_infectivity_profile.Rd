@@ -34,14 +34,14 @@ If \code{NA}, inferred from the model time discretization.}
 Relative to the location argument \code{loc}, when one is given. Either a plain value, the name of another definition,
 or an arithmetic expression combining them.
 A name is looked up among the latent variables, data columns, observations,
-group risks and parameters the model carries.
+group rates and parameters the model carries.
 Two of them sharing a name cannot be read.}
 
 \item{max}{\code{numeric(1)} Truncate to a maximum value.
 Relative to the location argument \code{loc}, when one is given. Either a plain value, the name of another definition,
 or an arithmetic expression combining them.
 A name is looked up among the latent variables, data columns, observations,
-group risks and parameters the model carries.
+group rates and parameters the model carries.
 Two of them sharing a name cannot be read.}
 
 \item{import}{Named \code{list} of pre-built definitions to import,
