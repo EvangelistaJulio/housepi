@@ -191,6 +191,23 @@ test_that("ESS thinning reads the chains apart", {
     expect_lt(10L)
 })
 
+test_that("Named values read as a single draw", {
+  draws <- data.frame(rho = 0.3, rho_2 = 2)
+  helper_read_param_table_(c(rho = 0.3, rho_2 = 2)) |> expect_identical(draws)
+  helper_read_param_table_(list(rho = 0.3, rho_2 = 2)) |>
+    expect_identical(draws)
+  # a matrix reads by its columns
+  cbind(rho = c(0.3, 0.4)) |>
+    helper_read_param_table_() |>
+    nrow() |>
+    expect_identical(2L)
+
+  helper_read_param_table_(c(0.3, rho_2 = 2)) |>
+    expect_error("value without a parameter name")
+  helper_read_param_table_(list(rho = c(0.3, 0.4), rho_2 = 2)) |>
+    expect_error("rho.*not hold exactly one value")
+})
+
 ####  Factorization  ####
 
 test_that("Data factorization handles default types", {
@@ -341,4 +358,7 @@ test_that("The housepi ggplot theme is set", {
   skip_if_not_installed("ggplot2")
   set_housepi_theme()
   ggplot2::theme_get()$panel.background$fill |> expect_identical("#FEF9EC")
+  ggplot2::theme_get()$strip.background$fill |> expect_identical("white")
+  set_housepi_theme(colour_strips = TRUE)
+  ggplot2::theme_get()$strip.background$fill |> expect_identical("#FBE09B")
 })

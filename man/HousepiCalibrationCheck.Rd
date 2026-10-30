@@ -6,7 +6,8 @@
 \title{Simulation calibration check of a housepi model}
 \description{
 Container for the sweep run by \code{\link[=check_calibration]{check_calibration()}}:
-surveys simulated at parameter values drawn from the prior and fitted back,
+household studies simulated at parameter values drawn from the prior
+and fitted back,
 each value ranked among the posterior draws of its fit.
 }
 \examples{
@@ -23,7 +24,7 @@ calibration$summarise()
     \item{\code{estimates}}{\code{data.frame}
 One row per replicate and parameter
 \describe{
-\item{truth}{Value drawn from the prior the survey was simulated at;}
+\item{truth}{Value drawn from the prior the study was simulated at;}
 \item{rank}{Number of ranked posterior draws below the truth,
 ties split at random;}
 \item{rhat, ess_bulk}{Convergence diagnostics of the fit;}
@@ -45,7 +46,7 @@ over the parameters of the fit;}
     \item{\code{overview}}{\code{data.frame}
 Sweep cost per household count, averaged over the replicates
 \describe{
-\item{nrep, n_flagged}{Replicates run, and those flagged;}
+\item{nrep, n_flagged}{Number of replicates run, and of those flagged;}
 \item{mean_inference_secs}{Mean wall-clock of a sampling loop;}
 \item{secs_per_ess}{Seconds of sampling per effective draw
 of the worst-mixing parameter, pooled over the replicates:
@@ -55,7 +56,7 @@ a cost of this run, machine and thread count, not of the model.}
     \item{\code{houses}}{\code{integer()} Household counts swept.}
 
     \item{\code{nrep}}{\code{integer()}
-Replicates run at each household count, in the order of \code{houses}.}
+Number of replicates at each household count, in the order of \code{houses}.}
 
     \item{\code{rank_draws}}{\code{integer(1)}
 Posterior draws each simulating value is ranked among.}
@@ -109,12 +110,13 @@ Use \code{\link[=check_calibration]{check_calibration()}} instead of calling \ve
     \if{html}{\out{<div class="arguments">}}
     \describe{
       \item{\code{hh_model}}{\code{HousepiModel} object.}
-      \item{\code{nrep}}{\code{integer(1)}
-Number of surveys simulated and fitted back at each household count.}
-      \item{\code{houses}}{\code{integer(1)} Household count of the surveys.
+      \item{\code{nrep}}{\code{integer(1)} Number of replicates at each household count.
+Each replicate is a household study simulated and fitted back.}
+      \item{\code{houses}}{\code{integer(1)}
+Number of households in each simulated study.
 If \code{NA}, the number of households carried by the attached data.}
       \item{\code{structure_sampler}}{\code{function}
-Sampler of the household structure the surveys are generated on,
+Sampler of the household structure the outbreaks are simulated on,
 called as \code{structure_sampler(data_wide, houses)}.
 If \code{NULL}, the attached structure is reused verbatim and \code{houses} ignored.}
       \item{\code{rank_draws}}{\code{integer(1)}
@@ -158,7 +160,8 @@ In a knitted document, only its closing line prints.}
   \subsection{Returns}{
     \code{data.frame}
 \describe{
-\item{nrep, n_flagged}{Replicates ranked, and those flagged;}
+\item{nrep, n_flagged}{Number of replicates ranked,
+and of those flagged;}
 \item{log_gamma}{Logarithm of the uniformity statistic,
 twice the smallest binomial tail probability of the ECDF;}
 \item{log_gamma_threshold}{Value of \code{log_gamma} below which

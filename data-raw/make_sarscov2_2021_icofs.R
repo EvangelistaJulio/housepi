@@ -63,7 +63,7 @@ sarscov2_2021_icofs <- utils::read.table(url) |>
   ) |>
   dplyr::select(
     id, hh_id, status, age, sex, end_date, test_date,
-    vacc_status, recovered, isolated, asymptomatic
+    vacc_status, recovered, isolated
   ) |>
   as.data.frame()
 

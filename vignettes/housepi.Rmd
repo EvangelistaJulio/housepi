@@ -82,9 +82,9 @@ We show how to generate a new instance of such a class with a template model, th
 
 ```{r}
 #| label: load-model
-library(housepi)    # import the library
-set.seed(42)        # specify seed for random number generators
-set_housepi_theme() # theme for visualizations
+library(housepi)                        # import the library
+set.seed(42)                            # specify seed for random number generators
+set_housepi_theme(colour_strips = TRUE) # theme for visualizations
 
 # generate an instance of the final-size model with data
 hh_model <- new_housepi_model(flu_1918_frederick, "final-size")
@@ -216,7 +216,7 @@ get_parameter_draws(hh_fit) |>
 
 For models requiring latent variables, the definition procedure is analogous.
 In [Data augmentation](data_augmentation.html) we broadly discuss data augmentation and the process of more complex latent definitions.
-Here we present a case study, using the template model "case_ascertained" where surveys are conditioned on single introduction.
+Here we present a case study, using the template model "case_ascertained" where households are conditioned on a single introduction.
 We load the parameter definitions directly from the model template.
 
 ```{r}
@@ -285,7 +285,7 @@ To see how to associate group rates in heterogeneous models, see [Group rates](g
 We can overlook these alerts for the rest of the walk-through.
 The infectivity profile, instead, is mandatory for this model: above we loaded the one shipped with it, and [Infectivity profiles](infectivity_profiles.html) shows how to provide a custom definition.
 
-We run a simulation with the method `run_simulation`, using the same community structure from the survey.
+We run a simulation with the method `run_simulation`, using the same community structure from the study.
 The parameter values come as `draws`: a parameter without a value is drawn from its prior.
 Each household's outbreak starts from one member drawn at random, its primary case.
 Simulations associate latent incubation periods, infection times and sampled onset dates to all infected individuals:
@@ -301,7 +301,7 @@ simulated <- hh_model |> run_simulation(draws = sim_values)
 head(simulated)
 ```
 
-To mimic how the survey was reported, such as rounded dates or missed cases, attach functions with `add_reporting_process()`: every simulated survey goes through them before it is returned.
+To mimic how the study was reported, such as rounded dates or missed cases, attach functions with `add_reporting_process()`: every simulated study goes through them before it is returned.
 
 # Validation
 

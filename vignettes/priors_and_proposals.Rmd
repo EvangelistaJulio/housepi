@@ -36,7 +36,7 @@ Here's the full list of available continuous distributions present in housepi:
 #|  Density plots for prior distributions available in housepi for Bayesian inference: uniform, normal, lognormal, gamma, Weibull, Rayleigh, beta and exponential.
 #|  Each panel displays the estimated probability density function in blue obtained from MCMC sampling.
 library(housepi)
-set_housepi_theme()
+set_housepi_theme(colour_strips = TRUE)
 set.seed(42)
 
 # create an instance of the model 'test'

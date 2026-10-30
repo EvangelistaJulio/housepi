@@ -6,14 +6,14 @@
 \title{Parameter recovery check of a housepi model}
 \description{
 Container for the sweep run by \code{\link[=check_recovery]{check_recovery()}}:
-surveys simulated at known parameter values and fitted back,
+household studies simulated at known parameter values and fitted back,
 replicated at one or more household counts.
 }
 \examples{
 recovery <- flu_1918_frederick |>
   new_housepi_model("final-size") |>
   add_parameter(import = "template") |>
-  check_recovery(data.frame(alpha = 0.15, beta = 0.2, gamma = 1),
+  check_recovery(c(alpha = 0.15, beta = 0.2, gamma = 1),
                  nrep = 2, houses = 30, progress = FALSE)
 recovery
 recovery$summarise()
@@ -24,7 +24,7 @@ recovery$summarise()
     \item{\code{estimates}}{\code{data.frame}
 One row per household count, replicate and parameter
 \describe{
-\item{truth}{Value the survey was simulated at;}
+\item{truth}{Value the study was simulated at;}
 \item{estimate}{Posterior point estimate;}
 \item{sd}{Posterior standard deviation;}
 \item{cri_lower, cri_upper}{Credible interval bounds;}
@@ -47,7 +47,7 @@ over the parameters of the fit;}
     \item{\code{overview}}{\code{data.frame}
 Sweep cost per household count, averaged over the replicates
 \describe{
-\item{nrep, n_flagged}{Replicates run, and those flagged;}
+\item{nrep, n_flagged}{Number of replicates run, and of those flagged;}
 \item{mean_inference_secs}{Mean wall-clock of a sampling loop;}
 \item{secs_per_ess}{Seconds of sampling per effective draw
 of the worst-mixing parameter, pooled over the replicates:
@@ -55,12 +55,12 @@ a cost of this run, machine and thread count, not of the model.}
 }}
 
     \item{\code{truth}}{named \code{numeric()}
-Values the surveys were simulated at.}
+Values the studies were simulated at.}
 
     \item{\code{houses}}{\code{integer()} Household counts swept.}
 
     \item{\code{nrep}}{\code{integer()}
-Replicates run at each household count, in the order of \code{houses}.}
+Number of replicates at each household count, in the order of \code{houses}.}
 
     \item{\code{point_estimate}}{\code{character(1)}
 Summary statistic taken as the posterior point estimate.}
@@ -116,23 +116,19 @@ Use \code{\link[=check_recovery]{check_recovery()}} instead of calling \verb{$ne
     \if{html}{\out{<div class="arguments">}}
     \describe{
       \item{\code{hh_model}}{\code{HousepiModel} object.}
-      \item{\code{draws}}{Parameter values, one row per draw.
-One of:
-\itemize{
-\item \code{data.frame};
-\item \code{posterior::draws};
-\item \link{HousepiPosteriorDraws}.
-}
-
-Values the surveys are simulated at,
+      \item{\code{draws}}{Parameter values, keyed by parameter name.
+Either posterior draws, from \code{\link[=run_inference]{run_inference()}} or as \code{posterior::draws},
+a \code{data.frame} with one row per draw,
+or one value per parameter, as in \code{c(alpha = 0.1, beta = 0.2)}.
+Values the studies are simulated at,
 one for every estimated parameter.
 Several draws are collapsed to their point estimate.}
-      \item{\code{nrep}}{\code{integer(1)}
-Number of surveys simulated and fitted back at each household count.}
+      \item{\code{nrep}}{\code{integer(1)} Number of replicates at each household count.
+Each replicate is a household study simulated and fitted back.}
       \item{\code{houses}}{\code{integer()} One or more household counts to sweep.
 If \code{NA}, the number of households carried by the attached data.}
       \item{\code{structure_sampler}}{\code{function}
-Sampler of the household structure the surveys are generated on,
+Sampler of the household structure the outbreaks are simulated on,
 called as \code{structure_sampler(data_wide, houses)}.
 If \code{NULL}, the attached structure is reused verbatim and \code{houses} ignored.}
       \item{\code{steps}}{\code{integer(1)} Number of MCMC steps per chain.}
@@ -178,7 +174,8 @@ per household count and parameter.
 \item{rmse}{Root mean squared error;}
 \item{coverage}{Share of replicates whose interval covers the truth;}
 \item{cri_width}{Mean width of the credible interval;}
-\item{nrep, n_flagged}{Replicates aggregated, and those flagged.}
+\item{nrep, n_flagged}{Number of replicates aggregated,
+and of those flagged.}
 }
   }
 }

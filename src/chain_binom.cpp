@@ -26,9 +26,9 @@ namespace housepi::chain_binom
     {
         /// Compute the homogeneous chain-binomial log-likelihood of `n` infected members.
         ///
-        /// Model based on @cite longini_household_1982
+        /// Based on @cite longini_household_1982
         /// Run a Reed-Frost chain seeded by community infections at generation 0.
-        /// Final size ignores timing, so seeding at generation 0 is exact, after @cite ball_unified_1986
+        /// Final size ignores timing, so seeding at generation 0 is exact @cite ball_unified_1986
         /// Sum over generation sizes `c_0, c_1, ...` adding up to `n`.
         /// Sequences are grouped by state, so the sum takes O(n^3) products:
         /// * `s`: members infected before the last generation;
@@ -94,7 +94,6 @@ namespace housepi::chain_binom
         //////////////////////////////  Heterogeneous log-likelihood  //////////////////////////////
 
         /// Compute the heterogeneous chain-binomial log-likelihood over subset bitmasks.
-        /// Based on @cite addy_generalized_1991
         double log_lik_heterogeneous_(Scratch &scratch,
                                       MemberIdx n_infec,
                                       const std::vector<double> &commu_infec_rate,
@@ -235,6 +234,7 @@ namespace housepi::chain_binom
         ///
         /// Recursion: pi(t|t) = 1 - sum_{w < t} C(t,w) * pi(w|w) * prod_s q_s(w)^(t_s - w_s).
         /// Here q_s(w) is the probability that a member of part s escapes the community and every member in w.
+        /// Based on @cite addy_generalized_1991
         double evaluate_partition_tree_(Scratch &scratch,
                                         const PartitionTree &dp,
                                         const vector<double> &log_commu_esc,

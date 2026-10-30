@@ -167,7 +167,7 @@ test_that("Recovery sweeps every household count", {
   recovery$cri_level |> expect_equal(0.9)
 })
 
-test_that("Each replicate reports its cost and its survey", {
+test_that("Each replicate reports its cost and its study", {
   replicates <- mk_recov$recovery$replicates
   (replicates$inference_secs > 0) |> expect_all_true()
   estimates <- mk_recov$recovery$estimates
@@ -197,7 +197,7 @@ test_that("A failed replicate is named in the error", {
     expect_error("[Rr]eplicate 2 at.*20.*households.*missing status")
 })
 
-test_that("Recovery fits the survey the wide reporting process returns", {
+test_that("Recovery fits the study the wide reporting process returns", {
   # the wide process empties every status and fails the fit, the long one
   # would fail the simulation if it ran
   mk_recov$model |>
@@ -293,8 +293,7 @@ test_that("A collapsed baseline takes no simulation value", {
     "alpha.*constant reference"
   )
 
-  check_recovery(hh_model, nrep = 1, progress = FALSE,
-                 draws = data.frame(alpha = 0.3)) |>
+  check_recovery(hh_model, nrep = 1, draws = c(alpha = 0.3)) |>
     expect_error("draws.*alpha.*other than 1")
 })
 

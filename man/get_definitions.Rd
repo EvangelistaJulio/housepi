@@ -45,6 +45,13 @@ If \code{NA}, all of them.}
 \code{get_status_process()} returns one row per rule of the status process:
 its \code{status} and \code{weight}, the \code{n} members it applies to,
 its \code{rule_group} and its covariates.
+\code{get_group_rates()} returns one row per rule of each group rate:
+its \code{param_name}, the \code{n} members it applies to,
+its \code{rule_group} and its covariates.
+\code{get_contact_rates()} returns one row per rule of the contact rate:
+its \code{from_} and \code{to_} covariates, its \code{param_name},
+the \code{n} ordered pairs of members it applies to and its \code{rule_group}.
+A symmetric contact rate lists the reverse of each rule as a rule of its own.
 \code{get_reporting_process()} returns \code{list(wide = , long = )},
 see \code{\link[=add_reporting_process]{add_reporting_process()}}.
 }

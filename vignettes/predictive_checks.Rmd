@@ -24,7 +24,7 @@ options(housepi.footer.warranty = TRUE)
 options(housepi.footer.sample = TRUE)
 ```
 
-A predictive check simulates surveys from the model and compares common household measures on them with the observed ones [@gelman_posterior_1996].
+A predictive check simulates household studies from the model and compares common household measures on them with the observed ones [@gelman_posterior_1996].
 Before inference, the parameters are drawn from their prior: this is a prior predictive check, and it shows what the model and its priors expect to see.
 After inference, the parameters are taken from the posterior draws: this is a posterior predictive check (PPC), and it shows whether the fitted model reproduces the data.
 Both run through `check_predictive()`.
@@ -33,7 +33,7 @@ We use the same final-size example presented in [Get started](housepi.html):
 ```{r}
 #| label: model-setup
 library(housepi)
-set_housepi_theme()
+set_housepi_theme(colour_strips = TRUE)
 set_housepi_summary(cri_level = 0.95)
 set.seed(42)
 
@@ -45,7 +45,7 @@ hh_model <- flu_1918_frederick |>
 # Prior predictive checks
 
 The template priors are uniform: on $[0, 1]$ for `alpha` and `beta`, on $[0, 3]$ for `gamma`.
-Without posterior draws, `check_predictive()` draws `nrep` parameter sets from these priors and simulates one survey from each.
+Without posterior draws, `check_predictive()` draws `nrep` parameter sets from these priors and simulates one household study from each.
 There are no draws to count, so `nrep` must be set:
 
 ```{r}
@@ -125,31 +125,25 @@ To show both observed and predicted cases distributions by household size, we ca
 # for this part of the analysis we consider only house sizes up to 5
 ppc$set_max_hh_size(5)
 
-# return data.frames with observed and predicted cases distributions
+# return a data.frame with observed and predicted cases distributions
 cases_df <- ppc$format_cases_distr()
 
-# format predicted cases
-combined <- cases_df$predicted
-mask_pred <- cases_df$predicted$distr == "predicted"
-mask_cols <- setdiff(names(cases_df$predicted), c("hh_size", "distr"))
-
-# observed counts outside the credible interval of their prediction
-observed <- cases_df$predicted[!mask_pred, mask_cols]
-outside <- which(observed < cases_df$cri_lower[mask_pred, mask_cols] |
-                   observed > cases_df$cri_upper[mask_pred, mask_cols],
-                 arr.ind = TRUE)
-
-# format predicted values with their lower and upper credible interval bounds
-combined[mask_pred, mask_cols] <- format_credible_interval(
-  cases_df$predicted[mask_pred, mask_cols],
-  cases_df$cri_lower[mask_pred, mask_cols],
-  cases_df$cri_upper[mask_pred, mask_cols],
-  as_integer = TRUE
+# observed counts as they are, predictions with their credible interval
+cells <- rbind(
+  transform(cases_df, distribution = "observed",
+            value = as.character(observed)),
+  transform(cases_df, distribution = "predicted",
+            value = format_credible_interval(predicted, cri_lower, cri_upper,
+                                             as_integer = TRUE))
 )
 
-# headers: "_" splits "Number of cases" above the counts
-names(combined) <- c("size", "distribution",
-                     sub("cases", "number of cases", mask_cols))
+# one row per household size and distribution, one column per number of cases
+# headers: "_" splits "number of cases" above the counts
+combined <- cells[order(cells$hh_size), ] |>
+  tidyr::pivot_wider(id_cols = c("hh_size", "distribution"),
+                     names_from = "cases", values_from = "value",
+                     names_prefix = "number of cases_")
+names(combined)[1] <- "size"
 
 # generate cases distribution by household size table
 ft <- flextable::flextable(combined) |>
@@ -159,10 +153,12 @@ ft <- flextable::flextable(combined) |>
   flextable::align(align = "center", part = "all") |>
   flextable::autofit()
 # highlight the observed counts outside their credible interval
-for (k in seq_len(nrow(outside))) {
+flagged <- cases_df[cases_df$outside, ]
+for (k in seq_len(nrow(flagged))) {
   ft <- ft |>
-    flextable::italic(i = which(!mask_pred)[outside[k, 1]],
-                      j = 2 + outside[k, 2])
+    flextable::italic(i = which(combined$size == flagged$hh_size[k] &
+                                  combined$distribution == "observed"),
+                      j = paste0("number of cases_", flagged$cases[k]))
 }
 ft
 ```

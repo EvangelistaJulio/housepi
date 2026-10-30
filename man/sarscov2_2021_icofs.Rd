@@ -3,9 +3,9 @@
 \docType{data}
 \name{sarscov2_2021_icofs}
 \alias{sarscov2_2021_icofs}
-\title{SARS-CoV-2 2021 household survey from the Israeli COVID-19 Family Study}
+\title{SARS-CoV-2 2021 case-ascertained household study from Israel (ICoFS)}
 \format{
-A data frame with 4,168 rows and 11 columns
+A data frame with 4,168 rows and 10 columns
 }
 \source{
 \url{https://gitlab.pasteur.fr/mmmi-pasteur/hh_israel_sarscov2_delta2/-/raw/main/codes/db_filtered.txt}
@@ -14,31 +14,39 @@ A data frame with 4,168 rows and 11 columns
 data(sarscov2_2021_icofs)
 }
 \description{
-Prospective cohort conducted during COVID-19 Delta variant wave, 2021.
-Follow-up started with first PCR positive test, symptoms onset were reported.
-Contacts averaged 3 tests during follow-up.
+Households with a SARS-CoV-2 case during the Delta variant wave,
+recruited around Sheba Medical Center, Israel, in July and August 2021
+for the Israeli COVID-19 Family Study.
+Members were tested by PCR from the detection of the first case, and uninfected contacts
+averaged 3 tests during follow-up.
+Symptoms were self-reported in a phone interview 20 to 60 days after the first case.
 }
 \details{
 \describe{
 \item{id}{Individual identifier;}
 \item{hh_id}{Household identifier;}
-\item{status}{Follow-up outcome: 0 escaped, 1 symptomatic, 2 asymptomatic;}
-\item{age}{Age class, adult or child;}
-\item{sex}{Sex;}
+\item{status}{Follow-up outcome: 0 escaped, 1 symptomatic, 2 asymptomatic
+(no symptoms reported during follow-up);}
+\item{age}{Age class: \code{adult} if older than 12 years (adolescents and adults),
+\code{child} otherwise;}
+\item{sex}{Sex, \code{F} or \code{M};}
 \item{end_date}{Follow-up end: 21 days after the household's first positive PCR;}
 \item{test_date}{Date of the first positive test within the follow-up;}
-\item{vacc_status}{Vaccination status at the household's first positive PCR;}
-\item{recovered}{Whether previously recovered from infection;}
-\item{isolated}{Whether isolated;}
-\item{asymptomatic}{Whether asymptomatic.}
+\item{vacc_status}{Vaccination status: \code{unvaccinated}, \verb{1dose}, \verb{2doses_leq90},
+\verb{2doses_gtr90} (second dose within or more than 90 days earlier) or \verb{3doses},
+counting the doses received more than 7 days before the household's first positive PCR;}
+\item{recovered}{Whether previously infected: reported in the interview,
+or tested positive before July 2021;}
+\item{isolated}{Whether the household took isolation measures,
+full or partial quarantine of its infected members.}
 }
 
 Each household is followed for 21 days from its first positive SARS-CoV-2 PCR test
-as in the original analysis. Study starts from July 2021.
+as in the original analysis.
+A positive test before July 2021 counts as a prior infection, not as a case.
 A member first testing positive after \code{end_date} counts as escaped.
 In 135 households several members test positive on the first day.
-Vaccination status (\code{vacc_status}) reflects the doses effective
-at the start of the follow-up, assuming a 7-day delay for effectiveness.
+In 2 households isolation differs between members.
 
 To reproduce the data processing, see the script at:
 \code{system.file("data-raw", "make_sarscov2_2021_icofs.R", package = "housepi")}

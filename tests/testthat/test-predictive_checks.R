@@ -262,37 +262,6 @@ test_that("Houses are counted by household size", {
   result$at_least_1_case[result$hh_size == 3] |> expect_equal(1)
 })
 
-test_that("Tables are filtered by household size band", {
-  # one case column per count a household of the largest size can hold
-  observed <- data.frame(hh_size = 2:4,
-                         `0` = c(1, 2, 3), `1` = c(4, 5, 0), `2` = c(0, 1, 0),
-                         `3` = c(0, 1, 1), `4` = c(0, 0, 1),
-                         check.names = FALSE)
-  scaled <- \(k) transform(observed * k, hh_size = observed$hh_size)
-  tables <- list(observed = observed, predicted = scaled(1.1),
-                 cri_lower = scaled(0.9), cri_upper = scaled(1.2))
-
-  # no filter
-  helper_filter_tables(tables)$observed |> expect_nrow(3L)
-  # upper, lower and both bounds
-  helper_filter_tables(tables, max_hh_size = 3)$observed$hh_size |>
-    expect_identical(2:3)
-  helper_filter_tables(tables, min_hh_size = 3)$observed$hh_size |>
-    expect_identical(3:4)
-  x <- helper_filter_tables(tables, min_hh_size = 3, max_hh_size = 3)
-  x$observed$hh_size |> expect_identical(3L)
-})
-
-test_that("Observations and predictions are interleaved row by row", {
-  result <- helper_combine_obs_pred(
-    data.frame(hh_size = c(2, 3), `0` = c(1, 2), `1` = c(3, 4),
-               check.names = FALSE),
-    data.frame(`0` = c(1.1, 2.1), `1` = c(3.1, 4.1), check.names = FALSE)
-  )
-  colnames(result) |> expect_contains(c("distr", "hh_size"))
-  result$distr |> expect_identical(rep(c("observed", "predicted"), 2))
-})
-
 test_that("Observed entries outside the interval are flagged", {
   # numeric vectors: middle is below, last is above, NA propagates as FALSE
   list(observed = c(1, 5, 10, NA),
@@ -532,8 +501,27 @@ test_that("An epidemic predictive check formats counts per household size", {
   sar$counts |>
     expect_identical(counts$at_least_1_case[match(sar$hh_size, counts$hh_size)])
 
-  # formatted_cases_distr
-  ppc$format_cases_distr() |> expect_length(3)
+  # formatted_cases_distr: one row per household size and number of cases,
+  # observed households of each size add up to its total
+  cases <- ppc$format_cases_distr()
+  colnames(cases) |> expect_identical(
+    c("hh_size", "cases", "observed", "predicted", "cri_lower", "cri_upper",
+      "outside")
+  )
+  (cases$cases <= cases$hh_size) |> expect_all_true()
+  as.vector(tapply(cases$observed, cases$hh_size, sum)) |>
+    expect_identical(counts$total[match(unique(cases$hh_size), counts$hh_size)])
+
+  # rates share the columns, `outside` flags observed values beyond the CrI
+  colnames(ar) |> expect_identical(
+    c("hh_size", "observed", "predicted", "cri_lower", "cri_upper", "outside",
+      "counts")
+  )
+  colnames(sar) |> expect_identical(colnames(ar))
+  for (x in list(ar, sar, cases)) {
+    x$outside |>
+      expect_identical(x$observed < x$cri_lower | x$observed > x$cri_upper)
+  }
 
   # subclass active fields and inherited dynamic measure fields are read-only
   ppc |>
@@ -574,7 +562,8 @@ test_that("A case-ascertained check leaves the attack rate out", {
   ppc$attack_rate |> expect_null()
   ppc$format_attack_rate |> expect_null()
   ppc$format_sec_attack_rate() |> expect_s3_class("data.frame")
-  ppc$format_cases_distr() |> expect_length(3)
+  # every household holds a case: no row with zero cases
+  (ppc$format_cases_distr()$cases > 0L) |> expect_all_true()
 
   # the name stays reserved
   hh_model |>
@@ -588,6 +577,7 @@ test_that("Epi PPC honours min/max_hh_size arguments", {
     suppressWarnings()
   ppc$format_attack_rate()$hh_size |> expect_in(2:3)
   ppc$format_sec_attack_rate()$hh_size |> expect_in(2:3)
+  ppc$format_cases_distr()$hh_size |> expect_in(2:3)
 })
 
 test_that("Epi PPC observed values are stable across calls and status codes", {

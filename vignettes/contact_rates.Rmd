@@ -31,7 +31,7 @@ To simplify this walkthrough, we regroup members as follows:
 
 ```{r}
 library(housepi)
-set_housepi_theme()
+set_housepi_theme(colour_strips = TRUE)
 set_housepi_summary(cri_level = 0.95)
 set.seed(42)
 
@@ -213,7 +213,7 @@ Keying the first rule on both columns, as in the tables above, removes the choic
 
 No reference was given, so the three rates are absolute and `beta` is held at `1`.
 The relative parametrization estimates `beta` alongside the rates, and on this survey the chains mix slowly along the direction that trades one against the other, so the absolute one is the cheaper read.
-`run_simulation()` holds `beta` at the same `1`, so a survey generated from these draws comes from the model that was fitted.
+`run_simulation()` holds `beta` at the same `1`, so a study simulated from these draws comes from the model that was fitted.
 
 ```{r}
 #| label: inference-contact-rates

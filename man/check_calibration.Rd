@@ -22,14 +22,15 @@ check_calibration(
 \arguments{
 \item{hh_model}{\code{HousepiModel} object.}
 
-\item{nrep}{\code{integer(1)}
-Number of surveys simulated and fitted back at each household count.}
+\item{nrep}{\code{integer(1)} Number of replicates at each household count.
+Each replicate is a household study simulated and fitted back.}
 
-\item{houses}{\code{integer(1)} Household count of the surveys.
+\item{houses}{\code{integer(1)}
+Number of households in each simulated study.
 If \code{NA}, the number of households carried by the attached data.}
 
 \item{structure_sampler}{\code{function}
-Sampler of the household structure the surveys are generated on,
+Sampler of the household structure the outbreaks are simulated on,
 called as \code{structure_sampler(data_wide, houses)}.
 If \code{NULL}, the attached structure is reused verbatim and \code{houses} ignored.}
 
@@ -69,12 +70,17 @@ An object of class \link{HousepiCalibrationCheck}.
 }
 \description{
 Simulation-based calibration: draw parameter values from their prior,
-simulate a survey at each draw, fit it back with the same model,
+simulate outbreaks in the households of the attached data at each draw,
+fit the resulting household study back with the same model,
 and rank the drawn value among the posterior draws of its fit.
 When inference is correct, the ranks are uniform over the replicates.
 Ranks piling at both ends point to a posterior too narrow,
 in the middle to one too wide, on one side to a biased one.
 
+Only transmission and observations are simulated.
+Households, members and their covariates come from the attached data,
+drawn once per household count by \code{structure_sampler},
+or reused whole without it, and shared by the replicates at that count.
 Every parameter carrying a prior and free to move is drawn anew
 for each replicate, and its \code{value} is ignored.
 Any other parameter is held at its value.
@@ -98,8 +104,9 @@ so a calibrated sampler is rejected with probability at most 0.05.
 The check itself goes back to
 \insertCite{talts_validating_2020;textual}{housepi}.
 
-Each survey goes through the \code{wide} reporting process
-of the model before it is fitted back, see \code{\link[=add_reporting_process]{add_reporting_process()}}.
+Each simulated study goes through
+the \code{wide} reporting process of the model before it is fitted back,
+see \code{\link[=add_reporting_process]{add_reporting_process()}}.
 Inference does not model it,
 so a process losing information makes the check measure the misspecification.
 

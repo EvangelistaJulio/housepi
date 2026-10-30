@@ -14,16 +14,25 @@ A data frame with 47,213 rows and 3 columns
 data(flu_2014_matsumoto)
 }
 \description{
-Household survey in Matsumoto city for families with children in primary school.
-Report on influenza episodes of family members during the season 2014-15.
-Original observational study from Uchida et al. (2017).
+Questionnaire survey of influenza in the households of primary school students
+in Matsumoto city, Japan, during the 2014-15 season.
+At the end of the season, parents of the students of all 29 public primary schools
+reported the family members living with the student and which of them had influenza.
+Original observational study from Uchida et al. (2017), analysed by Endo et al. (2019).
 }
 \details{
 \describe{
-\item{hh_id}{Household identifier;}
-\item{member}{Family member;}
-\item{status}{Symptoms reported.}
+\item{hh_id}{Survey identifier, one per student: a household with several
+students appears once per student;}
+\item{member}{Family member: \code{student} (the surveyed student), \code{sibling},
+\code{father}, \code{mother} or \code{other} (mostly grandparents);}
+\item{status}{\code{1} if reported to have had influenza during the season, \code{0} otherwise.
+Students' cases were diagnosed at a medical institution, the other members' were
+reported by parents without a required diagnosis.}
 }
+
+Where more members were reported infected than the household held, the number of
+members is raised to the number of infected, as in Endo et al. (2019).
 
 To reproduce the data processing, see the script at:
 \code{system.file("data-raw", "make_flu_2014_matsumoto.R", package = "housepi")}

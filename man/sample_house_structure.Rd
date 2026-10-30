@@ -2,7 +2,7 @@
 % Please edit documentation in R/param_recovery.R
 \name{sample_house_structure}
 \alias{sample_house_structure}
-\title{Resample the household structure of a survey}
+\title{Resample the household structure of a study}
 \usage{
 sample_house_structure(data_wide, houses = NA_integer_)
 }
@@ -13,7 +13,8 @@ sample_house_structure(data_wide, houses = NA_integer_)
 If \code{NA}, the number of households carried by \code{data_wide}.}
 }
 \value{
-\code{data.frame} The survey, \code{hh_id} renumbered sequentially,
+\code{data.frame} The resampled households,
+\code{hh_id} renumbered sequentially,
 so a household drawn twice stands as two independent households,
 and \code{id} regenerated as a row number when the input carries one.
 }

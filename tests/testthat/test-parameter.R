@@ -628,10 +628,19 @@ test_that("A parameter without a draws column is drawn from its prior", {
   vapply(simulated, \(x) x$hidden[1], numeric(1)) |> expect_all_equal(0.3)
   drawn <- vapply(simulated, \(x) x$hidden_2[1], numeric(1))
   unique(drawn) |> expect_length(5L)
-  # a one-row table simulates a single frame
+  # a single draw simulates a single frame
   simulated <- run_simulation(hh_model, draws = data.frame(rho = 0.3))
   simulated |> expect_s3_class("data.frame")
   simulated$hidden[1] |> expect_equal(0.3)
+  simulated <- run_simulation(hh_model, draws = c(rho = 0.3))
+  simulated |> expect_s3_class("data.frame")
+  simulated$hidden[1] |> expect_equal(0.3)
+  # posterior draws stored as a list simulate one frame per draw
+  simulated <- run_simulation(
+    hh_model, draws = posterior::as_draws_list(data.frame(rho = c(0.3, 0.4))),
+    thin_ess = FALSE
+  )
+  vapply(simulated, \(x) x$hidden[1], numeric(1)) |> expect_equal(c(0.3, 0.4))
 })
 
 test_that("Per-replicate parameter values reach the latents reading them", {

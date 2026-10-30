@@ -4,7 +4,12 @@
 \alias{set_housepi_theme}
 \title{Set a warm default theme for housepi visualizations}
 \usage{
-set_housepi_theme(base_size = 11, base_family = "", transparent = FALSE)
+set_housepi_theme(
+  base_size = 11,
+  base_family = "",
+  transparent = FALSE,
+  colour_strips = FALSE
+)
 }
 \arguments{
 \item{base_size}{\code{numeric(1)} Base font size, in points.}
@@ -13,13 +18,19 @@ set_housepi_theme(base_size = 11, base_family = "", transparent = FALSE)
 
 \item{transparent}{\code{logical(1)}
 Whether to leave the plot background transparent.}
+
+\item{colour_strips}{\code{logical(1)}
+Whether to colour the facet strips and centre their labels,
+as in the housepi vignettes.
+Otherwise strips are white and labels align to the bottom of the strip,
+next to their panel.}
 }
 \value{
 \code{NULL}, invisibly.
 The function sets the themes.
 }
 \description{
-Set the housepi vignette themes of \code{ggplot2}, \code{bayesplot} and \code{flextable},
+Set the housepi themes of \code{ggplot2}, \code{bayesplot} and \code{flextable},
 for each package installed.
 }
 \examples{

@@ -264,7 +264,7 @@ measure_dots_ <- function(...) {
 
 #' @title Prior or posterior predictive check of user-defined measures
 #' @description
-#' Prior or posterior predictive checks of measures on simulated surveys.
+#' Prior or posterior predictive checks of measures on simulated household studies.
 #' @examples
 #' hh_model <- flu_1918_frederick |>
 #'   new_housepi_model("final-size") |>
@@ -374,7 +374,7 @@ HousepiPredictiveCheck <- R6::R6Class(
     #' \describe{
     #' \item{`"prior"`}{drawn from the prior;}
     #' \item{`"posterior"`}{posterior draws;}
-    #' \item{`"table"`}{a plain `data.frame`.}
+    #' \item{`"table"`}{values given by the user.}
     #' }
     source = function(value) {
       assert_read_only_(value, "source")
@@ -543,75 +543,13 @@ helper_house_counts <- function(data_wide, escaped = "escaped") {
   .engine$count_houses_by_hh_size(df)
 }
 
-# List every case table, filtered.
-helper_filter_tables <- function(cases_distr,
-                                 min_hh_size = NA,
-                                 max_hh_size = NA) {
-  # load observed table to use as a type shape template
-  obsdf <- cases_distr$observed
-
-  # remove rows without counts
-  mask_row <- rowSums(obsdf[colnames(obsdf) != "hh_size"], na.rm = TRUE) != 0
-
-  # remove column with zero cases if none was observed
-  mask_col <- colnames(obsdf) != "0" |
-    colSums(obsdf == 0, na.rm = TRUE) != nrow(obsdf)
-
-  # implement max household size mask (also caps the case columns, as a
-  # household cannot hold more cases than its size)
-  if (!is.na(max_hh_size)) {
-    col_max <- which(colnames(obsdf) == max_hh_size)
-    mask_col <- mask_col & (seq_len(ncol(obsdf)) <= col_max)
-    mask_row <- mask_row & (obsdf$hh_size <= max_hh_size)
-  }
-
-  # implement min household size mask (rows only: any case column stays valid)
-  if (!is.na(min_hh_size)) mask_row <- mask_row & (obsdf$hh_size >= min_hh_size)
-
-  list(
-    observed = obsdf[mask_row, mask_col],
-    predicted = cases_distr$predicted[mask_row, mask_col],
-    cri_lower = cases_distr$cri_lower[mask_row, mask_col],
-    cri_upper = cases_distr$cri_upper[mask_row, mask_col]
-  )
-}
-
-# Bind the observed and predicted case tables.
-# @param obsdf `data.frame` Observed cases.
-# @param preddf `data.frame` Predicted cases.
-helper_combine_obs_pred <- function(obsdf, preddf) {
-  # 1. curate observed dataframe
-  obsdf$distr <- "observed"
-  rownames(obsdf) <- seq(1, 2 * nrow(obsdf), 2)
-
-  # 2. curate predicted dataframe
-  preddf$hh_size <- obsdf$hh_size
-  preddf$distr <- "predicted"
-  rownames(preddf) <- seq(2, 2 * nrow(preddf), 2)
-
-  # 3. combine by row bind
-  combined <- rbind(obsdf, preddf)[as.character(1:(2 * nrow(obsdf))), ]
-  # reset row names
-  rownames(combined) <- NULL
-  # reorder columns
-  y <- colnames(combined)
-  aux <- c("hh_size", "distr")
-  combined <- combined[, c(aux, y[!y %in% aux])]
-
-  # format columns to extract labels with labelizor
-  colnames(combined)[3:ncol(combined)] <- sapply(
-    colnames(combined)[3:ncol(combined)], \(x) paste("cases", x, sep = "_")
-  )
-
-  combined
-}
-
-# Restrict a by-hh_size data.frame to sizes in [min_hh_size, max_hh_size].
+# Restrict a by-hh_size data.frame to sizes in [min_hh_size, max_hh_size],
+# rows renumbered.
 # * `NA` bound -> no bound on that side.
 ppc_filter_hh_size <- function(df, min_hh_size = NA, max_hh_size = NA) {
-  if (!is.na(min_hh_size)) df <- df[df$hh_size >= min_hh_size, ]
-  if (!is.na(max_hh_size)) df <- df[df$hh_size <= max_hh_size, ]
-  df
+  keep <- (is.na(min_hh_size) | df$hh_size >= min_hh_size) &
+    (is.na(max_hh_size) | df$hh_size <= max_hh_size)
+  `rownames<-`(df[keep, ], NULL)
 }
 
 # Format a rate by household size, observed against predicted.
@@ -622,32 +560,42 @@ ppc_filter_hh_size <- function(df, min_hh_size = NA, max_hh_size = NA) {
 ppc_format_rate <- function(measure, rate, counts,
                             min_hh_size = NA, max_hh_size = NA) {
   hh_size <- measure$observed$hh_size
-  ppc_filter_hh_size(data.frame(
+  df <- data.frame(
     hh_size = hh_size,
     observed = measure$observed[[rate]],
     predicted = measure$predicted[[rate]],
     cri_lower = measure$cri_lower[[rate]],
-    cri_upper = measure$cri_upper[[rate]],
-    counts = counts[[2]][match(hh_size, counts$hh_size)]
-  ), min_hh_size, max_hh_size)
+    cri_upper = measure$cri_upper[[rate]]
+  )
+  df$outside <- ppc_observed_outside_cri(df)
+  df$counts <- counts[[2]][match(hh_size, counts$hh_size)]
+  ppc_filter_hh_size(df, min_hh_size, max_hh_size)
 }
 
-# Format the cases distribution by household size, observed against predicted.
-# @return `list` of `data.frame`: `predicted`, `cri_lower`, `cri_upper`.
+# Format the cases distribution by household size, observed against predicted,
+# one row per household size and number of cases.
+# * more cases than members -> row dropped;
+# * household size with no household -> rows dropped;
+# * no household without cases -> rows with zero cases dropped.
 ppc_format_cases_distr <- function(measure, min_hh_size = NA,
                                    max_hh_size = NA) {
-  cases <- helper_filter_tables(measure, min_hh_size, max_hh_size)
-
-  # empty frame as a placeholder for Credible Interval
-  na_df <- cases$observed
-  na_df[] <- lapply(na_df, \(col) if (is.numeric(col)) NA else col)
-  na_df$hh_size <- cases$observed$hh_size
-
-  list(
-    predicted = helper_combine_obs_pred(cases$observed, cases$predicted),
-    cri_lower = helper_combine_obs_pred(na_df, cases$cri_lower),
-    cri_upper = helper_combine_obs_pred(na_df, cases$cri_upper)
+  cases <- setdiff(names(measure$observed), "hh_size")
+  .stack <- \(x) unlist(x[cases], use.names = FALSE)
+  df <- data.frame(
+    hh_size = rep(measure$observed$hh_size, length(cases)),
+    cases = rep(as.integer(cases), each = nrow(measure$observed)),
+    observed = .stack(measure$observed),
+    predicted = .stack(measure$predicted),
+    cri_lower = .stack(measure$cri_lower),
+    cri_upper = .stack(measure$cri_upper)
   )
+  df <- df[!is.na(df$observed), ]
+  houses <- tapply(df$observed, df$hh_size, sum)
+  df <- df[df$hh_size %in% names(houses)[houses > 0], ]
+  if (all(df$observed[df$cases == 0] == 0)) df <- df[df$cases != 0, ]
+  df$outside <- ppc_observed_outside_cri(df)
+  ppc_filter_hh_size(df[order(df$hh_size, df$cases), ],
+                     min_hh_size, max_hh_size)
 }
 
 #' @title Standard epidemiological prior or posterior predictive check
@@ -659,15 +607,19 @@ ppc_format_cases_distr <- function(measure, min_hh_size = NA,
 #' households enter the study through a case,
 #' and the attack rate is not checked.
 #'
-#' Each checked measure comes with a method formatting it,
-#' restricted to the household size bounds:
+#' Each checked measure comes with a method formatting it as a `data.frame`
+#' by household size, restricted to the household size bounds.
+#' Columns `observed`, `predicted`, `cri_lower` and `cri_upper` hold
+#' the observed value, the predicted point estimate and credible interval.
+#' Column `outside` flags observed values beyond that interval.
 #' \describe{
-#' \item{`format_attack_rate()`}{`data.frame` of observed and predicted
-#' attack rates, with the number of households of each size;}
-#' \item{`format_sec_attack_rate()`}{`data.frame` of observed and predicted
-#' secondary attack rates, with the number of households with a case;}
-#' \item{`format_cases_distr()`}{`list` of `data.frame`:
-#' `predicted`, `cri_lower`, `cri_upper`.}
+#' \item{`format_attack_rate()`}{attack rates, one row per household size,
+#' with `counts` the number of households of each size;}
+#' \item{`format_sec_attack_rate()`}{secondary attack rates,
+#' one row per household size,
+#' with `counts` the number of households with a case;}
+#' \item{`format_cases_distr()`}{number of households with each number of
+#' `cases`, one row per household size and number of cases.}
 #' }
 #' @examples
 #' hh_model <- flu_1918_frederick |>
@@ -797,7 +749,7 @@ HousepiEpiPredictiveCheck <- R6::R6Class(
 #' @title Prior or posterior predictive check of a housepi model
 #' @description
 #' Predictive check comparing observed values of household measures
-#' against their values on surveys simulated from parameter values
+#' against their values on household studies simulated from parameter values
 #' \insertCite{gelman_posterior_1996}{housepi}.
 #' Without `draws`, the parameters are drawn from their prior,
 #' as in [run_simulation()], for a prior predictive check.

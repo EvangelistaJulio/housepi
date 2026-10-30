@@ -41,7 +41,7 @@ We start by creating categorical groupings to stratify individuals based on thei
 ```{r}
 #| label: format-age-data
 library(housepi)
-set_housepi_theme()
+set_housepi_theme(colour_strips = TRUE)
 set_housepi_summary(cri_level = 0.95)
 set.seed(42)
 

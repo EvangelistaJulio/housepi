@@ -5,7 +5,8 @@
 
 # Roxygen text shared by several blocks, read at the use site as `r <name>`.
 
-rd_calib_houses_ <- "`integer(1)` Household count of the surveys.
+rd_calib_houses_ <- "`integer(1)`
+Number of households in each simulated study.
 If `NA`, the number of households carried by the attached data."
 rd_calib_rank_draws_ <- "`integer(1)`
 Number of posterior draws each simulating value is ranked among,
@@ -132,7 +133,8 @@ calibration_ecdf_ <- function(estimates, size, threshold) {
 #' @title Simulation calibration check of a housepi model
 #' @description
 #' Container for the sweep run by [check_calibration()]:
-#' surveys simulated at parameter values drawn from the prior and fitted back,
+#' household studies simulated at parameter values drawn from the prior
+#' and fitted back,
 #' each value ranked among the posterior draws of its fit.
 #' @examples
 #' calibration <- flu_1918_frederick |>
@@ -188,7 +190,7 @@ HousepiCalibrationCheck <- R6::R6Class(
     #' @field estimates `data.frame`
     #' One row per replicate and parameter
     #' \describe{
-    #'   \item{truth}{Value drawn from the prior the survey was simulated at;}
+    #'   \item{truth}{Value drawn from the prior the study was simulated at;}
     #'   \item{rank}{Number of ranked posterior draws below the truth,
     #'     ties split at random;}
     #'   \item{rhat, ess_bulk}{Convergence diagnostics of the fit;}
@@ -218,7 +220,7 @@ HousepiCalibrationCheck <- R6::R6Class(
     #' @field overview `data.frame`
     #' Sweep cost per household count, averaged over the replicates
     #' \describe{
-    #'   \item{nrep, n_flagged}{Replicates run, and those flagged;}
+    #'   \item{nrep, n_flagged}{Number of replicates run, and of those flagged;}
     #'   \item{mean_inference_secs}{Mean wall-clock of a sampling loop;}
     #'   \item{secs_per_ess}{Seconds of sampling per effective draw
     #'     of the worst-mixing parameter, pooled over the replicates:
@@ -236,7 +238,7 @@ HousepiCalibrationCheck <- R6::R6Class(
     },
 
     #' @field nrep `integer()`
-    #' Replicates run at each household count, in the order of `houses`.
+    #' Number of replicates at each household count, in the order of `houses`.
     nrep = function(value) {
       assert_read_only_(value, "nrep")
       private$sweep_$nrep
@@ -311,7 +313,8 @@ HousepiCalibrationCheck <- R6::R6Class(
     #' @description Test the uniformity of the ranks per parameter.
     #' @return `data.frame`
     #' \describe{
-    #'   \item{nrep, n_flagged}{Replicates ranked, and those flagged;}
+    #'   \item{nrep, n_flagged}{Number of replicates ranked,
+    #'     and of those flagged;}
     #'   \item{log_gamma}{Logarithm of the uniformity statistic,
     #'     twice the smallest binomial tail probability of the ECDF;}
     #'   \item{log_gamma_threshold}{Value of `log_gamma` below which
@@ -357,12 +360,14 @@ HousepiCalibrationCheck <- R6::R6Class(
 #' @title Check that inference is calibrated against the prior
 #' @description
 #' Simulation-based calibration: draw parameter values from their prior,
-#' simulate a survey at each draw, fit it back with the same model,
+#' simulate outbreaks in the households of the attached data at each draw,
+#' fit the resulting household study back with the same model,
 #' and rank the drawn value among the posterior draws of its fit.
 #' When inference is correct, the ranks are uniform over the replicates.
 #' Ranks piling at both ends point to a posterior too narrow,
 #' in the middle to one too wide, on one side to a biased one.
 #'
+#' `r rd_sweep_structure_`
 #' Every parameter carrying a prior and free to move is drawn anew
 #' for each replicate, and its `value` is ignored.
 #' Any other parameter is held at its value.

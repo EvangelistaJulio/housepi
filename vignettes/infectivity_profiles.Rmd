@@ -62,7 +62,7 @@ Its template is a generic profile in continuous time, a gamma distribution param
 ```{r}
 #| label: load-continuous-profile
 library(housepi)
-set_housepi_theme()
+set_housepi_theme(colour_strips = TRUE)
 set.seed(42)
 
 hhcontinuous <- sarscov2_2021_icofs |>

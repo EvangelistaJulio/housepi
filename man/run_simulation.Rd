@@ -16,13 +16,10 @@ run_simulation(
 \arguments{
 \item{hh_model}{\code{HousepiModel} object.}
 
-\item{draws}{Parameter values, one row per draw.
-One of:
-\itemize{
-\item \code{data.frame};
-\item \code{posterior::draws};
-\item \link{HousepiPosteriorDraws}.
-}}
+\item{draws}{Parameter values, keyed by parameter name.
+Either posterior draws, from \code{\link[=run_inference]{run_inference()}} or as \code{posterior::draws},
+a \code{data.frame} with one row per draw,
+or one value per parameter, as in \code{c(alpha = 0.1, beta = 0.2)}.}
 
 \item{nrep}{\code{integer(1)} Number of replicates.
 With \code{draws}, at most \code{nrep} evenly spaced draws are simulated,
@@ -33,8 +30,7 @@ each with parameters drawn from their prior. If \code{NA}, one replicate.
 Once set, even to 1, the replicates are returned as a list.}
 
 \item{thin_ess}{\code{logical(1)}
-Whether to thin \code{draws} to their bulk effective sample size (ESS).
-Ignored without \code{draws} or with a plain \code{data.frame}.}
+Whether to thin posterior \code{draws} to their bulk effective sample size (ESS).}
 
 \item{threads}{\code{integer(1)} Number of threads for parallel household runs.}
 
@@ -42,7 +38,8 @@ Ignored without \code{draws} or with a plain \code{data.frame}.}
 }
 \value{
 A \code{data.frame} for a single replicate,
-when \code{nrep} is \code{NA} and \code{draws} is \code{NULL} or a one-row \code{data.frame}.
+when \code{nrep} is \code{NA} and \code{draws} is \code{NULL}, named values
+or a one-row \code{data.frame}.
 Otherwise a \code{list} with one \code{data.frame} per replicate.
 With a \code{long} reporting process, a \code{list(wide = , long = )} of either.
 }

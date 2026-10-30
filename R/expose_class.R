@@ -240,12 +240,10 @@ one of:
 The bar prints as messages, which [suppressMessages()] silences.
 In a knitted document, only its closing line prints."
 rd_dots_config_ <- "Advanced configuration."
-rd_draws_ <- "Parameter values, one row per draw.
-One of:
-* `data.frame`;
-* `posterior::draws`;
-* [HousepiPosteriorDraws].
-"
+rd_draws_ <- "Parameter values, keyed by parameter name.
+Either posterior draws, from [run_inference()] or as `posterior::draws`,
+a `data.frame` with one row per draw,
+or one value per parameter, as in `c(alpha = 0.1, beta = 0.2)`."
 rd_nrep_ <- "`integer(1)` Number of replicates.
 With `draws`, at most `nrep` evenly spaced draws are simulated,
 picked after thinning to their ESS when `thin_ess` is `TRUE`.
@@ -253,8 +251,7 @@ If `NA`, every draw is simulated."
 rd_nrep_prior_ <- "Without `draws`, `nrep` replicates are simulated,
 each with parameters drawn from their prior."
 rd_thin_ess_ <- "`logical(1)`
-Whether to thin `draws` to their bulk effective sample size (ESS).
-Ignored without `draws` or with a plain `data.frame`."
+Whether to thin posterior `draws` to their bulk effective sample size (ESS)."
 rd_natural_log_ <- "Logarithms are natural (base \\eqn{e})."
 rd_global_summary_ <- "Results are summarised at the point estimate
 and credible level of the global options, see [set_housepi_summary()]."
@@ -436,6 +433,13 @@ subset_definitions_ <- function(defs, name, col = "name") {
 #' `get_status_process()` returns one row per rule of the status process:
 #' its `status` and `weight`, the `n` members it applies to,
 #' its `rule_group` and its covariates.
+#' `get_group_rates()` returns one row per rule of each group rate:
+#' its `param_name`, the `n` members it applies to,
+#' its `rule_group` and its covariates.
+#' `get_contact_rates()` returns one row per rule of the contact rate:
+#' its `from_` and `to_` covariates, its `param_name`,
+#' the `n` ordered pairs of members it applies to and its `rule_group`.
+#' A symmetric contact rate lists the reverse of each rule as a rule of its own.
 #' `get_reporting_process()` returns `list(wide = , long = )`,
 #' see [add_reporting_process()].
 #' @examples
@@ -1176,7 +1180,8 @@ add_infectivity_profile <- function(hh_model,
 
 #' @title Add a reporting process to a housepi model
 #' @description
-#' Attach the functions turning each simulated survey into the data reported.
+#' Attach the functions turning each simulated household study
+#' into the data reported.
 #' [run_simulation()], [check_predictive()], [check_recovery()] and
 #' [check_calibration()] apply them to every replicate.
 #' @details
@@ -1519,7 +1524,8 @@ wrap_inference_ <- function(hh_model, ran, i = 1L) {
 #' @param threads `r rd_thread_`
 #' @param ... `r rd_dots_config_`
 #' @return A `data.frame` for a single replicate,
-#' when `nrep` is `NA` and `draws` is `NULL` or a one-row `data.frame`.
+#' when `nrep` is `NA` and `draws` is `NULL`, named values
+#' or a one-row `data.frame`.
 #' Otherwise a `list` with one `data.frame` per replicate.
 #' With a `long` reporting process, a `list(wide = , long = )` of either.
 #' @examples
@@ -1543,7 +1549,7 @@ run_simulation <- function(hh_model,
   )
   output$parameters <- NULL
   # the arguments, not the replicates left after thinning, ask for one frame
-  single <- is.null(draws) || (
+  single <- is.null(draws) || is_named_values_(draws) || (
     is.data.frame(draws) && !posterior::is_draws(draws) && nrow(draws) == 1L
   )
   if (is.na(nrep) && single) output <- lapply(output, `[[`, 1L)

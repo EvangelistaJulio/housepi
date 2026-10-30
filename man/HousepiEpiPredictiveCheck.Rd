@@ -12,15 +12,19 @@ On a case-ascertained model, such as \link{template_case_ascertained},
 households enter the study through a case,
 and the attack rate is not checked.
 
-Each checked measure comes with a method formatting it,
-restricted to the household size bounds:
+Each checked measure comes with a method formatting it as a \code{data.frame}
+by household size, restricted to the household size bounds.
+Columns \code{observed}, \code{predicted}, \code{cri_lower} and \code{cri_upper} hold
+the observed value, the predicted point estimate and credible interval.
+Column \code{outside} flags observed values beyond that interval.
 \describe{
-\item{\code{format_attack_rate()}}{\code{data.frame} of observed and predicted
-attack rates, with the number of households of each size;}
-\item{\code{format_sec_attack_rate()}}{\code{data.frame} of observed and predicted
-secondary attack rates, with the number of households with a case;}
-\item{\code{format_cases_distr()}}{\code{list} of \code{data.frame}:
-\code{predicted}, \code{cri_lower}, \code{cri_upper}.}
+\item{\code{format_attack_rate()}}{attack rates, one row per household size,
+with \code{counts} the number of households of each size;}
+\item{\code{format_sec_attack_rate()}}{secondary attack rates,
+one row per household size,
+with \code{counts} the number of households with a case;}
+\item{\code{format_cases_distr()}}{number of households with each number of
+\code{cases}, one row per household size and number of cases.}
 }
 }
 \examples{
@@ -73,13 +77,10 @@ ppc$format_attack_rate()
     \if{html}{\out{<div class="arguments">}}
     \describe{
       \item{\code{hh_model}}{\code{HousepiModel} object.}
-      \item{\code{draws}}{Parameter values, one row per draw.
-One of:
-\itemize{
-\item \code{data.frame};
-\item \code{posterior::draws};
-\item \link{HousepiPosteriorDraws}.
-}}
+      \item{\code{draws}}{Parameter values, keyed by parameter name.
+Either posterior draws, from \code{\link[=run_inference]{run_inference()}} or as \code{posterior::draws},
+a \code{data.frame} with one row per draw,
+or one value per parameter, as in \code{c(alpha = 0.1, beta = 0.2)}.}
       \item{\code{...}}{Named \code{function}s computing measures from data.
 Each returns a \code{numeric()}, a \code{list} or a \code{data.frame}.
 Names must be unique and cannot match a member of the returned object.
@@ -96,8 +97,7 @@ If \code{NA}, every draw is simulated.
 Without \code{draws}, \code{nrep} replicates are simulated,
 each with parameters drawn from their prior. \code{NA} is then an error.}
       \item{\code{thin_ess}}{\code{logical(1)}
-Whether to thin \code{draws} to their bulk effective sample size (ESS).
-Ignored without \code{draws} or with a plain \code{data.frame}.}
+Whether to thin posterior \code{draws} to their bulk effective sample size (ESS).}
       \item{\code{min_hh_size}}{\code{integer(1)} Minimum household size retained in the outputs.
 If \code{NA} or \code{NULL}, no lower bound is applied.}
       \item{\code{max_hh_size}}{\code{integer(1)} Maximum household size retained in the outputs.

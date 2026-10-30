@@ -21,13 +21,10 @@ check_predictive(
 \arguments{
 \item{hh_model}{\code{HousepiModel} object.}
 
-\item{draws}{Parameter values, one row per draw.
-One of:
-\itemize{
-\item \code{data.frame};
-\item \code{posterior::draws};
-\item \link{HousepiPosteriorDraws}.
-}}
+\item{draws}{Parameter values, keyed by parameter name.
+Either posterior draws, from \code{\link[=run_inference]{run_inference()}} or as \code{posterior::draws},
+a \code{data.frame} with one row per draw,
+or one value per parameter, as in \code{c(alpha = 0.1, beta = 0.2)}.}
 
 \item{...}{Named \code{function}s computing measures from data.
 Each returns a \code{numeric()}, a \code{list} or a \code{data.frame}.
@@ -53,8 +50,7 @@ Without \code{draws}, \code{nrep} replicates are simulated,
 each with parameters drawn from their prior. \code{NA} is then an error.}
 
 \item{thin_ess}{\code{logical(1)}
-Whether to thin \code{draws} to their bulk effective sample size (ESS).
-Ignored without \code{draws} or with a plain \code{data.frame}.}
+Whether to thin posterior \code{draws} to their bulk effective sample size (ESS).}
 
 \item{min_hh_size}{\code{integer(1)} Minimum household size retained in the outputs.
 If \code{NA} or \code{NULL}, no lower bound is applied. Only with \code{epi = TRUE}.}
@@ -80,7 +76,7 @@ of class \link{HousepiPredictiveCheck} otherwise.
 }
 \description{
 Predictive check comparing observed values of household measures
-against their values on surveys simulated from parameter values
+against their values on household studies simulated from parameter values
 \insertCite{gelman_posterior_1996}{housepi}.
 Without \code{draws}, the parameters are drawn from their prior,
 as in \code{\link[=run_simulation]{run_simulation()}}, for a prior predictive check.

@@ -25,7 +25,7 @@ so a check grows without running its replicates again.
 \details{
 The checks must share the model, its definitions, the attached data,
 the structure sampler, the reporting process and the sampler settings.
-Recovery checks must also share the values the surveys are simulated at.
+Recovery checks must also share the values the studies are simulated at.
 A sampler or a reporting process created inside another function
 combines only with itself, within one R session.
 Household counts may differ.
@@ -37,7 +37,7 @@ and do not combine.
 hh_model <- flu_1918_frederick |>
   new_housepi_model("final-size") |>
   add_parameter(import = "template")
-draws <- data.frame(alpha = 0.15, beta = 0.2, gamma = 1)
+draws <- c(alpha = 0.15, beta = 0.2, gamma = 1)
 recovery <- check_recovery(hh_model, draws, nrep = 2, houses = 30,
                            progress = FALSE)
 recovery_2 <- check_recovery(hh_model, draws, nrep = 2, houses = 30,

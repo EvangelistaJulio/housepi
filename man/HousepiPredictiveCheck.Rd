@@ -5,7 +5,7 @@
 \alias{HousepiPredictiveCheck}
 \title{Prior or posterior predictive check of user-defined measures}
 \description{
-Prior or posterior predictive checks of measures on simulated surveys.
+Prior or posterior predictive checks of measures on simulated household studies.
 }
 \examples{
 hh_model <- flu_1918_frederick |>
@@ -38,7 +38,7 @@ Where the parameter values come from, one of:
 \describe{
 \item{\code{"prior"}}{drawn from the prior;}
 \item{\code{"posterior"}}{posterior draws;}
-\item{\code{"table"}}{a plain \code{data.frame}.}
+\item{\code{"table"}}{values given by the user.}
 }}
 
     \item{\code{model_name}}{\code{character(1)} Name of the underlying model.}
@@ -86,13 +86,10 @@ then compute the predicted values of a set of measures.
     \if{html}{\out{<div class="arguments">}}
     \describe{
       \item{\code{hh_model}}{\code{HousepiModel} object.}
-      \item{\code{draws}}{Parameter values, one row per draw.
-One of:
-\itemize{
-\item \code{data.frame};
-\item \code{posterior::draws};
-\item \link{HousepiPosteriorDraws}.
-}}
+      \item{\code{draws}}{Parameter values, keyed by parameter name.
+Either posterior draws, from \code{\link[=run_inference]{run_inference()}} or as \code{posterior::draws},
+a \code{data.frame} with one row per draw,
+or one value per parameter, as in \code{c(alpha = 0.1, beta = 0.2)}.}
       \item{\code{...}}{Named \code{function}s computing measures from data.
 Each returns a \code{numeric()}, a \code{list} or a \code{data.frame}.
 Names must be unique and cannot match a member of the returned object.}
@@ -108,8 +105,7 @@ If \code{NA}, every draw is simulated.
 Without \code{draws}, \code{nrep} replicates are simulated,
 each with parameters drawn from their prior. \code{NA} is then an error.}
       \item{\code{thin_ess}}{\code{logical(1)}
-Whether to thin \code{draws} to their bulk effective sample size (ESS).
-Ignored without \code{draws} or with a plain \code{data.frame}.}
+Whether to thin posterior \code{draws} to their bulk effective sample size (ESS).}
       \item{\code{threads}}{\code{integer(1)} Number of threads for parallel household runs.}
       \item{\code{progress}}{\code{numeric(1)} | \code{logical(1)} Control the progress bar,
 one of:

@@ -22,26 +22,22 @@ check_recovery(
 \arguments{
 \item{hh_model}{\code{HousepiModel} object.}
 
-\item{draws}{Parameter values, one row per draw.
-One of:
-\itemize{
-\item \code{data.frame};
-\item \code{posterior::draws};
-\item \link{HousepiPosteriorDraws}.
-}
-
-Values the surveys are simulated at,
+\item{draws}{Parameter values, keyed by parameter name.
+Either posterior draws, from \code{\link[=run_inference]{run_inference()}} or as \code{posterior::draws},
+a \code{data.frame} with one row per draw,
+or one value per parameter, as in \code{c(alpha = 0.1, beta = 0.2)}.
+Values the studies are simulated at,
 one for every estimated parameter.
 Several draws are collapsed to their point estimate.}
 
-\item{nrep}{\code{integer(1)}
-Number of surveys simulated and fitted back at each household count.}
+\item{nrep}{\code{integer(1)} Number of replicates at each household count.
+Each replicate is a household study simulated and fitted back.}
 
 \item{houses}{\code{integer()} One or more household counts to sweep.
 If \code{NA}, the number of households carried by the attached data.}
 
 \item{structure_sampler}{\code{function}
-Sampler of the household structure the surveys are generated on,
+Sampler of the household structure the outbreaks are simulated on,
 called as \code{structure_sampler(data_wide, houses)}.
 If \code{NULL}, the attached structure is reused verbatim and \code{houses} ignored.}
 
@@ -76,21 +72,27 @@ In a knitted document, only its closing line prints.}
 An object of class \link{HousepiRecoveryCheck}.
 }
 \description{
-Simulate surveys at known parameter values, fit each one back with the same
-model, and report how well the posterior recovers the values that generated
-it.
+Simulate outbreaks in the households of the attached data
+at known parameter values, fit each resulting household study back
+with the same model, and report how well the posterior recovers
+the values that generated it.
+Only transmission and observations are simulated.
+Households, members and their covariates come from the attached data,
+drawn once per household count by \code{structure_sampler},
+or reused whole without it, and shared by the replicates at that count.
 The sweep is repeated at one or more household counts,
 which shows whether a bias shrinks with the size of the study.
 
-The surveys are simulated at \code{draws},
+The studies are simulated at \code{draws},
 and the priors of the same model drive inference,
 so no separate simulation model is needed.
 }
 \details{
 The first replicate that fails stops the check,
 with an error naming its household count and replicate.
-Each survey goes through the \code{wide} reporting process
-of the model before it is fitted back, see \code{\link[=add_reporting_process]{add_reporting_process()}}.
+Each simulated study goes through
+the \code{wide} reporting process of the model before it is fitted back,
+see \code{\link[=add_reporting_process]{add_reporting_process()}}.
 Inference does not model it,
 so a process losing information makes the check measure the misspecification.
 Results are summarised at the point estimate
@@ -102,7 +104,7 @@ at any \code{threads} up to \code{nrep}.
 recovery <- flu_1918_frederick |>
   new_housepi_model("final-size") |>
   add_parameter(import = "template") |>
-  check_recovery(data.frame(alpha = 0.15, beta = 0.2, gamma = 1),
+  check_recovery(c(alpha = 0.15, beta = 0.2, gamma = 1),
                  nrep = 2, houses = 30, progress = FALSE)
 recovery$summarise()
 recovery$overview

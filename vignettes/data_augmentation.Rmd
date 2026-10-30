@@ -70,7 +70,7 @@ For asymptomatic members we sample the infection time within the follow-up perio
 #| warning: false
 library(ggplot2)
 library(housepi)
-set_housepi_theme()
+set_housepi_theme(colour_strips = TRUE)
 set.seed(42)
 
 onset_tommy <- 5

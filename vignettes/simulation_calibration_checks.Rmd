@@ -38,7 +38,7 @@ We use the same final-size example presented in [Get started](housepi.html):
 #| label: model-setup
 # define the model as in 'Get Started'
 library(housepi)
-set_housepi_theme()
+set_housepi_theme(colour_strips = TRUE)
 set.seed(42)
 
 hh_model <- flu_1918_frederick |>

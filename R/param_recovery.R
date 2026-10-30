@@ -7,7 +7,7 @@
 
 rd_recov_houses_ <- "`integer()` One or more household counts to sweep.
 If `NA`, the number of households carried by the attached data."
-rd_recov_draws_ <- "Values the surveys are simulated at,
+rd_recov_draws_ <- "Values the studies are simulated at,
 one for every estimated parameter.
 Several draws are collapsed to their point estimate."
 
@@ -75,7 +75,7 @@ recovery_summary_ <- function(estimates) {
   })
 }
 
-#' @title Resample the household structure of a survey
+#' @title Resample the household structure of a study
 #' @description
 #' Draw whole households with replacement, so the household-size distribution
 #' and the within-household composition of the covariates are preserved
@@ -83,7 +83,8 @@ recovery_summary_ <- function(estimates) {
 #' @param data_wide `r rd_add_wide_`
 #' @param houses `integer(1)` Number of households to draw.
 #' If `NA`, the number of households carried by `data_wide`.
-#' @return `data.frame` The survey, `hh_id` renumbered sequentially,
+#' @return `data.frame` The resampled households,
+#' `hh_id` renumbered sequentially,
 #' so a household drawn twice stands as two independent households,
 #' and `id` regenerated as a row number when the input carries one.
 #' @examples
@@ -110,13 +111,13 @@ sample_house_structure <- function(data_wide, houses = NA_integer_) {
 #' @title Parameter recovery check of a housepi model
 #' @description
 #' Container for the sweep run by [check_recovery()]:
-#' surveys simulated at known parameter values and fitted back,
+#' household studies simulated at known parameter values and fitted back,
 #' replicated at one or more household counts.
 #' @examples
 #' recovery <- flu_1918_frederick |>
 #'   new_housepi_model("final-size") |>
 #'   add_parameter(import = "template") |>
-#'   check_recovery(data.frame(alpha = 0.15, beta = 0.2, gamma = 1),
+#'   check_recovery(c(alpha = 0.15, beta = 0.2, gamma = 1),
 #'                  nrep = 2, houses = 30, progress = FALSE)
 #' recovery
 #' recovery$summarise()
@@ -164,7 +165,7 @@ HousepiRecoveryCheck <- R6::R6Class(
     #' @field estimates `data.frame`
     #' One row per household count, replicate and parameter
     #' \describe{
-    #'   \item{truth}{Value the survey was simulated at;}
+    #'   \item{truth}{Value the study was simulated at;}
     #'   \item{estimate}{Posterior point estimate;}
     #'   \item{sd}{Posterior standard deviation;}
     #'   \item{cri_lower, cri_upper}{Credible interval bounds;}
@@ -195,7 +196,7 @@ HousepiRecoveryCheck <- R6::R6Class(
     #' @field overview `data.frame`
     #' Sweep cost per household count, averaged over the replicates
     #' \describe{
-    #'   \item{nrep, n_flagged}{Replicates run, and those flagged;}
+    #'   \item{nrep, n_flagged}{Number of replicates run, and of those flagged;}
     #'   \item{mean_inference_secs}{Mean wall-clock of a sampling loop;}
     #'   \item{secs_per_ess}{Seconds of sampling per effective draw
     #'     of the worst-mixing parameter, pooled over the replicates:
@@ -207,7 +208,7 @@ HousepiRecoveryCheck <- R6::R6Class(
     },
 
     #' @field truth named `numeric()`
-    #' Values the surveys were simulated at.
+    #' Values the studies were simulated at.
     truth = function(value) {
       assert_read_only_(value, "truth")
       private$truth_
@@ -220,7 +221,7 @@ HousepiRecoveryCheck <- R6::R6Class(
     },
 
     #' @field nrep `integer()`
-    #' Replicates run at each household count, in the order of `houses`.
+    #' Number of replicates at each household count, in the order of `houses`.
     nrep = function(value) {
       assert_read_only_(value, "nrep")
       private$sweep_$nrep
@@ -302,7 +303,8 @@ HousepiRecoveryCheck <- R6::R6Class(
     #'   \item{rmse}{Root mean squared error;}
     #'   \item{coverage}{Share of replicates whose interval covers the truth;}
     #'   \item{cri_width}{Mean width of the credible interval;}
-    #'   \item{nrep, n_flagged}{Replicates aggregated, and those flagged.}
+    #'   \item{nrep, n_flagged}{Number of replicates aggregated,
+    #'     and of those flagged.}
     #' }
     summarise = function() recovery_summary_(private$sweep_$estimates),
 
@@ -325,13 +327,15 @@ HousepiRecoveryCheck <- R6::R6Class(
 
 #' @title Check that inference recovers known parameters
 #' @description
-#' Simulate surveys at known parameter values, fit each one back with the same
-#' model, and report how well the posterior recovers the values that generated
-#' it.
+#' Simulate outbreaks in the households of the attached data
+#' at known parameter values, fit each resulting household study back
+#' with the same model, and report how well the posterior recovers
+#' the values that generated it.
+#' `r rd_sweep_structure_`
 #' The sweep is repeated at one or more household counts,
 #' which shows whether a bias shrinks with the size of the study.
 #'
-#' The surveys are simulated at `draws`,
+#' The studies are simulated at `draws`,
 #' and the priors of the same model drive inference,
 #' so no separate simulation model is needed.
 #' @param hh_model `r rd_model_in_`
@@ -357,7 +361,7 @@ HousepiRecoveryCheck <- R6::R6Class(
 #' recovery <- flu_1918_frederick |>
 #'   new_housepi_model("final-size") |>
 #'   add_parameter(import = "template") |>
-#'   check_recovery(data.frame(alpha = 0.15, beta = 0.2, gamma = 1),
+#'   check_recovery(c(alpha = 0.15, beta = 0.2, gamma = 1),
 #'                  nrep = 2, houses = 30, progress = FALSE)
 #' recovery$summarise()
 #' recovery$overview

@@ -229,7 +229,16 @@ assert_count_ <- function(x, what, allow_na = FALSE) {
   as.integer(x)
 }
 
+#' Whether `x` holds named parameter values, a vector or a list,
+#' rather than posterior draws or a table.
+#' @noRd
+is_named_values_ <- function(x) {
+  !posterior::is_draws(x) && is.null(dim(x)) && (is.atomic(x) || is.list(x))
+}
+
 #' Read a parameter table from draws or a data.frame, thinned to the ESS.
+#' * named vector or list -> one row;
+#' * value without a name, or parameter without exactly one value -> error.
 #' @param thin_ess `logical(1)` Whether to thin to the ESS.
 #' @noRd
 helper_read_param_table_ <- function(ptab, thin_ess = TRUE) {
@@ -255,6 +264,20 @@ helper_read_param_table_ <- function(ptab, thin_ess = TRUE) {
       # keep at most ESS draws, evenly spaced over the rows
       ptab <- helper_thin_even_(as.data.frame(ptab), floor(min(ess_bulk)))
     }
+  }
+
+  # named values: a single draw
+  if (is_named_values_(ptab)) {
+    if (!rlang::is_named(ptab)) stop_h(
+      "{.arg draws} holds a value without a parameter name."
+    )
+    several <- names(ptab)[lengths(ptab) != 1L]
+    if (length(several)) stop_h(
+      paste("Parameter{?s} {.val {several}} {?does/do} not hold",
+            "exactly one value in {.arg draws}."),
+      "Pass several draws as a {.cls data.frame}, one row per draw."
+    )
+    return(list2DF(lapply(as.list(ptab), unname)))
   }
 
   tryCatch({
@@ -715,8 +738,13 @@ cpp_data_refactor <- function(data, info, headers,
 #' @param base_family `character(1)` Base font family, `""` for the device's.
 #' @param transparent `logical(1)`
 #' Whether to leave the plot background transparent.
+#' @param colour_strips `logical(1)`
+#' Whether to colour the facet strips and centre their labels,
+#' as in the housepi vignettes.
+#' Otherwise strips are white and labels align to the bottom of the strip,
+#' next to their panel.
 #' @description
-#' Set the housepi vignette themes of `ggplot2`, `bayesplot` and `flextable`,
+#' Set the housepi themes of `ggplot2`, `bayesplot` and `flextable`,
 #' for each package installed.
 #' @return `NULL`, invisibly.
 #' The function sets the themes.
@@ -728,7 +756,8 @@ cpp_data_refactor <- function(data, info, headers,
 #' @export
 set_housepi_theme <- function(base_size = 11,
                               base_family = "",
-                              transparent = FALSE) {
+                              transparent = FALSE,
+                              colour_strips = FALSE) {
   # ggplot theme
   if (requireNamespace("ggplot2", quietly = TRUE)) {
     my_elem_text <- ggplot2::element_text(size = base_size,
@@ -738,7 +767,13 @@ set_housepi_theme <- function(base_size = 11,
                                          color = "black",
                                          face = "bold")
     my_panel <- ggplot2::element_rect(fill = "#FEF9EC", color = NA)
-    my_strip <- ggplot2::element_rect(fill = "#FBE09B", color = NA)
+    my_strip <- ggplot2::element_rect(
+      fill = if (isTRUE(colour_strips)) "#FBE09B" else "white", color = NA
+    )
+    my_strip_text <- ggplot2::element_text(
+      size = base_size, color = "black", face = "plain",
+      vjust = if (isTRUE(colour_strips)) NULL else 0
+    )
     my_grid <- ggplot2::element_line(color = "#FDFEFE", linewidth = 1)
     my_plot <- ggplot2::element_rect(
       color = NA, fill = if (isTRUE(transparent)) "transparent" else "white"
@@ -748,7 +783,7 @@ set_housepi_theme <- function(base_size = 11,
                              base_family = base_family) +
         ggplot2::theme(text = my_elem_text,
                        axis.text = my_elem_text,
-                       strip.text = my_elem_text,
+                       strip.text = my_strip_text,
                        plot.tag = my_elem_tag,
                        panel.background = my_panel,
                        strip.background = my_strip,
