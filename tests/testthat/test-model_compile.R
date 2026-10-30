@@ -9,7 +9,7 @@ test_that("assert_household_data validates inputs", {
     expect_error("new_housepi_model")
   assert_household_data(data.frame(), NA_character_) |>
     expect_error("empty")
-  # NULL data is deferred for non-test models (attach later via add_data_wide)
+  # NULL data is deferred for non-test models (attach later via add_dataset)
   assert_household_data(NULL, NA_character_) |>
     expect_null()
   assert_household_data(NULL, "test") |>

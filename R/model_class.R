@@ -39,16 +39,16 @@ HousepiModel <- R6::R6Class(
     # `character(1)` Label of status code 0, outside declared infected statuses.
     escaped_ = "escaped",
 
-    # `list` Engine coding of the attached data, `data_wide` and `data_long`,
+    # `list` Engine coding of the attached data, `dataset` and `long_dataset`,
     # as cpp_data_factorize() returns it without the data.
     coding_ = list(
-      data_wide = list(cols = character(), status = integer(),
-                       status_labels = character()),
-      data_long = list(cols = character())
+      dataset = list(cols = character(), status = integer(),
+                     status_labels = character()),
+      long_dataset = list(cols = character())
     ),
 
     # `character()` Hash of the factorized data attached, keyed as `coding_`.
-    data_hash_ = c(data_wide = NA_character_, data_long = NA_character_),
+    data_hash_ = c(dataset = NA_character_, long_dataset = NA_character_),
 
     param_ = NULL,
     augm_ = NULL,
@@ -95,7 +95,7 @@ HousepiModel <- R6::R6Class(
     },
 
     # Data columns required by the model and by other definitions.
-    get_required_data_wide_ = function() {
+    get_required_dataset_ = function() {
       c(private$required_of_model_(.engine$data_keys), # by the model
         private$group_rates_$data_required,      # by group rates
         private$contact_rates_$data_required,    # by contact rates
@@ -122,8 +122,8 @@ HousepiModel <- R6::R6Class(
     ####  Assertions  ####
 
     # Whether household data is attached.
-    has_data_wide_ = function() {
-      length(private$coding_$data_wide$cols) > 0
+    has_dataset_ = function() {
+      length(private$coding_$dataset$cols) > 0
     },
 
     # Whether the model steps one whole day at once.
@@ -141,16 +141,16 @@ HousepiModel <- R6::R6Class(
       )
     },
 
-    # Assert data_wide holds the columns required by the model and definitions.
+    # Assert dataset holds the columns required by the model and definitions.
     # * `wall` -> error, else the messages are returned;
     # * `simulating` -> generated observations are not required.
-    assert_data_wide_ = function(wall = TRUE, simulating = FALSE) {
+    assert_dataset_ = function(wall = TRUE, simulating = FALSE) {
       # no data attached -> error at the wall
-      if (isTRUE(wall) && !private$has_data_wide_()) stop_h(
+      if (isTRUE(wall) && !private$has_dataset_()) stop_h(
         "No household data attached.",
-        "Attach it with {.fn add_data_wide}."
+        "Attach it with {.fn add_dataset}."
       )
-      required <- private$get_required_data_wide_()
+      required <- private$get_required_dataset_()
 
       # simulating -> observations are generated, not required
       # subsetting keeps the source names the message reads
@@ -158,7 +158,7 @@ HousepiModel <- R6::R6Class(
         required <- required[!required %in% private$augm_$observation_names]
 
       # a deterministic observation produces a surrogate data column
-      cols <- private$coding_$data_wide$cols
+      cols <- private$coding_$dataset$cols
       surrogate <- private$augm_$surrogate_names
       cols <- c(cols, intersect(surrogate, required))
 
@@ -388,7 +388,7 @@ HousepiModel <- R6::R6Class(
 
       private$assert_no_obs_rate_collision_(module)
 
-      module$implement(get_data_wide(self), ...)
+      module$implement(get_dataset(self), ...)
 
       # append parameter if missing
       new_parameters <- module$parameters
@@ -418,32 +418,32 @@ HousepiModel <- R6::R6Class(
       private$helper_build_rates_(private$contact_rates_)
     },
 
-    # Factorize and push wide-format data to the engine.
+    # Factorize and push the dataset to the engine.
     # The data is validated, and the caller rebuilds definitions via rebuild_().
-    set_data_wide_ = function(data) {
-      data <- private$embed_data_(data, "data_wide")
+    set_dataset_ = function(data) {
+      data <- private$embed_data_(data, "dataset")
       # soft check: data may be intentionally incomplete
       # hard check at the wall
-      private$assert_data_wide_(wall = FALSE)
-      .engine$import_data_wide(private$mcmc_ptr_, data)
+      private$assert_dataset_(wall = FALSE)
+      .engine$import_dataset(private$mcmc_ptr_, data)
       invisible(self)
     },
 
-    # Validate, factorize and push long-format data to the engine.
-    set_data_long_ = function(data_long) {
-      if (!is.data.frame(data_long)) stop_h(
-        "Data-long should be an object of class {.cls data.frame}.",
-        format_type_error(data_long)
+    # Validate, factorize and push the long dataset to the engine.
+    set_long_dataset_ = function(data) {
+      if (!is.data.frame(data)) stop_h(
+        "Long dataset should be an object of class {.cls data.frame}.",
+        format_type_error(data)
       )
-      assert_valid_data_columns(colnames(data_long), "id")
+      assert_valid_data_columns(colnames(data), "id")
 
-      .engine$import_data_long(private$mcmc_ptr_,
-                               private$embed_data_(data_long, "data_long"))
+      .engine$import_long_dataset(private$mcmc_ptr_,
+                                  private$embed_data_(data, "long_dataset"))
       invisible(self)
     },
 
     # Factorize data for the engine, recording its coding and hash.
-    # @param format `character(1)` `"data_wide"` or `"data_long"`.
+    # @param format `character(1)` `"dataset"` or `"long_dataset"`.
     # @return `data.frame` Factorized data, for the engine to import.
     embed_data_ = function(data, format) {
       embed <- cpp_data_factorize(data, private$escaped_)
@@ -454,7 +454,7 @@ HousepiModel <- R6::R6Class(
 
     # Refactor a data.frame back to user levels,
     # the status to the model dictionary.
-    # @param format `character(1)` `"data_wide"` or `"data_long"`.
+    # @param format `character(1)` `"dataset"` or `"long_dataset"`.
     # @todo drop the refactoring of variant data
     refactor_data_ = function(x, format) {
       coding <- private$coding_[[format]]
@@ -479,7 +479,7 @@ HousepiModel <- R6::R6Class(
       private$contact_rates_ <- HousepiContactRate$new()
       private$status_ <- HousepiStatusProcess$new()
       private$infec_profile_ <- HousepiInfecProfile$new()
-      private$reporting_process_ <- list(wide = NULL, long = NULL)
+      private$reporting_process_ <- list(dataset = NULL, long_dataset = NULL)
       private$collapse_seen_ <- character()
       invisible(self)
     },
@@ -511,7 +511,7 @@ HousepiModel <- R6::R6Class(
     # * status process order;
     # * character labels declared on latent definitions.
     status_dictionary_ = function() {
-      data_lab <- private$coding_$data_wide$status_labels
+      data_lab <- private$coding_$dataset$status_labels
       if (length(data_lab)) return(data_lab)
       if (length(private$status_$labels)) return(private$status_$labels)
       private$augm_$status_labels
@@ -524,7 +524,7 @@ HousepiModel <- R6::R6Class(
     status_codes_ = function() {
       dict <- private$status_dictionary_()
       if (length(dict)) return(stats::setNames(seq_along(dict), dict))
-      codes <- sort(union(as.integer(private$coding_$data_wide$status),
+      codes <- sort(union(as.integer(private$coding_$dataset$status),
                           private$status_$codes))
       stats::setNames(codes, as.character(codes))
     },
@@ -547,7 +547,7 @@ HousepiModel <- R6::R6Class(
       }
       cols <- character()
       if (live)
-        cols <- setdiff(private$coding_$data_wide$cols, data_reserved_cols)
+        cols <- setdiff(private$coding_$dataset$cols, data_reserved_cols)
 
       sets <- list(
         # an observation stands for a column, at either level:
@@ -600,7 +600,7 @@ HousepiModel <- R6::R6Class(
                                 private$source_dictionary_())
         ),
         .engine$discrete_latent_keys(private$mcmc_ptr_),
-        discr_col_types = private$coding_$data_wide$discr,
+        discr_col_types = private$coding_$dataset$discr,
         discr_req_cols = .engine$discrete_data_keys(private$mcmc_ptr_)
       )
     },
@@ -641,7 +641,7 @@ HousepiModel <- R6::R6Class(
     # @param derive `logical(1)` Whether to re-derive the rate tables.
     push_definitions_ = function(wall = FALSE, derive = TRUE) {
       # no data attached -> no rate to derive
-      if (!private$has_data_wide_()) return(invisible(self))
+      if (!private$has_dataset_()) return(invisible(self))
 
       # settle the status dictionary first
       private$assert_status_()
@@ -653,7 +653,7 @@ HousepiModel <- R6::R6Class(
         private$build_contact_rates_()
 
       # defer the engine push while required data is incomplete
-      if (length(private$assert_data_wide_(FALSE, simulating = TRUE)) > 0)
+      if (length(private$assert_dataset_(FALSE, simulating = TRUE)) > 0)
         return(invisible(self))
 
       # forward reference -> waits for the decorator that declares it,
@@ -687,16 +687,16 @@ HousepiModel <- R6::R6Class(
     # * undefined -> `NULL`.
     # @return `list` Tables the engine imports.
     payload_ = function() {
-      info_wide <- private$coding_$data_wide$info
+      info_dataset <- private$coding_$dataset$info
       codes <- private$status_codes_()
       status <- private$status_
       list(
         parameters = private$resolved_param_(),
-        group_rates = private$group_rates_$expose_to_cpp(info_wide, codes),
-        contact_rates = private$contact_rates_$expose_to_cpp(info_wide),
+        group_rates = private$group_rates_$expose_to_cpp(info_dataset, codes),
+        contact_rates = private$contact_rates_$expose_to_cpp(info_dataset),
         infectivity_profile = private$resolved_profile_(),
         status_process = if (status$is_defined) list(
-          table = status$expose_to_cpp(info_wide, codes),
+          table = status$expose_to_cpp(info_dataset, codes),
           levels = private$status_draw_levels_()
         ),
         latent = resolve_status_codes_(private$resolved_latent_(),
@@ -710,7 +710,7 @@ HousepiModel <- R6::R6Class(
     # @param derive `logical(1)` Whether to check the table against the data.
     push_status_process_ = function(status, derive = TRUE) {
       if (is.null(status)) return(invisible(self))
-      if (derive) private$status_$assert_fit(get_data_wide(self), status$levels)
+      if (derive) private$status_$assert_fit(get_dataset(self), status$levels)
       .engine$import_status_process(private$mcmc_ptr_, status$table,
                                     length(status$levels))
       invisible(self)
@@ -727,7 +727,7 @@ HousepiModel <- R6::R6Class(
     # * status process -> every level it draws, whatever the data carries;
     # * otherwise -> the ones observed in the data.
     carried_statuses_ = function() {
-      if (!private$status_$is_defined) return(private$coding_$data_wide$status)
+      if (!private$status_$is_defined) return(private$coding_$dataset$status)
       seq_along(private$status_draw_levels_())
     },
 
@@ -756,7 +756,7 @@ HousepiModel <- R6::R6Class(
         ), list(...)))
       )
       # hard validation before MCMC
-      private$assert_data_wide_(wall = TRUE, simulating = simulating)
+      private$assert_dataset_(wall = TRUE, simulating = simulating)
       # a column not yet attached is the likeliest cause of an unsettled source
       private$assert_sources_(wall = TRUE)
       private$assert_param_(wall = TRUE)
@@ -828,7 +828,7 @@ HousepiModel <- R6::R6Class(
       nrep
     },
 
-    # Set reporting process `slot`, "wide" or "long", to `func`.
+    # Set reporting process `slot`, "dataset" or "long_dataset", to `func`.
     # * `func` NULL -> removes it.
     set_reporting_process_ = function(slot, func) {
       if (!is.null(func) && !is.function(func)) stop_h(
@@ -839,49 +839,50 @@ HousepiModel <- R6::R6Class(
       invisible(self)
     },
 
-    # Build the function relabelling each simulated `data_wide`,
-    # then applying the wide reporting process.
+    # Build the function relabelling each simulated `dataset`,
+    # then applying the dataset reporting process.
     # * not `labelled`, no reporting process -> frames stay engine-coded,
     #   for consumers reading `hh_id` and `status` only.
     # @todo drop the relabelling of variant data
-    helper_reporting_wide_ = function(labelled = TRUE) {
-      wide <- private$reporting_process_$wide
-      if (is.function(wide)) \(x) wide(private$refactor_data_(x, "data_wide"))
-      else if (labelled) \(x) private$refactor_data_(x, "data_wide")
+    helper_reporting_dataset_ = function(labelled = TRUE) {
+      report <- private$reporting_process_$dataset
+      if (is.function(report)) \(x) report(private$refactor_data_(x, "dataset"))
+      else if (labelled) \(x) private$refactor_data_(x, "dataset")
     },
 
     # Simulate replicates from `draws`, each through the reporting process.
     # * `draws` NULL -> parameters drawn from their prior;
-    # * `apply_wide` NULL -> wide frames returned;
-    # * `apply_long` NULL, or no long reporting process -> no long output.
+    # * `apply_dataset` NULL -> datasets returned;
+    # * `apply_long_dataset` NULL, or no long dataset reporting process
+    #   -> no long dataset output.
     # @param ... Run settings, passed to the build.
-    # @return `list` Entries `wide` and `long`, one element per replicate,
+    # @return `list` Entries `dataset` and `long_dataset`, one per replicate,
     # and `parameters`, one row per replicate.
     # @todo loop in C++
     simulate_ = function(draws = NULL,
                          nrep = NA_integer_,
                          thin_ess = TRUE,
-                         apply_wide = NULL,
-                         apply_long = NULL,
+                         apply_dataset = NULL,
+                         apply_long_dataset = NULL,
                          labelled = TRUE,
                          progress = FALSE,
                          ...) {
       private$helper_simulation_build_(
         draws = draws, nrep = nrep, thin_ess = thin_ess, ...
       )
-      # load a measure on data long-format
-      long <- private$reporting_process_$long
-      apply_long_func <- NULL
-      if (is.function(long) && is.function(apply_long))
-        apply_long_func <- \(x) apply_long(long(x))
+      # load a measure on the long dataset
+      report_long <- private$reporting_process_$long_dataset
+      apply_long_dataset_func <- NULL
+      if (is.function(report_long) && is.function(apply_long_dataset))
+        apply_long_dataset_func <- \(x) apply_long_dataset(report_long(x))
 
       # run simulations
       output <- with_progress_(progress, "simulate", 1, function(bar) {
         .engine$run_simulation(private$mcmc_ptr_,
-                               private$helper_reporting_wide_(labelled),
-                               apply_wide, apply_long_func, bar)
+                               private$helper_reporting_dataset_(labelled),
+                               apply_dataset, apply_long_dataset_func, bar)
       })
-      if (!length(output$long)) output$long <- NULL
+      if (!length(output$long_dataset)) output$long_dataset <- NULL
       output
     }
   ),
@@ -914,8 +915,8 @@ HousepiModel <- R6::R6Class(
   public = list(
     #' @description
     #' Create a `HousepiModel`, the object inference and simulation run on.
-    #' @param data `r rd_add_wide_`
-    #' If omitted, attach it later with [add_data_wide()].
+    #' @param data `r rd_dataset_`
+    #' If omitted, attach it later with [add_dataset()].
     #' @param model `r rd_mdl_choice_`
     #' @param as_template `r rd_mdl_astmpl_`
     #' @param force `r rd_mdl_force_`
@@ -929,7 +930,7 @@ HousepiModel <- R6::R6Class(
       # construction option for copying
       if (isTRUE(.housepi_env$hollow)) return(invisible(self))
 
-      # check the data, NULL allowed and attached later with add_data_wide()
+      # check the data, NULL allowed and attached later with add_dataset()
       data <- assert_household_data(data, model)
       if (length(escaped) != 1 || !is.character(escaped)) stop_h(
         "{.arg escaped} must be a non-empty {.cls character}.",
@@ -946,7 +947,7 @@ HousepiModel <- R6::R6Class(
       )
       private$mcmc_ptr_ <- create_mcmc_runner_(private$compiled_)
       # import data, if provided (no user definitions to rebuild yet)
-      if (!is.null(data)) private$set_data_wide_(data)
+      if (!is.null(data)) private$set_dataset_(data)
 
       invisible(self)
     },
@@ -998,8 +999,8 @@ HousepiModel <- R6::R6Class(
       # each section is a self-contained cli_bullets block (headline + subs)
       blocks <- list()
       # data
-      if (length(private$get_required_data_wide_()) > 0) blocks <- c(blocks,
-        list(fmt_assert_cli("Data", private$assert_data_wide_(FALSE)))
+      if (length(private$get_required_dataset_()) > 0) blocks <- c(blocks,
+        list(fmt_assert_cli("Data", private$assert_dataset_(FALSE)))
       )
       # parameters
       if (length(private$get_required_parameters_()) > 0) blocks <- c(blocks,
@@ -1016,7 +1017,7 @@ HousepiModel <- R6::R6Class(
       )
 
       # inform about optional rates if dataset is suitable
-      cols_extra <- setdiff(private$coding_$data_wide$cols,
+      cols_extra <- setdiff(private$coding_$dataset$cols,
                             data_reserved_cols)
       if (length(cols_extra)) {
         # group rates (optional: default when definitions are absent)
@@ -1113,11 +1114,11 @@ export_to_cpp_standalone <- function(hh_model, outpath = "inst/standalone/") {
   utils::write.csv(payload$contact_rates,
                    file.path(outpath, "contact_rates.csv"),
                    quote = FALSE, row.names = FALSE)
-  utils::write.csv(.engine$export_data_wide(pvt$mcmc_ptr_),
-                   file.path(outpath, "data_wide.csv"),
+  utils::write.csv(.engine$export_dataset(pvt$mcmc_ptr_),
+                   file.path(outpath, "dataset.csv"),
                    quote = FALSE, row.names = FALSE)
-  utils::write.csv(.engine$export_data_long(pvt$mcmc_ptr_),
-                   file.path(outpath, "data_long.csv"),
+  utils::write.csv(.engine$export_long_dataset(pvt$mcmc_ptr_),
+                   file.path(outpath, "long_dataset.csv"),
                    quote = FALSE, row.names = FALSE)
   utils::write.csv(payload$group_rates,
                    file.path(outpath, "group_rates.csv"),

@@ -354,38 +354,38 @@ test_that("Measure names are unique, given and free of the members", {
   run(format_attack_rate = overall) |> expect_error("reserved")
 })
 
-test_that("Measures on data_long need a long reporting process", {
+test_that("Long measures need a long dataset reporting process", {
   mk_ppc$model |>
-    check_predictive(mk_ppc$fit, measures_long = list(n = nrow)) |>
-    expect_error("[Ll]ong reporting process")
+    check_predictive(mk_ppc$fit, long_measures = list(n = nrow)) |>
+    expect_error("[Ll]ong dataset reporting process")
 })
 
-test_that("Measures on data_long are checked alongside those on data_wide", {
+test_that("Long measures are checked alongside those on the dataset", {
   cases_long <- \(x) data.frame(id = x$id, case = as.integer(x$status > 0))
   hh_model <- mk_ppc$model |>
-    add_data_long(cases_long(get_data_wide(mk_ppc$model))) |>
-    add_reporting_process(long = cases_long)
+    add_long_dataset(cases_long(get_dataset(mk_ppc$model))) |>
+    add_reporting_process(long_dataset = cases_long)
   run <- function(...) {
     check_predictive(hh_model, mk_ppc$fit, ..., nrep = 3, thin_ess = FALSE,
                      progress = FALSE)
   }
 
   # one count read from either frame of the same replicates
-  ppc <- run(measures_long = list(cases = \(x) sum(x$case)),
+  ppc <- run(long_measures = list(cases = \(x) sum(x$case)),
              wide_cases = \(x) sum(x$status > 0)) |>
     suppressWarnings()
   ppc$cases |> expect_equal(ppc$wide_cases)
   ppc$nrep |> expect_identical(3L)
-  # measures on data_long alone, the standard ones dropped
-  run(measures_long = list(cases = \(x) sum(x$case)), epi = FALSE) |>
+  # measures on long_dataset alone, the standard ones dropped
+  run(long_measures = list(cases = \(x) sum(x$case)), epi = FALSE) |>
     suppressWarnings() |>
     expect_s3_class("HousepiPredictiveCheck")
   # named as those in `...`, under names free across both
-  run(measures_long = \(x) sum(x$case)) |>
-    expect_error("measures_long.*must be named")
-  run(measures_long = list(cases = nrow), cases = nrow) |>
+  run(long_measures = \(x) sum(x$case)) |>
+    expect_error("long_measures.*must be named")
+  run(long_measures = list(cases = nrow), cases = nrow) |>
     expect_error("[Rr]epeated measure.*cases")
-  run(measures_long = list(attack_rate = nrow)) |>
+  run(long_measures = list(attack_rate = nrow)) |>
     expect_error("attack_rate.*standard")
 })
 
@@ -442,7 +442,7 @@ test_that("Predictive check on custom measures has read-only fields", {
 })
 
 test_that("Observed values outside the interval are recorded as warnings", {
-  hh_data <- get_data_wide(mk_ppc$model)
+  hh_data <- get_dataset(mk_ppc$model)
   # only the observed data equal themselves, a constant always matches
   same <- \(x) as.numeric(identical(x, hh_data))
   run <- function(...) {
@@ -488,7 +488,7 @@ test_that("An epidemic predictive check formats counts per household size", {
   ppc <- check_predictive(mk_ppc$model, mk_ppc$fit) |>
     suppressWarnings()
   class(ppc)[1] |> expect_identical("HousepiEpiPredictiveCheck")
-  counts <- helper_house_counts(get_data_wide(mk_ppc$model))
+  counts <- helper_house_counts(get_dataset(mk_ppc$model))
 
   # formatted_attack_rate: counts are the raw house totals on the AR grid
   ar <- ppc$format_attack_rate()
@@ -581,21 +581,23 @@ test_that("Epi PPC honours min/max_hh_size arguments", {
 })
 
 test_that("Epi PPC observed values are stable across calls and status codes", {
-  data_wide <- get_data_wide(mk_ppc$model)
+  dataset <- get_dataset(mk_ppc$model)
   run_on <- function(hh_model = mk_ppc$model, ...) {
     hh_model |>
       check_predictive(mk_ppc$fit, thin_ess = FALSE, nrep = 5, ...) |>
       suppressWarnings()
   }
   ppc <- run_on()
-  # repeated PPC calls must not mutate the model's data_wide
-  get_data_wide(mk_ppc$model) |> expect_identical(data_wide)
+  # repeated PPC calls must not mutate the model's dataset
+  get_dataset(mk_ppc$model) |> expect_identical(dataset)
 
   # without a reporting process the replicates stay engine-coded
-  observed <- measure_ar_by_hh_size(data_wide, mk_ppc$model$escaped)
+  observed <- measure_ar_by_hh_size(dataset, mk_ppc$model$escaped)
   ppc$format_attack_rate()$observed |> expect_equal(observed$ar)
   # with one, they are relabelled before the measure sees them
-  ppc_labelled <- run_on(add_reporting_process(mk_ppc$model, wide = identity))
+  ppc_labelled <- mk_ppc$model |>
+    add_reporting_process(dataset = identity) |>
+    run_on()
   ppc_labelled$format_attack_rate()$observed |> expect_equal(observed$ar)
 
   # observed values agree across thread counts

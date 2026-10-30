@@ -4,13 +4,13 @@
 \alias{sample_house_structure}
 \title{Resample the household structure of a study}
 \usage{
-sample_house_structure(data_wide, houses = NA_integer_)
+sample_house_structure(data, houses = NA_integer_)
 }
 \arguments{
-\item{data_wide}{\code{data.frame} Household data used for analysis (wide format).}
+\item{data}{\code{data.frame} Household data, one row per member.}
 
 \item{houses}{\code{integer(1)} Number of households to draw.
-If \code{NA}, the number of households carried by \code{data_wide}.}
+If \code{NA}, the number of households carried by \code{data}.}
 }
 \value{
 \code{data.frame} The resampled households,

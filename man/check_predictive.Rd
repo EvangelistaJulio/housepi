@@ -8,7 +8,7 @@ check_predictive(
   hh_model,
   draws = NULL,
   ...,
-  measures_long = NULL,
+  long_measures = NULL,
   epi = TRUE,
   nrep = NA_integer_,
   thin_ess = TRUE,
@@ -30,15 +30,15 @@ or one value per parameter, as in \code{c(alpha = 0.1, beta = 0.2)}.}
 Each returns a \code{numeric()}, a \code{list} or a \code{data.frame}.
 Names must be unique and cannot match a member of the returned object.}
 
-\item{measures_long}{\code{list}
-Named \code{function}s computing measures from \code{data_long}.
-Each replicate's \code{data_long} comes from the \code{long} reporting process,
+\item{long_measures}{\code{list}
+Named \code{function}s computing measures from the long dataset.
+Each replicate's long dataset comes from the \code{long_dataset} reporting process,
 see \code{\link[=add_reporting_process]{add_reporting_process()}}.
 Returned values and names follow the rules of \code{...}.}
 
 \item{epi}{\code{logical(1)}
 Whether to check standard epidemiological measures.
-If \code{FALSE}, only the measures in \code{...} and \code{measures_long} are checked,
+If \code{FALSE}, only the measures in \code{...} and \code{long_measures} are checked,
 and the formatted outputs and household size bounds of
 \link{HousepiEpiPredictiveCheck} are unavailable.}
 
@@ -88,7 +88,7 @@ not checked on a case-ascertained model;}
 \item{\code{"sec_attack_rate"}}{see \link{measure_sar_by_hh_size};}
 \item{\code{"cases_distr"}}{see \link{measure_cases_by_hh_size}.}
 }
-Named measure functions in \code{...} and \code{measures_long} are checked
+Named measure functions in \code{...} and \code{long_measures} are checked
 alongside them, under names that differ from these.
 Each replicate goes through the reporting process of the model,
 see \code{\link[=add_reporting_process]{add_reporting_process()}}.
@@ -111,7 +111,7 @@ ppc <- check_predictive(hh_model, nrep = 50, progress = FALSE)
 ppc
 
 # a user-defined measure: the overall attack rate
-overall_ar <- function(data_wide) mean(data_wide$status > 0)
+overall_ar <- function(data) mean(data$status > 0)
 ppc <- check_predictive(hh_model, hh_fit, overall = overall_ar,
                         nrep = 50, progress = FALSE)
 ppc

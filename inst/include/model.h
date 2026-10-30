@@ -158,14 +158,14 @@ namespace housepi
         void request_infec_profile_discrete() { mcmc_->infec_profile.request_discrete(); }
 
         /// Request discrete data columns `vec`.
-        void request_data_discrete(std::vector<size_t> vec) { mcmc_->data.wide().request_discrete(vec); }
+        void request_data_discrete(std::vector<size_t> vec) { mcmc_->data.dataset().request_discrete(vec); }
         /// Request positive data columns `vec`.
-        void request_data_positive(std::vector<size_t> vec) { mcmc_->data.wide().request_positive(vec); }
+        void request_data_positive(std::vector<size_t> vec) { mcmc_->data.dataset().request_positive(vec); }
         /// Request data columns `vec` with a value for every member, escaped ones included.
-        void request_data_every_member(std::vector<size_t> vec) { mcmc_->data.wide().request_everyone(vec); }
+        void request_data_every_member(std::vector<size_t> vec) { mcmc_->data.dataset().request_everyone(vec); }
 
         /// Throw if some member has missing status.
-        void assert_no_missing_status() const { mcmc_->data.wide().assert_no_missing_status(); }
+        void assert_no_missing_status() const { mcmc_->data.dataset().assert_no_missing_status(); }
 
         //////  Setter: model calls  //////
 
@@ -240,9 +240,9 @@ namespace housepi
         double group_rate(size_t g, const Individual &m) const { return mcmc_->rates.group().value(g, m); }
 
         /// Name of member `m`, for error messages.
-        std::string str(const Individual &m) const { return mcmc_->data.wide().str(m); }
+        std::string str(const Individual &m) const { return mcmc_->data.dataset().str(m); }
         /// Name of household `h`, for error messages.
-        std::string str(const Household &h) const { return mcmc_->data.wide().str(h); }
+        std::string str(const Household &h) const { return mcmc_->data.dataset().str(h); }
 
         /// Contact rate from member `from` to member `to` of `house`.
         double contact_rate(const Household &house, MemberIdx from, MemberIdx to) const

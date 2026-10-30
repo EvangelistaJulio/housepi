@@ -20,7 +20,7 @@ namespace housepi
 
     /// Member of one household.
     ///
-    /// The user id lives in data::Wide, keyed by individual index, see Index::of().
+    /// The user id lives in data::Dataset, keyed by individual index, see Index::of().
     class Individual final
     {
         friend class Household; /// Owns and mutates its members.

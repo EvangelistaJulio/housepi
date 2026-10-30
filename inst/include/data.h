@@ -12,9 +12,9 @@
 #include <vector>
 
 #include "tools/dictionary.h"
-#include "data/long.h"
+#include "data/dataset.h"
+#include "data/long_dataset.h"
 #include "data/state.h"
-#include "data/wide.h"
 
 //////////////////////////////  Data  //////////////////////////////
 
@@ -48,22 +48,22 @@ namespace housepi
         void share(const Data &other)
         {
             store_ = other.store_;
-            state.reset_readcells(wide());
+            state.reset_readcells(dataset());
         }
 
-        /// Build the wide-format table from `input`, then reset the read-cells over it.
+        /// Build the dataset from `input`, then reset the read-cells over it.
         /// * equivalence-class covariates of definitions cleared.
-        void build_wide(const str_table &input);
-        /// Build the long-format table from `input`, matched to the wide-format one.
-        void build_long(const str_table &input) { long_format().build(wide(), input); }
+        void build_dataset(const str_table &input);
+        /// Build the long dataset from `input`, matched to the dataset.
+        void build_long_dataset(const str_table &input) { long_dataset().build(dataset(), input); }
 
         /// Point every read-cell back at its imported value.
         /// * `produced_cols`: data columns produced by observations, declared alongside.
         /// @note Call before rebuilding Variables: wired cells would point at stale ones.
         void reset_readcells(const std::vector<std::string> &produced_cols = {})
         {
-            wide().add_produced_cols(produced_cols);
-            state.reset_readcells(wide());
+            dataset().add_produced_cols(produced_cols);
+            state.reset_readcells(dataset());
         }
         /// Finalize every Variable wired into a read-cell (see data::State::finalize_readcells).
         void finalize() { state.finalize_readcells(); }
@@ -87,8 +87,8 @@ namespace housepi
         /// Number of households in equivalence class `R`.
         size_t eq_class_size(size_t R) const noexcept { return state.eq_classes_[R].size_; }
         /// Representative household of equivalence class `R`.
-        Household &eq_class_rep(size_t R) noexcept { return wide().at(state.eq_classes_[R].rep_); }
-        const Household &eq_class_rep(size_t R) const noexcept { return wide().at(state.eq_classes_[R].rep_); }
+        Household &eq_class_rep(size_t R) noexcept { return dataset().at(state.eq_classes_[R].rep_); }
+        const Household &eq_class_rep(size_t R) const noexcept { return dataset().at(state.eq_classes_[R].rep_); }
         /// Member of `house` paired with each member of its class representative, by representative index.
         /// * equivalent members pair up in sorted order, so ties pair arbitrarily.
         std::vector<MemberIdx> map_rep_members(const Household &house) const;
@@ -98,12 +98,12 @@ namespace housepi
         /// Read-cell `d` of member `m`: imported value or wired Variable.
         const Attribute &at(size_t d, const Individual &m) const noexcept { return state.readcell(d, m); }
 
-        /// Wide-format table.
-        data::Wide &wide() noexcept { return store_->wide; }
-        const data::Wide &wide() const noexcept { return store_->wide; }
-        /// Long-format table.
-        data::Long &long_format() noexcept { return store_->long_format; }
-        const data::Long &long_format() const noexcept { return store_->long_format; }
+        /// Dataset: one row per member.
+        data::Dataset &dataset() noexcept { return store_->dataset; }
+        const data::Dataset &dataset() const noexcept { return store_->dataset; }
+        /// Long dataset: any number of rows per member.
+        data::LongDataset &long_dataset() noexcept { return store_->long_dataset; }
+        const data::LongDataset &long_dataset() const noexcept { return store_->long_dataset; }
 
         /// Whether another engine shares the imported tables.
         bool is_shared() const noexcept { return store_.use_count() > 1; }
@@ -115,8 +115,8 @@ namespace housepi
             /// Register the data keys declared by `model`.
             explicit Store_(const ModelBase &model);
 
-            data::Wide wide;        /// Wide-format table.
-            data::Long long_format; /// Long-format table.
+            data::Dataset dataset;          /// Dataset: one row per member.
+            data::LongDataset long_dataset; /// Long dataset: any number of rows per member.
         };
         std::shared_ptr<Store_> store_; /// Imported tables, shared copy-on-write.
 

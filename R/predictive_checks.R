@@ -10,9 +10,9 @@ If `NA` or `NULL`, no upper bound is applied."
 rd_measure_dots_ <- "Named `function`s computing measures from data.
 Each returns a `numeric()`, a `list` or a `data.frame`.
 Names must be unique and cannot match a member of the returned object."
-rd_measures_long_ <- "`list`
-Named `function`s computing measures from `data_long`.
-Each replicate's `data_long` comes from the `long` reporting process,
+rd_long_measures_ <- "`list`
+Named `function`s computing measures from the long dataset.
+Each replicate's long dataset comes from the `long_dataset` reporting process,
 see [add_reporting_process()].
 Returned values and names follow the rules of `...`."
 
@@ -22,8 +22,8 @@ Returned values and names follow the rules of `...`."
 #' @importFrom rlang .data
 NULL
 
-helper_process_data <- function(data_wide, escaped = "escaped") {
-  df <- as.data.frame(data_wide)
+helper_process_data <- function(dataset, escaped = "escaped") {
+  df <- as.data.frame(dataset)
   # an empty call returns the empty shape of the measure
   if (!ncol(df)) return(df)
   for (col in c("hh_id", "status")) if (!col %in% colnames(df)) stop_h(
@@ -42,7 +42,7 @@ helper_process_data <- function(data_wide, escaped = "escaped") {
 #' @title Compute observed attack rate by household size
 #' @description
 #' Retrieve attack rates from household data.
-#' @param data_wide `r rd_add_wide_`
+#' @param data `r rd_dataset_`
 #' @param escaped `r rd_mdl_escaped_`
 #' @return `data.frame`
 #' @details
@@ -52,17 +52,17 @@ helper_process_data <- function(data_wide, escaped = "escaped") {
 #' @examples
 #' measure_ar_by_hh_size(flu_1918_frederick)
 #' @export
-measure_ar_by_hh_size <- function(data_wide, escaped = "escaped") {
+measure_ar_by_hh_size <- function(data, escaped = "escaped") {
   # normalise eagerly: a lazy argument would raise inside the engine wrapper,
   # which restyles the condition as if the engine had authored it
-  df <- helper_process_data(data_wide, escaped)
+  df <- helper_process_data(data, escaped)
   .engine$measure_ar_by_hh_size(df)
 }
 
 #' @title Compute observed secondary attack rate by household size
 #' @description
 #' Retrieve secondary attack rates (SAR) from household data.
-#' @param data_wide `r rd_add_wide_`
+#' @param data `r rd_dataset_`
 #' @param escaped `r rd_mdl_escaped_`
 #' @return `data.frame`
 #' @details
@@ -72,8 +72,8 @@ measure_ar_by_hh_size <- function(data_wide, escaped = "escaped") {
 #' @examples
 #' measure_sar_by_hh_size(flu_1918_frederick)
 #' @export
-measure_sar_by_hh_size <- function(data_wide, escaped = "escaped") {
-  df <- helper_process_data(data_wide, escaped)
+measure_sar_by_hh_size <- function(data, escaped = "escaped") {
+  df <- helper_process_data(data, escaped)
   .engine$measure_sar_by_hh_size(df)
 }
 
@@ -81,7 +81,7 @@ measure_sar_by_hh_size <- function(data_wide, escaped = "escaped") {
 #' @description
 #' Retrieve the distribution of household cases ("final size")
 #' by household size from household data.
-#' @param data_wide `r rd_add_wide_`
+#' @param data `r rd_dataset_`
 #' @param escaped `r rd_mdl_escaped_`
 #' @return `data.frame` One row per household size `hh_size`,
 #' then one column per number of cases, holding the number of households
@@ -90,8 +90,8 @@ measure_sar_by_hh_size <- function(data_wide, escaped = "escaped") {
 #' @examples
 #' measure_cases_by_hh_size(flu_1918_frederick)
 #' @export
-measure_cases_by_hh_size <- function(data_wide, escaped = "escaped") {
-  df <- helper_process_data(data_wide, escaped)
+measure_cases_by_hh_size <- function(data, escaped = "escaped") {
+  df <- helper_process_data(data, escaped)
   .engine$measure_cases_by_hh_size(df)
 }
 
@@ -101,7 +101,7 @@ measure_cases_by_hh_size <- function(data_wide, escaped = "escaped") {
 #' weighted by the number of secondary cases in each household.
 #' It is a data-driven choice for the reference household size `hh_size_ref`
 #' of the built-in models.
-#' @param data_wide `r rd_add_wide_`
+#' @param data `r rd_dataset_`
 #' @param escaped `r rd_mdl_escaped_`
 #' @return `numeric(1)` The measure, `NA` if no household has two cases or more.
 #' @details
@@ -112,8 +112,8 @@ measure_cases_by_hh_size <- function(data_wide, escaped = "escaped") {
 #' @examples
 #' measure_geom_mean_hh_size(flu_1918_frederick)
 #' @export
-measure_geom_mean_hh_size <- function(data_wide, escaped = "escaped") {
-  df <- helper_process_data(data_wide, escaped)
+measure_geom_mean_hh_size <- function(data, escaped = "escaped") {
+  df <- helper_process_data(data, escaped)
   .engine$measure_geom_mean_hh_size(df)
 }
 
@@ -272,7 +272,7 @@ measure_dots_ <- function(...) {
 #' hh_fit <- run_inference(hh_model, chains = 2, progress = FALSE)
 #'
 #' # a user-defined measure: the overall attack rate
-#' overall_ar <- function(data_wide) mean(data_wide$status > 0)
+#' overall_ar <- function(data) mean(data$status > 0)
 #' ppc <- check_predictive(hh_model, hh_fit,
 #'                         sar = measure_sar_by_hh_size,
 #'                         overall = overall_ar,
@@ -406,13 +406,13 @@ HousepiPredictiveCheck <- R6::R6Class(
     #' @param nrep `r rd_nrep_`
     #' `r rd_nrep_prior_` `NA` is then an error.
     #' @param thin_ess `r rd_thin_ess_`
-    #' @param measures_long `r rd_measures_long_`
+    #' @param long_measures `r rd_long_measures_`
     #' @param threads `r rd_thread_`
     #' @param progress `r rd_progress_`
     initialize = function(hh_model,
                           draws = NULL,
                           ...,
-                          measures_long = NULL,
+                          long_measures = NULL,
                           nrep = NA_integer_,
                           thin_ess = TRUE,
                           threads = 1L,
@@ -427,26 +427,28 @@ HousepiPredictiveCheck <- R6::R6Class(
       private$point_estimate_ <- get_global_point_estimate()
       private$cri_level_ <- get_global_cri_level()
 
-      # measures on data_wide and on data_long
+      # measures on the dataset and on the long dataset
       dots <- measure_dots_(...)
-      measures <- list(wide = dots$measures, long = measures_long)
+      measures <- list(dataset = dots$measures, long_dataset = long_measures)
       assert_measure_names_(
-        stats::setNames(measures, c("...", "measures_long")),
+        stats::setNames(measures, c("...", "long_measures")),
         ls(self, all.names = TRUE)
       )
       reporting <- get_reporting_process(hh_model)
-      if (length(measures$long) && is.null(reporting$long)) stop_h(
-        "Measures on {.code data_long} need a long reporting process.",
-        "Add one with {.code add_reporting_process(long = )}."
-      )
+      if (length(measures$long_dataset) && is.null(reporting$long_dataset))
+        stop_h(
+          "Measures on the long dataset need a long dataset reporting process.",
+          "Add one with {.code add_reporting_process(long_dataset = )}."
+        )
 
       # each side applies its measures to a frame
-      # * no long measure -> long reporting process skipped
+      # * no long measure -> long dataset reporting process skipped
       appliers <- lapply(measures, \(fs) function(x) lapply(fs, \(f) f(x)))
-      if (!length(measures$long)) appliers$long <- NULL
+      if (!length(measures$long_dataset)) appliers$long_dataset <- NULL
       observations <- c(
-        appliers$wide(get_data_wide(hh_model)),
-        if (length(measures$long)) appliers$long(get_data_long(hh_model))
+        appliers$dataset(get_dataset(hh_model)),
+        if (length(measures$long_dataset))
+          appliers$long_dataset(get_long_dataset(hh_model))
       )
       if (any(lapply(observations, NROW) == 0)) stop_h(
         "One or more measures returned empty observation on data."
@@ -457,16 +459,17 @@ HousepiPredictiveCheck <- R6::R6Class(
         draws = draws,
         nrep = nrep,
         thin_ess = thin_ess,
-        apply_wide = appliers$wide,
-        apply_long = appliers$long,
+        apply_dataset = appliers$dataset,
+        apply_long_dataset = appliers$long_dataset,
         labelled = private$labelled_,
         progress = progress,
         threads = threads
       ), dots$settings))
 
       # values of each measure, one per replicate
-      replicates <- output$wide
-      if (!is.null(output$long)) replicates <- Map(c, replicates, output$long)
+      replicates <- output$dataset
+      if (!is.null(output$long_dataset))
+        replicates <- Map(c, replicates, output$long_dataset)
       all_measure_names <- names(observations)
       parsed <- lapply(stats::setNames(nm = all_measure_names),
                        \(m) lapply(replicates, `[[`, m))
@@ -538,8 +541,8 @@ HousepiPredictiveCheck <- R6::R6Class(
 ########  HousepiEpiPredictiveCheck  ########
 
 # Total households and households with at least one case, per household size.
-helper_house_counts <- function(data_wide, escaped = "escaped") {
-  df <- helper_process_data(data_wide, escaped)
+helper_house_counts <- function(dataset, escaped = "escaped") {
+  df <- helper_process_data(dataset, escaped)
   .engine$count_houses_by_hh_size(df)
 }
 
@@ -670,7 +673,7 @@ HousepiEpiPredictiveCheck <- R6::R6Class(
     #' @param draws `r rd_draws_`
     #' @param ... `r rd_measure_dots_`
     #' They are checked alongside standard epidemiological measures.
-    #' @param measures_long `r rd_measures_long_`
+    #' @param long_measures `r rd_long_measures_`
     #' @param nrep `r rd_nrep_`
     #' `r rd_nrep_prior_` `NA` is then an error.
     #' @param thin_ess `r rd_thin_ess_`
@@ -681,14 +684,14 @@ HousepiEpiPredictiveCheck <- R6::R6Class(
     initialize = function(hh_model,
                           draws = NULL,
                           ...,
-                          measures_long = NULL,
+                          long_measures = NULL,
                           nrep = NA_integer_,
                           thin_ess = TRUE,
                           min_hh_size = NA_integer_,
                           max_hh_size = NA_integer_,
                           threads = 1L,
                           progress = TRUE) {
-      clash <- intersect(c(names(list(...)), names(measures_long)),
+      clash <- intersect(c(names(list(...)), names(long_measures)),
                          names(private$measure_topics_))
       if (length(clash)) stop_h(
         paste("{cli::qty(clash)}Measure name{?s} {.field {clash}} already used",
@@ -696,11 +699,11 @@ HousepiEpiPredictiveCheck <- R6::R6Class(
         "Rename the measure or set {.code epi = FALSE}."
       )
       # built-in measures read only hh_id and status:
-      # * no wide reporting process, no custom measure -> frames stay
+      # * no dataset reporting process, no custom measure -> frames stay
       #   engine-coded, the relabelling skipped once per replicate.
       esc <- hh_model$escaped
-      private$labelled_ <- !is.null(get_reporting_process(hh_model)$wide) ||
-        length(measure_dots_(...)$measures) || length(measures_long)
+      private$labelled_ <- !is.null(get_reporting_process(hh_model)$dataset) ||
+        length(measure_dots_(...)$measures) || length(long_measures)
 
       # case-ascertained model -> attack rate not checked
       standard <- list(
@@ -720,10 +723,10 @@ HousepiEpiPredictiveCheck <- R6::R6Class(
       # initialize parent class HousepiPredictiveCheck
       rlang::inject(super$initialize(
         hh_model = hh_model, draws = draws, !!!standard, ...,
-        measures_long = measures_long, nrep = nrep, thin_ess = thin_ess,
+        long_measures = long_measures, nrep = nrep, thin_ess = thin_ess,
         threads = threads, progress = progress
       ))
-      private$house_counts_ <- helper_house_counts(get_data_wide(hh_model), esc)
+      private$house_counts_ <- helper_house_counts(get_dataset(hh_model), esc)
       self$set_min_hh_size(min_hh_size)
       self$set_max_hh_size(max_hh_size)
 
@@ -761,20 +764,20 @@ HousepiEpiPredictiveCheck <- R6::R6Class(
 #' \item{`"sec_attack_rate"`}{see [measure_sar_by_hh_size];}
 #' \item{`"cases_distr"`}{see [measure_cases_by_hh_size].}
 #' }
-#' Named measure functions in `...` and `measures_long` are checked
+#' Named measure functions in `...` and `long_measures` are checked
 #' alongside them, under names that differ from these.
 #' Each replicate goes through the reporting process of the model,
 #' see [add_reporting_process()].
 #' @param hh_model `r rd_model_in_`
 #' @param draws `r rd_draws_`
 #' @param ... `r rd_measure_dots_`
-#' @param measures_long `r rd_measures_long_`
+#' @param long_measures `r rd_long_measures_`
 #' @param nrep `r rd_nrep_`
 #' `r rd_nrep_prior_` `NA` is then an error.
 #' @param thin_ess `r rd_thin_ess_`
 #' @param epi `logical(1)`
 #' Whether to check standard epidemiological measures.
-#' If `FALSE`, only the measures in `...` and `measures_long` are checked,
+#' If `FALSE`, only the measures in `...` and `long_measures` are checked,
 #' and the formatted outputs and household size bounds of
 #' [HousepiEpiPredictiveCheck] are unavailable.
 #' @param min_hh_size `r rd_min_hh_size_` Only with `epi = TRUE`.
@@ -802,7 +805,7 @@ HousepiEpiPredictiveCheck <- R6::R6Class(
 #' ppc
 #'
 #' # a user-defined measure: the overall attack rate
-#' overall_ar <- function(data_wide) mean(data_wide$status > 0)
+#' overall_ar <- function(data) mean(data$status > 0)
 #' ppc <- check_predictive(hh_model, hh_fit, overall = overall_ar,
 #'                         nrep = 50, progress = FALSE)
 #' ppc
@@ -816,7 +819,7 @@ HousepiEpiPredictiveCheck <- R6::R6Class(
 check_predictive <- function(hh_model,
                              draws = NULL,
                              ...,
-                             measures_long = NULL,
+                             long_measures = NULL,
                              epi = TRUE,
                              nrep = NA_integer_,
                              thin_ess = TRUE,
@@ -829,13 +832,13 @@ check_predictive <- function(hh_model,
     "{.arg epi} should be {.code TRUE} or {.code FALSE}."
   )
   if (isTRUE(epi)) return(HousepiEpiPredictiveCheck$new(
-    hh_model$copy(), draws, ..., measures_long = measures_long, nrep = nrep,
+    hh_model$copy(), draws, ..., long_measures = long_measures, nrep = nrep,
     thin_ess = thin_ess, min_hh_size = min_hh_size, max_hh_size = max_hh_size,
     threads = threads, progress = progress
   ))
-  if (!length(measure_dots_(...)$measures) && !length(measures_long)) stop_h(
+  if (!length(measure_dots_(...)$measures) && !length(long_measures)) stop_h(
     "No measure to check.",
-    paste("Pass measure functions in {.arg ...} or {.arg measures_long},",
+    paste("Pass measure functions in {.arg ...} or {.arg long_measures},",
           "or keep {.code epi = TRUE}.")
   )
   if (!all(is.na(c(min_hh_size, max_hh_size)))) stop_h(
@@ -845,7 +848,7 @@ check_predictive <- function(hh_model,
   )
   HousepiPredictiveCheck$new(
     hh_model$copy(), draws, ...,
-    measures_long = measures_long, nrep = nrep, thin_ess = thin_ess,
+    long_measures = long_measures, nrep = nrep, thin_ess = thin_ess,
     threads = threads, progress = progress
   )
 }

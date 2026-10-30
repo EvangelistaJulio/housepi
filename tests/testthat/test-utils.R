@@ -71,13 +71,13 @@ test_that("A cli condition from an engine callback keeps its bullets", {
 
   # the condition reaches the caller as the callback raised it
   relayed <- hh_model |>
-    add_reporting_process(wide = warner) |>
+    add_reporting_process(dataset = warner) |>
     run_simulation() |>
     expect_warning("Reported")
   conditionMessage(relayed) |>
     expect_identical(conditionMessage(tryCatch(warner(), warning = identity)))
   relayed <- hh_model |>
-    add_reporting_process(wide = aborter) |>
+    add_reporting_process(dataset = aborter) |>
     run_simulation() |>
     expect_error("Failed")
   conditionMessage(relayed) |>
@@ -255,8 +255,8 @@ test_that("A logical data column reads 0 and 1 in a definition", {
     new_housepi_model("test", quiet = TRUE) |>
     add_observation(datum_2 = list(func = datum * 2))
 
-  get_data_wide(hh_model)$datum_2 |> expect_equal(c(2, 0, 2))
-  get_data_wide(hh_model)$datum |> expect_identical(hh_data$datum)
+  get_dataset(hh_model)$datum_2 |> expect_equal(c(2, 0, 2))
+  get_dataset(hh_model)$datum |> expect_identical(hh_data$datum)
 })
 
 test_that("Data factorization codes a labelled status column", {
@@ -336,20 +336,20 @@ test_that("A data column R can only spell quoted, survives the round trip", {
 
   hh_model <- new_housepi_model(hh_data, "test")
   # the engine reports the column under the user's own spelling
-  colnames(get_data_wide(hh_model)) |> expect_identical(colnames(hh_data))
-  get_data_wide(hh_model)[["3"]] |> expect_equal(hh_data[["3"]])
-  names(inspect_state(hh_model, "house")$data_wide) |>
+  colnames(get_dataset(hh_model)) |> expect_identical(colnames(hh_data))
+  get_dataset(hh_model)[["3"]] |> expect_equal(hh_data[["3"]])
+  names(inspect_state(hh_model, "house")$dataset) |>
     expect_identical(colnames(hh_data))
 
   # a definition sources it by its name, quoted
   get_latent(add_latent(hh_model, hidden = `if`))$func |>
     expect_identical("if|D")
 
-  # data-long keys cross the same way
+  # long dataset keys cross the same way
   long <- data.frame(id = hh_data$id, check.names = FALSE)
   long[["3"]] <- c(1.5, 2.5)
-  add_data_long(hh_model, long) |>
-    get_data_long() |>
+  add_long_dataset(hh_model, long) |>
+    get_long_dataset() |>
     getElement("3") |>
     expect_identical(long[["3"]])
 })

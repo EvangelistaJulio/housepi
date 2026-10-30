@@ -213,13 +213,13 @@ Current standard measures are stratified by household size:
 
 `measure_geom_mean_hh_size` returns a single number instead: the geometric mean of household size weighted by secondary cases, a data-driven choice for `hh_size_ref`.
 
-A custom measure function should accept a `data_wide` data.frame and return a `data.frame`, a `list`, or a `numeric` vector:
+A custom measure function should accept the dataset as a data.frame and return a `data.frame`, a `list`, or a `numeric` vector:
   
 ```{r}
 #| label: predicted-measures-custom
 # define a custom measure: overall attack rate
-measure_overall_attack_rate <- function(data_wide) {
-  sum(data_wide$status > 0, na.rm = TRUE) / nrow(data_wide)
+measure_overall_attack_rate <- function(data) {
+  sum(data$status > 0, na.rm = TRUE) / nrow(data)
 }
 
 # compute standard and custom measures together

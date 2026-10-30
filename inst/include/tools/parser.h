@@ -17,7 +17,7 @@ namespace housepi::parse
     enum class Type : char
     {
         Latent = 'A',
-        DataWide = 'D',
+        Dataset = 'D',
         GroupRate = 'G',
         Numeric = 'N',
         Parameter = 'P',
@@ -28,8 +28,8 @@ namespace housepi::parse
 
     /// Whether type code `s` is latent.
     inline bool is_latent(std::string_view s) { return is_(s, Type::Latent); }
-    /// Whether type code `s` is wide data.
-    inline bool is_data_wide(std::string_view s) { return is_(s, Type::DataWide); }
+    /// Whether type code `s` is a dataset column.
+    inline bool is_dataset(std::string_view s) { return is_(s, Type::Dataset); }
     /// Whether type code `s` is group rate.
     inline bool is_group_rate(std::string_view s) { return is_(s, Type::GroupRate); }
     /// Whether type code `s` is numeric.
@@ -66,7 +66,7 @@ namespace housepi::parse
 
         /// Append producer names of a given type, consumed by this node and its arguments.
         void append_latent_producers(std::vector<std::string> &stack) const;
-        void append_data_wide_producers(std::vector<std::string> &stack) const;
+        void append_dataset_producers(std::vector<std::string> &stack) const;
         void append_parameter_producers(std::vector<std::string> &stack) const;
     };
 
@@ -88,12 +88,12 @@ namespace housepi::parse
 
         /// Names of the given type this definition consumes, i.e. its producers.
         std::vector<std::string> list_latent_producers() const;
-        std::vector<std::string> list_data_wide_producers() const;
+        std::vector<std::string> list_dataset_producers() const;
         std::vector<std::string> list_parameter_producers() const;
 
         /// Whether this definition consumes any latent, data or parameter name.
         bool consumes_latent() const { return !list_latent_producers().empty(); }
-        bool consumes_data_wide() const { return !list_data_wide_producers().empty(); }
+        bool consumes_dataset() const { return !list_dataset_producers().empty(); }
         bool consumes_parameter() const { return !list_parameter_producers().empty(); }
     };
 }

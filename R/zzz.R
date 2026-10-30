@@ -7,7 +7,7 @@
 #' @details
 #' To create a model, call [new_housepi_model()]
 #' with one of the templated transmission models or a custom model.
-#' Provide household data at construction or later with [add_data_wide()].
+#' Provide household data at construction or later with [add_dataset()].
 #' Specify the model features with the decorators [add_parameter()],
 #' [add_group_rate()], [add_contact_rate()], [add_infectivity_profile()],
 #' [add_latent()] and [add_observation()].

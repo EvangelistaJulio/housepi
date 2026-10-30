@@ -58,8 +58,8 @@ Label for status code \code{0} in a character or factor \code{status} column.}
   \subsection{Arguments}{
     \if{html}{\out{<div class="arguments">}}
     \describe{
-      \item{\code{data}}{\code{data.frame} Household data used for analysis (wide format).
-If omitted, attach it later with \code{\link[=add_data_wide]{add_data_wide()}}.}
+      \item{\code{data}}{\code{data.frame} Household data, one row per member.
+If omitted, attach it later with \code{\link[=add_dataset]{add_dataset()}}.}
       \item{\code{model}}{\code{character(1)} Model to use, one of:
 \describe{
 \item{\verb{<template>}}{a built-in template name;}

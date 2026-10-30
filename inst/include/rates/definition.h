@@ -17,8 +17,8 @@
 #include "tools/nan.h"
 #include "tools/string.h"
 #include "tools/vector.h"
+#include "data/dataset.h"
 #include "data/individual.h"
-#include "data/wide.h"
 #include "function.h"
 #include "parameter.h"
 #include "rates/anchor.h"
@@ -92,11 +92,11 @@ namespace housepi::rates
         /// @param spec_headers Every covariate a rule may key on.
         /// @param slot_of Slot of each status level.
         GroupDefinitions(const str_table &input,
-                         const data::Wide &data_wide,
+                         const data::Dataset &dataset,
                          const Parameter &param,
                          const std::vector<std::string> &spec_headers,
                          const StatusTable<StatusSlot> &slot_of)
-            : rules::Member(input, data_wide, spec_headers)
+            : rules::Member(input, dataset, spec_headers)
         {
             if (input.count("param_name"))
                 row_param = param.find(input.at("param_name"));
@@ -110,12 +110,12 @@ namespace housepi::rates
 
         /// Resolve the most specific matching rule per rate name and rule group.
         /// * covariates of `indiv` read at status slot `slot`.
-        std::map<GroupKey, size_t> resolve(const data::Wide &data_wide,
+        std::map<GroupKey, size_t> resolve(const data::Dataset &dataset,
                                            const Individual &indiv,
                                            StatusSlot slot) const
         {
             return rules.resolve<GroupKey>(
-                probe(data_wide, indiv, slot),
+                probe(dataset, indiv, slot),
                 [&](size_t r)
                 { return GroupKey{rules.input.at("group_rate")[r], rules.row_gid[r]}; });
         }
@@ -130,32 +130,32 @@ namespace housepi::rates
     struct ContactDefinitions
     {
         std::vector<std::string> data; /// Covariates, prefix dropped.
-        std::vector<size_t> keys;      /// Data-wide keys of the covariates.
+        std::vector<size_t> keys;      /// Dataset keys of the covariates.
         rules::Table rules;            /// Rules over the `from_` columns, then the `to_` columns.
         std::vector<size_t> row_param; /// Parameter key per rule, NA for the reference.
 
         /// Read the rules of `input`.
         /// @note Expects as many `from_` as `to_` columns.
         ContactDefinitions(const str_table &input,
-                           const data::Wide &data_wide,
+                           const data::Dataset &dataset,
                            const Parameter &param)
             : data(prefixed_(input, "from_", true)),
-              keys(data_wide.consult(data)),
+              keys(dataset.consult(data)),
               rules(input, vect::concatenate(prefixed_(input, "from_"), prefixed_(input, "to_"))),
               row_param(param.find(input.at("param_name"))) {}
 
         /// Resolve the parameters of the rates the pair `indiv_from` to `indiv_to` multiplies.
         /// * per rule group -> the most specific matching rule;
         /// * across groups -> the product, the reference left out.
-        std::vector<size_t> associate_params(const data::Wide &data_wide,
+        std::vector<size_t> associate_params(const data::Dataset &dataset,
                                              const Individual &indiv_from,
                                              const Individual &indiv_to) const
         {
             std::vector<double> probe(2 * keys.size());
             for (size_t i = 0; i < keys.size(); ++i)
             {
-                probe[i] = data_wide.raw(keys[i], indiv_from);
-                probe[keys.size() + i] = data_wide.raw(keys[i], indiv_to);
+                probe[i] = dataset.raw(keys[i], indiv_from);
+                probe[keys.size() + i] = dataset.raw(keys[i], indiv_to);
             }
             std::vector<size_t> params;
             for (auto &[gid, r] : rules.resolve<size_t>(probe, [&](size_t row)

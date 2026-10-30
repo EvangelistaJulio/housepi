@@ -1012,7 +1012,7 @@ test_that("A surrogate column reading latent is simulation only", {
     add_observation(record = hidden + 2)
 
   # the data view has no derived value to report: it keeps the imported datum
-  get_data_wide(hh_model)[["record"]] |> expect_all_equal(0)
+  get_dataset(hh_model)[["record"]] |> expect_all_equal(0)
 
   # observation depends on sampled latent: not a valid surrogate definition
   evaluate_log_lik(hh_model) |>
@@ -1037,13 +1037,13 @@ test_that("A surrogate observation overwrites the corresponding data column", {
     add_latent(hidden = list(func = record_3 * 2))
 
   # the data view reports the derived value before evaluation
-  unique(get_data_wide(hh_model)[["record_2"]]) |> expect_identical(2)
-  colnames(get_data_wide(hh_model)) |> expect_disjoint("record_3")
+  unique(get_dataset(hh_model)[["record_2"]]) |> expect_identical(2)
+  colnames(get_dataset(hh_model)) |> expect_disjoint("record_3")
 
   # and after evaluation
   evaluate_log_lik(hh_model) |> expect_all_finite()
-  unique(get_data_wide(hh_model)[["record_2"]]) |> expect_identical(2)
-  colnames(get_data_wide(hh_model)) |> expect_disjoint("record_3")
+  unique(get_dataset(hh_model)[["record_2"]]) |> expect_identical(2)
+  colnames(get_dataset(hh_model)) |> expect_disjoint("record_3")
 
   # simulated observations are for all members, latent just for infected
   simulated <- run_simulation(hh_model)
@@ -1069,14 +1069,14 @@ test_that("Surrogate columns of both levels build in dependency order", {
                     record_2 = list(func = max(record), level = "house"))
 
   # every member carries a value regardless of status
-  hh_data_2 <- get_data_wide(hh_model)
+  hh_data_2 <- get_dataset(hh_model)
   hh_data_2[["record"]] |> expect_identical(c(5, 12, 7))
   unique(hh_data_2[["record_2"]]) |> expect_identical(12)
 
   # pure surrogate observations with no raw data columns are not exported
   hh_model |>
-    add_data_wide(hh_data[c("hh_id", "status", "datum")]) |>
-    get_data_wide() |>
+    add_dataset(hh_data[c("hh_id", "status", "datum")]) |>
+    get_dataset() |>
     colnames() |>
     intersect(c("record", "record_2")) |>
     expect_length(0L)
@@ -1101,7 +1101,7 @@ test_that("Reading only house observations casts member level to house", {
   obs$level[match(names, obs$name)] |>
     expect_identical(c("house", "house", "member", "house", "house"))
 
-  hh_data_2 <- get_data_wide(hh_model)
+  hh_data_2 <- get_dataset(hh_model)
   hh_data_2[["record_2"]] |> expect_equal(c(10, 10, 10))
   hh_data_2[["record_3"]] |> expect_equal(c(20, 20, 20))
   hh_data_2[["record_4"]] |> expect_equal(c(3, 10, 5))
@@ -1117,7 +1117,7 @@ test_that("A household reduction folds its argument over the members", {
     data |>
       new_housepi_model("test") |>
       add_observation("record", func = !!defin, level = "house") |>
-      get_data_wide() |>
+      get_dataset() |>
       getElement("record") |>
       unique()
   }
@@ -1159,7 +1159,7 @@ test_that("A household observation with no datum yet reads as NA", {
       onset_date = list(model = "normal", discr = TRUE, mean = 3, sd = 1),
       end_date = list(func = max(onset_date), level = "house")
     ) |>
-    get_data_wide()
+    get_dataset()
 
   hh_data$end_date |> expect_all_na()
 })
@@ -1175,7 +1175,7 @@ test_that("A surrogate column proves the requirement its model asks", {
                status = c(1, 0, 1, 0), datum = 0.5, datum_2 = 16) |>
       new_housepi_model("case-ascertained") |>
       add_observation("end_date", func = !!defin, level = level) |>
-      get_data_wide()
+      get_dataset()
   }
 
   # integer-valued cells fold to the integer lattice through the algebra
@@ -1585,7 +1585,7 @@ test_that("Nested latents are sampled through their transformation", {
 
   # a flat observation on each chain leaves both posteriors equal to the model
   hh_fit <- hh_model |>
-    add_data_wide(transform(get_data_wide(hh_model), obs = 0, obs_norm = 0)) |>
+    add_dataset(transform(get_dataset(hh_model), obs = 0, obs_norm = 0)) |>
     helper_flat_sink(loc = z0) |>
     helper_flat_sink(loc = norm, column = "obs_norm") |>
     run_inference(steps = 1e5L, chains = 1L, adapt = 0L, thin = 1L)
@@ -1630,7 +1630,7 @@ test_that("Status-specific latent variables draw from per-status ranges", {
   # inference traces every member within its status support
   hh_fit <- hh_model |>
     run_inference(steps = 5L, thin = 1L, adapt = 2L,
-                  chains = 1L, id_draws = get_data_wide(hh_model)$id) |>
+                  chains = 1L, id_draws = get_dataset(hh_model)$id) |>
     suppressWarnings()
   draws <- as.data.frame(get_latent_draws(hh_fit))
   for (s in seq(4)) {
@@ -1716,7 +1716,7 @@ test_that("Observation-aware initialization", {
   # datum record = 5 is unreachable
   hh_data <- data.frame(hh_id = "h1", status = 1, record = 5)
   hh_model |>
-    add_data_wide(hh_data) |>
+    add_dataset(hh_data) |>
     run_inference() |>
     expect_error("[Ee]xceeded attempts")
 
@@ -1871,20 +1871,20 @@ test_that("Discretization is resolved every time the data changes", {
 
   # observations resolve to continuous in simulations and definitions
   hh_model <- hh_model |>
-    add_data_wide(dplyr::mutate(hh_data, record = rep(c(2.4, 5.1), 20)))
+    add_dataset(dplyr::mutate(hh_data, record = rep(c(2.4, 5.1), 20)))
   get_observations(hh_model)$discr |> expect_false()
   on_integer_lattice(run_simulation(hh_model)$record) |> expect_false()
 
   # observations resolve to discrete in simulations and definitions
   hh_model <- hh_model |>
-    add_data_wide(dplyr::mutate(hh_data, record = rep(c(2L, 5L), 20)))
+    add_dataset(dplyr::mutate(hh_data, record = rep(c(2L, 5L), 20)))
   get_observations(hh_model)$discr |> expect_true()
   on_integer_lattice(run_simulation(hh_model)$record) |> expect_true()
 })
 
 test_that("A bare observation name reads its column in a house reduction", {
   simulated <- mk_outbreak$model |>
-    add_data_wide(dplyr::select(mk_outbreak$data, -test_date)) |>
+    add_dataset(dplyr::select(mk_outbreak$data, -test_date)) |>
     add_observation(
       test_date = list(model = "normal", mean = infec_time + incub_period),
       start_date = list(func = min(test_date), level = "house")
@@ -1931,7 +1931,7 @@ test_that("A household-bound member observation bounds every member", {
 test_that("An observation model reads an observation drawn before it", {
   # the reader is declared first: the draw order follows the dependency
   simulated <- mk_outbreak$model |>
-    add_data_wide(dplyr::select(mk_outbreak$data, -test_date)) |>
+    add_dataset(dplyr::select(mk_outbreak$data, -test_date)) |>
     add_observation(
       record = list(model = "normal", mean = test_date, sd = 1e-3),
       test_date = list(model = "normal", mean = infec_time + incub_period)
@@ -2003,7 +2003,7 @@ test_that("Household observation derives from simulated observations", {
   # both the observation (test_date) and the surrogate column (start_date) are
   # produced internally: neither is provided in the input data
   reps <- mk_outbreak$model |>
-    add_data_wide(dplyr::select(mk_outbreak$data, -test_date)) |>
+    add_dataset(dplyr::select(mk_outbreak$data, -test_date)) |>
     add_observation("test_date", model = "normal",
                     mean = infec_time + incub_period, sd = 1) |>
     add_observation(start_date = min(test_date), level = "house") |>
@@ -2049,7 +2049,7 @@ test_that("A household reduction folds a latent over the members", {
 
 test_that("A column needed for every member is not drawn with infection", {
   hh_model <- mk_outbreak$model |>
-    add_data_wide(dplyr::select(mk_outbreak$data, -end_date)) |>
+    add_dataset(dplyr::select(mk_outbreak$data, -end_date)) |>
     add_latent(onset_time = infec_time + incub_period) |>
     add_observation("onset_date", model = "normal", mean = onset_time)
 
@@ -2105,7 +2105,7 @@ test_that("Household observations aggregate a data column across members", {
   )
 
   simulated <- mk_outbreak$model |>
-    add_data_wide(hh_data) |>
+    add_dataset(hh_data) |>
     add_latent(infec_time = list(min = -14, max = end_date), append = FALSE) |>
     add_observation(
       first_test = min(test_date),
@@ -2153,8 +2153,8 @@ test_that("Simulation leaves overwritten data columns pristine", {
 test_that("A latent reads a static data-bound household observation", {
   # start_date stands in for provided (static) test_date, read by incub_period
   simulated <- mk_outbreak$model |>
-    add_data_wide(mk_outbreak$data |>
-                    dplyr::mutate(test_date = 5, end_date = 26)) |>
+    add_dataset(mk_outbreak$data |>
+                  dplyr::mutate(test_date = 5, end_date = 26)) |>
     add_latent(
       incub_period = list(model = "uniform", min = start_date - 1,
                           max = start_date),
@@ -2182,11 +2182,11 @@ test_that("Data-bound household observation supplies a required data column", {
     add_latent(import = "template")
 
   # 'end_date' provided as an ordinary data column
-  provided <- add_data_wide(hh_model, hh_data)
+  provided <- add_dataset(hh_model, hh_data)
 
   # 'end_date' is passed as a surrogate observation
   surrogate <- hh_model |>
-    add_data_wide(dplyr::select(hh_data, -end_date)) |>
+    add_dataset(dplyr::select(hh_data, -end_date)) |>
     add_observation(end_date = min(test_date) + 21, level = "house")
 
   # the two agree on the pointwise sum: the unpinned template draws the same

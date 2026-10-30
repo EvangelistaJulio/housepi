@@ -7,8 +7,8 @@ MODEL ?= ../../src/model_test.cpp
 # exported by private$.export_to_cpp_standalone
 STD_IN := -A latent.csv \
 -C contact_rates.csv \
--D data_wide.csv \
--L data_long.csv \
+-D dataset.csv \
+-L long_dataset.csv \
 -G group_rates.csv \
 -I infec.csv \
 -P param.csv \

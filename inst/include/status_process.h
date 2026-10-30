@@ -15,7 +15,7 @@
 
 namespace housepi::data
 {
-    struct Wide;
+    struct Dataset;
 }
 
 //////////////////////////////  StatusProcess  //////////////////////////////
@@ -31,7 +31,7 @@ namespace housepi
         /// Resolve the weights of every member from rule table `input`, over `n_levels` infected levels.
         /// * empty `input` -> no status process.
         /// @note Coverage, ties and positive totals are asserted R-side.
-        void build(const data::Wide &data_wide,
+        void build(const data::Dataset &dataset,
                    const str_table &input,
                    size_t n_levels);
 

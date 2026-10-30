@@ -181,7 +181,7 @@ test_that("Status is a constant in inference", {
   # density is deterministic and the only difference is the status process.
   hh_model <- helper_onset_house$data |>
     transform(status = c(1, 2, 1, 0, 0, 0, 0), infec_date = infec_time) |>
-    add_data_wide(hh_model = mk_pinned$model)
+    add_dataset(hh_model = mk_pinned$model)
 
   # the status process drops out of the density (status is fixed data)
   hh_model |>
@@ -210,11 +210,11 @@ test_that("Status process generates a labelled status factor in simulation", {
   # labels to the same codes (escaped -> 0), so the density is finite
   hh_model <- simulated |>
     dplyr::select(id, hh_id, status, infec_date = infec_time, end_date) |>
-    add_data_wide(hh_model = mk_pinned$model)
+    add_dataset(hh_model = mk_pinned$model)
   evaluate_log_lik(hh_model) |> expect_all_finite()
 
   # the data-derived dictionary matches the simulated infected labels
-  levels(get_data_wide(hh_model)$status) |>
+  levels(get_dataset(hh_model)$status) |>
     expect_identical(c("escaped", "symptomatic", "asymptomatic"))
 })
 

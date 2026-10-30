@@ -175,7 +175,7 @@ test_that("Reference turns rates relative with its own mcmc configuration", {
   params$proposal |> expect_all_na()
 })
 
-test_that("Group rates hold without data and re-derive on add_data_wide", {
+test_that("Group rates hold without data and re-derive on add_dataset", {
   # rates ingest data: a data-less model holds them, no rate params yet
   hh_model <- new_housepi_model(model = "final-size") |>
     add_parameter(import = "template") |>
@@ -184,19 +184,19 @@ test_that("Group rates hold without data and re-derive on add_data_wide", {
   get_parameters(hh_model)$name |> expect_no_match("^sus_member")
 
   # attaching data materialises the rate parameters and runs
-  hh_model_2 <- add_data_wide(hh_model, mk_flu$data)
+  hh_model_2 <- add_dataset(hh_model, mk_flu$data)
   full_params <- get_parameters(hh_model_2)$name
   full_params |> expect_match("^sus_member", all = FALSE)
   evaluate_log_lik(hh_model_2) |> expect_all_finite()
 
   # replacing data re-derives: a single-level subset drops the stale rate params
-  hh_model_3 <- add_data_wide(hh_model_2,
-                              mk_flu$data[mk_flu$data$member == "student", ])
+  hh_model_3 <- add_dataset(hh_model_2,
+                            mk_flu$data[mk_flu$data$member == "student", ])
   get_parameters(hh_model_3)$name |> expect_no_match("^sus_member")
   evaluate_log_lik(hh_model_3) |> expect_all_finite()
 
   # re-attaching the full data restores the exact original parameter set
-  get_parameters(add_data_wide(hh_model_3, mk_flu$data))$name |>
+  get_parameters(add_dataset(hh_model_3, mk_flu$data))$name |>
     expect_setequal(full_params)
 })
 

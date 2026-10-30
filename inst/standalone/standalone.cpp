@@ -16,8 +16,8 @@
 #include "tools/nan.h"
 #include "tools/string.h"
 #include "augmented.h"
-#include "data/long.h"
-#include "data/wide.h"
+#include "data/dataset.h"
+#include "data/long_dataset.h"
 #include "infec_profile.h"
 #include "mcmc.h"
 #include "mcmc/settings.h"
@@ -171,23 +171,23 @@ namespace housepi
         }
     }
 
-    void Options::read_data_wide(MCMCBase &model)
+    void Options::read_dataset(MCMCBase &model)
     {
         try
         {
-            model.data.build_wide(read::csv_table(file.data_wide));
+            model.data.build_dataset(read::csv_table(file.dataset));
         }
         catch (const std::exception &e)
         {
-            msg::stop(std::string("While reading data-wide definitions:\n") + e.what());
+            msg::stop(std::string("While reading the dataset:\n") + e.what());
         }
     }
 
-    void Options::read_data_long(MCMCBase &model)
+    void Options::read_long_dataset(MCMCBase &model)
     {
         try
         {
-            model.data.build_long(read::csv_table(file.data_long));
+            model.data.build_long_dataset(read::csv_table(file.long_dataset));
         }
         catch (const std::exception &e)
         {
@@ -199,7 +199,7 @@ namespace housepi
     {
         try
         {
-            model.rates.build_group(model.data.wide(), model.param, read::csv_table(file.group_rate));
+            model.rates.build_group(model.data.dataset(), model.param, read::csv_table(file.group_rate));
         }
         catch (const std::exception &e)
         {
@@ -211,7 +211,7 @@ namespace housepi
     {
         try
         {
-            model.rates.build_contact(model.data.wide(), model.param, read::csv_table(file.contact_rate));
+            model.rates.build_contact(model.data.dataset(), model.param, read::csv_table(file.contact_rate));
         }
         catch (const std::exception &e)
         {
@@ -315,9 +315,9 @@ namespace housepi
     //////////////////////////////  Simulation output  //////////////////////////////
 
     /// Open `f` and write its header: data columns, then latent columns.
-    std::ofstream open_ofstream_datawide(const std::string &f,
-                                         const std::vector<std::string> &data_headers,
-                                         const std::vector<std::string> &latent_headers)
+    std::ofstream open_ofstream_dataset(const std::string &f,
+                                        const std::vector<std::string> &data_headers,
+                                        const std::vector<std::string> &latent_headers)
     {
         std::ofstream ofs;
         ofs.open(f);
@@ -339,29 +339,29 @@ namespace housepi
     }
 
     /// Write the rows of `house` for replicate `rep`.
-    void update_ofstream_datawide(std::ofstream &ofs,
-                                  size_t rep,
-                                  const Household &house,
-                                  const Data &data,
-                                  const std::vector<size_t> &latent_export,
-                                  const Augmented &augm)
+    void update_ofstream_dataset(std::ofstream &ofs,
+                                 size_t rep,
+                                 const Household &house,
+                                 const Data &data,
+                                 const std::vector<size_t> &latent_export,
+                                 const Augmented &augm)
     {
         if (!ofs.is_open())
             throw std::runtime_error("Output file closed unexpectedly.");
 
-        const data::Wide &data_wide = data.wide();
+        const data::Dataset &dataset = data.dataset();
         for (const Individual &indiv : house)
         {
             ofs << rep
-                << str::DELIMITER << data_wide.id(indiv)
-                << str::DELIMITER << data_wide.hh_id(house)
+                << str::DELIMITER << dataset.id(indiv)
+                << str::DELIMITER << dataset.hh_id(house)
                 << str::DELIMITER;
             // StatusLvl is a byte: stream it as a number, not as a character
             if (indiv.is_missing_status())
                 ofs << "NA";
             else
                 ofs << static_cast<int>(indiv.status());
-            for (size_t d = 0; d < data_wide.size(); ++d)
+            for (size_t d = 0; d < dataset.size(); ++d)
                 ofs << str::DELIMITER << data.at(d, indiv).value();
             for (size_t a : latent_export)
             {
@@ -373,9 +373,9 @@ namespace housepi
         }
     }
 
-    void print_simulated_data_wide(MCMC &engine, const std::string &pathtofile)
+    void print_simulated_dataset(MCMC &engine, const std::string &pathtofile)
     {
-        data::Wide &data_wide = engine.data.wide();
+        data::Dataset &dataset = engine.data.dataset();
         const Augmented &augm = engine.augm;
 
         // no output file: simulate without serializing
@@ -389,30 +389,30 @@ namespace housepi
         // the row loop reports every column the holder carries
         std::ofstream ofs;
         if (is_writing)
-            ofs = open_ofstream_datawide(pathtofile,
-                                         data_wide.all(),
-                                         augm.consult(augm.scheme().list_latent_export));
+            ofs = open_ofstream_dataset(pathtofile,
+                                        dataset.all(),
+                                        augm.consult(augm.scheme().list_latent_export));
 
         // the settings step count is the number of replicates
         for (Settings::Step r = 0; r < engine.settings.n_steps; ++r)
         {
             // clear before recovering: clear_all() walks the infected members of the last replicate
             engine.augm.clear_all();
-            data_wide.recover_all_status();
+            dataset.recover_all_status();
 
-            for (Household &house : data_wide)
+            for (Household &house : dataset)
                 try
                 {
                     engine.model->simulate_single_house(house);
                     if (is_writing)
-                        update_ofstream_datawide(ofs, r, house,
-                                                 engine.data,
-                                                 augm.scheme().list_latent_export, augm);
+                        update_ofstream_dataset(ofs, r, house,
+                                                engine.data,
+                                                augm.scheme().list_latent_export, augm);
                 }
                 catch (const std::exception &e)
                 {
                     throw std::runtime_error(
-                        "While simulating " + data_wide.str(house) + ":\n" + e.what());
+                        "While simulating " + dataset.str(house) + ":\n" + e.what());
                 }
         }
 
@@ -462,10 +462,10 @@ namespace housepi
                 file.latent = argv[++carg_i];
 
             else if (toup(carg) == "-D" || tolow(carg) == "--dataset")
-                file.data_wide = argv[++carg_i];
+                file.dataset = argv[++carg_i];
 
             else if (toup(carg) == "-L" || tolow(carg) == "--datalong")
-                file.data_long = argv[++carg_i];
+                file.long_dataset = argv[++carg_i];
 
             else if (toup(carg) == "-G" || tolow(carg) == "--group-rates")
                 file.group_rate = argv[++carg_i];
@@ -519,8 +519,8 @@ namespace housepi
         //////  Options  //////
 
         Options opts(argc, argv);
-        opts.read_data_wide(engine);     // 1) Load Data Wide
-        opts.read_data_long(engine);     // ... and Data Long
+        opts.read_dataset(engine);       // 1) Load Dataset
+        opts.read_long_dataset(engine);  // ... and long dataset
         opts.read_settings(engine);      // 2) Load Settings
         opts.read_param(engine);         // 3) Load Parameters
         opts.read_infec_profile(engine); // 4) Load Infectivity Profile
@@ -535,7 +535,7 @@ namespace housepi
             if (opts.is_log_lik)
                 std::cout << engine.evaluate_log_lik("") << std::endl;
             if (opts.is_simulate)
-                print_simulated_data_wide(engine, opts.file.output);
+                print_simulated_dataset(engine, opts.file.output);
             if (opts.is_infer)
                 print_infer_state(engine, opts.file.output);
         }

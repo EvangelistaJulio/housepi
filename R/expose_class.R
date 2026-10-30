@@ -14,7 +14,7 @@ rd_model_out_ <- paste(
   rd_model_in_,
   "Deep clone of input with new definitions."
 )
-rd_add_wide_ <- "`data.frame` Household data used for analysis (wide format)."
+rd_dataset_ <- "`data.frame` Household data, one row per member."
 rd_hh_id_ <- "`character(1)` ID of the household of interest."
 rd_mdl_choice_ <- "`character(1)` Model to use, one of:
 \\describe{
@@ -171,8 +171,6 @@ rd_rate_desc_ <- function(kind) {
 The rate multiplies a transmission rate of the model.
 Each stratum carries its own absolute rate, unless a reference is chosen.
 Then every parameter is a rate ratio to the reference stratum.
-The probability of infection is \\eqn{1 - e^{-\\lambda}} for a rate \\eqn{\\lambda},
-so a rate ratio is not a risk ratio.
 If no MCMC options are provided,
 absolute rates are \\eqn{\\mathrm{uniform}} over their support,
 and relative ones \\eqn{\\mathrm{lognormal}[\\mu=0, \\sigma=3]}.
@@ -281,8 +279,8 @@ are left by the last call that ran it:
 #' @title Create a new household-transmission model instance
 #' @description
 #' Create a `HousepiModel`, the object inference and simulation run on.
-#' @param data `r rd_add_wide_`
-#' If omitted, attach it later with [add_data_wide()].
+#' @param data `r rd_dataset_`
+#' If omitted, attach it later with [add_dataset()].
 #' @param model `r rd_mdl_choice_`
 #' @param as_template `r rd_mdl_astmpl_`
 #' @param force `r rd_mdl_force_`
@@ -317,38 +315,39 @@ stopifnothousepi <- function(hh_model) {
   )
 }
 
-#' @title Attach household wide-format data to a housepi model
+#' @title Attach a dataset to a housepi model
 #' @description
-#' Make an internal copy of the provided household data in wide format,
+#' Make an internal copy of the household data, one row per member,
 #' (re)building any definitions that depend on it.
 #' An empty cell of a categorical column is missing data, not a category.
 #' To stratify on it, recode it to a label of your choice.
 #' @param hh_model `r rd_model_in_`
-#' @param data `r rd_add_wide_`
+#' @param data `r rd_dataset_`
 #' @return `r rd_model_out_`
 #' @examples
 #' # construct the model first, attach the data afterwards
 #' hh_model <- new_housepi_model(model = "final_size") |>
-#'   add_data_wide(flu_1918_frederick)
+#'   add_dataset(flu_1918_frederick)
 #' summarise_house_cases(hh_model)
 #' @export
-add_data_wide <- function(hh_model, data) {
+add_dataset <- function(hh_model, data) {
   stopifnothousepi(hh_model)
   if (is.null(data)) stop_h("Missing argument {.arg data}.")
   new_obj <- hh_model$copy()
   pvt <- new_obj$.__enclos_env__$private
   # drop stale rate params (read pre-change tables) before re-importing data
   pvt$drop_stale_rate_params_()
-  pvt$set_data_wide_(assert_household_data(data, NA_character_))
+  pvt$set_dataset_(assert_household_data(data, NA_character_))
   pvt$rebuild_()
   new_obj
 }
 
-#' @title Attach individual-level long-format data to a housepi model
+#' @title Attach a long dataset to a housepi model
 #' @description
-#' Make an internal copy of the provided data in long format.
+#' Make an internal copy of member data with any number of rows per member,
+#' such as repeated tests over time, matched to the dataset on `id`.
 #' @param hh_model `r rd_model_in_`
-#' @param data_long `data.frame` Additional individual long format data.
+#' @param data `data.frame` Long dataset, one row per member and entry.
 #' @return `r rd_model_out_`
 #' @examples
 #' # repeated measures of one individual, matched on `id`
@@ -356,14 +355,14 @@ add_data_wide <- function(hh_model, data) {
 #'                        viral_load = c(5.2, 6.8, 4.1))
 #' hh_model <- sarscov2_2021_icofs |>
 #'   new_housepi_model("case-ascertained") |>
-#'   add_data_long(measures)
-#' get_data_long(hh_model)
+#'   add_long_dataset(measures)
+#' get_long_dataset(hh_model)
 #' @export
-add_data_long <- function(hh_model, data_long) {
+add_long_dataset <- function(hh_model, data) {
   stopifnothousepi(hh_model)
   new_obj <- hh_model$copy()
   pvt <- new_obj$.__enclos_env__$private
-  pvt$set_data_long_(data_long)
+  pvt$set_long_dataset_(data)
   pvt$rebuild_()
   new_obj
 }
@@ -416,11 +415,11 @@ subset_definitions_ <- function(defs, name, col = "name") {
 #' @title Retrieve currently loaded data and definitions from a housepi model
 #' @description
 #' Return the definitions currently stored in the housepi model.
-#' Each variant returns one category: data, parameters, latent variables,
-#' observations, status process, group rates, contact rates,
-#' infectivity profile or reporting process.
+#' Each variant returns one category: dataset, long dataset, parameters,
+#' latent variables, observations, status process, group rates,
+#' contact rates, infectivity profile or reporting process.
 #' @details
-#' `get_data_wide()` returns the individual-level data the model reads.
+#' `get_dataset()` returns the dataset the model reads, one row per member.
 #' A column a deterministic observation stands in for
 #' carries the derived value, not the imported one.
 #' A column an observation produces without standing in for data
@@ -440,33 +439,33 @@ subset_definitions_ <- function(defs, name, col = "name") {
 #' its `from_` and `to_` covariates, its `param_name`,
 #' the `n` ordered pairs of members it applies to and its `rule_group`.
 #' A symmetric contact rate lists the reverse of each rule as a rule of its own.
-#' `get_reporting_process()` returns `list(wide = , long = )`,
+#' `get_reporting_process()` returns `list(dataset = , long_dataset = )`,
 #' see [add_reporting_process()].
 #' @examples
 #' hh_model <- new_housepi_model(flu_1918_frederick, "final_size") |>
 #'   add_parameter(import = "template")
-#' get_data_wide(hh_model) |>
+#' get_dataset(hh_model) |>
 #'   head()
 #' get_parameters(hh_model)
 #' get_parameters(hh_model, name = c("alpha", "beta"))
 #' @rdname get_definitions
 #' @export
-get_data_wide <- function(hh_model) {
+get_dataset <- function(hh_model) {
   stopifnothousepi(hh_model)
   pvt <- hh_model$.__enclos_env__$private
-  # no data attached yet (deferred until add_data_wide() or the wall)
-  if (!pvt$has_data_wide_()) return(NULL)
-  .engine$export_data_wide(pvt$mcmc_ptr_) |>
-    pvt$refactor_data_("data_wide")
+  # no data attached yet (deferred until add_dataset() or the wall)
+  if (!pvt$has_dataset_()) return(NULL)
+  .engine$export_dataset(pvt$mcmc_ptr_) |>
+    pvt$refactor_data_("dataset")
 }
 
 #' @rdname get_definitions
 #' @export
-get_data_long <- function(hh_model) {
+get_long_dataset <- function(hh_model) {
   stopifnothousepi(hh_model)
   pvt <- hh_model$.__enclos_env__$private
-  .engine$export_data_long(pvt$mcmc_ptr_) |>
-    pvt$refactor_data_("data_long")
+  .engine$export_long_dataset(pvt$mcmc_ptr_) |>
+    pvt$refactor_data_("long_dataset")
 }
 
 #' @rdname get_definitions
@@ -512,9 +511,9 @@ get_observations <- function(hh_model, name = NA) {
 get_status_process <- function(hh_model) {
   stopifnothousepi(hh_model)
   pvt <- hh_model$.__enclos_env__$private
-  data_wide <- get_data_wide(hh_model)
-  levels <- if (!is.null(data_wide)) pvt$status_draw_levels_()
-  pvt$status_$tidy_table(data_wide, levels)
+  dataset <- get_dataset(hh_model)
+  levels <- if (!is.null(dataset)) pvt$status_draw_levels_()
+  pvt$status_$tidy_table(dataset, levels)
 }
 
 #' @rdname get_definitions
@@ -524,7 +523,7 @@ get_group_rates <- function(hh_model, name = NA) {
   pvt <- hh_model$.__enclos_env__$private
   pvt$group_rates_ |>
     helper_show_rate_table(setdiff(rate_reserved_cols, rate_pin_cols),
-                           pvt$has_data_wide_()) |>
+                           pvt$has_dataset_()) |>
     sort_definitions_("group_rate", by_status = FALSE) |>
     subset_definitions_(name, "group_rate")
 }
@@ -536,7 +535,7 @@ get_contact_rates <- function(hh_model) {
   pvt <- hh_model$.__enclos_env__$private
   pvt$contact_rates_ |>
     helper_show_rate_table(c("param_name", "n", "rule_group"),
-                           pvt$has_data_wide_()) |>
+                           pvt$has_dataset_()) |>
     sort_definitions_("param_name", by_status = FALSE)
 }
 
@@ -1188,38 +1187,39 @@ add_infectivity_profile <- function(hh_model,
 #' Inference does not model the reporting process,
 #' which introduces a misspecification.
 #' @param hh_model `r rd_model_in_`
-#' @param wide `function` | `NULL`
-#' Turns a simulated `data_wide` into the reported `data_wide`.
+#' @param dataset `function` | `NULL`
+#' Turns a simulated dataset into the reported dataset.
 #' `NULL` removes it.
-#' @param long `function` | `NULL`
-#' Turns the reported `data_wide` into a `data_long`,
+#' @param long_dataset `function` | `NULL`
+#' Turns the reported dataset into a long dataset,
 #' which [run_simulation()] returns along with it.
 #' `NULL` removes it.
 #' @return `r rd_model_out_`
 #' @examples
 #' # each case goes unreported with probability 0.1
-#' miss_cases <- function(data_wide) {
-#'   missed <- data_wide$status > 0 & stats::runif(nrow(data_wide)) < 0.1
-#'   data_wide$status[missed] <- 0L
-#'   data_wide
+#' miss_cases <- function(data) {
+#'   missed <- data$status > 0 & stats::runif(nrow(data)) < 0.1
+#'   data$status[missed] <- 0L
+#'   data
 #' }
 #' flu_1918_frederick |>
 #'   new_housepi_model("final-size") |>
 #'   add_parameter(import = "template") |>
-#'   add_reporting_process(wide = miss_cases) |>
+#'   add_reporting_process(dataset = miss_cases) |>
 #'   run_simulation() |>
 #'   head()
 #' @export
-add_reporting_process <- function(hh_model, wide, long) {
+add_reporting_process <- function(hh_model, dataset, long_dataset) {
   stopifnothousepi(hh_model)
-  if (missing(wide) && missing(long)) stop_h(
+  if (missing(dataset) && missing(long_dataset)) stop_h(
     "No reporting process given.",
-    "Pass a function to {.arg wide}, {.arg long} or both."
+    "Pass a function to {.arg dataset}, {.arg long_dataset} or both."
   )
   new_obj <- hh_model$copy()
   pvt <- new_obj$.__enclos_env__$private
-  if (!missing(wide)) pvt$set_reporting_process_("wide", wide)
-  if (!missing(long)) pvt$set_reporting_process_("long", long)
+  if (!missing(dataset)) pvt$set_reporting_process_("dataset", dataset)
+  if (!missing(long_dataset))
+    pvt$set_reporting_process_("long_dataset", long_dataset)
   new_obj
 }
 
@@ -1265,8 +1265,8 @@ evaluate_log_lik <- function(hh_model, hh_id = NA_character_) {
 inspect_augmented_data <- function(hh_model) {
   stopifnothousepi(hh_model)
   pvt <- hh_model$.__enclos_env__$private
-  pvt$refactor_data_(.engine$export_augmented_data_wide(pvt$mcmc_ptr_),
-                     "data_wide")
+  pvt$refactor_data_(.engine$export_augmented_dataset(pvt$mcmc_ptr_),
+                     "dataset")
 }
 
 #' @title Inspect the state of a housepi model
@@ -1279,7 +1279,7 @@ inspect_augmented_data <- function(hh_model) {
 #' If `NULL`, only the parameters and the sampler are read.
 #' @return `list` The parameters and the sampler,
 #' and with a household all its variables.
-#' Entries are named after their getters, e.g `data_wide` for [get_data_wide()].
+#' Entries are named after their getters, e.g `dataset` for [get_dataset()].
 #' Then come the latent, observation and transmission log-likelihoods,
 #' `model_quantities`, the named quantities the model exports,
 #' see its `template_<model>` help page, and `.sampler`.
@@ -1332,10 +1332,11 @@ inspect_state <- function(hh_model, hh_id = NULL) {
   )
 
   if (has_house) {
-    out$data_wide <- pvt$refactor_data_(out$data_wide, "data_wide")
-    # data long
-    if (all(dim(out$data_long) == 0)) out$data_long <- NULL
-    else out$data_long <- pvt$refactor_data_(out$data_long, "data_long")
+    out$dataset <- pvt$refactor_data_(out$dataset, "dataset")
+    # long dataset
+    long <- out$long_dataset
+    if (all(dim(long) == 0)) out$long_dataset <- NULL
+    else out$long_dataset <- pvt$refactor_data_(long, "long_dataset")
   }
   # parameters
   if (!length(.engine$param_keys(pvt$mcmc_ptr_)) &&
@@ -1475,7 +1476,7 @@ assert_posterior_memory_ <- function(hh_model, n_sample, id_draws) {
   n_latent_defs <- NROW(pvt$augm_$defs)
   # structural upper bound: each named or default household at its largest
   # size, status filtering left to the engine
-  hh_id <- get_data_wide(hh_model)$hh_id
+  hh_id <- get_dataset(hh_model)$hh_id
   max_hh_size <- if (!length(hh_id)) 1L else max(table(hh_id))
   n_members_upper <- length(unique(id_draws$id)) +
     length(unique(id_draws$hh_id)) * max_hh_size
@@ -1527,7 +1528,8 @@ wrap_inference_ <- function(hh_model, ran, i = 1L) {
 #' when `nrep` is `NA` and `draws` is `NULL`, named values
 #' or a one-row `data.frame`.
 #' Otherwise a `list` with one `data.frame` per replicate.
-#' With a `long` reporting process, a `list(wide = , long = )` of either.
+#' With a `long_dataset` reporting process,
+#' a `list(dataset = , long_dataset = )` of either.
 #' @examples
 #' flu_1918_frederick |>
 #'   new_housepi_model("final-size") |>
@@ -1545,7 +1547,7 @@ run_simulation <- function(hh_model,
   assert_advanced_settings_("time_step", ...)
   output <- hh_model$.__enclos_env__$private$simulate_(
     draws = draws, nrep = nrep, thin_ess = thin_ess,
-    apply_long = identity, threads = threads, ...
+    apply_long_dataset = identity, threads = threads, ...
   )
   output$parameters <- NULL
   # the arguments, not the replicates left after thinning, ask for one frame

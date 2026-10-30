@@ -13,7 +13,7 @@ rd_sweep_nrep_ <- "`integer(1)` Number of replicates at each household count.
 Each replicate is a household study simulated and fitted back."
 rd_sweep_sampler_ <- "`function`
 Sampler of the household structure the outbreaks are simulated on,
-called as `structure_sampler(data_wide, houses)`.
+called as `structure_sampler(data, houses)`.
 If `NULL`, the attached structure is reused verbatim and `houses` ignored."
 rd_sweep_structure_ <- "Only transmission and observations are simulated.
 Households, members and their covariates come from the attached data,
@@ -23,7 +23,7 @@ rd_sweep_seed_ <- "Replicates are independent draws.
 Call `set.seed()` before the check to replay a whole sweep,
 at any `threads` up to `nrep`."
 rd_sweep_reporting_ <- "Each simulated study goes through
-the `wide` reporting process of the model before it is fitted back,
+the `dataset` reporting process of the model before it is fitted back,
 see [add_reporting_process()].
 Inference does not model it,
 so a process losing information makes the check measure the misspecification."
@@ -37,11 +37,11 @@ Beyond `nrep`, the households of each fit share the threads left over."
 #' Status is kept as simulation receives it, drawn anew by transmission.
 #' @noRd
 sweep_base_structure_ <- function(hh_model) {
-  data <- get_data_wide(hh_model)
+  data <- get_dataset(hh_model)
   if (!NROW(data)) stop_h(
     "No data is attached to the model.",
     paste("The check simulates its outbreaks on the household structure",
-          "of the attached data: add one with {.fn add_data_wide}.")
+          "of the attached data: add one with {.fn add_dataset}.")
   )
   written <- c(get_observations(hh_model)[["name"]],
                get_latent(hh_model)[["name"]])
@@ -122,7 +122,7 @@ sweep_cells_ <- function(replicates) {
 #' * engine -> its module name;
 #' * household structure the outbreaks are simulated on -> hashed;
 #' * definitions as the engine imports them -> hashed per family;
-#' * structure sampler and `wide` reporting process -> kept whole.
+#' * structure sampler and `dataset` reporting process -> kept whole.
 #' @noRd
 sweep_fingerprint_ <- function(hh_model, structure, sampler) {
   pvt <- hh_model$.__enclos_env__$private
@@ -130,7 +130,7 @@ sweep_fingerprint_ <- function(hh_model, structure, sampler) {
          household_data = rlang::hash(structure)),
     lapply(pvt$payload_(), rlang::hash),
     list(structure_sampler = sampler,
-         reporting_process = pvt$reporting_process_$wide))
+         reporting_process = pvt$reporting_process_$dataset))
 }
 
 #' Sweep of a recovery or calibration check: the replicates
@@ -409,8 +409,8 @@ sweep_guard_ <- function(expr, rep, houses) {
 sweep_run_ <- function(hh_model, structure, sampler, houses, nrep, pins,
                        fit_args, threads, dots, reducer, progress, label) {
   do.call(resolve_settings_, fit_args)
-  # fits read the wide data only
-  hh_model <- add_reporting_process(hh_model, long = NULL)
+  # fits read the dataset only
+  hh_model <- add_reporting_process(hh_model, long_dataset = NULL)
   fingerprint <- sweep_fingerprint_(hh_model, structure, sampler)
   time_step <- dots[names(dots) == "time_step"]
   # a copy carries no settings: it reads the engine defaults
@@ -425,7 +425,7 @@ sweep_run_ <- function(hh_model, structure, sampler, houses, nrep, pins,
   # the replicates at `n` households, reduced
   cell <- function(n, bar) {
     struct <- if (is.null(sampler)) structure else sampler(structure, n)
-    sim_model <- add_data_wide(hh_model, struct)
+    sim_model <- add_dataset(hh_model, struct)
     studies <- do.call(sim_model$.__enclos_env__$private$simulate_, sim_args)
     truths <- lapply(seq_len(nrep),
                      \(rep) unlist(studies$parameters[rep, , drop = FALSE]))
@@ -433,7 +433,7 @@ sweep_run_ <- function(hh_model, structure, sampler, houses, nrep, pins,
     # whatever the size of a wave
     seeds <- draw_seed_(nrep)
     unlist(lapply(waves, function(reps) {
-      draws <- sweep_fit_wave_(hh_model, studies$wide[reps], reps, n,
+      draws <- sweep_fit_wave_(hh_model, studies$dataset[reps], reps, n,
                                seeds[reps], fit_args, workers$outer, bar)
       Map(sweep_reduce_one_, draws, truths[reps], reps, seeds[reps],
           MoreArgs = list(houses = n, reducer = reducer))
@@ -451,7 +451,7 @@ sweep_run_ <- function(hh_model, structure, sampler, houses, nrep, pins,
        settings = settings, fingerprint = fingerprint)
 }
 
-#' Run one wave: the studies of `wides` built in order,
+#' Run one wave: the studies of `datasets` built in order,
 #' sampled `outer` at a time, housepi warnings held back.
 #' * first study failing -> stops every fit of the wave.
 #' @param reps `integer()` Replicate of each study.
@@ -460,10 +460,10 @@ sweep_run_ <- function(hh_model, structure, sampler, houses, nrep, pins,
 #' @param bar Progress bar each fit fills by one unit, `NULL` for none.
 #' @return Posterior draws of each study.
 #' @noRd
-sweep_fit_wave_ <- function(hh_model, wides, reps, houses, seeds, fit_args,
+sweep_fit_wave_ <- function(hh_model, datasets, reps, houses, seeds, fit_args,
                             outer, bar) {
   local_quiet_warnings_(TRUE)
-  fits <- Map(sweep_prepare_one_, wides, seeds,
+  fits <- Map(sweep_prepare_one_, datasets, seeds,
               MoreArgs = list(hh_model = hh_model, fit_args = fit_args))
   ran <- .engine$run_inference_list(lapply(fits, `[[`, "ptr"), outer, bar)
   if (!is.null(ran$error)) sweep_guard_(
@@ -476,7 +476,7 @@ sweep_fit_wave_ <- function(hh_model, wides, reps, houses, seeds, fit_args,
 #' @noRd
 sweep_prepare_one_ <- function(simulated, seed, hh_model, fit_args) {
   kept <- setdiff(names(simulated), get_latent(hh_model)[["name"]])
-  model <- add_data_wide(hh_model, simulated[kept])
+  model <- add_dataset(hh_model, simulated[kept])
   ptr <- do.call(prepare_inference_, c(list(model), fit_args, seed = seed))
   list(model = model, ptr = ptr)
 }

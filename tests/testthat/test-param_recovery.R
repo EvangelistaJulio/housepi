@@ -184,7 +184,7 @@ test_that("Each replicate reports its cost and its study", {
 })
 
 test_that("A failed replicate is named in the error", {
-  hh_data <- sample_house_structure(get_data_wide(mk_recov$model), houses = 20)
+  hh_data <- sample_house_structure(get_dataset(mk_recov$model), houses = 20)
   # every status missing passes the model build and stops the engine before
   # any fit samples
   hh_data_2 <- hh_data
@@ -197,12 +197,14 @@ test_that("A failed replicate is named in the error", {
     expect_error("[Rr]eplicate 2 at.*20.*households.*missing status")
 })
 
-test_that("Recovery fits the study the wide reporting process returns", {
-  # the wide process empties every status and fails the fit, the long one
-  # would fail the simulation if it ran
+test_that("Recovery fits the study the dataset reporting process returns", {
+  # the dataset process empties every status and fails the fit,
+  # the long dataset one would fail the simulation if it ran
   mk_recov$model |>
-    add_reporting_process(wide = \(x) transform(x, status = NA_integer_),
-                          long = \(x) stop("long reporting process ran")) |>
+    add_reporting_process(
+      dataset = \(x) transform(x, status = NA_integer_),
+      long_dataset = \(x) stop("long reporting process ran")
+    ) |>
     check_recovery(mk_recov$draws, nrep = 1, houses = 20, steps = 50,
                    chains = 1, progress = FALSE) |>
     expect_error("[Rr]eplicate 1 at.*20.*households.*missing status")
@@ -215,14 +217,14 @@ test_that("A failed replicate stops the fits sampled with it", {
     add_latent("hidden", model = "uniform") |>
     add_observation("record", model = "uniform", loc = hidden,
                     min = -0.1, max = 0.1)
-  hh_data <- get_data_wide(hh_model)
+  hh_data <- get_dataset(hh_model)
   hh_data_2 <- transform(hh_data, record = 5)
   # the fit of `hh_data` alone samples for minutes
   fit_args <- list(steps = 400000000L, thin = 100000L, adapt = 0,
                    chains = 1, threads = 1L, id_draws = NULL)
-  fit_wave <- function(wides, outer, failed) {
+  fit_wave <- function(datasets, outer, failed) {
     system.time(
-      sweep_fit_wave_(hh_model, wides, reps = 1:2, houses = 1L, seeds = 1:2,
+      sweep_fit_wave_(hh_model, datasets, reps = 1:2, houses = 1L, seeds = 1:2,
                       fit_args = fit_args, outer = outer, bar = NULL) |>
         expect_error(paste0("[Rr]eplicate ", failed,
                             " at.*[Ee]xceeded attempts"))
@@ -258,7 +260,7 @@ test_that("Recovery leaves the model it was given untouched", {
   hh_model <- mk_recov$model
   fresh <- add_parameter(hh_model, import = "template", append = FALSE)
   get_parameters(hh_model) |> expect_identical(get_parameters(fresh))
-  get_data_wide(hh_model) |> expect_nrow(nrow(flu_1918_frederick))
+  get_dataset(hh_model) |> expect_nrow(nrow(flu_1918_frederick))
 })
 
 test_that("Every estimated parameter needs a simulation value", {
@@ -363,13 +365,13 @@ test_that("Recovery checks of different runs do not combine", {
   c(recovery, rerun(hh_model)) |> expect_error("[Dd]iffer in.*parameters")
   # one body, different captured probability
   miss_cases <- function(p) {
-    function(data_wide) {
-      missed <- data_wide$status > 0 & stats::runif(nrow(data_wide)) < p
-      data_wide$status[missed] <- 0L
-      data_wide
+    function(data) {
+      missed <- data$status > 0 & stats::runif(nrow(data)) < p
+      data$status[missed] <- 0L
+      data
     }
   }
-  report <- \(p) add_reporting_process(mk_recov$model, wide = miss_cases(p))
+  report <- \(p) add_reporting_process(mk_recov$model, dataset = miss_cases(p))
   c(rerun(report(0)), rerun(report(0.5))) |>
     expect_error("[Dd]iffer in.*reporting_process")
   c(recovery, data.frame()) |> expect_error("cannot be combined")

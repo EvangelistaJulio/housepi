@@ -470,7 +470,7 @@ resolve_settings_ <- function(steps, thin, adapt, chains) {
   list(steps = chain * thin, chain = chain, total = as.double(chain) * chains)
 }
 
-#' Format data, wide or long, for the import Rcpp method.
+#' Format a dataset or a long dataset for the import Rcpp method.
 #' Column names cross verbatim: they are the keys the engine registers,
 #' and the definitions sourcing them are written against the user's spelling.
 #' @noRd

@@ -122,8 +122,6 @@ Add definitions of a contact rate by given data covariate(s).
 The rate multiplies a transmission rate of the model.
 Each stratum carries its own absolute rate, unless a reference is chosen.
 Then every parameter is a rate ratio to the reference stratum.
-The probability of infection is \eqn{1 - e^{-\lambda}} for a rate \eqn{\lambda},
-so a rate ratio is not a risk ratio.
 If no MCMC options are provided,
 absolute rates are \eqn{\mathrm{uniform}} over their support,
 and relative ones \eqn{\mathrm{lognormal}[\mu=0, \sigma=3]}.

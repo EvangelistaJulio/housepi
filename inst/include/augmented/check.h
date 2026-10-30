@@ -19,7 +19,7 @@ namespace housepi
 {
     namespace data
     {
-        struct Wide;
+        struct Dataset;
     }
     struct Parameter;
 }
@@ -42,7 +42,7 @@ namespace housepi::augm::check
     /// * it carries a model;
     /// * it is among `per_infection` rows, computed from a draw.
     void every_member_cols(const DefTable &def,
-                           const data::Wide &data_wide,
+                           const data::Dataset &dataset,
                            const std::vector<size_t> &per_infection);
 
     /// Reject a latent that reads a generated household observation.

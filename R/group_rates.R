@@ -114,7 +114,7 @@ helper_show_rate_table <- function(module, cols, is_data_attached) {
   if (NROW(out)) return(out)
   if (length(module$defs) && !is_data_attached) warn_h(
     "Cannot expand {module$family} definitions without data.",
-    "Attach household data using {.fn add_data_wide}."
+    "Attach household data using {.fn add_dataset}."
   )
   empty_rate_table(cols)
 }
@@ -380,14 +380,14 @@ status_as_labels <- function(x, status_codes) {
 #' @param status_levels `character()` Declared infected-status labels.
 #' @param status_observed `logical(1)` Whether the data carries any status.
 #' @noRd
-group_rate_logic_table <- function(data_wide, this_cov,
+group_rate_logic_table <- function(dataset, this_cov,
                                    status_levels = character(),
                                    status_observed = TRUE) {
   # extract unique covariates and sort by list length
   # status strata are declared by the model, not read off the data
   uni_covariates <- lapply(this_cov, function(f) {
     if (identical(f, "status")) status_levels
-    else sort(unique(data_wide[[f]]))
+    else sort(unique(dataset[[f]]))
   })
   sorted_indices <- order(lengths(uni_covariates), decreasing = TRUE)
   this_cov <- this_cov[sorted_indices]
@@ -399,8 +399,8 @@ group_rate_logic_table <- function(data_wide, this_cov,
 
   # count every combination in one pass
   # * cell the data does not carry -> matches no stratum, members left out
-  carried <- data_wide[stats::complete.cases(data_wide[this_cov]), ,
-                       drop = FALSE]
+  carried <- dataset[stats::complete.cases(dataset[this_cov]), ,
+                     drop = FALSE]
   counted <- table(row_keys_(carried, this_cov))
   multicov_count <- as.integer(counted[row_keys_(y, this_cov)])
   multicov_count[is.na(multicov_count)] <- 0L
@@ -412,8 +412,8 @@ group_rate_logic_table <- function(data_wide, this_cov,
     others <- setdiff(this_cov, "status")
     keep <- rep(TRUE, nrow(y))
     if (length(others)) {
-      held <- data_wide[stats::complete.cases(data_wide[others]), ,
-                        drop = FALSE]
+      held <- dataset[stats::complete.cases(dataset[others]), ,
+                      drop = FALSE]
       keep <- row_keys_(y, others) %in% row_keys_(held, others)
     }
   }
@@ -629,12 +629,12 @@ HousepiGroupRate <- R6::R6Class(
     # Assert one rate resolves every member to one rule per group.
     # * rate read on infected members only -> checked at every level in
     #   `status_levels`, whatever the data records.
-    assert_rules_fit_ = function(rate_id, data_wide,
+    assert_rules_fit_ = function(rate_id, dataset,
                                  status_levels = character()) {
       tables <- self$logic_tables[[rate_id]]
       covs <- setdiff(unique(unlist(lapply(tables, rate_cov_cols_))), "status")
       assert_rate_fit_(
-        tables, member_cells_(data_wide, covs, status_levels),
+        tables, member_cells_(dataset, covs, status_levels),
         cli::format_inline("Group rate {.val {rate_id}}"), "member",
         self$defs[[rate_id]]
       )
@@ -647,13 +647,13 @@ HousepiGroupRate <- R6::R6Class(
     },
 
     # Implement through automatic mode.
-    helper_implement_auto_ = function(rate_id, data_wide,
+    helper_implement_auto_ = function(rate_id, dataset,
                                       status_levels, status_observed) {
       this_def <- self$defs[[rate_id]] # definition of the rate
       covariates <- as.list(this_def[["by"]]) # data covariates
       covariates <- sort(as.character(covariates[!is.na(covariates)]))
       # status is carried by the model, not required as a data column
-      assert_data_covariates(setdiff(covariates, "status"), colnames(data_wide))
+      assert_data_covariates(setdiff(covariates, "status"), colnames(dataset))
 
       # cast to list if joint
       if (isTRUE(this_def[["joint"]])) covariates <- list(covariates)
@@ -663,20 +663,20 @@ HousepiGroupRate <- R6::R6Class(
       if (is.na(prefix)) prefix <- substring(tolower(rate_id), 1, 3)
 
       self$logic_tables[[rate_id]] <- lapply(covariates, function(this_cov) {
-        this_table <- group_rate_logic_table(data_wide, this_cov,
+        this_table <- group_rate_logic_table(dataset, this_cov,
                                              status_levels, status_observed)
         associate_group_param_names(this_table, prefix, this_def$reference)
       })
     },
 
     # Validate custom mode logic table against data, then add counts.
-    helper_implement_custom_ = function(rate_id, data_wide, status_observed) {
+    helper_implement_custom_ = function(rate_id, dataset, status_observed) {
       for (ti in seq_along(self$logic_tables[[rate_id]])) {
         tbl <- self$logic_tables[[rate_id]][[ti]]
         cov_cols <- rate_cov_cols_(tbl)
         # status is carried by the model, not required as a data column
-        assert_data_covariates(setdiff(cov_cols, "status"), colnames(data_wide))
-        tbl$n <- count_rate_rules_(tbl, member_cells_(data_wide, cov_cols))
+        assert_data_covariates(setdiff(cov_cols, "status"), colnames(dataset))
+        tbl$n <- count_rate_rules_(tbl, member_cells_(dataset, cov_cols))
         # no status observed -> every declared stratum stands, sizes unknown
         if ("status" %in% cov_cols && isFALSE(status_observed))
           tbl$n <- NA_integer_
@@ -844,12 +844,12 @@ HousepiGroupRate <- R6::R6Class(
 
     ####  Build  ####
 
-    # Build the logic tables from `data_wide`, then assert every member fits.
+    # Build the logic tables from `dataset`, then assert every member fits.
     # * keyed on status, none declared -> error at the `wall`, else skipped.
     # @param status_codes `integer()` Engine status codes,
     # named after the labels the rates may stratify on.
     # @param stratified `character()` Rates read on infected members only.
-    implement = function(data_wide, status_codes = integer(),
+    implement = function(dataset, status_codes = integer(),
                          wall = FALSE, stratified = character()) {
       # preserve custom-mode entries and drop auto-mode entries
       mask_custom <- names(which(vapply(
@@ -861,10 +861,10 @@ HousepiGroupRate <- R6::R6Class(
       # * levels known -> a factor of labels;
       # * before -> integer codes.
       status_levels <- names(status_codes)
-      if ("status" %in% colnames(data_wide))
-        data_wide[["status"]] <- status_as_labels(data_wide[["status"]],
-                                                  status_codes)
-      status_observed <- any(!is.na(data_wide[["status"]]))
+      if ("status" %in% colnames(dataset))
+        dataset[["status"]] <- status_as_labels(dataset[["status"]],
+                                                status_codes)
+      status_observed <- any(!is.na(dataset[["status"]]))
 
       for (rate_id in names(self$defs)) {
         # status-keyed rate -> waits for the statuses to be declared,
@@ -879,16 +879,16 @@ HousepiGroupRate <- R6::R6Class(
           next
         }
         if (self$defs[[rate_id]][["mode"]] == "auto") {
-          private$helper_implement_auto_(rate_id, data_wide,
+          private$helper_implement_auto_(rate_id, dataset,
                                          status_levels, status_observed)
         } else {
-          private$helper_implement_custom_(rate_id, data_wide, status_observed)
+          private$helper_implement_custom_(rate_id, dataset, status_observed)
         }
         # the engine refuses a status key on a rate it does not stratify
         if (rate_id %in% stratified) {
-          private$assert_rules_fit_(rate_id, data_wide, status_levels)
+          private$assert_rules_fit_(rate_id, dataset, status_levels)
         } else if (!private$keys_on_status_(rate_id)) {
-          private$assert_rules_fit_(rate_id, data_wide)
+          private$assert_rules_fit_(rate_id, dataset)
         }
       }
 

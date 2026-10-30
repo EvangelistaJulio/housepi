@@ -15,17 +15,17 @@ namespace housepi
 {
     namespace data
     {
-        struct Wide;
+        struct Dataset;
     }
 
     /// Members of one household, partitioned by status.
     ///
-    /// The user household id lives in data::Wide, keyed by household index, see Index::of().
+    /// The user household id lives in data::Dataset, keyed by household index, see Index::of().
     class Household
     {
-        friend struct Index;      /// Reads the opaque storage index.
-        friend struct data::Wide; /// Owns and mutates its households.
-        friend class ModelBase;   /// Changes member status.
+        friend struct Index;         /// Reads the opaque storage index.
+        friend struct data::Dataset; /// Owns and mutates its households.
+        friend class ModelBase;      /// Changes member status.
 
         /// Range of member indexes sharing a status.
         struct MemberRange_

@@ -436,7 +436,7 @@ test_that("Parameter function rejects non-parameter dependencies", {
 
   # a data column is rejected as well
   mk_param$model |>
-    add_data_wide(dplyr::mutate(dummy_household, datum = 1)) |>
+    add_dataset(dplyr::mutate(dummy_household, datum = 1)) |>
     add_parameter(rho = datum + 1) |>
     expect_error("rho.*cannot.*depend.*data")
 })

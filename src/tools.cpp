@@ -654,7 +654,7 @@ namespace housepi::parse
             std::string str_type;
             if (is_latent(type))
                 str_type = "latent";
-            else if (is_data_wide(type))
+            else if (is_dataset(type))
                 str_type = "data";
             else if (is_group_rate(type))
                 str_type = "group_rate";
@@ -685,12 +685,12 @@ namespace housepi::parse
     }
 
     MAKE_NODE_LIST_PRODUCERS(latent)
-    MAKE_NODE_LIST_PRODUCERS(data_wide)
+    MAKE_NODE_LIST_PRODUCERS(dataset)
     MAKE_NODE_LIST_PRODUCERS(parameter)
 
     Definition::Definition(std::string_view expr) { root = parse_expression_(expr); }
 
     MAKE_PARSER_LIST_PRODUCERS(latent)
-    MAKE_PARSER_LIST_PRODUCERS(data_wide)
+    MAKE_PARSER_LIST_PRODUCERS(dataset)
     MAKE_PARSER_LIST_PRODUCERS(parameter)
 }

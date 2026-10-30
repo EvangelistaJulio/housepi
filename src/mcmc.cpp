@@ -27,10 +27,10 @@
 #include "tools/vector.h"
 #include "augmented.h"
 #include "data.h"
+#include "data/dataset.h"
 #include "data/household.h"
 #include "data/individual.h"
-#include "data/long.h"
-#include "data/wide.h"
+#include "data/long_dataset.h"
 #include "distribution.h"
 #include "function.h"
 #include "infec_profile.h"
@@ -39,8 +39,8 @@
 #include "mcmc/settings.h"
 #include "model.h"
 #include "parameter.h"
-#include "registry.h"
 #include "rates.h"
+#include "registry.h"
 #include "translator.h"
 #include "variable.h"
 
@@ -112,12 +112,12 @@ namespace housepi
                 msg::stop(sms);
             }
 
-            if (parse::is_data_wide(node.type))
+            if (parse::is_dataset(node.type))
             {
                 // wire the column's read-cell: its producer points the cell at itself
                 // the reader needs no rule of its own
                 storage_.init_pointer(
-                    &data_.at(data_.wide().consult(node.value), *indiv_ptr));
+                    &data_.at(data_.dataset().consult(node.value), *indiv_ptr));
                 storage_.name(node.value, ErrType::Data);
             }
             else if (parse::is_latent(node.type))
@@ -165,7 +165,7 @@ namespace housepi
     bool Translator::reads_member_cell_(const parse::Entry &node) const
     {
         if (node.is_terminal())
-            return (parse::is_data_wide(node.type) && !augm_.def().has_row(node.value, augm::Kind::House)) ||
+            return (parse::is_dataset(node.type) && !augm_.def().has_row(node.value, augm::Kind::House)) ||
                    parse::is_latent(node.type) ||
                    parse::is_group_rate(node.type);
         // an inner reduction folds its own operands
@@ -294,12 +294,12 @@ namespace housepi
             std::vector<std::string> hh_ids;
             std::vector<const Individual *> ptrs;
 
-            void store(const data::Wide &data_wide,
+            void store(const data::Dataset &dataset,
                        const Household &house,
                        const Individual &indiv)
             {
-                ids.emplace_back(data_wide.id(indiv));
-                hh_ids.emplace_back(data_wide.hh_id(house));
+                ids.emplace_back(dataset.id(indiv));
+                hh_ids.emplace_back(dataset.hh_id(house));
                 ptrs.emplace_back(&indiv);
             }
         };
@@ -307,7 +307,7 @@ namespace housepi
         /// Resolve individual and household ids for latent draws, and return tracked pointers.
         /// @note Draw lists are assumed to hold unique ids.
         std::vector<const Individual *> helper_init_individual_sample(const Augmented &augm,
-                                                                      const data::Wide &data_wide,
+                                                                      const data::Dataset &dataset,
                                                                       const std::vector<std::string> &id_draws,
                                                                       const std::vector<std::string> &house_draws,
                                                                       RndGen &prng)
@@ -331,7 +331,7 @@ namespace housepi
             std::vector<const Household *> eligible;
 
             // collect explicit selections and the identifiers they name, or eligible households for the default
-            for (const Household &house : data_wide)
+            for (const Household &house : dataset)
             {
                 if (is_default)
                 {
@@ -340,16 +340,16 @@ namespace housepi
                     continue;
                 }
 
-                const bool is_house = vect::contains(house_draws, data_wide.hh_id(house));
+                const bool is_house = vect::contains(house_draws, dataset.hh_id(house));
                 if (is_house)
-                    known_house.emplace_back(data_wide.hh_id(house));
+                    known_house.emplace_back(dataset.hh_id(house));
                 for (const Individual &indiv : house)
                 {
-                    const bool is_indiv = vect::contains(id_draws, data_wide.id(indiv));
+                    const bool is_indiv = vect::contains(id_draws, dataset.id(indiv));
                     if (is_indiv)
-                        known_id.emplace_back(data_wide.id(indiv));
+                        known_id.emplace_back(dataset.id(indiv));
                     if ((is_house || is_indiv) && indiv.is_infected_status())
-                        seen.store(data_wide, house, indiv);
+                        seen.store(dataset, house, indiv);
                 }
             }
 
@@ -377,7 +377,7 @@ namespace housepi
                 std::uniform_int_distribution<size_t> pick(0, eligible.size() - 1);
                 const Household &house = *eligible[pick(prng)];
                 for (const Individual &indiv : house.infected_indivs())
-                    seen.store(data_wide, house, indiv);
+                    seen.store(dataset, house, indiv);
             }
 
             return seen.ptrs;
@@ -403,25 +403,25 @@ namespace housepi
     {
         house_log_lik.cols.assign(data.n_eq_classes(), std::vector<double>(sample_size, na::DOUBLE));
 
-        for (const Household &house : data.wide())
+        for (const Household &house : data.dataset())
         {
-            house_log_lik.names.push_back(data.wide().hh_id(house));
+            house_log_lik.names.push_back(data.dataset().hh_id(house));
             house_log_lik.source.push_back(data.state.eq_class(house));
         }
     }
 
     /// Initialize the latent draws of the posterior.
     void Posterior::init_latent_draws_(const Augmented &augm,
-                                       const data::Wide &data_wide,
+                                       const data::Dataset &dataset,
                                        const Settings &settings,
                                        Settings::Step sample_size)
     {
         tracked_indivs = helper_init_individual_sample(
-            augm, data_wide, settings.id_draws, settings.house_draws, settings.prng());
+            augm, dataset, settings.id_draws, settings.house_draws, settings.prng());
 
         for (const Individual *indiv : tracked_indivs)
             for (size_t a : augm.list_draws(*indiv))
-                latent_values.add(data_wide.id(*indiv) + "_" + augm.consult(a), sample_size);
+                latent_values.add(dataset.id(*indiv) + "_" + augm.consult(a), sample_size);
     }
 
     void Posterior::init(MCMCBase &mcmc)
@@ -437,7 +437,7 @@ namespace housepi
 
         init_param_draws_(mcmc.param, sample_size);
         init_house_draws_(mcmc.data, sample_size);
-        init_latent_draws_(mcmc.augm, mcmc.data.wide(), settings, sample_size);
+        init_latent_draws_(mcmc.augm, mcmc.data.dataset(), settings, sample_size);
     }
 
     void Posterior::store(MCMCBase &mcmc, Settings::Chain chain_id, Settings::Step local)
@@ -565,7 +565,7 @@ namespace housepi
         if (infec_profile.generic)
             infprof::assert_zero_at_origin(*infec_profile.generic, is_discr);
         else
-            for (const Household &house : data.wide())
+            for (const Household &house : data.dataset())
                 for (const Individual &indiv : house.infected_indivs())
                 {
                     // check status-specific profiles
@@ -587,7 +587,7 @@ namespace housepi
         for (const augm::Surrogate &surr : augm.scheme().list_surrogate)
             if (surr.is_own_column())
                 produced.push_back(augm.def()[surr.row].name);
-        return vect::difference(data.wide().all(), produced);
+        return vect::difference(data.dataset().all(), produced);
     }
 
     std::vector<std::string> MCMCBase::get_col_names() const
@@ -616,10 +616,10 @@ namespace housepi
 
     std::vector<size_t> MCMCBase::get_row_offsets() const
     {
-        size_t n_houses = data.wide().report_house.total;
+        size_t n_houses = data.dataset().report_house.total;
         std::vector<size_t> output(n_houses + 1, 0);
         for (size_t H = 0; H < n_houses; ++H)
-            output[H + 1] = output[H] + data.wide().at(H).size();
+            output[H + 1] = output[H] + data.dataset().at(H).size();
         return output;
     }
 
@@ -641,7 +641,7 @@ namespace housepi
         if (!data.is_shared())
             return;
         Data fresh(*model);
-        fresh.wide().copy_requests(data.wide()); // model requests outlive the data
+        fresh.dataset().copy_requests(data.dataset()); // model requests outlive the data
         data.share(fresh);
     }
 
@@ -664,7 +664,7 @@ namespace housepi
         }
 
         // single household evaluation
-        const Household &house = data.wide().at(hh_id);
+        const Household &house = data.dataset().at(hh_id);
         infec_profile.update_cache();
         const double output = commit_house_log_posterior_(house, all_terms_()).value();
         data.state.set_evaluated(house);
@@ -714,15 +714,15 @@ namespace housepi
 
     void MCMC::init_for_evaluation_()
     {
-        data::Wide &data_wide = this->data.wide();
-        data_wide.assert_not_all_missing_status();
+        data::Dataset &dataset = this->data.dataset();
+        dataset.assert_not_all_missing_status();
 
         // materialize surrogate data columns before anything reads the data store
         data.reset_readcells(augm.get_produced_cols());
         augm.init_for_evaluation();
-        data_wide.assert_required_everyone(data.state);
+        dataset.assert_required_everyone(data.state);
         data.init_eq_classes(augm.scheme().is_singleton_eq_class());
-        data.state.allocate_cache(data_wide);
+        data.state.allocate_cache(dataset);
         data.state.allocate_transm_log_lik();
 
         param.finalize();
@@ -741,7 +741,7 @@ namespace housepi
 
     void MCMC::init_param_routes_()
     {
-        const data::Wide &data_wide = data.wide();
+        const data::Dataset &dataset = data.dataset();
         const augm::Scheme &as = augm.scheme();
         routes_.assign(param.size(), {});
 
@@ -757,7 +757,7 @@ namespace housepi
             if (route.terms.latent || route.terms.obs || houses_of[p].empty() || !param.is_rate_only(p))
                 continue;
             for (HouseIdx H : houses_of[p])
-                route.classes.push_back(data.state.eq_class(data_wide.at(H)));
+                route.classes.push_back(data.state.eq_class(dataset.at(H)));
             vect::sort_unique(route.classes);
             // every class reads it -> no gain
             if (route.classes.size() == data.n_eq_classes())
@@ -870,7 +870,7 @@ namespace housepi
         for (size_t p : param.scheme().adaptive)
             param.at(p).init_proposal();
         if (augm.scheme().is_any_sample())
-            for (const Household &house : data.wide())
+            for (const Household &house : data.dataset())
                 for (const Individual &indiv : house.infected_indivs())
                 {
                     for (size_t a : augm.list_adaptive(indiv))
@@ -927,7 +927,7 @@ namespace housepi
         if (!std::isfinite(ll.transm))
             msg::stop(
                 "Initial transmission log-likelihood returned infinity for " +
-                data.wide().str(house) + ".");
+                data.dataset().str(house) + ".");
 
         // latent
         if (augm.scheme().is_any_latent_model())
@@ -940,7 +940,7 @@ namespace housepi
                 if (!std::isfinite(ll.latent))
                     msg::stop(
                         "Initial latent log-likelihood returned infinity for " +
-                        data.wide().str(indiv) + ".");
+                        data.dataset().str(indiv) + ".");
             }
 
         return ll;
@@ -1104,7 +1104,7 @@ namespace housepi
 
         // run per-house latent moves, and accumulate accepted log-density deltas
         LogLik ll = parallel::for_reduce<LogLik>(
-            data.wide().report_house.total,
+            data.dataset().report_house.total,
             [&](size_t H) -> LogLik
             { return move_latent_single_house_<Adapt>(H); },
             settings.budget.inner);
@@ -1114,7 +1114,7 @@ namespace housepi
     template <bool Adapt>
     LogLik MCMC::move_latent_single_house_(size_t H)
     {
-        const Household &house = data.wide().at(H);
+        const Household &house = data.dataset().at(H);
 
         LogLik ll;
         for (const Individual &indiv : house.infected_indivs())

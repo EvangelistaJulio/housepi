@@ -31,7 +31,7 @@ If \code{NA}, the number of households carried by the attached data.}
 
 \item{structure_sampler}{\code{function}
 Sampler of the household structure the outbreaks are simulated on,
-called as \code{structure_sampler(data_wide, houses)}.
+called as \code{structure_sampler(data, houses)}.
 If \code{NULL}, the attached structure is reused verbatim and \code{houses} ignored.}
 
 \item{rank_draws}{\code{integer(1)}
@@ -105,7 +105,7 @@ The check itself goes back to
 \insertCite{talts_validating_2020;textual}{housepi}.
 
 Each simulated study goes through
-the \code{wide} reporting process of the model before it is fitted back,
+the \code{dataset} reporting process of the model before it is fitted back,
 see \code{\link[=add_reporting_process]{add_reporting_process()}}.
 Inference does not model it,
 so a process losing information makes the check measure the misspecification.

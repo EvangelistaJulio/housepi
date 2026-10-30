@@ -15,8 +15,8 @@ new_housepi_model(
 )
 }
 \arguments{
-\item{data}{\code{data.frame} Household data used for analysis (wide format).
-If omitted, attach it later with \code{\link[=add_data_wide]{add_data_wide()}}.}
+\item{data}{\code{data.frame} Household data, one row per member.
+If omitted, attach it later with \code{\link[=add_dataset]{add_dataset()}}.}
 
 \item{model}{\code{character(1)} Model to use, one of:
 \describe{

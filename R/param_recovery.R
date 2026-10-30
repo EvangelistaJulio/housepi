@@ -80,9 +80,9 @@ recovery_summary_ <- function(estimates) {
 #' Draw whole households with replacement, so the household-size distribution
 #' and the within-household composition of the covariates are preserved
 #' while the number of households is scaled.
-#' @param data_wide `r rd_add_wide_`
+#' @param data `r rd_dataset_`
 #' @param houses `integer(1)` Number of households to draw.
-#' If `NA`, the number of households carried by `data_wide`.
+#' If `NA`, the number of households carried by `data`.
 #' @return `data.frame` The resampled households,
 #' `hh_id` renumbered sequentially,
 #' so a household drawn twice stands as two independent households,
@@ -92,8 +92,8 @@ recovery_summary_ <- function(estimates) {
 #' new_housepi_model(structure, "final_size") |>
 #'   summarise_house_cases()
 #' @export
-sample_house_structure <- function(data_wide, houses = NA_integer_) {
-  data <- as.data.frame(data_wide)
+sample_house_structure <- function(data, houses = NA_integer_) {
+  data <- as.data.frame(data)
   if (!"hh_id" %in% names(data)) stop_h(
     "Column {.field hh_id} is missing from the data.",
     "Provide an household identifier in order to allow sampling."

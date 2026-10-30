@@ -28,7 +28,7 @@ Here we load a housepi model template, then associate the definitions needed to 
 
 # Format of the data
 
-Data can be provided as a numerical data.frame in wide format, where individual information is organised by row.
+The dataset is a numerical data.frame with one row per household member.
 A simplistic dataset would look something like^[
 Note that this dataset comes automatically with the model "test", used for testing mode.]
 
@@ -76,15 +76,18 @@ This is used in advanced latent definitions, see [Data augmentation](data_augmen
 # The housepi model class
 
 The central element of the package is the [R6 class](https://r6.r-lib.org/articles/Introduction.html) `HousepiModel`.
-A dataset in wide format can be provided at model construction via the `data` argument of `new_housepi_model()`. 
-If omitted, it can be attached later with `add_data_wide()`.
+A dataset can be provided at model construction via the `data` argument of `new_housepi_model()`.
+If omitted, it can be attached later with `add_dataset()`.
 We show how to generate a new instance of such a class with a template model, the final-size:
 
 ```{r}
 #| label: load-model
-library(housepi)                        # import the library
-set.seed(42)                            # specify seed for random number generators
-set_housepi_theme(colour_strips = TRUE) # theme for visualizations
+# import the library
+library(housepi)
+# specify seed for random number generators
+set.seed(42)
+# theme for visualizations
+set_housepi_theme(colour_strips = TRUE)
 
 # generate an instance of the final-size model with data
 hh_model <- new_housepi_model(flu_1918_frederick, "final-size")
@@ -113,12 +116,12 @@ The last row is the count of the equivalence classes, i.e. households that are i
 model (same size, statuses, rates, etc).
 The likelihood is then evaluated just once per class, and multiplied by the number of class members.
 
-At any moment we can re-export the full data with `get_data_wide()`.
+At any moment we can re-export the full dataset with `get_dataset()`.
 
 ```{r}
 #| label: import-data
 # data was associated to the model at construction above
-head(get_data_wide(hh_model))
+head(get_dataset(hh_model))
 ```
 
 # A collection of models
@@ -317,7 +320,7 @@ The observed `onset_date` enters as an observation likelihood.
 
 # associated the simulated data to the model
 hh_model <- hh_model |>
-  add_data_wide(simulated)
+  add_dataset(simulated)
 
 # run inference, updating progress bar every 3 seconds
 hh_fit <- hh_model |> run_inference(progress = 3)

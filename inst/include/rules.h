@@ -14,8 +14,8 @@
 #include "tools/nan.h"
 #include "tools/string.h"
 #include "tools/vector.h"
+#include "data/dataset.h"
 #include "data/individual.h"
-#include "data/wide.h"
 
 //////////////////////////////  rules::Table  //////////////////////////////
 
@@ -97,25 +97,25 @@ namespace housepi::rules
     struct Member
     {
         std::vector<std::string> data; /// Covariates carried by the data.
-        std::vector<size_t> keys;      /// Data-wide keys of the covariates.
+        std::vector<size_t> keys;      /// Dataset keys of the covariates.
         Table rules;                   /// Rules over the covariates, then the status if keyed.
 
         /// Read the rules of `input` over `covariates`.
         Member(const str_table &input,
-               const data::Wide &data_wide,
+               const data::Dataset &dataset,
                const std::vector<std::string> &covariates)
             : data(vect::difference(covariates, {STATUS_KEY})),
-              keys(data_wide.consult(data)),
+              keys(dataset.consult(data)),
               rules(input, vect::concatenate(data, vect::difference(covariates, data))) {}
 
         /// Covariates of `indiv`, then `status` if keyed.
-        std::vector<double> probe(const data::Wide &data_wide,
+        std::vector<double> probe(const data::Dataset &dataset,
                                   const Individual &indiv,
                                   double status) const
         {
             std::vector<double> out(rules.cells.size(), status);
             for (size_t i = 0; i < keys.size(); ++i)
-                out[i] = data_wide.raw(keys[i], indiv);
+                out[i] = dataset.raw(keys[i], indiv);
             return out;
         }
     };
@@ -131,18 +131,18 @@ namespace housepi::rules
         std::vector<size_t> of_indiv; /// Class of every member.
         size_t count = 0;             /// Number of distinct classes.
 
-        /// Class every member of `data_wide` on covariates `keys`.
-        CovariateClasses(const data::Wide &data_wide,
+        /// Class every member of `dataset` on covariates `keys`.
+        CovariateClasses(const data::Dataset &dataset,
                          const std::vector<size_t> &keys)
-            : of_indiv(data_wide.report_indiv.total, 0)
+            : of_indiv(dataset.report_indiv.total, 0)
         {
             std::map<std::vector<double>, size_t, Comparator_> class_of;
             std::vector<double> covariates(keys.size());
-            for (const Household &house : data_wide)
+            for (const Household &house : dataset)
                 for (const Individual &indiv : house)
                 {
                     for (size_t i = 0; i < keys.size(); ++i)
-                        covariates[i] = data_wide.raw(keys[i], indiv);
+                        covariates[i] = dataset.raw(keys[i], indiv);
                     of_indiv[Index::of(indiv)] =
                         class_of.emplace(covariates, class_of.size()).first->second;
                 }

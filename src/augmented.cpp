@@ -27,9 +27,9 @@
 #include "augmented/check.h"
 #include "augmented/graph.h"
 #include "data.h"
+#include "data/dataset.h"
 #include "data/household.h"
 #include "data/individual.h"
-#include "data/wide.h"
 #include "distribution.h"
 #include "function.h"
 #include "infec_profile.h"
@@ -311,7 +311,7 @@ namespace housepi
             {
                 auto &producers = pgraph[def[k].name];
                 for (const parse::Definition *col : def[k].source_cols(true))
-                    for (const std::string &dstr : col->list_data_wide_producers())
+                    for (const std::string &dstr : col->list_dataset_producers())
                         if (dstr != def[k].name && vect::contains(targets, dstr))
                             producers.insert(dstr);
             }
@@ -455,22 +455,22 @@ namespace housepi
             std::vector<std::string> output = {};
             if (def.is_na())
                 return output;
-            for (const std::string &dstr : def.list_data_wide_producers())
+            for (const std::string &dstr : def.list_dataset_producers())
                 if (vect::contains(names, dstr))
                     output.push_back(dstr);
             return output;
         }
 
         void every_member_cols(const DefTable &def,
-                               const data::Wide &data_wide,
+                               const data::Dataset &dataset,
                                const std::vector<size_t> &per_infection)
         {
             for (size_t k = 0; k < def.size(); ++k)
             {
                 const std::string &name = def[k].name;
                 if (def[k].kind != Kind::Member ||
-                    !data_wide.count(name) ||
-                    !data_wide.is_required_everyone(data_wide.consult(name)))
+                    !dataset.count(name) ||
+                    !dataset.is_required_everyone(dataset.consult(name)))
                     continue;
 
                 // drawn, or computed from a draw, with the infection of each member
@@ -889,7 +889,7 @@ namespace housepi
             const parse::Definition &parser = def_[k].func;
 
             // raw data are equivalence-class covariates, unless produced
-            for (const std::string &dstr : parser.list_data_wide_producers())
+            for (const std::string &dstr : parser.list_dataset_producers())
                 if (!def_.has_row(dstr, Kind::Member) && !def_.has_row(dstr, Kind::House))
                     src.covariates.push_back(dstr);
 
@@ -954,7 +954,7 @@ namespace housepi
                 // live if it depends on a live column
                 if (surr.is_static)
                     for (const parse::Definition *col : def_[surr.row].source_cols())
-                        for (const std::string &dstr : col->list_data_wide_producers())
+                        for (const std::string &dstr : col->list_dataset_producers())
                             if (live_names.count(dstr))
                                 surr.is_static = false;
                 if (!surr.is_static)
@@ -1153,32 +1153,32 @@ namespace housepi
 
     //////////////////////////////  StatusProcess  //////////////////////////////
 
-    void StatusProcess::build(const data::Wide &data_wide,
+    void StatusProcess::build(const data::Dataset &dataset,
                               const str_table &input,
                               size_t n_levels)
     {
         blocks_.clear();
         totals_.clear();
-        block_of_.assign(data_wide.report_indiv.total, 0);
+        block_of_.assign(dataset.report_indiv.total, 0);
         if (input.empty())
             return;
 
         // every column but weight and rule group is a covariate
         std::vector<std::string> covariates = extract_keys(input);
         vect::remove(covariates, {"weight", "rule_group"});
-        const rules::Member member(input, data_wide, covariates);
+        const rules::Member member(input, dataset, covariates);
         std::vector<double> row_weight(member.rules.n_rows);
         for (size_t r = 0; r < member.rules.n_rows; ++r)
             row_weight[r] = str::tod(input.at("weight")[r]);
 
         // one block per covariate class
-        const rules::CovariateClasses classes(data_wide, member.keys);
+        const rules::CovariateClasses classes(dataset, member.keys);
         block_of_ = classes.of_indiv;
         blocks_.assign(classes.count, {});
         totals_.assign(classes.count, 0.);
 
         // weight per infected level: product of the rule groups, on the first member of each class
-        for (const Household &house : data_wide)
+        for (const Household &house : dataset)
             for (const Individual &indiv : house)
             {
                 const size_t b = block_of_[Index::of(indiv)];
@@ -1188,7 +1188,7 @@ namespace housepi
                 weights.assign(n_levels, 1.);
                 for (size_t c = 0; c < n_levels; ++c)
                     for (const auto &[gid, r] : member.rules.resolve<size_t>(
-                             member.probe(data_wide, indiv, static_cast<double>(status::INFECTED + c)),
+                             member.probe(dataset, indiv, static_cast<double>(status::INFECTED + c)),
                              [&](size_t row)
                              { return member.rules.row_gid[row]; }))
                         weights[c] *= row_weight[r];
@@ -1327,7 +1327,7 @@ namespace housepi
             catch (const std::exception &e)
             {
                 msg::stop(std::string(e.what()) +
-                          "\nCheck " + var.str() + " for " + data_.wide().str(indiv) +
+                          "\nCheck " + var.str() + " for " + data_.dataset().str(indiv) +
                           " (status " + std::to_string(indiv.status()) + ").");
             }
         }
@@ -1351,7 +1351,7 @@ namespace housepi
                                     bool for_evaluation) const
         {
             const std::string &name = def_[surr.row].name;
-            const size_t d = data_.wide().consult(name);
+            const size_t d = data_.dataset().consult(name);
             const auto build = [&](Variable &var,
                                    const Individual &anchor,
                                    const Household *hptr)
@@ -1363,7 +1363,7 @@ namespace housepi
                 catch (const std::exception &e)
                 {
                     msg::stop(std::string(e.what()) + "\nCheck " + var.str() + " for " +
-                              (hptr ? data_.wide().str(*hptr) : data_.wide().str(anchor)) + ".");
+                              (hptr ? data_.dataset().str(*hptr) : data_.dataset().str(anchor)) + ".");
                 }
             };
 
@@ -1374,7 +1374,7 @@ namespace housepi
                 build(hvar, house.at(0), &house);
                 if (for_evaluation)
                 {
-                    assert_datum_requests_(d, hvar, data_.wide().str(house));
+                    assert_datum_requests_(d, hvar, data_.dataset().str(house));
                     hvar.finalize(); // enforce inference-finalization
                 }
                 for (const Individual &indiv : house)
@@ -1390,7 +1390,7 @@ namespace housepi
                 build(avar, indiv, nullptr);
                 if (for_evaluation)
                 {
-                    assert_datum_requests_(d, avar, data_.wide().str(indiv));
+                    assert_datum_requests_(d, avar, data_.dataset().str(indiv));
                     avar.finalize(); // enforce inference-finalization
                 }
                 data_.state.wire_readcell(d, indiv, &avar);
@@ -1407,7 +1407,7 @@ namespace housepi
                 return;
             try
             {
-                data_.wide().assert_requests(d, var);
+                data_.dataset().assert_requests(d, var);
             }
             catch (const std::exception &e)
             {
@@ -1450,11 +1450,11 @@ namespace housepi
         // status routing
         builder.register_rows();
         // per-member storage
-        state.allocate(mcmc_->data.wide().report_indiv.total, *this, def_);
+        state.allocate(mcmc_->data.dataset().report_indiv.total, *this, def_);
 
         // infected statuses the data carries
         std::unordered_set<StatusLvl> infected;
-        for (const Household &house : mcmc_->data.wide())
+        for (const Household &house : mcmc_->data.dataset())
             for (const Individual &indiv : house)
                 if (indiv.is_infected_status())
                     infected.emplace(indiv.status());
@@ -1501,7 +1501,7 @@ namespace housepi
 
     bool Augmented::is_allocated() const noexcept
     {
-        return state.varia.size() == mcmc_->data.wide().report_indiv.total;
+        return state.varia.size() == mcmc_->data.dataset().report_indiv.total;
     }
 
     size_t Augmented::n_export_cols() const noexcept
@@ -1555,7 +1555,7 @@ namespace housepi
     {
         // no definition -> no latent block, the lookup sized for every member
         if (empty())
-            return state.block_factor_of.assign(mcmc_->data.wide().report_indiv.total, na::INDEX);
+            return state.block_factor_of.assign(mcmc_->data.dataset().report_indiv.total, na::INDEX);
 
         assert_every_member_cols_();
         materialize_surrogate_columns(false);
@@ -1564,7 +1564,7 @@ namespace housepi
         const augm::Binder binder = binder_();
 
         // define latent variables for all latent individuals in order
-        for (const Household &house : mcmc_->data.wide())
+        for (const Household &house : mcmc_->data.dataset())
             for (const Individual &indiv : house.infected_indivs())
                 for (size_t k : helper_materialize_definition_order_(indiv, false))
                     binder.bind_member(state.of(indiv).vec[consult(def_[k].name)], k, indiv, false);
@@ -1580,9 +1580,9 @@ namespace housepi
     void Augmented::init_latent_blocks_(augm::SchemeBuilder &builder)
     {
         state.block_factors.clear();
-        state.block_factor_of.assign(mcmc_->data.wide().report_indiv.total, na::INDEX);
+        state.block_factor_of.assign(mcmc_->data.dataset().report_indiv.total, na::INDEX);
         std::vector<bool> is_built = {};
-        for (const Household &house : mcmc_->data.wide())
+        for (const Household &house : mcmc_->data.dataset())
             for (const Individual &indiv : house.infected_indivs())
             {
                 // members of one status scheme share its latent block
@@ -1654,7 +1654,7 @@ namespace housepi
         // base scheme and observations left out -> the variant standing for them
         std::vector<std::pair<std::vector<size_t>, size_t>> variants;
 
-        for (const Household &house : mcmc_->data.wide())
+        for (const Household &house : mcmc_->data.dataset())
             for (const Individual &indiv : house.infected_indivs())
             {
                 std::vector<size_t> absent;
@@ -1693,7 +1693,7 @@ namespace housepi
         for (const augm::Surrogate &surr : scheme_.list_surrogate)
             if (!surr.is_own_column())
                 per_infection.push_back(surr.row);
-        augm::check::every_member_cols(def_, mcmc_->data.wide(), per_infection);
+        augm::check::every_member_cols(def_, mcmc_->data.dataset(), per_infection);
     }
 
     //////  Augmented : surrogate columns  //////
@@ -1717,7 +1717,7 @@ namespace housepi
 
     void Augmented::init_house_for_simulation()
     {
-        data::Wide &data_wide = mcmc_->data.wide();
+        data::Dataset &dataset = mcmc_->data.dataset();
 
         // generated household observations
         std::vector<std::string> live_house;
@@ -1731,16 +1731,16 @@ namespace housepi
         // reserve household-level observations
         state.house_varia.clear();
         if (!scheme_.list_obs_house.empty())
-            state.house_varia.assign(data_wide.report_house.total,
+            state.house_varia.assign(dataset.report_house.total,
                                      std::vector<Variable>(scheme_.list_obs_house.size()));
 
         const augm::Binder binder = binder_();
-        for (const Household &house : data_wide)
+        for (const Household &house : dataset)
         {
             // wire stochastic member observations to their data read-cells
             for (const Individual &indiv : house)
                 for (size_t a : scheme_.list_obs_member)
-                    mcmc_->data.state.wire_readcell(data_wide.consult(consult(a)), indiv,
+                    mcmc_->data.state.wire_readcell(dataset.consult(consult(a)), indiv,
                                                     &state.of(indiv).vec[a]);
 
             // build and wire surrogate columns in dependency order
@@ -1766,7 +1766,7 @@ namespace housepi
         state.sim.assign(state.varia.size(), {});
         const augm::Binder binder = binder_();
         msg::WarningBuffer warnings;
-        for (const Household &house : mcmc_->data.wide())
+        for (const Household &house : mcmc_->data.dataset())
             for (const Individual &indiv : house)
                 bind_simulation_blocks_(binder, status_process, indiv);
         warnings.flush();
@@ -1779,13 +1779,13 @@ namespace housepi
         if (scheme_.list_surrogate.empty())
             return;
 
-        data::Wide &data_wide = mcmc_->data.wide();
+        data::Dataset &dataset = mcmc_->data.dataset();
         const augm::Binder binder = binder_();
 
         // build the surrogate Variables, shared with the simulation init
         // point each standing-in data column's read-surface at its Variable
         // data readers then resolve the surrogate value without a data copy
-        state.house_varia.assign(data_wide.report_house.total,
+        state.house_varia.assign(dataset.report_house.total,
                                  std::vector<Variable>(scheme_.list_obs_house.size()));
 
         for (const augm::Surrogate &surr : scheme_.list_surrogate)
@@ -1806,7 +1806,7 @@ namespace housepi
                     "A definition reading a latent variable or a parameter is only meaningful in simulation.");
             }
 
-            for (Household &house : data_wide)
+            for (Household &house : dataset)
                 binder.bind_surrogate(state, surr, house, true);
         }
     }
@@ -1818,7 +1818,7 @@ namespace housepi
         if (empty() || !is_allocated())
             return;
 
-        for (const Household &house : mcmc_->data.wide())
+        for (const Household &house : mcmc_->data.dataset())
             for (const Individual &indiv : house.infected_indivs())
             {
                 augm::IndivState &st = state.of(indiv);
@@ -1954,11 +1954,11 @@ namespace housepi
         if (indiv.is_infected_status())
             msg::stop(
                 "No latent definitions were found for " +
-                mcmc_->data.wide().str(indiv) + " with status " + std::to_string(s) + ".");
+                mcmc_->data.dataset().str(indiv) + " with status " + std::to_string(s) + ".");
 
         msg::stop(
             "Generic latent definition for non-infectious " +
-            mcmc_->data.wide().str(indiv) + " was missing.");
+            mcmc_->data.dataset().str(indiv) + " was missing.");
     }
 
     //////  Augmented : user reset  //////
@@ -1968,7 +1968,7 @@ namespace housepi
         if (!scheme_.is_any_sample())
             return;
 
-        for (const Household &house : mcmc_->data.wide())
+        for (const Household &house : mcmc_->data.dataset())
             for (const Individual &indiv : house.infected_indivs())
                 restart(indiv, prng);
     }
@@ -1978,7 +1978,7 @@ namespace housepi
         if (!scheme_.is_any_sample())
             return;
 
-        for (const Household &house : mcmc_->data.wide())
+        for (const Household &house : mcmc_->data.dataset())
             for (const Individual &indiv : house.infected_indivs())
                 augm::draw_sample(scheme_of_(indiv).sample, state.of(indiv), prng);
     }
@@ -1988,7 +1988,7 @@ namespace housepi
         if (empty())
             return;
 
-        for (const Household &house : mcmc_->data.wide())
+        for (const Household &house : mcmc_->data.dataset())
             for (const Individual &indiv : house.infected_indivs())
                 for (Variable &avar : state.of(indiv).vec)
                     avar.finalize();
@@ -2007,7 +2007,7 @@ namespace housepi
                 !std::isfinite(state.of(indiv).vec[a].guarded_log_pdf()))
                 rows.push_back(k);
         }
-        augm::check::obs_init_error(def_, rows, mcmc_->param, mcmc_->data.wide().str(indiv));
+        augm::check::obs_init_error(def_, rows, mcmc_->param, mcmc_->data.dataset().str(indiv));
     }
 
     augm::Binder Augmented::binder_()

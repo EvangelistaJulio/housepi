@@ -14,7 +14,7 @@ hh_model <- flu_1918_frederick |>
 hh_fit <- run_inference(hh_model, chains = 2, progress = FALSE)
 
 # a user-defined measure: the overall attack rate
-overall_ar <- function(data_wide) mean(data_wide$status > 0)
+overall_ar <- function(data) mean(data$status > 0)
 ppc <- check_predictive(hh_model, hh_fit,
                         sar = measure_sar_by_hh_size,
                         overall = overall_ar,
@@ -74,7 +74,7 @@ then compute the predicted values of a set of measures.
   hh_model,
   draws = NULL,
   ...,
-  measures_long = NULL,
+  long_measures = NULL,
   nrep = NA_integer_,
   thin_ess = TRUE,
   threads = 1L,
@@ -93,9 +93,9 @@ or one value per parameter, as in \code{c(alpha = 0.1, beta = 0.2)}.}
       \item{\code{...}}{Named \code{function}s computing measures from data.
 Each returns a \code{numeric()}, a \code{list} or a \code{data.frame}.
 Names must be unique and cannot match a member of the returned object.}
-      \item{\code{measures_long}}{\code{list}
-Named \code{function}s computing measures from \code{data_long}.
-Each replicate's \code{data_long} comes from the \code{long} reporting process,
+      \item{\code{long_measures}}{\code{list}
+Named \code{function}s computing measures from the long dataset.
+Each replicate's long dataset comes from the \code{long_dataset} reporting process,
 see \code{\link[=add_reporting_process]{add_reporting_process()}}.
 Returned values and names follow the rules of \code{...}.}
       \item{\code{nrep}}{\code{integer(1)} Number of replicates.

@@ -186,13 +186,13 @@ test_that("Sentinel against a member missing a follow-up date throws error", {
 
   # escaped members without end_date throw
   hh_model |>
-    add_data_wide(transform(hh_data, end_date = c(rep(21, 6), NA))) |>
+    add_dataset(transform(hh_data, end_date = c(rep(21, 6), NA))) |>
     evaluate_log_lik() |>
     expect_error("[Dd]ata .end_date. has no value for individual .m7.")
 
   # end_date computed from member observations have no value for escaped members
   hh_model |>
-    add_data_wide(dplyr::select(hh_data, -end_date)) |>
+    add_dataset(dplyr::select(hh_data, -end_date)) |>
     add_observation(onset_date = list(model = "normal", mean = infec_time),
                     end_date = onset_date + 21) |>
     evaluate_log_lik() |>

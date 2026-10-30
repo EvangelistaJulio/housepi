@@ -65,7 +65,7 @@ test_that("Data status is capped by the engine status storage", {
   # a missing status round trips as NA, the top level is never exported
   data.frame(hh_id = "h1", status = c(NA, 254)) |>
     new_housepi_model("test") |>
-    get_data_wide() |>
+    get_dataset() |>
     getElement("status") |>
     expect_equal(c(NA, 254))
 })
@@ -85,7 +85,7 @@ test_that("A missing datum is not a requirement violation", {
     end_date = c(21, 21, NA)
   ) |>
     new_housepi_model("case-ascertained", quiet = TRUE) |>
-    get_data_wide()
+    get_dataset()
 
   hh_data$end_date |> expect_equal(c(21, 21, NA))
 })
@@ -104,7 +104,7 @@ test_that("A datum violating a model requirement is refused at import", {
 
   # integer-valued cells clear the requirement, negative ones included
   mk(end_date = c(-3, 0, 1)) |>
-    get_data_wide() |>
+    get_dataset() |>
     getElement("end_date") |>
     expect_equal(c(-3, 0, 1))
 })
@@ -125,11 +125,11 @@ test_that("Model-required data can be postponed to the run wall", {
     expect_error("end_date")
 })
 
-test_that("Wide data can be deferred and attached with add_data_wide", {
+test_that("Wide data can be deferred and attached with add_dataset", {
   # construct without data: no data exposed
   hh_model <- new_housepi_model(model = "final-size") |>
     add_parameter(import = "template")
-  get_data_wide(hh_model) |> expect_null()
+  get_dataset(hh_model) |> expect_null()
 
   # evaluate_/run_ refuse a data-less model
   hh_model |>
@@ -138,16 +138,16 @@ test_that("Wide data can be deferred and attached with add_data_wide", {
 
   # bad inputs rejected by the wrapper
   hh_model |>
-    add_data_wide(NULL) |>
+    add_dataset(NULL) |>
     expect_error("data")
   hh_model |>
-    add_data_wide("not a frame") |>
+    add_dataset("not a frame") |>
     expect_error("data.frame")
 
   # attach data later: populated and runnable
-  hh_model <- add_data_wide(hh_model, flu_1918_frederick)
-  get_data_wide(hh_model) |> expect_s3_class("data.frame")
-  get_data_wide(hh_model) |> expect_nrow(nrow(flu_1918_frederick))
+  hh_model <- add_dataset(hh_model, flu_1918_frederick)
+  get_dataset(hh_model) |> expect_s3_class("data.frame")
+  get_dataset(hh_model) |> expect_nrow(nrow(flu_1918_frederick))
   evaluate_log_lik(hh_model) |> expect_all_finite()
 })
 
@@ -159,7 +159,7 @@ test_that("Deferred data answers the model requests", {
     add_infectivity_profile(import = "template")
 
   hh_model |>
-    add_data_wide(transform(helper_onset_house$data, end_date = 21.5)) |>
+    add_dataset(transform(helper_onset_house$data, end_date = 21.5)) |>
     evaluate_log_lik() |>
     expect_error("[Dd]ata.*end_date.*not discrete-valued")
 })
@@ -178,14 +178,14 @@ test_that("Data without hh_id warns on every attach", {
     "[Ii]gnored household structure"
   )
   # and so must a later attach on an existing model
-  add_data_wide(hh_model, hh_data) |> expect_warning("[Ii]gnored household")
+  add_dataset(hh_model, hh_data) |> expect_warning("[Ii]gnored household")
 })
 
 test_that("Model class 'test' calls", {
   hh_model <- new_housepi_model(model = "test")
 
-  # 'test' default data wide format
-  get_data_wide(hh_model) |> expect_equal(dummy_household)
+  # 'test' default dataset
+  get_dataset(hh_model) |> expect_equal(dummy_household)
 
   # templates
   add_latent(hh_model, import = "template") |>
@@ -197,7 +197,7 @@ test_that("Model class 'test' calls", {
   # factorization round-trips through a fresh 'test' model
   hh_data <- sarscov2_2021_icofs
   hh_data$datum <- as.Date(runif(nrow(hh_data), max = 100))
-  get_data_wide(new_housepi_model(hh_data, "test")) |> expect_equal(hh_data)
+  get_dataset(new_housepi_model(hh_data, "test")) |> expect_equal(hh_data)
 
   # not existing household id
   hh_model |>
@@ -212,7 +212,7 @@ test_that("Household snapshot reads before any definition is pushed", {
     inspect_state("house")
 
   field_names <- c(
-    "data_wide", "parameters", "group_rates", "contact_rates", "latent",
+    "dataset", "parameters", "group_rates", "contact_rates", "latent",
     "latent_log_lik", "observation_log_lik", "transmission_log_lik"
   )
   snapshot |> expect_named(field_names)
@@ -224,7 +224,7 @@ test_that("Household snapshot reads before any definition is pushed", {
   snapshot$transmission_log_lik |> expect_all_na()
 
   # single household
-  snapshot$data_wide |> expect_equal(dummy_household)
+  snapshot$dataset |> expect_equal(dummy_household)
 })
 
 test_that("Household snapshot reports a household once it is evaluated", {
@@ -281,37 +281,37 @@ test_that("Household snapshot reports a household once it is evaluated", {
   snapshot$model_quantities |> expect_null()
 })
 
-test_that("Data long format is correctly handled", {
+test_that("Long dataset is correctly handled", {
   hh_model <- new_housepi_model(model = "test")
 
-  # data_long errors surface via add_data_long
+  # long_dataset errors surface via add_long_dataset
   hh_model |>
-    add_data_long("zero") |>
+    add_long_dataset("zero") |>
     expect_error("data.frame")
 
-  # every long row names an individual of the wide data
+  # every long row names a member of the dataset
   hh_model |>
-    add_data_long(data.frame(id = NA_character_, measure = 1)) |>
+    add_long_dataset(data.frame(id = NA_character_, measure = 1)) |>
     expect_error("[Ii]nvalid id found in row n.1")
   hh_model |>
-    add_data_long(data.frame(id = "unknown", measure = 1)) |>
-    expect_error("[Ii]d .unknown. from data long-format had no match")
+    add_long_dataset(data.frame(id = "unknown", measure = 1)) |>
+    expect_error("[Ii]d .unknown. from the long dataset has no match")
   hh_model |>
-    add_data_long(data.frame(measure = 1)) |>
+    add_long_dataset(data.frame(measure = 1)) |>
     expect_error("[Ii]dentifier column .id. was missing")
-  # long data hangs off the wide data
+  # the long dataset hangs off the dataset
   new_housepi_model(model = "final-size") |>
-    add_data_long(data.frame(id = "m1", measure = 1)) |>
-    expect_error("before wide format")
+    add_long_dataset(data.frame(id = "m1", measure = 1)) |>
+    expect_error("[Ll]ong dataset attached before the dataset")
 
-  # correct data long format
-  hh_data <- data.frame(id = get_data_wide(hh_model)$id[1],
+  # correct long dataset
+  hh_data <- data.frame(id = get_dataset(hh_model)$id[1],
                         time = seq(3), measure = seq(3)**3)
-  hh_model <- add_data_long(hh_model, hh_data)
-  get_data_long(hh_model) |> expect_equal(hh_data)
+  hh_model <- add_long_dataset(hh_model, hh_data)
+  get_long_dataset(hh_model) |> expect_equal(hh_data)
 
-  # inspect_state returns refactored data_long when present
-  inspect_state(hh_model, get_data_wide(hh_model)$hh_id[1])$data_long |>
+  # inspect_state returns refactored long_dataset when present
+  inspect_state(hh_model, get_dataset(hh_model)$hh_id[1])$long_dataset |>
     expect_s3_class("data.frame")
 })
 
@@ -409,8 +409,8 @@ test_that("A copy is deep", {
   hh_model_2 <- hh_model$copy()
 
   # data
-  get_data_wide(hh_model) |> expect_identical(get_data_wide(hh_model_2))
-  get_data_long(hh_model) |> expect_identical(get_data_long(hh_model_2))
+  get_dataset(hh_model) |> expect_identical(get_dataset(hh_model_2))
+  get_long_dataset(hh_model) |> expect_identical(get_long_dataset(hh_model_2))
 
   # a copy's settings start from the default configuration
   hh_model_2$settings |>
@@ -794,7 +794,7 @@ test_that("Simulation reads undeclared parameters from draws", {
     run_simulation(draws = param_table) |>
     expect_length(2L)
   # the model holds the parameters of the last replicate
-  state <- hh_model |> inspect_state(get_data_wide(hh_model)$hh_id[1])
+  state <- hh_model |> inspect_state(get_dataset(hh_model)$hh_id[1])
   unlist(state$parameters[names(param_table)]) |>
     expect_equal(unlist(param_table[2, ]), ignore_attr = TRUE)
   # the table is not declared on the model
@@ -811,32 +811,34 @@ test_that("Simulation reads undeclared parameters from draws", {
     expect_error("[Nn]on numeric parameter .rho_2.")
 })
 
-test_that("Simulation returns combined wide/long output", {
-  # a long reporting process forces the long branch into a non-empty list
+test_that("Simulation returns combined dataset and long dataset output", {
+  # a long dataset reporting process forces a non-empty list
   hh_model <- mk_frederick$template |>
-    add_reporting_process(long = \(x) data.frame(id = "m1", measure = 1.0))
+    add_reporting_process(
+      long_dataset = \(x) data.frame(id = "m1", measure = 1.0)
+    )
   simulated <- hh_model |> run_simulation()
-  simulated |> expect_named(c("wide", "long"))
-  simulated$wide |> expect_s3_class("data.frame")
-  simulated$long |> expect_s3_class("data.frame")
+  simulated |> expect_named(c("dataset", "long_dataset"))
+  simulated$dataset |> expect_s3_class("data.frame")
+  simulated$long_dataset |> expect_s3_class("data.frame")
 
   # multiple repetitions
   simulated <- hh_model |> run_simulation(nrep = 2)
-  simulated$wide[[1]] |> expect_s3_class("data.frame")
-  simulated$long[[2]] |> expect_s3_class("data.frame")
+  simulated$dataset[[1]] |> expect_s3_class("data.frame")
+  simulated$long_dataset[[2]] |> expect_s3_class("data.frame")
 })
 
 test_that("Each simulated repetition holds its own draws", {
-  # a long frame passing a column through keeps its repetition's draws
+  # a long dataset passing a column through keeps its repetition's draws
   simulated <- data.frame(id = c("m1", "m2", "m3"), hh_id = "h1",
                           status = c(1, 1, 0), record = 0) |>
     new_housepi_model("test") |>
     add_latent(hidden = list(model = "uniform")) |>
     add_observation(record = hidden + 2) |>
-    add_reporting_process(long = \(x) x[, c("id", "hidden")]) |>
+    add_reporting_process(long_dataset = \(x) x[, c("id", "hidden")]) |>
     run_simulation(nrep = 2)
-  simulated$long[[1]]$hidden |> expect_identical(simulated$wide[[1]]$hidden)
-  simulated$long[[2]]$hidden |> expect_identical(simulated$wide[[2]]$hidden)
+  for (r in 1:2) simulated$long_dataset[[r]]$hidden |>
+    expect_identical(simulated$dataset[[r]]$hidden)
 })
 
 test_that("Simulation replicates are a list of data frames", {

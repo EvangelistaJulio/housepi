@@ -38,7 +38,7 @@
 
 /// Declare the keys a model reads, one macro per slot, none for a slot it leaves empty.
 #define HOUSEPI_DECLARE_DATA_KEYS(...) HOUSEPI_DECLARE_KEYS_IMPL(Data, data_keys, __VA_ARGS__)
-#define HOUSEPI_DECLARE_LONG_KEYS(...) HOUSEPI_DECLARE_KEYS_IMPL(Long, long_keys, __VA_ARGS__)
+#define HOUSEPI_DECLARE_LONG_KEYS(...) HOUSEPI_DECLARE_KEYS_IMPL(LongDataset, long_keys, __VA_ARGS__)
 #define HOUSEPI_DECLARE_PARAM_KEYS(...) HOUSEPI_DECLARE_KEYS_IMPL(Param, param_keys, __VA_ARGS__)
 #define HOUSEPI_DECLARE_GROUP_RATE_KEYS(...) HOUSEPI_DECLARE_KEYS_IMPL(GroupRate, group_rate_keys, __VA_ARGS__)
 #define HOUSEPI_DECLARE_LATENT_KEYS(...) HOUSEPI_DECLARE_KEYS_IMPL(Latent, latent_keys, __VA_ARGS__)

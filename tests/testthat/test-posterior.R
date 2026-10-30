@@ -358,7 +358,7 @@ test_that("Runs of different settings, data or members do not combine", {
   hh_model <- flu_1918_frederick[-1L, ] |>
     new_housepi_model("final-size") |>
     add_parameter(import = "template")
-  c(hh_fit, run(hh_model)) |> expect_error("[Dd]iffer in.*data_wide")
+  c(hh_fit, run(hh_model)) |> expect_error("[Dd]iffer in.*dataset")
   hh_model <- mk_draws$model |>
     add_parameter("beta", prior = "uniform", min = 0, max = 2, append = TRUE) |>
     suppressWarnings()

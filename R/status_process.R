@@ -84,10 +84,10 @@ assert_status_strata_ <- function(strata) {
 #' @param levels `character()` Infected levels a member may draw.
 #' @return `data.frame` Table, invisibly.
 #' @noRd
-assert_status_fit_ <- function(strata, data_wide, levels) {
+assert_status_fit_ <- function(strata, dataset, levels) {
   covs <- status_covs_(strata)
-  assert_data_covariates(covs, colnames(data_wide))
-  cells <- member_cells_(data_wide, covs, levels)
+  assert_data_covariates(covs, colnames(dataset))
+  cells <- member_cells_(dataset, covs, levels)
   win <- assert_strata_fit_(list(strata), cells, status_reserved_cols,
                             "weight", "The status process", "member")[[1]]
 
@@ -195,24 +195,24 @@ HousepiStatusProcess <- R6::R6Class(
 
     # Assert no member's status is undrawable, see assert_status_fit_().
     # @param levels `character()` Infected levels a member may draw.
-    assert_fit = function(data_wide, levels) {
-      assert_status_fit_(self$strata, data_wide, levels)
+    assert_fit = function(dataset, levels) {
+      assert_status_fit_(self$strata, dataset, levels)
       invisible(self)
     },
 
     # Read the rule table, one row per rule: its status and weight,
     # the `n` members it applies to, its rule group and its covariates.
-    # * `data_wide` NULL -> `n` unknown.
+    # * `dataset` NULL -> `n` unknown.
     # @param levels `character()` Infected levels a member may draw.
-    tidy_table = function(data_wide, levels) {
+    tidy_table = function(dataset, levels) {
       if (!self$is_defined) return(data.frame(
         status = character(), weight = numeric(), n = integer(),
         rule_group = integer()
       ))
       covs <- status_covs_(self$strata)
       # a member counts once per rule, at whichever status the rule wins
-      n <- if (is.null(data_wide)) NA_integer_
-      else rule_counts_(self$strata, member_cells_(data_wide, covs, levels),
+      n <- if (is.null(dataset)) NA_integer_
+      else rule_counts_(self$strata, member_cells_(dataset, covs, levels),
                         status_reserved_cols)
       cbind(self$strata[c("status", "weight")], n = n,
             self$strata[c("rule_group", covs)])

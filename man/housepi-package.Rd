@@ -13,7 +13,7 @@ Statistical analysis and modelling of infectious disease transmission within hou
 \details{
 To create a model, call \code{\link[=new_housepi_model]{new_housepi_model()}}
 with one of the templated transmission models or a custom model.
-Provide household data at construction or later with \code{\link[=add_data_wide]{add_data_wide()}}.
+Provide household data at construction or later with \code{\link[=add_dataset]{add_dataset()}}.
 Specify the model features with the decorators \code{\link[=add_parameter]{add_parameter()}},
 \code{\link[=add_group_rate]{add_group_rate()}}, \code{\link[=add_contact_rate]{add_contact_rate()}}, \code{\link[=add_infectivity_profile]{add_infectivity_profile()}},
 \code{\link[=add_latent]{add_latent()}} and \code{\link[=add_observation]{add_observation()}}.

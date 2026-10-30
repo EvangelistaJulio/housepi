@@ -49,7 +49,7 @@ dataset <- flu_2014_matsumoto |>
 
 # associate the data
 hh_model <- hh_model |>
-  add_data_wide(dataset)
+  add_dataset(dataset)
 
 table(dataset$member)
 ```
@@ -158,7 +158,7 @@ model_strata |>
   get_contact_rates()
 
 # extract the first household with all classes
-hh_id <- get_data_wide(model_strata) |>
+hh_id <- get_dataset(model_strata) |>
   dplyr::filter(dplyr::n_distinct(member) > 2, .by = hh_id) |>
   dplyr::slice_head(n = 1) |>
   dplyr::pull(hh_id)
@@ -167,7 +167,7 @@ hh_id <- get_data_wide(model_strata) |>
 state <- model_strata |>
   inspect_state(hh_id)
 # recall the data associated to household '1133'
-state$data_wide
+state$dataset
 # export loaded contact rates
 state$contact_rates
 ```

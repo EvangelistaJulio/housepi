@@ -23,11 +23,11 @@ namespace housepi
 
 namespace housepi::data
 {
-#define MAKE_HOUSEPI_CACHE_ACCESSOR(TYPE, NAME)                                                                  \
+#define MAKE_HOUSEPI_CACHE_ACCESSOR(TYPE, NAME)                                                                 \
     TYPE &cache_##NAME(const Household &house, size_t e) noexcept { return current_[eq_class(house)].NAME[e]; } \
     const TYPE &cache_##NAME(const Household &house, size_t e) const noexcept { return current_[eq_class(house)].NAME[e]; }
 
-    struct Wide;
+    struct Dataset;
 
     /// Mutable per-run storage of data, written by inference and simulation.
     ///
@@ -40,9 +40,9 @@ namespace housepi::data
     {
         //////  Setter  //////
 
-        /// Point every read-cell at the imported value of `wide`.
+        /// Point every read-cell at the imported value of `dataset`.
         /// @note Call before rebuilding Variables: wired cells would point at stale ones.
-        void reset_readcells(const Wide &wide);
+        void reset_readcells(const Dataset &dataset);
         /// Point read-cell `d` of member `indiv` at the Variable of a surrogate column.
         void wire_readcell(size_t d, const Individual &indiv, const Attribute *p) noexcept
         {
@@ -55,9 +55,9 @@ namespace housepi::data
         /// Allocate transmission log-likelihoods, one per equivalence class.
         /// * clears the evaluated flags.
         void allocate_transm_log_lik();
-        /// Allocate model caches, per equivalence class of `wide`, sized by household and cache keys.
+        /// Allocate model caches, per equivalence class of `dataset`, sized by household and cache keys.
         /// * clears the evaluated flags.
-        void allocate_cache(const Wide &wide);
+        void allocate_cache(const Dataset &dataset);
         /// Flag whether transmission log-likelihoods and model caches hold an evaluation of every class.
         void set_evaluated(bool evaluated) noexcept { evaluated_.assign(evaluated_.size(), evaluated); }
         /// Flag the equivalence class of `house` as evaluated.

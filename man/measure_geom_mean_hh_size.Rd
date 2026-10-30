@@ -4,10 +4,10 @@
 \alias{measure_geom_mean_hh_size}
 \title{Compute the case-weighted geometric mean of household size}
 \usage{
-measure_geom_mean_hh_size(data_wide, escaped = "escaped")
+measure_geom_mean_hh_size(data, escaped = "escaped")
 }
 \arguments{
-\item{data_wide}{\code{data.frame} Household data used for analysis (wide format).}
+\item{data}{\code{data.frame} Household data, one row per member.}
 
 \item{escaped}{\code{character(1)} Label of status code \code{0},
 members outside the declared infected statuses,

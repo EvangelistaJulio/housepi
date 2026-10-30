@@ -15,7 +15,7 @@ If \code{NULL}, only the parameters and the sampler are read.}
 \value{
 \code{list} The parameters and the sampler,
 and with a household all its variables.
-Entries are named after their getters, e.g \code{data_wide} for \code{\link[=get_data_wide]{get_data_wide()}}.
+Entries are named after their getters, e.g \code{dataset} for \code{\link[=get_dataset]{get_dataset()}}.
 Then come the latent, observation and transmission log-likelihoods,
 \code{model_quantities}, the named quantities the model exports,
 see its \verb{template_<model>} help page, and \code{.sampler}.

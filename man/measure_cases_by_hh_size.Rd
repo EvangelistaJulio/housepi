@@ -4,10 +4,10 @@
 \alias{measure_cases_by_hh_size}
 \title{Tabulate observed cases distribution by household size}
 \usage{
-measure_cases_by_hh_size(data_wide, escaped = "escaped")
+measure_cases_by_hh_size(data, escaped = "escaped")
 }
 \arguments{
-\item{data_wide}{\code{data.frame} Household data used for analysis (wide format).}
+\item{data}{\code{data.frame} Household data, one row per member.}
 
 \item{escaped}{\code{character(1)} Label of status code \code{0},
 members outside the declared infected statuses,

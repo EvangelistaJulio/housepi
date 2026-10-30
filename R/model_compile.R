@@ -61,7 +61,7 @@ is_test_model_ <- function(name) {
 # * nothing provided -> dummy_household.
 assert_household_data <- function(data, model) {
   if (is.null(data)) {
-    # data may be supplied later with add_data_wide(): held until the wall
+    # data may be supplied later with add_dataset(): held until the wall
     if (!is_test_model_(model)) return(NULL)
     env <- new.env(parent = emptyenv())
     utils::data("dummy_household", package = "housepi", envir = env)

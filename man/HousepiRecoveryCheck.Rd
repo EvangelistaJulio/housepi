@@ -129,7 +129,7 @@ Each replicate is a household study simulated and fitted back.}
 If \code{NA}, the number of households carried by the attached data.}
       \item{\code{structure_sampler}}{\code{function}
 Sampler of the household structure the outbreaks are simulated on,
-called as \code{structure_sampler(data_wide, houses)}.
+called as \code{structure_sampler(data, houses)}.
 If \code{NULL}, the attached structure is reused verbatim and \code{houses} ignored.}
       \item{\code{steps}}{\code{integer(1)} Number of MCMC steps per chain.}
       \item{\code{thin}}{\code{integer(1)} Keep one step every \code{thin} of \code{steps}.}

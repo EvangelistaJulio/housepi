@@ -142,13 +142,13 @@ compute_rule_groups <- function(tbl, cov_cols, value_col) {
 #' @return `data.frame` Columns `covs`, `status` when stratified,
 #' `.weight` and the `.combo` index of each distinct combination.
 #' @noRd
-member_cells_ <- function(data_wide, covs, status_levels = character()) {
+member_cells_ <- function(dataset, covs, status_levels = character()) {
   if (!length(covs)) {
-    cells <- data.frame(.weight = nrow(data_wide))
+    cells <- data.frame(.weight = nrow(dataset))
   } else {
-    key <- row_keys_(data_wide, covs)
+    key <- row_keys_(dataset, covs)
     first <- !duplicated(key)
-    cells <- data_wide[first, covs, drop = FALSE]
+    cells <- dataset[first, covs, drop = FALSE]
     cells$.weight <- as.integer(table(key)[key[first]])
   }
   cells$.combo <- seq_len(nrow(cells))

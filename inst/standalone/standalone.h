@@ -26,8 +26,8 @@ namespace housepi
         struct PathToFiles
         {
             std::string latent = "";
-            std::string data_wide = "";
-            std::string data_long = "";
+            std::string dataset = "";
+            std::string long_dataset = "";
             std::string group_rate = "";
             std::string contact_rate = "";
             std::string infec_profile = "";
@@ -40,8 +40,8 @@ namespace housepi
         Options(int argc, char *argv[]);
 
         /// Import each table into `engine`, when its path is given.
-        void read_data_wide(MCMCBase &engine);
-        void read_data_long(MCMCBase &engine);
+        void read_dataset(MCMCBase &engine);
+        void read_long_dataset(MCMCBase &engine);
         void read_settings(MCMCBase &engine);
         void read_param(MCMCBase &engine);
         void read_infec_profile(MCMCBase &engine);
@@ -57,12 +57,12 @@ namespace housepi
     void print_infer_state(MCMC &engine, const std::string &f);
 
     /// Open `f` and write its header: data columns, then latent columns.
-    std::ofstream open_ofstream_datawide(const std::string &f,
-                                         const std::vector<std::string> &data_headers,
-                                         const std::vector<std::string> &latent_headers);
+    std::ofstream open_ofstream_dataset(const std::string &f,
+                                        const std::vector<std::string> &data_headers,
+                                        const std::vector<std::string> &latent_headers);
 
     /// Simulate and write the data to `pathtofile`.
-    void print_simulated_data_wide(MCMC &engine, const std::string &pathtofile);
+    void print_simulated_dataset(MCMC &engine, const std::string &pathtofile);
 
     /// Entry point of the standalone build, for model `model_name`.
     int standalone(std::string_view model_name, int argc, char *argv[]);

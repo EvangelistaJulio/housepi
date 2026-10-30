@@ -22,7 +22,7 @@ namespace housepi
     struct Augmented;
     namespace data
     {
-        struct Wide;
+        struct Dataset;
     }
 
     /// Store posterior MCMC draws of every chain.
@@ -70,7 +70,7 @@ namespace housepi
                                Settings::Step sample_size);
         /// Initialize the latent draws of the posterior.
         void init_latent_draws_(const Augmented &augm,
-                                const data::Wide &data_wide,
+                                const data::Dataset &dataset,
                                 const Settings &settings,
                                 Settings::Step sample_size);
     };

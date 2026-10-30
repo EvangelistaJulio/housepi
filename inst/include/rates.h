@@ -23,7 +23,7 @@ namespace housepi
 {
     namespace data
     {
-        struct Wide;
+        struct Dataset;
     }
     struct Parameter;
 
@@ -51,14 +51,14 @@ namespace housepi
         }
 
         /// Build group rates from rule table `input` (see rates::Group::build).
-        std::vector<std::string> build_group(data::Wide &data_wide, const Parameter &param, const str_table &input)
+        std::vector<std::string> build_group(data::Dataset &dataset, const Parameter &param, const str_table &input)
         {
-            return group_.build(data_wide, param, input);
+            return group_.build(dataset, param, input);
         }
         /// Build contact rates from rule table `input` (see rates::Contact::build).
-        std::vector<std::string> build_contact(data::Wide &data_wide, const Parameter &param, const str_table &input)
+        std::vector<std::string> build_contact(data::Dataset &dataset, const Parameter &param, const str_table &input)
         {
-            return contact_.build(data_wide, param, input);
+            return contact_.build(dataset, param, input);
         }
 
         /// Finalize both stores (see Attribute::finalize).

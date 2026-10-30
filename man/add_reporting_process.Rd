@@ -4,17 +4,17 @@
 \alias{add_reporting_process}
 \title{Add a reporting process to a housepi model}
 \usage{
-add_reporting_process(hh_model, wide, long)
+add_reporting_process(hh_model, dataset, long_dataset)
 }
 \arguments{
 \item{hh_model}{\code{HousepiModel} object.}
 
-\item{wide}{\code{function} | \code{NULL}
-Turns a simulated \code{data_wide} into the reported \code{data_wide}.
+\item{dataset}{\code{function} | \code{NULL}
+Turns a simulated dataset into the reported dataset.
 \code{NULL} removes it.}
 
-\item{long}{\code{function} | \code{NULL}
-Turns the reported \code{data_wide} into a \code{data_long},
+\item{long_dataset}{\code{function} | \code{NULL}
+Turns the reported dataset into a long dataset,
 which \code{\link[=run_simulation]{run_simulation()}} returns along with it.
 \code{NULL} removes it.}
 }
@@ -33,15 +33,15 @@ which introduces a misspecification.
 }
 \examples{
 # each case goes unreported with probability 0.1
-miss_cases <- function(data_wide) {
-  missed <- data_wide$status > 0 & stats::runif(nrow(data_wide)) < 0.1
-  data_wide$status[missed] <- 0L
-  data_wide
+miss_cases <- function(data) {
+  missed <- data$status > 0 & stats::runif(nrow(data)) < 0.1
+  data$status[missed] <- 0L
+  data
 }
 flu_1918_frederick |>
   new_housepi_model("final-size") |>
   add_parameter(import = "template") |>
-  add_reporting_process(wide = miss_cases) |>
+  add_reporting_process(dataset = miss_cases) |>
   run_simulation() |>
   head()
 }

@@ -20,13 +20,13 @@
 #include "tools/string.h"
 #include "tools/vector.h"
 #include "data.h"
+#include "data/dataset.h"
 #include "data/household.h"
 #include "data/individual.h"
-#include "data/long.h"
+#include "data/long_dataset.h"
 #include "data/reports.h"
 #include "data/state.h"
 #include "data/status.h"
-#include "data/wide.h"
 #include "function.h"
 #include "model.h"
 
@@ -42,17 +42,17 @@ namespace housepi
     }
 
     Data::Store_::Store_(const ModelBase &model)
-        : wide(model.data_keys(),
-               model.house_member_keys(),
-               model.house_member_vec_keys(),
-               model.house_double_vec_keys(),
-               model.house_double_mtx_keys()),
-          long_format(model.long_keys()) {}
+        : dataset(model.data_keys(),
+                  model.house_member_keys(),
+                  model.house_member_vec_keys(),
+                  model.house_double_vec_keys(),
+                  model.house_double_mtx_keys()),
+          long_dataset(model.long_keys()) {}
 
-    void Data::build_wide(const str_table &input)
+    void Data::build_dataset(const str_table &input)
     {
-        wide().build(input);
-        state.reset_readcells(wide());
+        dataset().build(input);
+        state.reset_readcells(dataset());
         // definitions push their covariates again over the new data
         for (Source source : {Source::GroupRate, Source::ContactRate, Source::Latent})
             set_eq_class_covariates(source, {});
@@ -108,12 +108,12 @@ namespace housepi
         std::map<std::vector<std::uint64_t>, std::vector<size_t>> partition_houses_(
             const std::vector<size_t> &data_list,
             const data::State &state,
-            const data::Wide &data_wide)
+            const data::Dataset &dataset)
         {
             std::map<std::vector<std::uint64_t>, std::vector<size_t>> output;
-            for (size_t H = 0; H < data_wide.report_house.total; ++H)
+            for (size_t H = 0; H < dataset.report_house.total; ++H)
             {
-                const Household &house = data_wide.at(H);
+                const Household &house = dataset.at(H);
                 std::vector<std::uint64_t> key;
                 for (MemberIdx i : sorted_members_(data_list, state, house))
                 {
@@ -130,16 +130,15 @@ namespace housepi
 
     void Data::init_eq_classes(bool force_singleton)
     {
-        const data::Wide &data_wide = wide();
-        const size_t total = data_wide.report_house.total;
+        const size_t total = dataset().report_house.total;
         std::vector<size_t> &covariates = state.eq_class_covariates_;
         covariates.clear();
         for (const std::vector<std::string> &names : eq_class_covariates_)
-            vect::append_unique(covariates, data_wide.consult(names));
+            vect::append_unique(covariates, dataset().consult(names));
 
         std::map<std::vector<std::uint64_t>, std::vector<size_t>> partition;
         if (!force_singleton)
-            partition = partition_houses_(covariates, state, data_wide);
+            partition = partition_houses_(covariates, state, dataset());
 
         std::vector<data::State::EquivalenceClass_> &classes = state.eq_classes_;
         classes.clear();
@@ -262,9 +261,9 @@ namespace housepi
 
 namespace housepi::data
 {
-    //////////////////////////////  data::Wide  //////////////////////////////
+    //////////////////////////////  data::Dataset  //////////////////////////////
 
-    void Wide::build(const str_table &input)
+    void Dataset::build(const str_table &input)
     {
         clear_optional_();
 
@@ -321,7 +320,7 @@ namespace housepi::data
             }
 
             // read individual data into external storage
-            IndivWide_ &idata = indiv_data_[i];
+            IndivRow_ &idata = indiv_data_[i];
             idata.status = status;
             idata.vec.resize(size());
             for (size_t d = 0; d < idata.vec.size(); ++d)
@@ -387,20 +386,20 @@ namespace housepi::data
         build_helper_fill_report_data_();
     }
 
-    std::vector<std::string> Wide::imported_cols() const
+    std::vector<std::string> Dataset::imported_cols() const
     {
         return std::vector<std::string>(all().begin(), all().begin() + n_imported_);
     }
 
-    void Wide::add_produced_cols(const std::vector<std::string> &produced_cols)
+    void Dataset::add_produced_cols(const std::vector<std::string> &produced_cols)
     {
         for (const std::string &name : produced_cols)
             add_(name);
-        for (IndivWide_ &idata : indiv_data_)
+        for (IndivRow_ &idata : indiv_data_)
             idata.vec.resize(size(), na::DOUBLE);
     }
 
-    size_t Wide::index_of_(std::string_view hh_id) const
+    size_t Dataset::index_of_(std::string_view hh_id) const
     {
         auto it = hh_id_to_index_.find(hh_id);
         if (it == hh_id_to_index_.end())
@@ -409,7 +408,7 @@ namespace housepi::data
         return it->second;
     }
 
-    void Wide::helper_build_clear_data_()
+    void Dataset::helper_build_clear_data_()
     {
         house_vector_.clear();
         hh_id_to_index_.clear();
@@ -420,7 +419,7 @@ namespace housepi::data
         report_house = ReportHousehold();
     }
 
-    void Wide::helper_build_data_headers_(const str_table &input)
+    void Dataset::helper_build_data_headers_(const str_table &input)
     {
         std::vector<std::string> headers = extract_keys(input);
 
@@ -442,7 +441,7 @@ namespace housepi::data
             add_(datastring);
     }
 
-    void Wide::build_helper_fill_report_data_()
+    void Dataset::build_helper_fill_report_data_()
     {
         report_house.total = house_vector_.size();
 
@@ -464,34 +463,34 @@ namespace housepi::data
         }
     }
 
-    //////  data::Wide : flags  //////
+    //////  data::Dataset : flags  //////
 
-    void Wide::assert_not_all_missing_status() const
+    void Dataset::assert_not_all_missing_status() const
     {
         if (report_indiv.total == report_indiv.missing)
             msg::stop(
                 "All individuals in the data had missing status.");
     }
 
-    void Wide::assert_no_missing_status() const
+    void Dataset::assert_no_missing_status() const
     {
         if (report_indiv.missing > 0)
             msg::stop(
                 "Individual with missing status are incompatible with current model.");
     }
 
-    void Wide::request_everyone(std::vector<size_t> vec)
+    void Dataset::request_everyone(std::vector<size_t> vec)
     {
         vect::append_unique(request_everyone_, vec);
     }
 
-    bool Wide::is_required_everyone(size_t d) const noexcept
+    bool Dataset::is_required_everyone(size_t d) const noexcept
     {
         return vect::contains(request_everyone_, d);
     }
 
-    void Wide::assert_required_everyone(const State &state,
-                                        const std::vector<std::string> &live) const
+    void Dataset::assert_required_everyone(const State &state,
+                                           const std::vector<std::string> &live) const
     {
         for (size_t d : request_everyone_)
             if (!vect::contains(live, consult(d)))
@@ -503,7 +502,7 @@ namespace housepi::data
                                 str(house) + ".\nThe model request it for every member, escaped ones included.");
     }
 
-    void Wide::recover_all_status() noexcept
+    void Dataset::recover_all_status() noexcept
     {
         for (Household &house : house_vector_)
             for (Individual &indiv : house)
@@ -512,19 +511,19 @@ namespace housepi::data
 
     //////////////////////////////  data::State  //////////////////////////////
 
-    void State::reset_readcells(const Wide &wide)
+    void State::reset_readcells(const Dataset &dataset)
     {
-        const size_t total = wide.size();
-        readcell_.resize(wide.report_indiv.total);
-        for (const Household &house : wide)
+        const size_t total = dataset.size();
+        readcell_.resize(dataset.report_indiv.total);
+        for (const Household &house : dataset)
             for (const Individual &indiv : house)
             {
                 std::vector<Attribute> &cells = readcell_[Index::of(indiv)];
                 cells.resize(total);
                 for (size_t d = 0; d < total; ++d)
                 {
-                    cells[d].name(wide.consult(d), ErrType::Data);
-                    cells[d].init_numeric(wide.raw(d, indiv));
+                    cells[d].name(dataset.consult(d), ErrType::Data);
+                    cells[d].init_numeric(dataset.raw(d, indiv));
                 }
             }
     }
@@ -542,7 +541,7 @@ namespace housepi::data
         evaluated_.assign(eq_classes_.size(), false);
     }
 
-    void State::allocate_cache(const Wide &wide)
+    void State::allocate_cache(const Dataset &dataset)
     {
         evaluated_.assign(eq_classes_.size(), false);
         previous_.resize(eq_classes_.size());
@@ -550,17 +549,17 @@ namespace housepi::data
 
         for (size_t R = 0; R < eq_classes_.size(); ++R)
         {
-            size_t hh_size = wide.at(eq_classes_[R].rep_).size();
+            size_t hh_size = dataset.at(eq_classes_[R].rep_).size();
             Cache_ &prev = previous_[R];
             Cache_ &curr = current_[R];
 
             // member value
-            size_t s_member = wide.keys_member_val.size();
+            size_t s_member = dataset.keys_member_val.size();
             curr.member.assign(s_member, 0);
             prev.member.assign(s_member, 0);
 
             // member vector
-            size_t s_member_vec = wide.keys_member_vec.size();
+            size_t s_member_vec = dataset.keys_member_vec.size();
             curr.member_vector.resize(s_member_vec);
             prev.member_vector.resize(s_member_vec);
             for (size_t e = 0; e < s_member_vec; ++e)
@@ -570,7 +569,7 @@ namespace housepi::data
             }
 
             // double vector
-            size_t s_double_vec = wide.keys_double_vec.size();
+            size_t s_double_vec = dataset.keys_double_vec.size();
             curr.double_vector.resize(s_double_vec);
             prev.double_vector.resize(s_double_vec);
             for (size_t e = 0; e < s_double_vec; ++e)
@@ -580,7 +579,7 @@ namespace housepi::data
             }
 
             // double matrix
-            size_t s_double_mtx = wide.keys_double_mtx.size();
+            size_t s_double_mtx = dataset.keys_double_mtx.size();
             curr.double_matrix.resize(s_double_mtx);
             prev.double_matrix.resize(s_double_mtx);
             for (size_t e = 0; e < s_double_mtx; ++e)
@@ -637,10 +636,10 @@ namespace housepi::data
         }
     }
 
-    //////////////////////////////  data::Long  //////////////////////////////
+    //////////////////////////////  data::LongDataset  //////////////////////////////
 
-    void Long::build(Wide &data_wide,
-                     const str_table &input)
+    void LongDataset::build(Dataset &dataset,
+                            const str_table &input)
     {
         clear_optional_();
 
@@ -648,17 +647,17 @@ namespace housepi::data
             return;
 
         helper_build_clear_data_();
-        helper_build_data_headers_(data_wide, input);
+        helper_build_data_headers_(dataset, input);
 
         // data-long allocation
-        size_t n_indiv = data_wide.report_indiv.total;
+        size_t n_indiv = dataset.report_indiv.total;
         indiv_datalist.resize(n_indiv);
 
         // individual map for id -> index
         dict<size_t> id_to_index = {};
-        for (const Household &house : data_wide)
+        for (const Household &house : dataset)
             for (const Individual &indiv : house)
-                id_to_index.emplace(data_wide.id(indiv), Index::of(indiv));
+                id_to_index.emplace(dataset.id(indiv), Index::of(indiv));
 
         // load individual data list
         size_t n_rows = count_rows(input);
@@ -670,7 +669,7 @@ namespace housepi::data
                     "Invalid id found in row n." + std::to_string(r + 1) + ".");
             if (!id_to_index.count(id))
                 msg::stop(
-                    "Id " + msg::val(id) + " from data long-format had no match in loaded data wide-format.");
+                    "Id " + msg::val(id) + " from the long dataset has no match in the dataset.");
 
             // append (since vector is initialized to empty)
             auto &idat = indiv_datalist[id_to_index.at(id)];
@@ -679,24 +678,24 @@ namespace housepi::data
             {
                 const std::string &dstr = consult(d);
                 idat[d].emplace_back(
-                    str::tod(input.at(dstr)[r], "data long format " + msg::arg(dstr)));
+                    str::tod(input.at(dstr)[r], "long dataset column " + msg::arg(dstr)));
             }
         }
     }
 
-    void Long::helper_build_clear_data_()
+    void LongDataset::helper_build_clear_data_()
     {
         // data sequence headers
         headers.clear();
         indiv_datalist.clear();
     }
 
-    void Long::helper_build_data_headers_(const Wide &data_wide,
-                                          const str_table &input)
+    void LongDataset::helper_build_data_headers_(const Dataset &dataset,
+                                                 const str_table &input)
     {
-        if (data_wide.is_empty())
+        if (dataset.is_empty())
             msg::stop(
-                "Tried to define data long format before wide format.");
+                "Long dataset attached before the dataset.");
 
         headers = extract_keys(input);
         // check for individual IDs

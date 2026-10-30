@@ -17,14 +17,14 @@
 #include "data/household.h"
 #include "data/reports.h"
 
-//////////////////////////////  data::Wide  //////////////////////////////
+//////////////////////////////  data::Dataset  //////////////////////////////
 
 namespace housepi::data
 {
     struct State;
 
-    /// Wide-format table: one row per member, and households.
-    struct Wide : public KeyHolderWithRequests
+    /// Dataset: one row per member, and households.
+    struct Dataset : public KeyHolderWithRequests
     {
         KeyHolder keys_member_val; /// Cache key holder, member values.
         KeyHolder keys_member_vec; /// Cache key holder, member vectors.
@@ -37,11 +37,11 @@ namespace housepi::data
         //////  Constructor  //////
 
         /// Register model-declared keys: data columns `keys`, then cache keys per layout.
-        Wide(std::vector<std::string> keys,
-             std::vector<std::string> member_keys,
-             std::vector<std::string> member_vec_keys,
-             std::vector<std::string> double_vec_keys,
-             std::vector<std::string> double_mtx_keys)
+        Dataset(std::vector<std::string> keys,
+                std::vector<std::string> member_keys,
+                std::vector<std::string> member_vec_keys,
+                std::vector<std::string> double_vec_keys,
+                std::vector<std::string> double_mtx_keys)
             : KeyHolderWithRequests(std::move(keys)),
               keys_member_val(std::move(member_keys)),
               keys_member_vec(std::move(member_vec_keys)),
@@ -50,7 +50,7 @@ namespace housepi::data
 
         //////  Setter  //////
 
-        /// Build members and households from wide-format table `input`.
+        /// Build members and households from table `input`.
         void build(const str_table &input);
         /// Recover every status.
         void recover_all_status() noexcept;
@@ -95,7 +95,7 @@ namespace housepi::data
         void assert_no_missing_status() const;
 
         /// Copy the requests registered on `other`, a store over the same keys.
-        void copy_requests(const Wide &other)
+        void copy_requests(const Dataset &other)
         {
             KeyHolderWithRequests::copy_requests(other);
             request_everyone_ = other.request_everyone_;
@@ -115,8 +115,8 @@ namespace housepi::data
     private:
         //////  Data  //////
 
-        /// Wide-format data of one member.
-        struct IndivWide_
+        /// Dataset row of one member.
+        struct IndivRow_
         {
             StatusLvl status = status::MISSING; /// Imported status.
             std::vector<double> vec = {};       /// Imported values, by column.
@@ -124,7 +124,7 @@ namespace housepi::data
 
         std::vector<size_t> request_everyone_ = {}; /// Keys requested for every member.
         dict<size_t> hh_id_to_index_ = {};          /// Internal index per household user id.
-        std::vector<IndivWide_> indiv_data_;        /// Member data, by member index.
+        std::vector<IndivRow_> indiv_data_;         /// Member data, by member index.
         std::vector<std::string> indiv_ids_ = {};   /// Member user ids, by member index.
         std::vector<std::string> hh_ids_ = {};      /// Household user ids, by household index.
         size_t n_imported_ = 0;                     /// Number of columns known at import.

@@ -23,10 +23,10 @@ mk_member <- local({
 test_that("Wrappers reject objects that are not a housepi model", {
   obj <- "not a model"
   err <- "must be of class"
-  add_data_long(obj, data.frame()) |> expect_error(err)
-  add_data_wide(obj, data.frame()) |> expect_error(err)
-  get_data_wide(obj) |> expect_error(err)
-  get_data_long(obj) |> expect_error(err)
+  add_long_dataset(obj, data.frame()) |> expect_error(err)
+  add_dataset(obj, data.frame()) |> expect_error(err)
+  get_dataset(obj) |> expect_error(err)
+  get_long_dataset(obj) |> expect_error(err)
   get_parameters(obj) |> expect_error(err)
   get_latent(obj) |> expect_error(err)
   get_group_rates(obj) |> expect_error(err)
@@ -36,7 +36,7 @@ test_that("Wrappers reject objects that are not a housepi model", {
   add_parameter(obj) |> expect_error(err)
   add_latent(obj) |> expect_error(err)
   add_infectivity_profile(obj, "gamma") |> expect_error(err)
-  add_reporting_process(obj, wide = identity) |> expect_error(err)
+  add_reporting_process(obj, dataset = identity) |> expect_error(err)
   evaluate_log_lik(obj) |> expect_error(err)
   run_inference(obj) |> expect_error(err)
   run_simulation(obj) |> expect_error(err)
@@ -44,8 +44,8 @@ test_that("Wrappers reject objects that are not a housepi model", {
   check_predictive(obj, NULL) |> expect_error(err)
 })
 
-test_that("Data provided at construction is exposed via get_data_wide", {
-  hh_data <- get_data_wide(new_housepi_model(flu_1918_baltimore, "test"))
+test_that("Data provided at construction is exposed via get_dataset", {
+  hh_data <- get_dataset(new_housepi_model(flu_1918_baltimore, "test"))
   colnames(hh_data) |> expect_contains(c("hh_id", "status"))
 
   # id automatically added
@@ -323,21 +323,21 @@ test_that("add_observation routes every input branch on `level`", {
 test_that("Reporting process wrapper replaces only the slots passed", {
   # a model starts without one
   get_reporting_process(mk_wrapper$model) |>
-    expect_identical(list(wide = NULL, long = NULL))
+    expect_identical(list(dataset = NULL, long_dataset = NULL))
 
   hh_model <- mk_wrapper$model |>
-    add_reporting_process(wide = identity, long = nrow)
+    add_reporting_process(dataset = identity, long_dataset = nrow)
   # an omitted slot is kept
-  hh_model_2 <- add_reporting_process(hh_model, long = ncol)
+  hh_model_2 <- add_reporting_process(hh_model, long_dataset = ncol)
   get_reporting_process(hh_model_2) |>
-    expect_identical(list(wide = identity, long = ncol))
+    expect_identical(list(dataset = identity, long_dataset = ncol))
   # NULL removes a slot
-  add_reporting_process(hh_model_2, wide = NULL) |>
+  add_reporting_process(hh_model_2, dataset = NULL) |>
     get_reporting_process() |>
-    expect_identical(list(wide = NULL, long = ncol))
+    expect_identical(list(dataset = NULL, long_dataset = ncol))
   # the input model is left untouched
   get_reporting_process(hh_model) |>
-    expect_identical(list(wide = identity, long = nrow))
+    expect_identical(list(dataset = identity, long_dataset = nrow))
 })
 
 test_that("Reporting process wrapper rejects anything but a function", {
@@ -345,8 +345,8 @@ test_that("Reporting process wrapper rejects anything but a function", {
     add_reporting_process() |>
     expect_error("[Nn]o reporting process given")
   mk_wrapper$model |>
-    add_reporting_process(wide = "not a function") |>
-    expect_error("[Rr]eporting process .wide. must be a function")
+    add_reporting_process(dataset = "not a function") |>
+    expect_error("[Rr]eporting process .dataset. must be a function")
 })
 
 test_that("Advanced settings route through `...`", {

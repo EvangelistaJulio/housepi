@@ -19,7 +19,7 @@ namespace housepi
 {
     namespace data
     {
-        struct Wide;
+        struct Dataset;
     }
     struct Parameter;
 }
@@ -35,7 +35,7 @@ namespace housepi::rates
         /// Build contact rates from rule table `input`.
         /// * contact rates are not symmetric a priori.
         /// @return Data columns the rules read, as equivalence-class covariates.
-        std::vector<std::string> build(data::Wide &data_wide,
+        std::vector<std::string> build(data::Dataset &dataset,
                                        const Parameter &param,
                                        const str_table &input);
 

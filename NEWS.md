@@ -5,7 +5,8 @@ First tagged version.
 * Household transmission models are declared with `new_housepi_model()`, from the built-in
   `final_size` and `case_ascertained` models or from custom C++ and discrete-time models
   compiled at runtime.
-* Household data are imported in wide or long format (`add_data_wide()`, `add_data_long()`).
+* Household data are attached as a dataset, one row per member (`add_dataset()`),
+  and an optional long dataset, any number of rows per member (`add_long_dataset()`).
 * Parameters take priors and proposals written in a small DSL (`add_parameter()`).
 * Group and contact rates (`add_group_rate()`, `add_contact_rate()`) and infectivity
   profiles (`add_infectivity_profile()`) shape transmission between members.

@@ -108,7 +108,7 @@ test_that("Reserved column lookalikes are named once per target", {
   assert_valid_data_columns(c("id", "hh_id", "status", "state", "member")) |>
     expect_null()
 
-  # long data only reads the individual identifier
+  # a long dataset only reads the individual identifier
   assert_valid_data_columns(c("Status", "hhid", "measure"), "id") |>
     expect_null()
   assert_valid_data_columns(c("Id", "measure"), "id") |>

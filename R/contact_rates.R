@@ -17,24 +17,24 @@ pair_cols_ <- function(covs) {
 #' @param covariates `list` Covariate data column names.
 #' @return `data.frame` Columns `from_`, `to_` and the pair count `n`.
 #' @noRd
-contact_rate_logic_table <- function(data_wide, covariates) {
+contact_rate_logic_table <- function(dataset, covariates) {
   # no hh_id -> households of size 1, no pairs
-  if (!"hh_id" %in% colnames(data_wide)) return(NULL)
+  if (!"hh_id" %in% colnames(dataset)) return(NULL)
 
   # subset to needed columns, covariates coerced to character
   covariates <- as.character(unlist(covariates))
-  data_wide <- data_wide[, c("hh_id", covariates), drop = FALSE]
-  data_wide[] <- lapply(data_wide, as.character)
+  dataset <- dataset[, c("hh_id", covariates), drop = FALSE]
+  dataset[] <- lapply(dataset, as.character)
 
   # every 'from' meets every 'to' in a household:
   # * ordered pairs of two keys -> product of their per-household counts;
   # * self-pairs -> taken back off the diagonal.
-  per_house <- table(data_wide$hh_id, row_keys_(data_wide, covariates))
+  per_house <- table(dataset$hh_id, row_keys_(dataset, covariates))
   cnt <- crossprod(per_house)
   diag(cnt) <- diag(cnt) - colSums(per_house)
 
   # build the full observed grid
-  observed <- unique(data_wide[, covariates, drop = FALSE])
+  observed <- unique(dataset[, covariates, drop = FALSE])
   from_grid <- stats::setNames(observed, paste0("from_", covariates))
   to_grid <- stats::setNames(observed, paste0("to_", covariates))
   y <- merge(from_grid, to_grid, by = NULL)
@@ -48,13 +48,13 @@ contact_rate_logic_table <- function(data_wide, covariates) {
 }
 
 #' Build the ordered member pairs a contact rate is checked against.
-#' @param data_wide Data the pairs come from.
+#' @param dataset Data the pairs come from.
 #' @param covs `character()` Covariates the rules key on.
 #' @return `data.frame` Columns `from_` and `to_` of `covs`,
 #' `.weight` the pairs each row holds, `.combo` its index.
 #' @noRd
-pair_cells_ <- function(data_wide, covs) {
-  pairs <- contact_rate_logic_table(data_wide, covs)
+pair_cells_ <- function(dataset, covs) {
+  pairs <- contact_rate_logic_table(dataset, covs)
   # no household structure -> no pair
   if (is.null(pairs)) pairs <- data.frame(
     lapply(stats::setNames(nm = pair_cols_(covs)), \(col) character()),
@@ -286,9 +286,9 @@ HousepiContactRate <- R6::R6Class(
     },
 
     # Build the logic tables of an automatic definition from the data.
-    helper_implement_auto_ = function(data_wide, symmetric) {
+    helper_implement_auto_ = function(dataset, symmetric) {
       by <- self$defs[["by"]]
-      assert_data_covariates(by, colnames(data_wide))
+      assert_data_covariates(by, colnames(dataset))
 
       # cast covariates, `joint` wraps them all together
       covariates <- as.list(by)
@@ -300,7 +300,7 @@ HousepiContactRate <- R6::R6Class(
 
       new_tables <- list()
       for (this_cov in covariates) {
-        this_table <- contact_rate_logic_table(data_wide, this_cov)
+        this_table <- contact_rate_logic_table(dataset, this_cov)
         # missing covariate cell -> no level, its pairs match no rule
         cols <- pair_cols_(this_cov)
         if (!is.null(this_table))
@@ -321,29 +321,29 @@ HousepiContactRate <- R6::R6Class(
     },
 
     # Assert each observed ordered pair resolves to one rule per group.
-    assert_rules_fit_ = function(data_wide) {
+    assert_rules_fit_ = function(dataset) {
       covs <- unique(pair_covs_(unlist(lapply(self$logic_tables, names))))
-      assert_rate_fit_(self$logic_tables, pair_cells_(data_wide, covs),
+      assert_rate_fit_(self$logic_tables, pair_cells_(dataset, covs),
                        "Contact rate", "ordered pair", self$defs)
       invisible(self)
     },
 
     # Validate custom mode logic table against data, then add counts.
-    helper_implement_custom_ = function(data_wide, symmetric) {
+    helper_implement_custom_ = function(dataset, symmetric) {
       for (i in seq_along(self$logic_tables)) {
         # optionally fill symmetric gaps
         this_table <- self$logic_tables[[i]]
         # retrieve covariates
         this_cov <- pair_covs_(names(this_table))
         # validate that covariate columns exist in data
-        assert_data_covariates(this_cov, colnames(data_wide))
+        assert_data_covariates(this_cov, colnames(dataset))
 
         # value the data never carries -> error, before symmetrization,
         # as it would encode to a catch-all
         unknown <- unknown_strata_rows(
           this_table,
           known = lapply(stats::setNames(nm = this_cov),
-                         \(cov) unique(data_wide[[cov]])),
+                         \(cov) unique(dataset[[cov]])),
           # both sides of a pair read the same data column
           cols = stats::setNames(rep(this_cov, 2L), pair_cols_(this_cov))
         )
@@ -352,7 +352,7 @@ HousepiContactRate <- R6::R6Class(
 
         if (symmetric) this_table <- fill_symmetric_gaps(this_table)
         this_table$n <- count_rate_rules_(this_table,
-                                          pair_cells_(data_wide, this_cov))
+                                          pair_cells_(dataset, this_cov))
         self$logic_tables[[i]] <- this_table
       }
       invisible(self)
@@ -459,16 +459,16 @@ HousepiContactRate <- R6::R6Class(
 
     ####  Build  ####
 
-    # Build the logic tables from `data_wide`, then assert every pair fits.
-    implement = function(data_wide) {
+    # Build the logic tables from `dataset`, then assert every pair fits.
+    implement = function(dataset) {
       symmetric <- isTRUE(self$defs[["symmetric"]])
 
       if (self$defs[["mode"]] == "custom") {
-        private$helper_implement_custom_(data_wide, symmetric)
+        private$helper_implement_custom_(dataset, symmetric)
       } else {
-        private$helper_implement_auto_(data_wide, symmetric)
+        private$helper_implement_auto_(dataset, symmetric)
       }
-      private$assert_rules_fit_(data_wide)
+      private$assert_rules_fit_(dataset)
       invisible(self)
     },
 

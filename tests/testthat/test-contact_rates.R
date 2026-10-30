@@ -23,7 +23,7 @@ mk_house <- local({
 
 # cell-by-cell readout of the contact rate matrix of a household snapshot
 ctr_cell <- function(snapshot, from, to, key = "member") {
-  ids <- snapshot$data_wide[[key]]
+  ids <- snapshot$dataset[[key]]
   snapshot$contact_rates[match(from, ids), match(to, ids)]
 }
 
@@ -629,8 +629,8 @@ test_that("A catch-all rule survives a missing cell in its covariate column", {
     NA,           NA,         "ctr_any"
   )
   snapshot <- mk_house$model |>
-    add_data_wide(transform(get_data_wide(mk_house$model),
-                            member = c("father", "mother", "student", NA))) |>
+    add_dataset(transform(get_dataset(mk_house$model),
+                          member = c("father", "mother", "student", NA))) |>
     add_contact_rate(strata = strata, symmetric = FALSE,
                      params = list(ctr_fm = 2, ctr_any = 3)) |>
     inspect_state("h1") |>
@@ -718,7 +718,7 @@ test_that("Contact rate definition work as expected", {
 
   # matrix is n x n with a null diagonal
   snapshot <- inspect_state(hh_model, "h2")
-  n <- nrow(snapshot$data_wide)
+  n <- nrow(snapshot$dataset)
   snapshot$contact_rates |> expect_dim(c(n, n))
   unname(diag(snapshot$contact_rates)) |> expect_equal(rep(0., n))
 

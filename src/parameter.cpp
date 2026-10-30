@@ -19,16 +19,16 @@
 #include "tools/random.h"
 #include "tools/string.h"
 #include "tools/vector.h"
+#include "data/dataset.h"
 #include "data/household.h"
 #include "data/individual.h"
-#include "data/wide.h"
 #include "distribution.h"
 #include "function.h"
 #include "parameter.h"
 #include "proposal.h"
-#include "registry.h"
 #include "rates.h"
 #include "rates/definition.h"
+#include "registry.h"
 #include "translator.h"
 #include "variable.h"
 
@@ -244,7 +244,7 @@ namespace housepi
                 msg::stop(
                     "Parameter function " + msg::val(name) +
                     " cannot depend on latent variables.");
-            if (func.consumes_data_wide())
+            if (func.consumes_dataset())
                 msg::stop(
                     "Parameter function " + msg::val(name) +
                     " cannot depend on data variables.");
@@ -557,13 +557,13 @@ namespace housepi
 
         //////////////////////////////  rates::Group  //////////////////////////////
 
-        std::vector<std::string> Group::build(data::Wide &data_wide,
+        std::vector<std::string> Group::build(data::Dataset &dataset,
                                               const Parameter &param,
                                               const str_table &input)
         {
             // drop the previous build
             clear_optional_();
-            reset_store_(data_wide.report_indiv.total);
+            reset_store_(dataset.report_indiv.total);
             scale_anchors_.clear();
             slot_base_.fill(0);
             n_slots_ = 1;
@@ -587,7 +587,7 @@ namespace housepi
             if (input.count(rules::STATUS_KEY))
                 slot_of = helper_init_status_slots_(input.at(rules::STATUS_KEY));
 
-            const GroupDefinitions defs(input, data_wide, param, spec_headers, slot_of);
+            const GroupDefinitions defs(input, dataset, param, spec_headers, slot_of);
 
             // scale anchoring per rate name and rule group
             for (const auto &[key, anchor] : read_scale_anchors<GroupKey>(
@@ -598,12 +598,12 @@ namespace housepi
             // unique definitions: parameter keys per status slot and rate, the reference left out
             const size_t n_keys = size();
             std::map<std::vector<std::vector<size_t>>, RateOffset> unique_defin_map;
-            for (Household &house : data_wide)
+            for (Household &house : dataset)
                 for (Individual &indiv : house)
                 {
                     std::vector<std::vector<size_t>> cell_params(n_slots_ * n_keys);
                     for (size_t s = 0; s < n_slots_; ++s)
-                        for (auto &[key, r] : defs.resolve(data_wide, indiv, static_cast<StatusSlot>(s)))
+                        for (auto &[key, r] : defs.resolve(dataset, indiv, static_cast<StatusSlot>(s)))
                             if (const size_t p = defs.row_param[r]; !na::is(p))
                             {
                                 cell_params[s * n_keys + consult(key.first)].push_back(p);
@@ -699,16 +699,16 @@ namespace housepi
 
         //////////////////////////////  rates::Contact  //////////////////////////////
 
-        std::vector<std::string> Contact::build(data::Wide &data_wide,
+        std::vector<std::string> Contact::build(data::Dataset &dataset,
                                                 const Parameter &param,
                                                 const str_table &input)
         {
-            reset_store_(data_wide.report_house.total);
+            reset_store_(dataset.report_house.total);
             scale_anchors_.clear();
             if (input.empty())
                 return {};
 
-            ContactDefinitions defs(input, data_wide, param);
+            ContactDefinitions defs(input, dataset, param);
 
             // scale anchoring per rule group
             for (const auto &[gid, anchor] : read_scale_anchors<size_t>(
@@ -717,22 +717,22 @@ namespace housepi
                 scale_anchors_.push_back(anchor);
 
             // pairs of covariate classes resolve on first encounter only
-            const rules::CovariateClasses classes(data_wide, defs.keys);
+            const rules::CovariateClasses classes(dataset, defs.keys);
             std::vector<PairRate> pair_rates(classes.count * classes.count);
 
             // every household's matrix, row-major, into the one flat store
             size_t n_cells = 0;
-            for (size_t H = 0; H < data_wide.report_house.total; ++H)
+            for (size_t H = 0; H < dataset.report_house.total; ++H)
             {
                 base_[H] = static_cast<RateOffset>(n_cells);
-                const size_t house_size = data_wide.at(H).size();
+                const size_t house_size = dataset.at(H).size();
                 n_cells += house_size * house_size;
             }
             flat_.assign(n_cells, VALUE_REFERENCE);
 
-            for (size_t H = 0; H < data_wide.report_house.total; ++H)
+            for (size_t H = 0; H < dataset.report_house.total; ++H)
             {
-                Household &house = data_wide.at(H);
+                Household &house = dataset.at(H);
                 size_t house_size = house.size();
 
                 for (size_t from = 0; from < house_size; ++from)
@@ -743,7 +743,7 @@ namespace housepi
                                        classes.of_indiv[Index::of(house.at(to))]];
                         if (!pair.resolved)
                         {
-                            pair.params = defs.associate_params(data_wide, house.at(from), house.at(to));
+                            pair.params = defs.associate_params(dataset, house.at(from), house.at(to));
                             for (size_t p : pair.params)
                                 pair.param_ptrs.push_back(param.at(p).pointer());
                             pair.resolved = true;

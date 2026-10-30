@@ -63,7 +63,7 @@ ppc$format_attack_rate()
   hh_model,
   draws = NULL,
   ...,
-  measures_long = NULL,
+  long_measures = NULL,
   nrep = NA_integer_,
   thin_ess = TRUE,
   min_hh_size = NA_integer_,
@@ -85,9 +85,9 @@ or one value per parameter, as in \code{c(alpha = 0.1, beta = 0.2)}.}
 Each returns a \code{numeric()}, a \code{list} or a \code{data.frame}.
 Names must be unique and cannot match a member of the returned object.
 They are checked alongside standard epidemiological measures.}
-      \item{\code{measures_long}}{\code{list}
-Named \code{function}s computing measures from \code{data_long}.
-Each replicate's \code{data_long} comes from the \code{long} reporting process,
+      \item{\code{long_measures}}{\code{list}
+Named \code{function}s computing measures from the long dataset.
+Each replicate's long dataset comes from the \code{long_dataset} reporting process,
 see \code{\link[=add_reporting_process]{add_reporting_process()}}.
 Returned values and names follow the rules of \code{...}.}
       \item{\code{nrep}}{\code{integer(1)} Number of replicates.

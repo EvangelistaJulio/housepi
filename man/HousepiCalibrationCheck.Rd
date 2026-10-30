@@ -117,7 +117,7 @@ Number of households in each simulated study.
 If \code{NA}, the number of households carried by the attached data.}
       \item{\code{structure_sampler}}{\code{function}
 Sampler of the household structure the outbreaks are simulated on,
-called as \code{structure_sampler(data_wide, houses)}.
+called as \code{structure_sampler(data, houses)}.
 If \code{NULL}, the attached structure is reused verbatim and \code{houses} ignored.}
       \item{\code{rank_draws}}{\code{integer(1)}
 Number of posterior draws each simulating value is ranked among,
