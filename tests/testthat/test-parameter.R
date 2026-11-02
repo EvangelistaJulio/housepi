@@ -216,6 +216,15 @@ test_that("Parameter options typed as values refuse other types", {
     expect_error("[Aa]rgument .prior. must be character, numeric, or logical")
 })
 
+test_that("A prior argument outside its domain is rejected at definition", {
+  mk_param$model |>
+    add_parameter(rho = list(prior = "normal", sd = -1)) |>
+    expect_error("sd.*normal.*must be greater than 0")
+  mk_param$model |>
+    add_parameter(rho = list(prior = "gamma", shape = -2)) |>
+    expect_error("shape.*gamma.*must be greater than 0")
+})
+
 ####  End-to-end  ####
 
 test_that("Unsupported parameter definitions throw errors", {

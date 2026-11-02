@@ -129,6 +129,17 @@ namespace housepi
         }
 
     protected:
+        //////  Arguments  //////
+
+        /// Require arguments `idx` of the active parametrization to be positive.
+        ArgRequirements positive_args_(std::initializer_list<size_t> idx) const
+        {
+            ArgRequirements reqs;
+            for (size_t i : idx)
+                reqs.emplace_back(&arguments_(i), Codomain::positive());
+            return reqs;
+        }
+
         //////  Virtual  //////
 
         /// Raw density or mass.

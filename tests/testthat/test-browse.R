@@ -217,6 +217,16 @@ test_that("The codomain reports what a definition returns", {
     expect_equal(interval("[-3, -3]"))
   browse_functions("exp", x = 0)$codomain |> expect_equal(interval("[1, 1]"))
   browse_functions("log", x = 1)$codomain |> expect_equal(interval("[0, 0]"))
+  # a negative factor, a divisor and an exponent keep the value they return
+  browse_functions("prod", x = -2, x2 = 3)$codomain |>
+    expect_equal(interval("[-6, -6]"))
+  browse_functions("div", x = 1, x2 = -4)$codomain |>
+    expect_equal(interval("[-0.25, -0.25]"))
+  browse_functions("pow", x = 4, x2 = 0.5)$codomain |>
+    expect_equal(interval("[2, 2]"))
+  # a divisor reaching zero splits the values into two rays
+  browse_functions("div", x = 1, x2 = 0)$codomain |>
+    expect_equal(interval("(-Inf, Inf)"))
   # an integer raised to a non-negative integer power stays an integer
   browse_functions("pow", x = 2, x2 = 3)$is_discrete |> expect_true()
   browse_functions("pow", x = 2, x2 = 0.5)$is_discrete |> expect_false()
@@ -500,6 +510,58 @@ test_that("An argument off the integers is refused where one is required", {
     expect_error("size.*binomial.*discrete")
   browse_distributions("negative_binomial", size = 5.5, prob = 0.5) |>
     expect_error("size.*negative_binomial.*discrete")
+})
+
+test_that("An argument outside its domain is refused", {
+  # a spread, a shape, a scale or a rate is positive, zero excluded
+  browse_distributions("normal", sd = -1) |>
+    expect_error("sd.*normal.*must be greater than 0")
+  browse_distributions("normal", sd = 0) |>
+    expect_error("sd.*normal.*must be greater than 0")
+  browse_distributions("gamma", shape = -2) |>
+    expect_error("shape.*gamma.*must be greater than 0")
+  browse_distributions("beta", shape1 = 2, shape2 = 0) |>
+    expect_error("shape2.*beta.*must be greater than 0")
+  browse_distributions("weibull", shape = 2, scale = -1) |>
+    expect_error("scale.*weibull.*must be greater than 0")
+  browse_distributions("rayleigh", scale = 0) |>
+    expect_error("scale.*rayleigh.*must be greater than 0")
+  browse_distributions("exponential", rate = -1) |>
+    expect_error("rate.*exponential.*must be greater than 0")
+  browse_distributions("poisson", lambda = 0) |>
+    expect_error("lambda.*poisson.*must be greater than 0")
+  browse_infectivity_profiles("ferretti20", incub_period = 0) |>
+    expect_error("incub_period.*ferretti20.*must be greater than 0")
+
+  # each parametrization declares its own arguments
+  browse_distributions("lognormal", meanlog = -1, sdlog = -1) |>
+    expect_error("sdlog.*lognormal.*must be greater than 0")
+  browse_distributions("lognormal", mean = -1, sd = 1) |>
+    expect_error("mean.*lognormal.*must be greater than 0")
+  browse_distributions("gamma", mean = 2, sd = 0) |>
+    expect_error("sd.*gamma.*must be greater than 0")
+
+  # a probability stays off the ends where its mass reads 0 * log(0)
+  browse_distributions("binomial", size = 3, prob = 1.5) |>
+    expect_error("prob.*binomial.*must be greater than 0 and less than 1")
+  browse_distributions("binomial", size = 3, prob = 0) |>
+    expect_error("prob.*binomial.*must be greater than 0 and less than 1")
+  browse_distributions("negative_binomial", size = 3, prob = 1) |>
+    expect_error("prob.*negative_binomial.*must be greater than 0")
+  browse_distributions("geometric", prob = 0) |>
+    expect_error("prob.*geometric.*must be greater than 0")
+
+  # a count of trials may be zero, a count of successes may not
+  browse_distributions("binomial", size = -1, prob = 0.5) |>
+    expect_error("size.*binomial.*must be at least 0")
+  browse_distributions("binomial", size = 0, prob = 0.5)$args |>
+    expect_equal(c(size = 0, prob = 0.5))
+  browse_distributions("negative_binomial", size = 0, prob = 0.5) |>
+    expect_error("size.*negative_binomial.*must be greater than 0")
+
+  # a weight is never negative, though the weights sum to a positive total
+  browse_distributions("categorical", a = 2, b = -1) |>
+    expect_error("b.*categorical.*must be at least 0")
 })
 
 test_that("Options outside the support of a law are rejected", {

@@ -4,6 +4,7 @@
  */
 
 #include <algorithm>
+#include <cctype>
 #include <cmath>
 #include <memory>
 #include <string>
@@ -102,24 +103,6 @@ namespace housepi
             return c;
         }
 
-        /// Product of codomains `a` and `b`.
-        /// Endpoints compose only while neither operand reaches below zero.
-        /// A factor changing sign needs the four products and a union.
-        Codomain mul_(const Codomain &a, const Codomain &b)
-        {
-            Codomain c;
-            c.lattice = both_integers_(a.lattice, b.lattice);
-            if (a.below == Interval::Unbounded || a.inf < 0. || b.below == Interval::Unbounded || b.inf < 0.)
-                return c;
-
-            c.below = both_(a.below, b.below);
-            c.inf = a.inf * b.inf;
-            c.above = both_(a.above, b.above);
-            if (c.above != Interval::Unbounded)
-                c.sup = a.sup * b.sup;
-            return c;
-        }
-
         /// Minimum of codomains `a` and `b`.
         Codomain min_(const Codomain &a, const Codomain &b)
         {
@@ -176,6 +159,129 @@ namespace housepi
             return c;
         }
 
+        /// Smallest interval holding codomains `a` and `b`.
+        Codomain hull_(const Codomain &a, const Codomain &b)
+        {
+            Codomain c = min_(a, b);
+            const Codomain upper = max_(a, b);
+            c.sup = upper.sup, c.above = upper.above;
+            return c;
+        }
+
+        /// Negation of codomain `a`.
+        Codomain negate_(const Codomain &a)
+        {
+            Codomain c;
+            c.lattice = a.lattice;
+            if (a.above != Interval::Unbounded)
+                c.inf = -a.sup, c.below = a.above;
+            if (a.below != Interval::Unbounded)
+                c.sup = -a.inf, c.above = a.below;
+            return c;
+        }
+
+        /// Whether no value of `a` is negative.
+        bool is_non_negative_(const Codomain &a) { return a.below != Interval::Unbounded && a.inf >= 0.; }
+        /// Whether no value of `a` is positive.
+        bool is_non_positive_(const Codomain &a) { return a.above != Interval::Unbounded && a.sup <= 0.; }
+        /// Whether `x` is a bound reached at zero.
+        bool is_reached_zero_(double x, Interval side) { return x == 0. && side == Interval::Closed; }
+
+        /// Product of non-negative codomains `a` and `b`.
+        /// A bound is reached where both factors reach theirs, or where either reaches zero.
+        Codomain mul_non_negative_(const Codomain &a, const Codomain &b)
+        {
+            Codomain c;
+            c.lattice = both_integers_(a.lattice, b.lattice);
+
+            c.inf = a.inf * b.inf;
+            c.below = is_reached_zero_(a.inf, a.below) || is_reached_zero_(b.inf, b.below)
+                          ? Interval::Closed
+                          : both_(a.below, b.below);
+
+            // a factor held at zero holds the product there
+            if (is_reached_zero_(a.sup, a.above) || is_reached_zero_(b.sup, b.above))
+                c.sup = 0., c.above = Interval::Closed;
+            else if ((c.above = both_(a.above, b.above)) != Interval::Unbounded)
+                c.sup = a.sup * b.sup;
+            return c;
+        }
+
+        /// Product of codomains `a` and `b`.
+        /// * factor changing sign -> split at zero, products joined;
+        /// * non-positive factor -> negated around the non-negative product.
+        Codomain mul_(const Codomain &a, const Codomain &b)
+        {
+            // negative and positive parts, zero reached by both
+            const auto split = [](Codomain neg)
+            {
+                Codomain pos = neg;
+                neg.sup = pos.inf = 0.;
+                neg.above = pos.below = Interval::Closed;
+                return std::pair{neg, pos};
+            };
+            if (!is_non_negative_(a) && !is_non_positive_(a))
+            {
+                const auto [neg, pos] = split(a);
+                return hull_(mul_(neg, b), mul_(pos, b));
+            }
+            if (!is_non_negative_(b) && !is_non_positive_(b))
+            {
+                const auto [neg, pos] = split(b);
+                return hull_(mul_(a, neg), mul_(a, pos));
+            }
+
+            if (is_non_negative_(a) && is_non_negative_(b))
+                return mul_non_negative_(a, b);
+            if (is_non_negative_(a))
+                return negate_(mul_non_negative_(a, negate_(b)));
+            if (is_non_negative_(b))
+                return negate_(mul_non_negative_(negate_(a), b));
+            return mul_non_negative_(negate_(a), negate_(b));
+        }
+
+        /// Exponential of codomain `a`.
+        Codomain exp_(const Codomain &a)
+        {
+            Codomain c;
+            // the exponential approaches zero without ever reaching it
+            c.inf = 0., c.below = Interval::Open;
+            if (a.below != Interval::Unbounded)
+                c.inf = std::exp(a.inf), c.below = a.below;
+            if (a.above != Interval::Unbounded)
+                c.sup = std::exp(a.sup), c.above = a.above;
+            return c;
+        }
+
+        /// Logarithm of codomain `a`.
+        Codomain log_(const Codomain &a)
+        {
+            Codomain c;
+            // the logarithm falls away without bound as its argument approaches zero
+            if (a.below != Interval::Unbounded && a.inf > 0.)
+                c.inf = std::log(a.inf), c.below = a.below;
+            if (a.above != Interval::Unbounded && a.sup > 0.)
+                c.sup = std::log(a.sup), c.above = a.above;
+            return c;
+        }
+
+        /// Reciprocal of codomain `a`.
+        /// * divisor reaching zero or changing sign -> unbounded, two rays are not an interval;
+        /// * divisor approaching zero -> unbounded on that side.
+        Codomain recip_(const Codomain &a)
+        {
+            if (!a.is_positive())
+                return is_non_positive_(a) && !is_reached_zero_(a.sup, a.above) ? negate_(recip_(negate_(a)))
+                                                                                : Codomain();
+            Codomain c;
+            c.inf = 0., c.below = Interval::Open;
+            if (a.above != Interval::Unbounded)
+                c.inf = 1. / a.sup, c.below = a.above;
+            if (a.inf > 0.)
+                c.sup = 1. / a.inf, c.above = a.below;
+            return c;
+        }
+
         /// Format interval notation around bounds rendered by the caller.
         std::string str_interval_(const std::string &str_min,
                                   const std::string &str_max,
@@ -224,6 +330,20 @@ namespace housepi
     std::string Codomain::str() const
     {
         return str_interval_(str::format(inf), str::format(sup), below, above);
+    }
+
+    bool Codomain::is_within(const Codomain &outer) const noexcept
+    {
+        // a side holds where the outer side is unbounded, or bounds every value on it
+        const bool is_low_within =
+            outer.below == Interval::Unbounded ||
+            (below != Interval::Unbounded &&
+             (inf > outer.inf || (inf == outer.inf && (below == Interval::Open || outer.below == Interval::Closed))));
+        const bool is_high_within =
+            outer.above == Interval::Unbounded ||
+            (above != Interval::Unbounded &&
+             (sup < outer.sup || (sup == outer.sup && (above == Interval::Open || outer.above == Interval::Closed))));
+        return is_low_within && is_high_within && (!outer.on_integers() || on_integers());
     }
 
     //////////////////////////////  Attribute  //////////////////////////////
@@ -578,25 +698,71 @@ namespace housepi
                 sms += "\nChange " + attr.pointer()->str() + " to discrete " + msg::code("discr = TRUE") + ".";
             msg::stop(sms);
         }
+
+        /// Words for the bounds of `c`, as read by the user.
+        std::string str_bounds_(const Codomain &c)
+        {
+            std::string sms;
+            if (c.below != Interval::Unbounded)
+                sms = (c.below == Interval::Open ? "greater than " : "at least ") + str::format(c.inf);
+            if (c.above != Interval::Unbounded)
+                sms += (sms.empty() ? "" : " and ") +
+                       std::string(c.above == Interval::Open ? "less than " : "at most ") + str::format(c.sup);
+            return sms;
+        }
+
+        /// Raise on an argument that can take a value outside its requirement `req`.
+        /// * number -> its value is set outside;
+        /// * constant source -> the source holds a value outside;
+        /// * any other source -> it can take values outside.
+        [[noreturn]] void raise_outside_(const Attribute &attr, const Codomain &req, const std::string &owner)
+        {
+            const std::string bounds = str_bounds_(req);
+            // an expression is named after the argument it defines
+            const std::string source = attr.pointer()->is_function() ? "its definition" : attr.pointer()->str();
+            std::string sms = msg::arg(attr.name()) + " of " + owner + " must be " + bounds;
+            if (attr.is_numeric())
+                sms += ".\nSet argument " + msg::arg(attr.name()) + " from " + attr.str_val() + " to a value " +
+                       bounds + ".";
+            else if (attr.is_constant())
+                sms += ".\nChange " + source + " from " + str::format(attr.value()) + " to a value " + bounds + ".";
+            else
+            {
+                std::string lead = source;
+                lead[0] = static_cast<char>(std::toupper(static_cast<unsigned char>(lead[0])));
+                sms += ".\n" + lead + " can take other values.\nRestrict " + source + " to values " + bounds + ".";
+            }
+            msg::stop(sms);
+        }
     }
 
     void Function::assert_location_matches_discrete() const
     {
         // a lattice survives an integer shift, not a fractional one
         // the check asks where the lattice lands, not whether there is one
-        if (!is_discretized() || domain_.loc.is_empty() || domain_.loc.is_discrete())
+        // an unbound location holds no value to judge
+        const Attribute &loc = domain_.loc;
+        if (!is_discretized() || loc.is_empty() || (loc.is_constant() && loc.is_na()) || loc.is_discrete())
             return;
 
         raise_not_discrete_(
             domain_.loc, msg::arg("loc") + " definition is incompatible with discrete " + str() + ".");
     }
 
-    void Function::assert_discrete_args() const
+    void Function::assert_arg_requirements() const
     {
-        for (const Attribute *attr : discrete_args_())
-            if (!attr->is_empty() && !attr->is_discrete())
-                raise_not_discrete_(
-                    *attr, msg::arg(attr->name()) + " of " + str() + " must be discrete.");
+        for (const auto &[attr, req] : arg_requirements_())
+        {
+            // an empty or unbound argument holds no value to judge
+            if (attr->is_empty() || (attr->is_constant() && attr->is_na()))
+                continue;
+
+            const Codomain values = attr->codomain();
+            if (req.on_integers() && !values.on_integers())
+                raise_not_discrete_(*attr, msg::arg(attr->name()) + " of " + str() + " must be discrete.");
+            if (!values.is_within(req))
+                raise_outside_(*attr, req, str());
+        }
     }
 
     //////////////////////////////  Function : setter  //////////////////////////////
@@ -932,7 +1098,8 @@ namespace housepi
         {
             // an operator builds the function it spells, named as spelled in errors
             const auto *op = std::find_if(std::begin(operators_), std::end(operators_),
-                                          [&](const auto &o) { return o.first == name; });
+                                          [&](const auto &o)
+                                          { return o.first == name; });
             const bool is_operator = op != std::end(operators_);
             if (is_operator)
                 name = op->second;
@@ -990,17 +1157,7 @@ namespace housepi
         public:
             static constexpr const char *NAME = "minus";
 
-            Codomain codomain() const noexcept override final
-            {
-                const Codomain a = x_arg_.codomain();
-                Codomain c;
-                c.lattice = a.lattice;
-                if (a.above != Interval::Unbounded)
-                    c.inf = -a.sup, c.below = a.above;
-                if (a.below != Interval::Unbounded)
-                    c.sup = -a.inf, c.above = a.below;
-                return c;
-            }
+            Codomain codomain() const noexcept override final { return negate_(x_arg_.codomain()); }
 
         protected:
             double raw_function_(double x) const override final { return -x; }
@@ -1013,14 +1170,10 @@ namespace housepi
             static constexpr const char *NAME = "sub";
             Subtraction_() : Cloneable({{"x2", na::DOUBLE}}) {}
 
+            /// Subtracting is adding the negation.
             Codomain codomain() const noexcept override final
             {
-                Codomain b = arguments_(0).codomain();
-                // subtracting is adding the negation
-                std::swap(b.inf, b.sup);
-                std::swap(b.below, b.above);
-                b.inf = -b.inf, b.sup = -b.sup;
-                return add_(x_arg_.codomain(), b);
+                return add_(x_arg_.codomain(), negate_(arguments_(0).codomain()));
             }
 
         protected:
@@ -1034,13 +1187,10 @@ namespace housepi
             static constexpr const char *NAME = "div";
             Division_() : Cloneable({{"x2", na::DOUBLE}}) {}
 
+            /// Dividing is multiplying by the reciprocal.
             Codomain codomain() const noexcept override final
             {
-                Codomain c;
-                // a divisor spanning zero yields two rays, not an interval
-                if (x_arg_.codomain().is_positive() && arguments_(0).codomain().is_positive())
-                    c.inf = 0., c.below = Interval::Open;
-                return c;
+                return mul_(x_arg_.codomain(), recip_(arguments_(0).codomain()));
             }
 
         protected:
@@ -1058,13 +1208,13 @@ namespace housepi
             {
                 const Codomain b = x_arg_.codomain();
                 const Codomain e = arguments_(0).codomain();
-                Codomain c;
+                // a positive base is the exponential of the exponent times its logarithm
+                // a base reaching zero or below needs the sign and parity of the exponent
+                Codomain c = b.is_positive() ? exp_(mul_(e, log_(b))) : Codomain();
                 // an integer base raised to an integer non-negative power stays an integer
-                if (b.on_integers() && e.on_integers() && e.below != Interval::Unbounded && e.inf >= 0.)
-                    c.lattice = Lattice::Integers;
-                // a tighter interval needs the sign and parity of the exponent
-                if (b.is_positive())
-                    c.inf = 0., c.below = Interval::Open;
+                c.lattice = b.on_integers() && e.on_integers() && e.below != Interval::Unbounded && e.inf >= 0.
+                                ? Lattice::Integers
+                                : Lattice::Doubles;
                 return c;
             }
 
@@ -1112,18 +1262,7 @@ namespace housepi
         public:
             static constexpr const char *NAME = "exp";
 
-            Codomain codomain() const noexcept override final
-            {
-                const Codomain a = x_arg_.codomain();
-                Codomain c;
-                // the exponential approaches zero without ever reaching it
-                c.inf = 0., c.below = Interval::Open;
-                if (a.below != Interval::Unbounded)
-                    c.inf = std::exp(a.inf), c.below = a.below;
-                if (a.above != Interval::Unbounded)
-                    c.sup = std::exp(a.sup), c.above = a.above;
-                return c;
-            }
+            Codomain codomain() const noexcept override final { return exp_(x_arg_.codomain()); }
 
         protected:
             double raw_function_(double x) const override final { return std::exp(x); }
@@ -1138,17 +1277,7 @@ namespace housepi
             static constexpr const char *NAME = "log";
             Logarithm_() : Cloneable({}, 0.) { domain_.below = Interval::Open; }
 
-            Codomain codomain() const noexcept override final
-            {
-                const Codomain a = x_arg_.codomain();
-                Codomain c;
-                // the logarithm falls away without bound as its argument approaches zero
-                if (a.below != Interval::Unbounded && a.inf > 0.)
-                    c.inf = std::log(a.inf), c.below = a.below;
-                if (a.above != Interval::Unbounded && a.sup > 0.)
-                    c.sup = std::log(a.sup), c.above = a.above;
-                return c;
-            }
+            Codomain codomain() const noexcept override final { return log_(x_arg_.codomain()); }
             void truncate() override final { helper_init_domain_min_(0., true); }
 
         protected:

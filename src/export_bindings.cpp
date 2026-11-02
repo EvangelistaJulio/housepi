@@ -225,6 +225,9 @@ namespace housepi
 
             //////  Setter  //////
 
+            /// Initialize arguments from `args`, then reshape.
+            /// * number -> bound to it;
+            /// * `NULL` element -> left unbound, its source judged where the definition is built.
             void init(SEXP args, double min, double max, bool is_discr)
             {
                 if (args != R_NilValue)
@@ -235,9 +238,13 @@ namespace housepi
                         arg_names = arg_list.names();
 
                     for (R_xlen_t i = 0; i < arg_list.size(); ++i)
-                        ptr_->init_attr(
-                            Rcpp::as<std::string>(arg_names[i]),
-                            Attribute(Rcpp::as<double>(arg_list[i])));
+                    {
+                        const std::string key = Rcpp::as<std::string>(arg_names[i]);
+                        if (Rf_isNull(arg_list[i]))
+                            ptr_->init_attr_unbound(key);
+                        else
+                            ptr_->init_attr(key, Attribute(Rcpp::as<double>(arg_list[i])));
+                    }
                 }
 
                 if (!na::is(min))

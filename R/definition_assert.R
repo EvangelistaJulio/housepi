@@ -63,7 +63,7 @@ helper_format_error <- function(err) {
 # * success -> the exposer.
 probe_exposer_ <- function(fn, name, args, min = NA_real_, max = NA_real_) {
   member <- cpp_member_(.subset2(.engine, "module"), fn)
-  tryCatch(member(name, unlist(args), min, max, FALSE),
+  tryCatch(member(name, args, min, max, FALSE),
            error = \(e) conditionMessage(e))
 }
 
@@ -81,13 +81,15 @@ probe_value_ <- function(x, placeholder) {
 # and family, raising the C++ error when none accepts it.
 # * one registry accepts it -> the exposer, else NULL;
 # * constant argument or bound -> probed at its value, rejected at definition;
-# * other argument -> probed at `1`;
+# * other argument -> left unbound, judged when engine builds the definition;
 # * bounds -> left out unless every given one is constant.
 probe_definition_ <- function(func_name, args, def_name, family, model_col,
                               min = NA_real_, max = NA_real_) {
   # a definition without arguments reads back as an unnamed NA
   args <- if (is.null(names(args))) numeric() else args[names(args) != "x"]
-  func_args <- stats::setNames(probe_value_(args, 1), names(args))
+  # a `NULL` element leaves the argument unbound
+  func_args <- lapply(probe_value_(args, NA_real_), \(v) if (!is.na(v)) v)
+  names(func_args) <- names(args)
   # a constant bound beside a sourced one would meet the default in its place
   bounds <- probe_value_(c(min, max), NA_real_)
   if (any(is.na(bounds) & !is.na(c(min, max)))) bounds[] <- NA_real_

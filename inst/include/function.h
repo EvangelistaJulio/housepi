@@ -48,8 +48,31 @@ namespace housepi
         Interval above = Interval::Unbounded; /// Openness of the upper side.
         Lattice lattice = Lattice::Doubles;   /// Lattice of the values.
 
+        /// Values greater than zero.
+        static Codomain positive(Lattice l = Lattice::Doubles) noexcept
+        {
+            return {0., inf::DOUBLE, Interval::Open, Interval::Unbounded, l};
+        }
+        /// Values not below zero.
+        static Codomain non_negative(Lattice l = Lattice::Doubles) noexcept
+        {
+            return {0., inf::DOUBLE, Interval::Closed, Interval::Unbounded, l};
+        }
+        /// Values between zero and one, each side open or closed.
+        static Codomain unit(Interval below, Interval above) noexcept
+        {
+            return {0., 1., below, above};
+        }
+        /// Integer values.
+        static Codomain integers() noexcept
+        {
+            return {-inf::DOUBLE, inf::DOUBLE, Interval::Unbounded, Interval::Unbounded, Lattice::Integers};
+        }
+
         /// Whether every value returned is an integer.
         bool on_integers() const noexcept { return lattice == Lattice::Integers; }
+        /// Whether every value lies within `outer`, its lattice included.
+        bool is_within(const Codomain &outer) const noexcept;
 
         /// Interval notation, in the absolute frame.
         std::string str() const;
@@ -343,7 +366,7 @@ namespace housepi
 
             assert_is_callable_explicitly();
             assert_location_matches_discrete();
-            assert_discrete_args();
+            assert_arg_requirements();
         }
 
         /// Select primitive as implicit evaluate.
@@ -370,6 +393,8 @@ namespace housepi
 
         /// Initialize argument `key` from `attr`.
         void init_attr(std::string_view key, const Attribute &attr);
+        /// Leave argument `key` unbound, so no requirement is judged on it.
+        void init_attr_unbound(std::string_view key) { find_arg_(key).init_numeric(na::DOUBLE); }
 
         /// Finalize: prune indirections, collapse constants to numeric.
         virtual void finalize();
@@ -460,8 +485,11 @@ namespace housepi
         void assert_is_callable_explicitly() const;
         /// Throw if discretization and location do not match.
         void assert_location_matches_discrete() const;
-        /// Throw if a declared argument does not hold an integer value.
-        void assert_discrete_args() const;
+        /// Throw if an argument can take a value outside its requirement.
+        /// * constant -> its value is judged;
+        /// * otherwise -> every value its source can take, from its codomain.
+        /// @note Unbound and empty arguments are not judged.
+        void assert_arg_requirements() const;
 
         /// Whether `x` is below the domain minimum.
         bool is_below(double x) const { return domain_.is_below(x); }
@@ -546,9 +574,11 @@ namespace housepi
         /// Throw on a call to virtual method `call_name`, left undefined.
         [[noreturn]] void raise_undefined_call_err_(const std::string &call_name) const;
 
-        /// Arguments that must hold integer values.
+        /// Arguments, each with the values it may take.
+        using ArgRequirements = std::vector<std::pair<const Attribute *, Codomain>>;
+        /// Arguments of the active parametrization, each with the values it may take.
         /// Read once, when the definition is reshaped.
-        virtual std::vector<const Attribute *> discrete_args_() const { return {}; }
+        virtual ArgRequirements arg_requirements_() const { return {}; }
 
         /// Raw function.
         virtual double raw_function_(double /*x*/) const = 0;

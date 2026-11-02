@@ -173,7 +173,10 @@ namespace housepi
             double norm_() const { return domain_.max.value() - domain_.min.value() + 1.; }
 
         protected:
-            std::vector<const Attribute *> discrete_args_() const override final { return {&domain_.min, &domain_.max}; }
+            ArgRequirements arg_requirements_() const override final
+            {
+                return {{&domain_.min, Codomain::integers()}, {&domain_.max, Codomain::integers()}};
+            }
 
             double raw_pdf_(double) const override final { return 1. / norm_(); }
             double raw_cdf_(double x) const override final { return (x - domain_.min.value() + 1.) / norm_(); }
@@ -207,6 +210,8 @@ namespace housepi
             }
 
         protected:
+            ArgRequirements arg_requirements_() const override final { return positive_args_({1}); }
+
             double raw_pdf_(double x) const override final
             {
                 const double sd = arg(1);
@@ -262,6 +267,15 @@ namespace housepi
             INIT_DISCR_LEFT_MIN_ZERO_CLOSE()
 
         protected:
+            /// * meanlog-sdlog -> `sdlog` positive;
+            /// * mean-sd -> both positive.
+            ArgRequirements arg_requirements_() const override final
+            {
+                if (alt_idx_ == 0)
+                    return positive_args_({1});
+                return positive_args_({0, 1});
+            }
+
             /// Effective (meanlog, sdlog) for the active parametrization.
             std::pair<double, double> eff_params_() const
             {
@@ -366,6 +380,8 @@ namespace housepi
             }
 
         protected:
+            ArgRequirements arg_requirements_() const override final { return positive_args_({0, 1}); }
+
             double raw_pdf_(double x) const override final
             {
                 const double alpha = arg(0);
@@ -419,6 +435,9 @@ namespace housepi
             INIT_DISCR_LEFT_MIN_ZERO_CLOSE()
 
         protected:
+            /// Both arguments positive, in either parametrization.
+            ArgRequirements arg_requirements_() const override final { return positive_args_({0, 1}); }
+
             /// Effective (shape, scale) for the active parametrization.
             std::pair<double, double> eff_params_() const
             {
@@ -499,6 +518,8 @@ namespace housepi
             INIT_DISCR_LEFT_MIN_ZERO_CLOSE()
 
         protected:
+            ArgRequirements arg_requirements_() const override final { return positive_args_({0}); }
+
             double raw_pdf_(double x) const override final
             {
                 const double scale = arg(0);
@@ -548,6 +569,8 @@ namespace housepi
             INIT_DISCR_LEFT_MIN_ZERO_CLOSE()
 
         protected:
+            ArgRequirements arg_requirements_() const override final { return positive_args_({0, 1}); }
+
             double raw_pdf_(double x) const override final
             {
                 const double shape = arg(0);
@@ -598,6 +621,8 @@ namespace housepi
             INIT_DISCR_LEFT_MIN_ZERO_CLOSE()
 
         protected:
+            ArgRequirements arg_requirements_() const override final { return positive_args_({0}); }
+
             double raw_pdf_(double x) const override final
             {
                 const double rate = arg(0);
@@ -645,6 +670,8 @@ namespace housepi
             INIT_DISCR_DEFINED_MIN_ZERO_CLOSE()
 
         protected:
+            ArgRequirements arg_requirements_() const override final { return positive_args_({0}); }
+
             double raw_pdf_(double x) const override final
             {
                 return exp(raw_log_pdf_(x));
@@ -711,7 +738,11 @@ namespace housepi
 
         protected:
             /// `size` counts trials.
-            std::vector<const Attribute *> discrete_args_() const override final { return {&arguments_(0)}; }
+            ArgRequirements arg_requirements_() const override final
+            {
+                return {{&arguments_(0), Codomain::non_negative(Lattice::Integers)},
+                        {&arguments_(1), Codomain::unit(Interval::Open, Interval::Open)}};
+            }
 
             double raw_pdf_(double x) const override final
             {
@@ -765,7 +796,11 @@ namespace housepi
 
         protected:
             /// `size` counts successes: the binomial coefficient truncates it to an integer.
-            std::vector<const Attribute *> discrete_args_() const override final { return {&arguments_(0)}; }
+            ArgRequirements arg_requirements_() const override final
+            {
+                return {{&arguments_(0), Codomain::positive(Lattice::Integers)},
+                        {&arguments_(1), Codomain::unit(Interval::Open, Interval::Open)}};
+            }
 
             double raw_pdf_(double x) const override final
             {
@@ -819,6 +854,11 @@ namespace housepi
             static constexpr double QUANTILE_SHRINK = 1. - 2. * std::numeric_limits<double>::epsilon();
 
         protected:
+            ArgRequirements arg_requirements_() const override final
+            {
+                return {{&arguments_(0), Codomain::unit(Interval::Open, Interval::Open)}};
+            }
+
             double raw_pdf_(double x) const override final
             {
                 const double prob = arg(0);
@@ -889,6 +929,15 @@ namespace housepi
             }
 
         protected:
+            /// Every weight non-negative.
+            ArgRequirements arg_requirements_() const override final
+            {
+                ArgRequirements reqs;
+                for (const Attribute &attr : arguments_())
+                    reqs.emplace_back(&attr, Codomain::non_negative());
+                return reqs;
+            }
+
             Attribute &find_arg_(std::string_view key) override final { return append_arg_(key); }
 
             double raw_pdf_(double x) const override final
@@ -959,6 +1008,12 @@ namespace housepi
             INIT_DISCR_LEFT_MIN_ZERO_CLOSE()
 
         protected:
+            /// Every argument positive but `c_loc`.
+            ArgRequirements arg_requirements_() const override final
+            {
+                return positive_args_({0, 1, 3, 4});
+            }
+
             double raw_rand_(RndGen & /*prng*/) const override final { raise_undefined_call_err_("rand"); }
             double raw_log_ratio_(double /*xo*/, double /*xn*/) const override final { raise_undefined_call_err_("log_ratio"); }
             double raw_quantile_(double /*p*/) const override final { raise_undefined_call_err_("quantile"); }

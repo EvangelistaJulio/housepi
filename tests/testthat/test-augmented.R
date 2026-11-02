@@ -361,7 +361,7 @@ test_that("Latent function definition is correct", {
   hh_model <- mk_latent$model |>
     add_latent(layer_1 = list(model = "normal", mean = 0, sd = 1),
                layer_2 = list(model = "gamma", shape = 2, scale = 1),
-               layer_3 = list(model = "lognormal", mean = 0, sd = 1))
+               layer_3 = list(model = "lognormal", mean = 1, sd = 1))
 
   # deterministic definition: subtraction (as sum of minuses)
   augm <- hh_model |>
@@ -569,6 +569,53 @@ test_that("A location off the integers is refused when discrete", {
     add_latent("hidden", model = "poisson", lambda = 2, loc = rho) |>
     evaluate_log_lik() |>
     expect_error("[Cc]hange parameter.*rho.*discrete")
+})
+
+test_that("An argument read from a source is judged on every value it takes", {
+  hh_model <- data.frame(hh_id = "h1", id = c("m1", "m2"), status = 1,
+                         record = 1.5, datum = c(2, -1), datum_2 = c(0, 2),
+                         obs = 0) |>
+    new_housepi_model("test")
+
+  # a prior reaching zero or below cannot set a standard deviation
+  hh_model |>
+    add_parameter(rho = list(prior = "normal")) |>
+    add_observation("record", model = "normal", sd = rho) |>
+    evaluate_log_lik() |>
+    expect_error("sd.*normal.*must be greater than 0.*rho.*can take other")
+  hh_model |>
+    add_parameter(rho = list(prior = "exponential")) |>
+    add_observation("record", model = "normal", sd = rho) |>
+    evaluate_log_lik() |>
+    expect_all_finite()
+
+  # a data cell is judged on each member
+  hh_model |>
+    add_observation("record", model = "normal", sd = datum) |>
+    evaluate_log_lik() |>
+    expect_error("sd.*normal.*must be greater than 0.*datum.*from -1.*m2")
+
+  # an expression is judged on the values its operands take
+  with_rho <- hh_model |> add_parameter(rho = list(prior = "exponential"))
+  with_rho |>
+    add_latent("hidden", model = "binomial", size = 3,
+               prob = 1 - exp(-rho * (datum_2 + 1))) |>
+    helper_flat_sink(loc = hidden) |>
+    evaluate_log_lik() |>
+    expect_all_finite()
+  with_rho |>
+    add_latent("hidden", model = "binomial", size = 3,
+               prob = 1 / (1 + exp(-rho))) |>
+    helper_flat_sink(loc = hidden) |>
+    evaluate_log_lik() |>
+    expect_all_finite()
+  # a covariate at zero sets the probability to zero
+  with_rho |>
+    add_latent("hidden", model = "binomial", size = 3,
+               prob = 1 - exp(-rho * datum_2)) |>
+    helper_flat_sink(loc = hidden) |>
+    evaluate_log_lik() |>
+    expect_error("prob.*binomial.*must be greater than 0 and less than 1")
 })
 
 test_that("A latent bound to a distribution returns its density, not a draw", {
