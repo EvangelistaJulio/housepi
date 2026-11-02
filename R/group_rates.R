@@ -660,7 +660,7 @@ HousepiGroupRate <- R6::R6Class(
 
       # default prefix
       prefix <- as.character(this_def[["prefix"]])
-      if (is.na(prefix)) prefix <- substring(tolower(rate_id), 1, 3)
+      if (is.na(prefix)) prefix <- tolower(rate_id)
 
       self$logic_tables[[rate_id]] <- lapply(covariates, function(this_cov) {
         this_table <- group_rate_logic_table(dataset, this_cov,

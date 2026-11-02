@@ -195,7 +195,6 @@ Finally, we propose the following approach to visualize the difference between t
 library(ggplot2)
 
 rate_id <- "susceptibility"
-prefix <- "sus_"
 
 tmp <- get_group_rates(hh_model) |>
   # extract reference value and create a label
@@ -209,13 +208,13 @@ ylabel <- if (nrow(tmp) == 0) rate_id else
 # compare inferred susceptibility group rates
 hh_fit |>
   summarise_draws() |>
-  dplyr::filter(startsWith(variable, prefix)) |>
+  dplyr::filter(startsWith(variable, rate_id)) |>
   dplyr::left_join(get_group_rates(hh_model) |>
                      dplyr::select(param_name, n) |>
                      dplyr::rename(variable = param_name),
                    by = "variable") |>
   dplyr::mutate(
-    variable = gsub("_", " ", sub("sus_vacc_status", "", variable))
+    variable = gsub("_", " ", sub("susceptibility_vacc_status", "", variable))
   ) |>
   ggplot(aes(x = variable, y = median, label = sprintf("[%s]", n))) +
   geom_hline(yintercept = 1, color = "black") +

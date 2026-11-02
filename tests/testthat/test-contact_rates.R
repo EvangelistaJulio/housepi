@@ -232,7 +232,7 @@ test_that("Every rule group keeps its anchoring in auto", {
 
   contact_prior <- function(hh_model) {
     params <- get_parameters(hh_model)
-    params$prior[grepl("^(age|sex)_", params$name)]
+    params$prior[grepl("^contact_(age|sex)_", params$name)]
   }
 
   # no reference makes it scale free and sets uniform prior

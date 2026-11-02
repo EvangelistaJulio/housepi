@@ -181,18 +181,18 @@ test_that("Group rates hold without data and re-derive on add_dataset", {
     add_parameter(import = "template") |>
     # relative: the template's baseline stays free alongside the rate
     add_group_rate("susceptibility", by = "member", reference = ".auto")
-  get_parameters(hh_model)$name |> expect_no_match("^sus_member")
+  get_parameters(hh_model)$name |> expect_no_match("^susceptibility_member")
 
   # attaching data materialises the rate parameters and runs
   hh_model_2 <- add_dataset(hh_model, mk_flu$data)
   full_params <- get_parameters(hh_model_2)$name
-  full_params |> expect_match("^sus_member", all = FALSE)
+  full_params |> expect_match("^susceptibility_member", all = FALSE)
   evaluate_log_lik(hh_model_2) |> expect_all_finite()
 
   # replacing data re-derives: a single-level subset drops the stale rate params
   hh_model_3 <- add_dataset(hh_model_2,
                             mk_flu$data[mk_flu$data$member == "student", ])
-  get_parameters(hh_model_3)$name |> expect_no_match("^sus_member")
+  get_parameters(hh_model_3)$name |> expect_no_match("^susceptibility_member")
   evaluate_log_lik(hh_model_3) |> expect_all_finite()
 
   # re-attaching the full data restores the exact original parameter set
@@ -210,7 +210,7 @@ test_that("Group rates expand on their own covariates only", {
     add_group_rate("susceptibility", by = "age") |>
     get_group_rates()
   rates$group_rate |> expect_setequal("susceptibility")
-  rates$param_name |> expect_contains("sus_age_child")
+  rates$param_name |> expect_contains("susceptibility_age_child")
 
   # without data the read surface warns and keeps the table shape
   expect_warning(
@@ -381,7 +381,7 @@ test_that("Group rates load from a list of definitions", {
 
   unique(tidy$group_rate) |> expect_setequal(c("community", "susceptibility"))
   tidy$param_name |> expect_match("^ct_", all = FALSE)
-  tidy$param_name |> expect_match("^sus_", all = FALSE)
+  tidy$param_name |> expect_match("^susceptibility_", all = FALSE)
 })
 
 test_that("An unknown covariate in a group rate points to the close one", {
@@ -694,7 +694,7 @@ test_that("Status is accepted as a stratification axis", {
     )) |>
     get_parameters() |>
     getElement("name") |>
-    expect_identical("inf_status_asymptomatic")
+    expect_identical("infectivity_status_asymptomatic")
 })
 
 test_that("A status stratum leaving a level uncovered is refused", {
@@ -872,7 +872,7 @@ test_that("A status stratum reads as a covariate duplicating it", {
     add_group_rate(infectivity = list(
       by = "status", reference = list(status = "symptomatic")
     )) |>
-    pin("inf_status_asymptomatic")
+    pin("infectivity_status_asymptomatic")
   by_datum <- mk_status$model |>
     add_group_rate("infectivity", strata = tibble::tribble(
       ~datum,         ~param_name,
@@ -901,7 +901,7 @@ test_that("A status stratum drives simulated transmission", {
       by = "status", reference = list(status = "symptomatic")
     )) |>
     add_parameter(alpha = 1e-12, beta = 20, gamma = 1, hh_size_ref = 4,
-                  inf_status_asymptomatic = 1e-3) |>
+                  infectivity_status_asymptomatic = 1e-3) |>
     suppressWarnings()
 
   # the status weights must reach the categorical as literals
@@ -948,7 +948,7 @@ test_that("An absolute rate collapses the baseline it scales", {
     suppressWarnings() |>
     summarise_draws()
   draws$variable |> expect_disjoint("alpha")
-  draws$variable |> expect_match("^com_member", all = FALSE)
+  draws$variable |> expect_match("^community_member", all = FALSE)
 })
 
 test_that("A baseline pinned by an absolute rate follows its redeclaration", {
@@ -1002,7 +1002,7 @@ test_that("An absolute group rate holds its baseline at the reference", {
 
   # one stratum read from the table fixes the level of the whole group
   hh_model |>
-    run_simulation(draws = data.frame(com_member_mother = 0.5)) |>
+    run_simulation(draws = data.frame(community_member_mother = 0.5)) |>
     expect_s3_class("data.frame")
   # the prior it was given leaves with the scale
   params <- get_parameters(hh_model)
@@ -1010,7 +1010,7 @@ test_that("An absolute group rate holds its baseline at the reference", {
 
   # a stratum held constant anchors the same way
   hh_model |>
-    add_parameter(com_member_student = 1.7) |>
+    add_parameter(community_member_student = 1.7) |>
     suppressWarnings() |> # suppress overwrite warning
     evaluate_log_lik() |>
     expect_all_finite()
@@ -1088,7 +1088,7 @@ test_that("A measure table cannot give a collapsed baseline its scale back", {
   hh_model |>
     check_predictive(
       data.frame(alpha = 0.5, beta = 0.1, gamma = 1, hh_size_ref = 4L,
-                 com_member_mother = 0.5),
+                 community_member_mother = 0.5),
       sar = measure_sar_by_hh_size, thin_ess = FALSE, nrep = 2L
     ) |>
     expect_error("draws.*alpha.*other than 1")

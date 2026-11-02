@@ -107,7 +107,7 @@ A discrete variable takes \code{"rw"}.
 The latent variables of one member with \code{NA} move together,
 and so do the parameters a reference couples, see \code{\link[=run_inference]{run_inference()}}.}
 
-\item{prefix}{\code{character(1)} Prefix to names of associated parameters. If \code{NA}, the first 3 letters of the rate name.}
+\item{prefix}{\code{character(1)} Prefix to names of associated parameters. If \code{NA}, the rate name.}
 
 \item{import}{Named \code{list} of pre-built definitions to import.
 Cannot be combined with single or multiple definitions.}

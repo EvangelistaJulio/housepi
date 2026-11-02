@@ -12,7 +12,7 @@ mk_homo <- local({
                    reference = c(from_class = "a", to_class = "b"))
   grates <- list(a = list(com = 1., sus = 1., inf = 1.),
                  b = list(com = 2., sus = 3., inf = 0.2))
-  crates <- list(class_b_to_class_a = 2.3)
+  crates <- list(contact_class_b_to_class_a = 2.3)
 
   house <- data.frame(
     id = c("m1", "m2"), hh_id = "h1", status = c(1, 0),
@@ -25,9 +25,9 @@ mk_homo <- local({
   # parameters matching automatic names
   par <- c(list(alpha = 0.15, beta = 0.22, gamma = 1, hh_size_ref = 4),
            crates,
-           list(com_class_b = grates$b$com,
-                sus_class_b = grates$b$sus,
-                inf_class_b = grates$b$inf))
+           list(community_class_b = grates$b$com,
+                susceptibility_class_b = grates$b$sus,
+                infectivity_class_b = grates$b$inf))
 
   list(groups = groups, contacts = contacts, house = house,
        crates = crates, par = par)
@@ -45,12 +45,12 @@ mk_heter <- local({
   grates <- list(a = list(com = 1., sus = 1., inf = 1.),
                  b = list(com = 2., sus = 3., inf = 0.2),
                  c = list(com = 0.5, sus = 0.8, inf = 1.5))
-  crates <- list(class_b_to_class_a = 2.3,
-                 class_a_to_class_c = 0.7,
-                 class_c_to_class_a = 0.6,
-                 class_b_to_class_c = 1.1,
-                 class_c_to_class_b = 0.9,
-                 class_c_to_class_c = 1.2)
+  crates <- list(contact_class_b_to_class_a = 2.3,
+                 contact_class_a_to_class_c = 0.7,
+                 contact_class_c_to_class_a = 0.6,
+                 contact_class_b_to_class_c = 1.1,
+                 contact_class_c_to_class_b = 0.9,
+                 contact_class_c_to_class_c = 1.2)
 
   house <- data.frame(
     id = sprintf("m%s", seq(1, 4)), hh_id = "h1",
@@ -64,12 +64,12 @@ mk_heter <- local({
   # parameters matching automatic names
   par <- c(list(alpha = 0.15, beta = 0.22, gamma = 1, hh_size_ref = 4),
            crates,
-           list(com_class_b = grates$b$com,
-                sus_class_b = grates$b$sus,
-                inf_class_b = grates$b$inf,
-                com_class_c = grates$c$com,
-                sus_class_c = grates$c$sus,
-                inf_class_c = grates$c$inf))
+           list(community_class_b = grates$b$com,
+                susceptibility_class_b = grates$b$sus,
+                infectivity_class_b = grates$b$inf,
+                community_class_c = grates$c$com,
+                susceptibility_class_c = grates$c$sus,
+                infectivity_class_c = grates$c$inf))
 
   list(groups = groups, contacts = contacts, house = house,
        crates = crates, par = par)
@@ -86,12 +86,12 @@ mk_part <- local({
   grates <- list(a = list(com = 1., sus = 1., inf = 1.),
                  b = list(com = 2., sus = 3., inf = 0.2),
                  c = list(com = 0.5, sus = 0.8, inf = 1.5))
-  crates <- list(class_b_to_class_a = 2.3,
-                 class_a_to_class_c = 0.7,
-                 class_c_to_class_a = 0.6,
-                 class_b_to_class_c = 1.1,
-                 class_c_to_class_b = 0.9,
-                 class_c_to_class_c = 1.2)
+  crates <- list(contact_class_b_to_class_a = 2.3,
+                 contact_class_a_to_class_c = 0.7,
+                 contact_class_c_to_class_a = 0.6,
+                 contact_class_b_to_class_c = 1.1,
+                 contact_class_c_to_class_b = 0.9,
+                 contact_class_c_to_class_c = 1.2)
 
   house <- data.frame(
     id = sprintf("m%s", seq(1, 4)), hh_id = "h1",
@@ -105,12 +105,12 @@ mk_part <- local({
   # parameters matching automatic names
   par <- c(list(alpha = 0.15, beta = 0.22, gamma = 1, hh_size_ref = 4),
            crates,
-           list(com_class_b = grates$b$com,
-                sus_class_b = grates$b$sus,
-                inf_class_b = grates$b$inf,
-                com_class_c = grates$c$com,
-                sus_class_c = grates$c$sus,
-                inf_class_c = grates$c$inf))
+           list(community_class_b = grates$b$com,
+                susceptibility_class_b = grates$b$sus,
+                infectivity_class_b = grates$b$inf,
+                community_class_c = grates$c$com,
+                susceptibility_class_c = grates$c$sus,
+                infectivity_class_c = grates$c$inf))
 
   list(groups = groups, contacts = contacts, house = house,
        crates = crates, par = par)
@@ -121,7 +121,8 @@ mk_ctr_mtx <- function(house, crates) {
   n <- nrow(house)
   output <- matrix(1., nrow = n, ncol = n)
   for (i in seq_len(n)) for (j in seq_len(n)) {
-    key <- paste0("class_", house$class[i], "_to_class_", house$class[j])
+    key <- sprintf("contact_class_%s_to_class_%s", house$class[i],
+                   house$class[j])
     if (i == j) output[i, j] <- 0
     else if (key %in% names(crates)) output[i, j] <- crates[[key]]
   }

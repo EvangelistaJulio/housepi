@@ -296,7 +296,7 @@ HousepiContactRate <- R6::R6Class(
 
       # default prefix
       prefix <- as.character(self$defs[["prefix"]])
-      if (is.na(prefix)) prefix <- ""
+      if (is.na(prefix)) prefix <- "contact"
 
       new_tables <- list()
       for (this_cov in covariates) {

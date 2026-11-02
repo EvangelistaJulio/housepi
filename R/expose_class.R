@@ -180,8 +180,9 @@ Bypass automatic generation by providing a custom pre-built logic table.",
 rd_rate_prefix_ <- "`character(1)` Prefix to names of associated parameters."
 rd_grr_prefix_ <- paste(
   rd_rate_prefix_,
-  "If `NA`, the first 3 letters of the rate name."
+  "If `NA`, the rate name."
 )
+rd_crr_prefix_ <- paste(rd_rate_prefix_, "If `NA`, `contact`.")
 rd_rate_joint_ <- "`logical(1)` Whether covariates are joint.
 If `FALSE`, they are independent."
 rd_rate_strata_ <-
@@ -1090,7 +1091,7 @@ add_group_rate <-  function(hh_model,
 #' @param min `r rd_var_min_`
 #' @param max `r rd_var_max_`
 #' @param proposal `r rd_var_proposal_`
-#' @param prefix `r rd_rate_prefix_`
+#' @param prefix `r rd_crr_prefix_`
 #' @param import Named `list` of pre-built definition to import.
 #' Cannot be combined with the single definition.
 #' @return `r rd_model_out_`
