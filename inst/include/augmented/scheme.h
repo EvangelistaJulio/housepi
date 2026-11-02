@@ -24,10 +24,10 @@ namespace housepi
 
 namespace housepi::augm
 {
-    /// Surrogate column: a deterministic definition standing in for a data column.
+    /// Deterministic observation: an observation carrying no model, producing a data column.
     ///
     /// Either a member or a household observation.
-    struct Surrogate
+    struct DeterministicObs
     {
         size_t row = 0;         /// Definition row.
         size_t slot = 0;        /// Slot in `house_varia`, household level only.
@@ -77,7 +77,8 @@ namespace housepi::augm
         std::vector<size_t> list_latent_export = {}; /// Latents to export.
         std::vector<size_t> list_obs_member = {};    /// Drawn member observations.
         std::vector<size_t> list_obs_house = {};     /// Household observation rows, in `house_varia` slot order.
-        std::vector<Surrogate> list_surrogate = {};  /// Surrogate columns of both levels, producer before consumer.
+        /// Deterministic observations of both levels, producer before consumer.
+        std::vector<DeterministicObs> list_deterministic_obs = {};
 
         /// Status scheme at index `i`.
         const StatusScheme &at(size_t i) const noexcept { return status_schemes_[i]; }
@@ -140,9 +141,9 @@ namespace housepi::augm
                    const Parameter &param,
                    bool draws_status);
 
-        /// Order and classify surrogate columns of both levels into `list_surrogate`.
+        /// Order and classify deterministic observations of both levels into `list_deterministic_obs`.
         /// Household ones are also collected into `list_obs_house`.
-        void init_surrogates();
+        void init_deterministic_obs();
         /// List observation nodes and, per key, the observations consuming it.
         void init_observations();
         /// Mark, per status, the keys that transmission names `transm` consume.

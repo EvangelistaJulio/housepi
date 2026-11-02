@@ -46,9 +46,9 @@ namespace housepi::augm::check
                            const std::vector<size_t> &per_infection);
 
     /// Reject a latent that reads a generated household observation.
-    /// @param live_names Household observations generated in simulation, empty in inference.
-    void no_live_house_obs_cycle(const DefTable &def,
-                                 const std::vector<std::string> &live_names);
+    /// @param drawn_names Household observations generated in simulation, empty in inference.
+    void no_drawn_house_obs_cycle(const DefTable &def,
+                                  const std::vector<std::string> &drawn_names);
 
     /// Reject a definition reading an observation:
     /// * a latent model reading any observation;

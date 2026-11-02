@@ -62,24 +62,24 @@ namespace housepi::augm
                          const Individual &indiv,
                          bool simulation) const;
 
-        /// Build Variables of surrogate column `surr` over `house`.
+        /// Build Variables of deterministic observation `dobs` over `house`.
         ///
         /// Each Variable is wired to the data cells it stands in for:
         /// * household level -> one Variable, reduced over members;
         /// * member level -> one Variable per member.
         ///
         /// With `for_evaluation`, each Variable is checked against column requests, then fixed.
-        /// @note Every surrogate column must be registered as a data key.
-        void bind_surrogate(State &state,
-                            const Surrogate &surr,
-                            const Household &house,
-                            bool for_evaluation) const;
+        /// @note Every deterministic observation must be registered as a data key.
+        void bind_deterministic_obs(State &state,
+                                    const DeterministicObs &dobs,
+                                    const Household &house,
+                                    bool for_evaluation) const;
 
     private:
         const DefTable &def_;               /// Definitions, one row per latent or observation.
         const KeyHolderWithRequests &keys_; /// Latent keys and their model requests.
         const Translator &translator_;      /// Resolves definition entries into Attributes.
-        Data &data_;                        /// Data columns, whose read-cells surrogates fill.
+        Data &data_;                        /// Data columns, whose read-cells deterministic observations fill.
 
         /// Assign model, arguments and domain to definition row `k`.
         void bind_distr_(Variable &var, size_t k,

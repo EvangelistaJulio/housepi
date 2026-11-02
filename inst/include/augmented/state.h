@@ -46,7 +46,7 @@ namespace housepi::augm
         std::vector<IndivState> varia = {}; /// Member variables, by individual index.
         /// Household observations, per house and slot.
         /// * inference -> bound to data;
-        /// * simulation -> live.
+        /// * simulation -> drawn.
         std::vector<std::vector<Variable>> house_varia = {};
 
         std::vector<SimMember> sim = {};  /// Simulation storage, by individual index.

@@ -503,10 +503,10 @@ namespace housepi
             }
         }
 
-        void no_live_house_obs_cycle(const DefTable &def,
-                                     const std::vector<std::string> &live_names)
+        void no_drawn_house_obs_cycle(const DefTable &def,
+                                      const std::vector<std::string> &drawn_names)
         {
-            if (live_names.empty())
+            if (drawn_names.empty())
                 return;
 
             for (const DefRow &row : def.rows)
@@ -516,7 +516,7 @@ namespace housepi
 
                 // the bounds of a bare row are never evaluated in simulation, nor flagged
                 for (const parse::Definition *col : row.source_cols(true))
-                    for (const std::string &dstr : referred_data(*col, live_names))
+                    for (const std::string &dstr : referred_data(*col, drawn_names))
                         msg::stop(
                             "Found cyclic dependency in simulation.\n" +
                             msg::alert("Latent " + msg::val(row.name) +
@@ -920,11 +920,11 @@ namespace housepi
             return !all_consts;
         }
 
-        //////  augm::SchemeBuilder : surrogates and nodes  //////
+        //////  augm::SchemeBuilder : deterministic observations and nodes  //////
 
-        void SchemeBuilder::init_surrogates()
+        void SchemeBuilder::init_deterministic_obs()
         {
-            // look for surrogate column definitions: deterministic definitions standing in for a data column
+            // look for deterministic observations, each producing a data column
             dict<size_t> name_to_row;
             for (size_t k = 0; k < def_.size(); ++k)
                 // household reduction or member-level definition carrying no model
@@ -935,7 +935,7 @@ namespace housepi
             if (name_to_row.empty())
                 return;
 
-            // order producer-before-consumer surrogate columns
+            // order deterministic observations, producer before consumer
             std::vector<size_t> rows;
             std::vector<std::string> names;
             for (const auto &[nm, k] : name_to_row)
@@ -943,37 +943,37 @@ namespace housepi
             dag::prod_graph pgraph;
             graph::add_data_edges(pgraph, def_, rows, names);
 
-            // extract member-level live observations (with a model)
-            std::unordered_set<std::string> live_names;
+            // member observations carrying a model are drawn
+            std::unordered_set<std::string> drawn_names;
             for (const DefRow &row : def_.rows)
                 if (row.kind == Kind::Member && row.has_model())
-                    live_names.insert(row.name);
+                    drawn_names.insert(row.name);
 
-            // build list of surrogate data columns in order
+            // list deterministic observations in order
             for (const std::string &nm : dag::order_producers_first(pgraph, ErrType::Observation))
             {
-                Surrogate surr;
-                surr.row = name_to_row.at(nm);
-                surr.is_house = def_[surr.row].kind == Kind::House;
-                surr.is_static = def_.is_pure_data(surr.row);
+                DeterministicObs dobs;
+                dobs.row = name_to_row.at(nm);
+                dobs.is_house = def_[dobs.row].kind == Kind::House;
+                dobs.is_static = def_.is_pure_data(dobs.row);
 
                 // update household observations
-                if (surr.is_house)
+                if (dobs.is_house)
                 {
-                    surr.slot = scheme_.list_obs_house.size();
-                    scheme_.list_obs_house.push_back(surr.row);
+                    dobs.slot = scheme_.list_obs_house.size();
+                    scheme_.list_obs_house.push_back(dobs.row);
                 }
 
-                // live if it depends on a live column
-                if (surr.is_static)
-                    for (const parse::Definition *col : def_[surr.row].source_cols())
+                // drawn if it reads a drawn column
+                if (dobs.is_static)
+                    for (const parse::Definition *col : def_[dobs.row].source_cols())
                         for (const std::string &dstr : col->list_dataset_producers())
-                            if (live_names.count(dstr))
-                                surr.is_static = false;
-                if (!surr.is_static)
-                    live_names.insert(nm);
+                            if (drawn_names.count(dstr))
+                                dobs.is_static = false;
+                if (!dobs.is_static)
+                    drawn_names.insert(nm);
 
-                scheme_.list_surrogate.push_back(std::move(surr));
+                scheme_.list_deterministic_obs.push_back(std::move(dobs));
             }
         }
 
@@ -994,11 +994,11 @@ namespace housepi
                     if (def_[k].kind != Kind::Member)
                         continue;
 
-                    // a surrogate column is data, not drawn
+                    // a static deterministic observation is data, not drawn
                     bool skip = false;
-                    for (const Surrogate &surr : scheme_.list_surrogate)
-                        if (surr.row == k)
-                            skip = surr.is_static;
+                    for (const DeterministicObs &dobs : scheme_.list_deterministic_obs)
+                        if (dobs.row == k)
+                            skip = dobs.is_static;
                     if (skip)
                         continue;
 
@@ -1272,9 +1272,9 @@ namespace housepi
                 func->set_eval_as_fold();
             var.init_function(std::move(func));
 
-            // a member surrogate materializes a data column for every member
+            // a member deterministic observation materializes a data column for every member
             // where the cells it reads are empty, it has nothing to stand for
-            const bool is_surrogate = row.kind == Kind::Member && !row.has_model();
+            const bool is_deterministic_obs = row.kind == Kind::Member && !row.has_model();
 
             bool is_defined = true;
             if (row.kind == Kind::House)
@@ -1283,7 +1283,7 @@ namespace housepi
                 for (const parse::Entry &child : parser.root.children)
                 {
                     const Attribute &attr = translator_.to_attribute(child, &anchor);
-                    if (is_surrogate && attr.is_constant() && attr.is_na())
+                    if (is_deterministic_obs && attr.is_constant() && attr.is_na())
                     {
                         is_defined = false;
                         break;
@@ -1358,12 +1358,12 @@ namespace housepi
                 translator_.bind_distr(var, row.model.root, row.min.root, row.max.root, row.is_discr, &indiv, false);
         }
 
-        void Binder::bind_surrogate(State &state,
-                                    const Surrogate &surr,
-                                    const Household &house,
-                                    bool for_evaluation) const
+        void Binder::bind_deterministic_obs(State &state,
+                                            const DeterministicObs &dobs,
+                                            const Household &house,
+                                            bool for_evaluation) const
         {
-            const std::string &name = def_[surr.row].name;
+            const std::string &name = def_[dobs.row].name;
             const size_t d = data_.dataset().consult(name);
             const auto build = [&](Variable &var,
                                    const Individual &anchor,
@@ -1371,7 +1371,7 @@ namespace housepi
             {
                 try
                 {
-                    bind_variable(var, surr.row, anchor, hptr);
+                    bind_variable(var, dobs.row, anchor, hptr);
                 }
                 catch (const std::exception &e)
                 {
@@ -1381,9 +1381,9 @@ namespace housepi
             };
 
             // household level
-            if (surr.is_house)
+            if (dobs.is_house)
             {
-                Variable &hvar = state.house_varia[Index::of(house)][surr.slot];
+                Variable &hvar = state.house_varia[Index::of(house)][dobs.slot];
                 build(hvar, house.at(0), &house);
                 if (for_evaluation)
                 {
@@ -1476,8 +1476,8 @@ namespace housepi
         // definition order per status
         builder.order({infected.begin(), infected.end()}, mcmc_->param, status_process.is_defined());
 
-        // surrogate columns
-        builder.init_surrogates();
+        // deterministic observations
+        builder.init_deterministic_obs();
         // observation nodes
         builder.init_observations();
         // keys reaching the transmission side
@@ -1519,9 +1519,9 @@ namespace housepi
     size_t Augmented::n_export_cols() const noexcept
     {
         size_t n = scheme_.list_latent_export.size() + scheme_.list_obs_member.size();
-        // add number of surrogate columns to be exported
-        for (const augm::Surrogate &surr : scheme_.list_surrogate)
-            n += surr.is_own_column();
+        // add number of deterministic observations to be exported
+        for (const augm::DeterministicObs &dobs : scheme_.list_deterministic_obs)
+            n += dobs.is_own_column();
         return n;
     }
 
@@ -1553,10 +1553,10 @@ namespace housepi
         for (size_t a : vect::concatenate(scheme_.list_latent_export, scheme_.list_obs_member))
             out.push_back(is_col_discrete_(a, false));
 
-        for (const augm::Surrogate &surr : scheme_.list_surrogate)
-            if (surr.is_own_column())
-                out.push_back(surr.is_house ? is_col_discrete_(surr.slot, true)
-                                            : is_col_discrete_(consult(def_[surr.row].name), false));
+        for (const augm::DeterministicObs &dobs : scheme_.list_deterministic_obs)
+            if (dobs.is_own_column())
+                out.push_back(dobs.is_house ? is_col_discrete_(dobs.slot, true)
+                                            : is_col_discrete_(consult(def_[dobs.row].name), false));
 
         return out;
     }
@@ -1570,7 +1570,7 @@ namespace housepi
             return state.block_factor_of.assign(mcmc_->data.dataset().report_indiv.total, na::INDEX);
 
         assert_every_member_cols_();
-        materialize_surrogate_columns(false);
+        materialize_deterministic_obs(false);
         augm::SchemeBuilder builder(scheme_, def_, *this);
         builder.init_models();
         const augm::Binder binder = binder_();
@@ -1700,31 +1700,31 @@ namespace housepi
 
     void Augmented::assert_every_member_cols_() const
     {
-        // a member surrogate drawn with the members it reads has a value per infection
+        // a drawn member deterministic observation has a value per infection
         std::vector<size_t> per_infection;
-        for (const augm::Surrogate &surr : scheme_.list_surrogate)
-            if (!surr.is_own_column())
-                per_infection.push_back(surr.row);
+        for (const augm::DeterministicObs &dobs : scheme_.list_deterministic_obs)
+            if (!dobs.is_own_column())
+                per_infection.push_back(dobs.row);
         augm::check::every_member_cols(def_, mcmc_->data.dataset(), per_infection);
     }
 
-    //////  Augmented : surrogate columns  //////
+    //////  Augmented : deterministic observations  //////
 
     std::vector<std::string> Augmented::get_produced_cols()
     {
         std::vector<std::string> produced_cols = consult(scheme_.list_obs_member);
-        for (const augm::Surrogate &surr : scheme_.list_surrogate)
-            produced_cols.push_back(def_[surr.row].name);
+        for (const augm::DeterministicObs &dobs : scheme_.list_deterministic_obs)
+            produced_cols.push_back(def_[dobs.row].name);
         return produced_cols;
     }
 
-    std::vector<std::string> Augmented::get_live_cols() const
+    std::vector<std::string> Augmented::get_drawn_cols() const
     {
-        std::vector<std::string> live_cols = consult(scheme_.list_obs_member);
-        for (const augm::Surrogate &surr : scheme_.list_surrogate)
-            if (!surr.is_static)
-                live_cols.push_back(def_[surr.row].name);
-        return live_cols;
+        std::vector<std::string> drawn_cols = consult(scheme_.list_obs_member);
+        for (const augm::DeterministicObs &dobs : scheme_.list_deterministic_obs)
+            if (!dobs.is_static)
+                drawn_cols.push_back(def_[dobs.row].name);
+        return drawn_cols;
     }
 
     void Augmented::init_house_for_simulation()
@@ -1732,11 +1732,11 @@ namespace housepi
         data::Dataset &dataset = mcmc_->data.dataset();
 
         // generated household observations
-        std::vector<std::string> live_house;
-        for (const augm::Surrogate &surr : scheme_.list_surrogate)
-            if (surr.is_house && !surr.is_static)
-                live_house.push_back(def_[surr.row].name);
-        augm::check::no_live_house_obs_cycle(def_, live_house);
+        std::vector<std::string> drawn_house;
+        for (const augm::DeterministicObs &dobs : scheme_.list_deterministic_obs)
+            if (dobs.is_house && !dobs.is_static)
+                drawn_house.push_back(def_[dobs.row].name);
+        augm::check::no_drawn_house_obs_cycle(def_, drawn_house);
         assert_every_member_cols_();
         mcmc_->data.reset_readcells(get_produced_cols());
 
@@ -1755,11 +1755,11 @@ namespace housepi
                     mcmc_->data.state.wire_readcell(dataset.consult(consult(a)), indiv,
                                                     &state.of(indiv).vec[a]);
 
-            // build and wire surrogate columns in dependency order
-            for (const augm::Surrogate &surr : scheme_.list_surrogate)
-                // defer live member observation (drawn with the member)
-                if (surr.is_house || surr.is_static)
-                    binder.bind_surrogate(state, surr, house, false);
+            // build and wire deterministic observations in dependency order
+            for (const augm::DeterministicObs &dobs : scheme_.list_deterministic_obs)
+                // defer drawn member observation, built with the member
+                if (dobs.is_house || dobs.is_static)
+                    binder.bind_deterministic_obs(state, dobs, house, false);
         }
     }
 
@@ -1768,11 +1768,11 @@ namespace housepi
         if (empty() || !is_allocated())
             return;
 
-        // member variables bound for the whole run: static surrogates
+        // member variables bound for the whole run: static deterministic observations
         sim_fixed_.assign(size(), false);
-        for (const augm::Surrogate &surr : scheme_.list_surrogate)
-            if (surr.is_static && !surr.is_house)
-                sim_fixed_[consult(def_[surr.row].name)] = true;
+        for (const augm::DeterministicObs &dobs : scheme_.list_deterministic_obs)
+            if (dobs.is_static && !dobs.is_house)
+                sim_fixed_[consult(def_[dobs.row].name)] = true;
 
         // bind one block per reachable status scheme, swapped in by the household loop
         state.sim.assign(state.varia.size(), {});
@@ -1784,42 +1784,42 @@ namespace housepi
         warnings.flush();
     }
 
-    //////  Augmented : data-bound surrogate columns  //////
+    //////  Augmented : data-bound deterministic observations  //////
 
-    void Augmented::materialize_surrogate_columns(bool for_export)
+    void Augmented::materialize_deterministic_obs(bool for_export)
     {
-        if (scheme_.list_surrogate.empty())
+        if (scheme_.list_deterministic_obs.empty())
             return;
 
         data::Dataset &dataset = mcmc_->data.dataset();
         const augm::Binder binder = binder_();
 
-        // build the surrogate Variables, shared with the simulation init
+        // build Variables of deterministic observations, shared with the simulation init
         // point each standing-in data column's read-surface at its Variable
-        // data readers then resolve the surrogate value without a data copy
+        // data readers then resolve the computed value without a data copy
         state.house_varia.assign(dataset.report_house.total,
                                  std::vector<Variable>(scheme_.list_obs_house.size()));
 
-        for (const augm::Surrogate &surr : scheme_.list_surrogate)
+        for (const augm::DeterministicObs &dobs : scheme_.list_deterministic_obs)
         {
-            const std::string &astr = def_[surr.row].name;
-            // a surrogate column must resolve from data
+            const std::string &astr = def_[dobs.row].name;
+            // a deterministic observation must resolve from data
             // a latent, parameter or group-rate source has no fixed value in inference
             // it would impose an indicator constraint
-            if (!def_.is_pure_data(surr.row))
+            if (!def_.is_pure_data(dobs.row))
             {
-                // exporting the data view is not inferring: the column keeps its datum, having no derived value
+                // exporting the data view is not inferring: the column keeps its datum, having no computed value
                 // the run wall still refuses it
                 if (for_export)
                     continue;
                 msg::stop(
-                    "Cannot infer from " + str::format(def_[surr.row].kind) + " " +
+                    "Cannot infer from " + str::format(def_[dobs.row].kind) + " " +
                     msg::val(astr) + ": it must resolve from data alone.\n" +
                     "A definition reading a latent variable or a parameter is only meaningful in simulation.");
             }
 
             for (Household &house : dataset)
-                binder.bind_surrogate(state, surr, house, true);
+                binder.bind_deterministic_obs(state, dobs, house, true);
         }
     }
 

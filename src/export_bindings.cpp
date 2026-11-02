@@ -667,12 +667,12 @@ namespace housepi
             // finalizing collapses each wired cell to a constant: no read-cell outlives its Variable
             // the next definition import clears the Variables
             // a failed build rewinds the read-surface before rethrowing
-            if (!engine.augm.scheme().list_surrogate.empty())
+            if (!engine.augm.scheme().list_deterministic_obs.empty())
             {
                 engine.data.reset_readcells(engine.augm.get_produced_cols());
                 try
                 {
-                    engine.augm.materialize_surrogate_columns(true);
+                    engine.augm.materialize_deterministic_obs(true);
                     engine.data.finalize();
                 }
                 catch (const std::exception &)
@@ -1221,23 +1221,23 @@ namespace housepi
                                 ++row;
                             }
 
-                            // surrogate columns:
+                            // deterministic observations:
                             // * household reduction -> one value shared by every member row;
                             // * member column -> read on each member, never-infected ones included, as the model reads them.
                             size_t c = augm.scheme().list_latent_export.size() + augm.scheme().list_obs_member.size();
-                            for (const augm::Surrogate &surr : augm.scheme().list_surrogate)
+                            for (const augm::DeterministicObs &dobs : augm.scheme().list_deterministic_obs)
                             {
-                                if (!surr.is_own_column())
+                                if (!dobs.is_own_column())
                                     continue;
-                                if (surr.is_house)
+                                if (dobs.is_house)
                                 {
-                                    const double v = hsp_to_rcpp(augm.state.house_varia[H][surr.slot].value());
+                                    const double v = hsp_to_rcpp(augm.state.house_varia[H][dobs.slot].value());
                                     for (size_t r = row_offsets[H]; r < row_offsets[H + 1]; ++r)
                                         latent_cols[c][r] = v;
                                 }
                                 else
                                 {
-                                    const size_t a = augm.consult(augm.def()[surr.row].name);
+                                    const size_t a = augm.consult(augm.def()[dobs.row].name);
                                     size_t r = row_offsets[H];
                                     for (const Individual &indiv : house)
                                         latent_cols[c][r++] = hsp_to_rcpp(augm.at(a, indiv));
@@ -1373,7 +1373,7 @@ namespace housepi
             try
             {
                 engine.augm.init_house_for_simulation(); // build household-level observations
-                dataset.assert_required_everyone(engine.data.state, augm.get_live_cols());
+                dataset.assert_required_everyone(engine.data.state, augm.get_drawn_cols());
                 engine.model->init_model_for_simulation(); // model-specific initialization
                 engine.rates.assert_identifiability(engine.param);
                 engine.augm.init_members_for_simulation(engine.status_process); // bind member definitions once per run
@@ -1426,7 +1426,7 @@ namespace housepi
                     engine.param.draw_sample(settings.prng()); // draw parameters with no pinned value
                     param_trace.record(r);
 
-                    // this repetition's own columns: status, exported latents, observations and surrogates
+                    // this repetition's own columns: status, exported latents and observations
                     Rcpp::IntegerVector status_col(dataset.report_indiv.total);
                     std::vector<Rcpp::NumericVector> latent_cols = rcpp_columns(augm.n_export_cols(), dataset.report_indiv.total);
 

@@ -57,7 +57,7 @@ namespace housepi
         /// Empty the variables of every infected member, between simulated repetitions.
         /// * variable from a block -> returned to it;
         /// * value transmission set -> cleared;
-        /// * static surrogate -> kept.
+        /// * static deterministic observation -> kept.
         /// * no definitions allocated -> no-op.
         void clear_all();
         /// Hand member `m` the variables of its status scheme for simulation.
@@ -68,7 +68,7 @@ namespace housepi
         /// @note Evaluation only, never for simulation.
         void init_for_evaluation();
 
-        /// Initialize surrogate columns of both levels, for simulation.
+        /// Initialize deterministic observations of both levels, for simulation.
         void init_house_for_simulation();
         /// Bind the member variables a simulation reads, once per run.
         ///
@@ -89,12 +89,12 @@ namespace housepi
             augm::draw_sample(scheme_of_(indiv).obs_models, state.of(indiv), prng);
         }
 
-        /// Build surrogate columns standing in for data columns, and point member read-surfaces at them.
+        /// Build columns of deterministic observations, and point member read-surfaces at them.
         ///
-        /// Only static columns are eligible: a live one has no fixed value.
-        /// * evaluation -> live column rejected;
-        /// * `for_export` -> live column skipped.
-        void materialize_surrogate_columns(bool for_export = false);
+        /// Only static columns are eligible: a drawn one has no fixed value.
+        /// * evaluation -> drawn column rejected;
+        /// * `for_export` -> drawn column skipped.
+        void materialize_deterministic_obs(bool for_export = false);
 
         /// Initialize the latents of `indiv`, for inference.
         void restart(const Individual &indiv, RndGen &prng)
@@ -155,11 +155,11 @@ namespace housepi
         /// * missing datum -> marginalized out, see init_live_schemes_().
         const std::vector<size_t> &list_obs_models(const Individual &m) const { return scheme_of_(m).obs_models; }
 
-        /// List the columns definitions produce: drawn member observations and surrogate columns.
+        /// List the columns definitions produce: drawn member observations and deterministic observations.
         std::vector<std::string> get_produced_cols();
 
         /// List the columns drawn, or computed from a draw, in simulation.
-        std::vector<std::string> get_live_cols() const;
+        std::vector<std::string> get_drawn_cols() const;
 
         /// Number of exported columns in simulation.
         size_t n_export_cols() const noexcept;

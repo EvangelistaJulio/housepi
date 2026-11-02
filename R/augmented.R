@@ -49,7 +49,7 @@ HousepiAugmented <- R6::R6Class(
     # `character()` Observations producing a data column:
     # * household level -> always;
     # * member level -> when carrying no model.
-    surrogate_names = function(value) {
+    deterministic_obs_names = function(value) {
       if (is.null(self$defs)) return(character())
       mask <- self$defs[["kind"]] == "house" |
         (self$defs[["kind"]] == "member" & is.na(self$defs[["model"]]))

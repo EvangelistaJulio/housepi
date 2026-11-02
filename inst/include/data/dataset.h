@@ -106,8 +106,8 @@ namespace housepi::data
         bool is_required_everyone(size_t d) const noexcept;
         /// Throw if a column requested for every member has no value for one.
         /// * values read through the read-cells of `state`;
-        /// * `live` columns -> skipped, they take their value during the run.
-        void assert_required_everyone(const State &state, const std::vector<std::string> &live = {}) const;
+        /// * `drawn` columns -> skipped, they take their value during the run.
+        void assert_required_everyone(const State &state, const std::vector<std::string> &drawn = {}) const;
 
         /// Whether no data was provided.
         bool is_empty() const noexcept { return house_vector_.empty(); }

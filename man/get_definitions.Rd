@@ -64,7 +64,7 @@ contact rates, infectivity profile or reporting process.
 \details{
 \code{get_dataset()} returns the dataset the model reads, one row per member.
 A column a deterministic observation stands in for
-carries the derived value, not the imported one.
+carries the computed value, not the imported one.
 A column an observation produces without standing in for data
 is not part of the dataset, and is reported by \code{\link[=get_observations]{get_observations()}}.
 }

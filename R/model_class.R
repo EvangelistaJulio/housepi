@@ -157,10 +157,10 @@ HousepiModel <- R6::R6Class(
       if (isTRUE(simulating))
         required <- required[!required %in% private$augm_$observation_names]
 
-      # a deterministic observation produces a surrogate data column
+      # a deterministic observation produces a data column
       cols <- private$coding_$dataset$cols
-      surrogate <- private$augm_$surrogate_names
-      cols <- c(cols, intersect(surrogate, required))
+      det_obs <- private$augm_$deterministic_obs_names
+      cols <- c(cols, intersect(det_obs, required))
 
       sms <- definition_missing_stop(required, cols, "data",
                                      noun = "column", style = "field")
@@ -369,7 +369,7 @@ HousepiModel <- R6::R6Class(
     # @param module `R6` Group or contact rate holder.
     assert_no_obs_rate_collision_ = function(module) {
       obs <- union(private$augm_$observation_names,
-                   private$augm_$surrogate_names)
+                   private$augm_$deterministic_obs_names)
       clash <- intersect(module$covariate_names, obs)
       if (length(clash)) stop_h(
         "A {module$family} is keyed on observation{?s} {.val {clash}}.",

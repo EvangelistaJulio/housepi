@@ -806,7 +806,7 @@ test_that("A name is declared under a single kind", {
     add_latent(hidden = list(model = "normal", mean = 0, sd = 2)) |>
     expect_warning("Overwriting")
 
-  # an observation standing in for a like-named data column is the surrogate
+  # a deterministic observation standing in for a like-named data column is by
   # design, not a clash: only declarations collide with each other
   hh_model |>
     add_observation(datum_2 = record) |>
@@ -1051,17 +1051,17 @@ test_that("Reading an observation in models and loops are rejected", {
     expect_error("[Cc]yclic")
 })
 
-test_that("A surrogate column reading latent is simulation only", {
+test_that("A deterministic observation reading a latent is simulation only", {
   hh_model <- data.frame(id = seq_len(10), hh_id = "h1",
                          status = c(rep(1, 9), 0), record = 0) |>
     new_housepi_model("test") |>
     add_latent(hidden = list(model = "uniform")) |>
     add_observation(record = hidden + 2)
 
-  # the data view has no derived value to report: it keeps the imported datum
+  # the data view has no computed value to report: it keeps the imported datum
   get_dataset(hh_model)[["record"]] |> expect_all_equal(0)
 
-  # observation depends on sampled latent: not a valid surrogate definition
+  # observation reads a sampled latent: not a static deterministic observation
   evaluate_log_lik(hh_model) |>
     expect_error("must resolve from data alone")
 
@@ -1073,7 +1073,7 @@ test_that("A surrogate column reading latent is simulation only", {
   simulated$record[!infected] |> expect_all_na()
 })
 
-test_that("A surrogate observation overwrites the corresponding data column", {
+test_that("A deterministic observation overwrites the like-named data column", {
   hh_model <- data.frame(hh_id = "h1", status = c(1, 0, 0),
                          datum_2 = c(2, 6, NA), record_2 = rep(99, 3)) |>
     new_housepi_model("test") |>
@@ -1083,7 +1083,7 @@ test_that("A surrogate observation overwrites the corresponding data column", {
     ) |>
     add_latent(hidden = list(func = record_3 * 2))
 
-  # the data view reports the derived value before evaluation
+  # the data view reports the computed value before evaluation
   unique(get_dataset(hh_model)[["record_2"]]) |> expect_identical(2)
   colnames(get_dataset(hh_model)) |> expect_disjoint("record_3")
 
@@ -1107,7 +1107,7 @@ test_that("A surrogate observation overwrites the corresponding data column", {
     expect_error("missing data column.*record_2.*[Rr]equired by observation")
 })
 
-test_that("Surrogate columns of both levels build in dependency order", {
+test_that("Deterministic observations build producer before consumer", {
   hh_data <- data.frame(hh_id = "h1", status = c(1, 0, 0),
                         datum = c(2, 9, 4), record = 0, record_2 = 0)
   hh_model <- hh_data |>
@@ -1120,7 +1120,7 @@ test_that("Surrogate columns of both levels build in dependency order", {
   hh_data_2[["record"]] |> expect_identical(c(5, 12, 7))
   unique(hh_data_2[["record_2"]]) |> expect_identical(12)
 
-  # pure surrogate observations with no raw data columns are not exported
+  # deterministic observations with no like-named data column are not exported
   hh_model |>
     add_dataset(hh_data[c("hh_id", "status", "datum")]) |>
     get_dataset() |>
@@ -1211,10 +1211,10 @@ test_that("A household observation with no datum yet reads as NA", {
   hh_data$end_date |> expect_all_na()
 })
 
-test_that("A surrogate column proves the requirement its model asks", {
-  # a surrogate filling 'end_date' answers the discreteness 'case_ascertained'
-  # asks of the column, and answers for what it can return, not for the value it
-  # happens to settle on. A household-level definition reduces over its members,
+test_that("A deterministic observation proves the requirement its model asks", {
+  # a deterministic observation filling 'end_date' answers the discreteness
+  # 'case_ascertained' asks of the column, and answers for what it can return,
+  # not for the value it happens to settle on. A household-level definition reduces over its members,
   # so its root is the reduction; the member level takes the algebra directly
   mk <- function(defin, level = "house") {
     data.frame(id = c("m1", "m2", "m3", "m4"),
@@ -2047,8 +2047,8 @@ test_that("A stochastic observation is simulated for infected members only", {
 })
 
 test_that("Household observation derives from simulated observations", {
-  # both the observation (test_date) and the surrogate column (start_date) are
-  # produced internally: neither is provided in the input data
+  # both the stochastic observation (test_date) and the deterministic one
+  # (start_date) are produced internally: neither is provided in the input data
   reps <- mk_outbreak$model |>
     add_dataset(dplyr::select(mk_outbreak$data, -test_date)) |>
     add_observation("test_date", model = "normal",
@@ -2231,8 +2231,8 @@ test_that("Data-bound household observation supplies a required data column", {
   # 'end_date' provided as an ordinary data column
   provided <- add_dataset(hh_model, hh_data)
 
-  # 'end_date' is passed as a surrogate observation
-  surrogate <- hh_model |>
+  # 'end_date' is passed as a deterministic observation
+  computed <- hh_model |>
     add_dataset(dplyr::select(hh_data, -end_date)) |>
     add_observation(end_date = min(test_date) + 21, level = "house")
 
@@ -2241,7 +2241,7 @@ test_that("Data-bound household observation supplies a required data column", {
   set.seed(42)
   log_lik <- evaluate_log_lik(provided)
   set.seed(42)
-  evaluate_log_lik(surrogate) |>
+  evaluate_log_lik(computed) |>
     expect_equal(log_lik)
 })
 

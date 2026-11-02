@@ -43,7 +43,7 @@ namespace housepi::data
         /// Point every read-cell at the imported value of `dataset`.
         /// @note Call before rebuilding Variables: wired cells would point at stale ones.
         void reset_readcells(const Dataset &dataset);
-        /// Point read-cell `d` of member `indiv` at the Variable of a surrogate column.
+        /// Point read-cell `d` of member `indiv` at the Variable of a deterministic observation.
         void wire_readcell(size_t d, const Individual &indiv, const Attribute *p) noexcept
         {
             readcell_[Index::of(indiv)][d].init_pointer(p);

@@ -496,10 +496,10 @@ namespace housepi::data
     }
 
     void Dataset::assert_required_everyone(const State &state,
-                                           const std::vector<std::string> &live) const
+                                           const std::vector<std::string> &drawn) const
     {
         for (size_t d : request_everyone_)
-            if (!vect::contains(live, consult(d)))
+            if (!vect::contains(drawn, consult(d)))
                 for (const Household &house : house_vector_)
                     for (const Individual &indiv : house)
                         if (na::is(state.readcell(d, indiv).value()))

@@ -435,7 +435,7 @@ subset_definitions_ <- function(defs, name, col = "name") {
 #' @details
 #' `get_dataset()` returns the dataset the model reads, one row per member.
 #' A column a deterministic observation stands in for
-#' carries the derived value, not the imported one.
+#' carries the computed value, not the imported one.
 #' A column an observation produces without standing in for data
 #' is not part of the dataset, and is reported by [get_observations()].
 #' @param hh_model `r rd_model_in_`
