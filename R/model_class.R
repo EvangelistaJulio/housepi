@@ -769,6 +769,43 @@ HousepiModel <- R6::R6Class(
       invisible(self)
     },
 
+    # Stop on a model data key that simulation reads as a calendar date,
+    # while transmission seeds its latents at day 0.
+    # * key without a definition -> class of its data column;
+    # * key defined by a definition -> data it reads,
+    #   transmission latents excepted, simulation draws them.
+    # @todo drop once an introduction process sets day 0 on the data calendar
+    assert_simulation_days_ = function() {
+      transm <- .engine$transmission_latent_keys(private$mcmc_ptr_)
+      if (!length(transm)) return(invisible())
+      defs <- private$resolved_latent_()
+      defs <- defs[!defs[["name"]] %in% transm, , drop = FALSE]
+      info <- private$coding_$dataset$info
+      cols <- c("const", "func", "model", "min", "max")
+      date_read_by <- function(name) {
+        row <- defs[defs[["name"]] == name, , drop = FALSE]
+        if (!nrow(row))
+          return(if (identical(info[[name]]$class, "Date")) name)
+        # a model reads its own draw
+        reads <- setdiff(c(find_required_definitions(row, "D", cols, NA),
+                           find_required_definitions(row, "A", cols, NA)),
+                         name)
+        for (x in reads) if (length(col <- date_read_by(x))) return(col)
+      }
+      for (key in .engine$data_keys(private$mcmc_ptr_)) {
+        col <- date_read_by(key)
+        if (!length(col)) next
+        stop_h(
+          paste0("Simulation does not support a calendar date as ",
+                 "{.field {key}}",
+                 if (col != key) ", read from data column {.field {col}}", "."),
+          paste0("Give {.field {key}} in days since the first infection ",
+                 "in each household.")
+        )
+      }
+      invisible()
+    },
+
     # Build the model for simulation.
     # @todo build differently given a param table
     helper_simulation_build_ = function(draws = NULL,
@@ -815,6 +852,7 @@ HousepiModel <- R6::R6Class(
 
       # internal build function
       private$build_full_(nrep = nrep, simulating = TRUE, ...)
+      private$assert_simulation_days_()
 
       # there may be no parameters at all
       if (!nrow(get_parameters(self))) return(nrep)

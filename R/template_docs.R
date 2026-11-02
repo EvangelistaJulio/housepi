@@ -98,6 +98,7 @@ NULL
 #' It needs a value for every member, escaped ones included.
 #' An observation standing for it is defined at household level, or from data columns only.
 #' In simulation the primary case is drawn uniformly among the members \insertCite{cauchemez_bayesian_2004}{housepi}, and infected at time 0.
+#' There \code{end_date} counts days from that infection, and calendar dates are not supported.
 #'
 #' @section Parameters:
 #' * \code{alpha} \eqn{\alpha}{alpha}: baseline community instantaneous transmission rate

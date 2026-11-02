@@ -835,6 +835,32 @@ test_that("A missing data column names what requires it, in simulation too", {
     expect_error("missing data column.*end_date.*[Rr]equired by transmission")
 })
 
+test_that("Simulation rejects a calendar date read as a model time", {
+  hh_data <- data.frame(hh_id = "h1", status = c(1, 0),
+                        datum = as.Date("2021-08-15"))
+  mk <- function(hh_data) {
+    hh_data |>
+      new_housepi_model("case_ascertained") |>
+      add_parameter(import = "template") |>
+      add_infectivity_profile(import = "template")
+  }
+  # from the data column
+  transform(hh_data, end_date = datum + 21) |>
+    mk() |>
+    run_simulation() |>
+    expect_error("calendar date as.*end_date")
+  # through an observation reading a date column
+  mk(hh_data) |>
+    add_observation(end_date = list(func = min(datum) + 21, level = "house")) |>
+    run_simulation() |>
+    expect_error("calendar date as.*end_date.*read from data column.*datum")
+  # days since the first infection
+  transform(hh_data, end_date = 21L) |>
+    mk() |>
+    run_simulation() |>
+    expect_s3_class("data.frame")
+})
+
 test_that("Param table with degenerate columns raises an ESS error", {
   new_housepi_model(model = "test") |>
     run_simulation(draws = posterior::as_draws_df(
