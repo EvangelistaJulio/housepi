@@ -71,6 +71,8 @@ namespace housepi
         void enforce_user_const() noexcept { is_user_const_ = true; }
         /// Drop user choice for constant. Used when readers bind its variable.
         void release_user_const() noexcept { is_user_const_ = false; }
+        /// Pin within `range`: no density, no move, `range` reported as its values.
+        void pin_to(Codomain range);
         /// Draw the initial value from the distribution, if any.
         void restart(RndGen &prng);
         /// Draw the value from the distribution, the constant flag ignored.

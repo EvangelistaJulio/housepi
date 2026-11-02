@@ -110,7 +110,7 @@ namespace housepi
         }
 
         /// Values the distribution draws can take.
-        Codomain support() const noexcept { return domain_.relocated(lattice_()); }
+        virtual Codomain support() const noexcept { return domain_.relocated(lattice_()); }
 
         /// Values returned by evaluate().
         ///
@@ -415,26 +415,29 @@ namespace housepi
 
     //////////////////////////////  NullDistribution  //////////////////////////////
 
-    /// Point `x0` carrying no density: the model of a variable pinned to `x0`.
+    /// Closed range carrying no density: the model of a variable pinned within it.
     ///
     /// * log-density and log-ratio -> 0, the variable never moves;
-    /// * draws -> `x0`.
-    /// @note Unregistered: built in place of a collapsed model, never named by the user.
+    /// * support -> the range, lattice included;
+    /// * draws -> the lower end, the pinned point of a collapsed model.
+    /// @note Unregistered: built in place of a collapsed model or of a pinned prior, never named by the user.
     class NullDistribution final : public Cloneable<NullDistribution, Distribution>
     {
     public:
         static constexpr const char *NAME = "null";
-        NullDistribution(double x0) : x0_(x0) {}
+        NullDistribution(Codomain range) : range_(range) {}
+
+        Codomain support() const noexcept override final { return range_; }
 
     protected:
-        double raw_rand_(RndGen & /*prng*/) const override final { return x0_; }
+        double raw_rand_(RndGen & /*prng*/) const override final { return range_.inf; }
         double raw_pdf_(double /*x*/) const override final { return 1.; }
         double raw_log_pdf_(double /*x*/) const override final { return 0.; }
-        double raw_cdf_(double x) const override final { return x < x0_ ? 0. : 1.; }
-        double raw_quantile_(double /*p*/) const override final { return x0_; }
+        double raw_cdf_(double x) const override final { return x < range_.inf ? 0. : 1.; }
+        double raw_quantile_(double /*p*/) const override final { return range_.inf; }
         double raw_log_ratio_(double /*xo*/, double /*xn*/) const override final { return 0.; }
 
     private:
-        double x0_; /// Pinned point.
+        Codomain range_; /// Values the pinned variable takes.
     };
 }

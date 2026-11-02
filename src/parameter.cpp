@@ -94,7 +94,12 @@ namespace housepi
                   msg::alert(sms + "."));
         const double x0 = domain.relocate(domain.min.value());
         init_numeric(x0);
-        distr_ = std::make_unique<NullDistribution>(x0);
+        pin_to({x0, x0, Interval::Closed, Interval::Closed, distr_->support().lattice});
+    }
+
+    void Variable::pin_to(Codomain range)
+    {
+        distr_ = std::make_unique<NullDistribution>(range);
         helper_init_null_proposal_();
     }
 
@@ -406,6 +411,26 @@ namespace housepi
         bind_(translator);
     }
 
+    namespace
+    {
+        /// Closed range of the non-NA `values`, on the integers when every one is whole.
+        /// @note No non-NA value -> empty range, its infimum above its supremum.
+        Codomain closed_range_(const std::vector<double> &values)
+        {
+            Codomain c{inf::DOUBLE, -inf::DOUBLE, Interval::Closed, Interval::Closed, Lattice::Integers};
+            for (double x : values)
+            {
+                if (na::is(x))
+                    continue;
+                c.inf = std::min(c.inf, x);
+                c.sup = std::max(c.sup, x);
+                if (x != std::floor(x))
+                    c.lattice = Lattice::Doubles;
+            }
+            return c;
+        }
+    }
+
     void Parameter::build_for_predic(const dbl_table &input)
     {
         // classification from build() is kept: a parameter with no table column is drawn
@@ -413,9 +438,16 @@ namespace housepi
         for (const std::string &pstr : all())
             if (auto found = input.find(pstr); found != input.end())
             {
-                // a value per repetition: readers follow it
-                at(consult(pstr)).release_user_const();
-                scheme_.pin(consult(pstr), found->second);
+                const size_t p = consult(pstr);
+                Variable &var = at(p);
+                // a value per repetition: readers follow it, judged on the range of the column
+                var.release_user_const();
+                if (const Codomain range = closed_range_(found->second); range.inf <= range.sup)
+                {
+                    var.pin_to(range);
+                    assert_requests(p, var);
+                }
+                scheme_.pin(p, found->second);
             }
     }
 

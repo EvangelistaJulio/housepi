@@ -672,6 +672,36 @@ test_that("Per-replicate parameter values reach the latents reading them", {
   }
 })
 
+test_that("A draws table is judged on every value it gives a parameter", {
+  hh_model <- data.frame(hh_id = "h1", id = c("m1", "m2"), status = 1) |>
+    new_housepi_model("test") |>
+    add_parameter(rho = list(prior = "exponential")) |>
+    add_latent("hidden", model = "normal", sd = rho)
+
+  # the prior keeps `sd` positive, the table does not
+  hh_model |>
+    run_simulation(draws = data.frame(rho = -1)) |>
+    expect_error("`sd`.*must be greater than 0.*rho")
+  # a table value overrides a constant
+  hh_model |>
+    add_parameter(rho = 1) |>
+    suppressWarnings() |>
+    run_simulation(draws = data.frame(rho = c(1, -1))) |>
+    expect_error("`sd`.*must be greater than 0.*rho")
+  # values outside the prior, inside what the latent accepts
+  hh_model |>
+    add_parameter(rho = list(prior = "uniform", min = 0.1, max = 0.2)) |>
+    suppressWarnings() |>
+    run_simulation(draws = data.frame(rho = c(0.5, 2))) |>
+    vapply(\(x) x$hidden[1], numeric(1)) |>
+    expect_all_finite()
+
+  # model requests are judged on the table too
+  mk_final_size$template |>
+    run_simulation(draws = data.frame(hh_size_ref = c(4, 0))) |>
+    expect_error("[Nn]ot strictly positive")
+})
+
 test_that("An unpinned parameter is drawn from its prior at evaluation", {
   hh_model <- mk_final_size$model |>
     add_parameter(beta = 0.1, gamma = 1, hh_size_ref = 4)
