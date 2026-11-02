@@ -229,6 +229,42 @@ assert_count_ <- function(x, what, allow_na = FALSE) {
   as.integer(x)
 }
 
+#' Hash each family of a definition payload, row names of tables reset,
+#' so the stored form of a table never changes its hash.
+#' @param payload `list` Tables the engine imports, see `payload_()`.
+#' @noRd
+hash_payload_ <- function(payload) {
+  canonical <- function(x) {
+    if (is.data.frame(x)) `rownames<-`(x, NULL)
+    else if (is.list(x)) lapply(x, canonical)
+    else x
+  }
+  lapply(payload, \(x) rlang::hash(canonical(x)))
+}
+
+#' Whether `x` holds posterior draws, from a run or as `posterior::draws`.
+#' @noRd
+is_draws_ <- function(x) {
+  inherits(x, "HousepiPosteriorDraws") || posterior::is_draws(x)
+}
+
+#' Source of the parameter values a check simulates at,
+#' `hh_model` built at the wall.
+#' * `NULL` -> `"prior"`;
+#' * run fitted to `hh_model` and its data, or `posterior::draws`
+#'   -> `"posterior"`;
+#' * run fitted to another model or data -> `"table"`;
+#' * table or named values -> `"table"`.
+#' @noRd
+draws_source_ <- function(draws, hh_model) {
+  if (is.null(draws)) return("prior")
+  if (!is_draws_(draws)) return("table")
+  if (!inherits(draws, "HousepiPosteriorDraws")) return("posterior")
+  differ <- differing_entries_(hh_model$.__enclos_env__$private$fingerprint_,
+                               draws$.__enclos_env__$private$fingerprint_)
+  if (length(differ)) "table" else "posterior"
+}
+
 #' Whether `x` holds named parameter values, a vector or a list,
 #' rather than posterior draws or a table.
 #' @noRd
@@ -479,6 +515,12 @@ char_data_input_ <- function(df) {
   else data.frame(lapply(df, as.character), check.names = FALSE)
 }
 
+#' Names of the entries of named list `a` that differ from those of `b`.
+#' @noRd
+differing_entries_ <- function(a, b) {
+  names(a)[!mapply(identical, a, b[names(a)])]
+}
+
 #' Combine R6 `objects` into a clone of the first one.
 #' Functions compare by arguments, body and enclosing environment.
 #' * classes differ -> error;
@@ -505,7 +547,7 @@ combine_r6_ <- function(objects, pooled, what) {
     b <- y[[field]]
     entries <- is.list(a) && !is.data.frame(a) && !is.null(names(a)) &&
       identical(names(a), names(b))
-    if (entries) return(names(a)[!mapply(identical, a, b)])
+    if (entries) return(differing_entries_(a, b))
     if (identical(a, b)) return()
     if (field == "name_") "model" else sub("_$", "", field)
   }

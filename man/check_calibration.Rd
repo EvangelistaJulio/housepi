@@ -2,14 +2,15 @@
 % Please edit documentation in R/simulation_calibration.R
 \name{check_calibration}
 \alias{check_calibration}
-\title{Check that inference is calibrated against the prior}
+\title{Check that inference is calibrated against the prior or the data}
 \usage{
 check_calibration(
   hh_model,
+  draws = NULL,
   nrep = 200L,
   houses = NA_integer_,
   structure_sampler = sample_house_structure,
-  rank_draws = 99L,
+  rank_levels = 100L,
   steps = 2000L,
   thin = 10L,
   adapt = 1000L,
@@ -22,21 +23,27 @@ check_calibration(
 \arguments{
 \item{hh_model}{\code{HousepiModel} object.}
 
+\item{draws}{\code{HousepiPosteriorDraws}
+Posterior draws of the model on its attached data, from \code{\link[=run_inference]{run_inference()}}.
+If \code{NULL}, the parameters are drawn from their prior.}
+
 \item{nrep}{\code{integer(1)} Number of replicates at each household count.
 Each replicate is a household study simulated and fitted back.}
 
 \item{houses}{\code{integer(1)}
 Number of households in each simulated study.
-If \code{NA}, the number of households carried by the attached data.}
+If \code{NA}, the number of households carried by the attached data.
+With posterior \code{draws}, each study is fitted alongside the attached households.}
 
 \item{structure_sampler}{\code{function}
 Sampler of the household structure the outbreaks are simulated on,
 called as \code{structure_sampler(data, houses)}.
 If \code{NULL}, the attached structure is reused verbatim and \code{houses} ignored.}
 
-\item{rank_draws}{\code{integer(1)}
-Number of posterior draws each simulating value is ranked among,
-thinned evenly from the stored draws of all chains.}
+\item{rank_levels}{\code{integer(1)}
+Number of values a rank takes, from 0 to \code{rank_levels - 1}.
+Each simulating value is ranked among \code{rank_levels - 1} posterior draws,
+thinned evenly from the stored draws pooled over the chains.}
 
 \item{steps}{\code{integer(1)} Number of MCMC steps per chain.}
 
@@ -77,23 +84,38 @@ When inference is correct, the ranks are uniform over the replicates.
 Ranks piling at both ends point to a posterior too narrow,
 in the middle to one too wide, on one side to a biased one.
 
+With posterior \code{draws}, the check is conditional on the attached data
+\insertCite{sailynoja_posterior_2026}{housepi}.
+Each replicate simulates a study at one posterior draw,
+fits it alongside the attached households,
+and ranks the draw among the posterior draws of that fit.
+It checks inference where the posterior of the data puts its mass,
+rather than over the whole prior.
+The draws must be those of \code{\link[=run_inference]{run_inference()}} on this model and its data.
+
 Only transmission and observations are simulated.
 Households, members and their covariates come from the attached data,
 drawn once per household count by \code{structure_sampler},
 or reused whole without it, and shared by the replicates at that count.
 Every parameter carrying a prior and free to move is drawn anew
-for each replicate, and its \code{value} is ignored.
+for each replicate, from its prior or from the posterior draws,
+and its \code{value} is ignored.
 Any other parameter is held at its value.
 }
 \details{
 Ranks follow \insertCite{modrak_simulation_2025;textual}{housepi}:
-the drawn value is ranked among \code{rank_draws} posterior draws thinned evenly
-from the fit, and ties are split at random.
+the drawn value is ranked among \code{rank_levels - 1} posterior draws
+thinned evenly from the fit, pooled over the chains,
+and ties are split at random, so a rank takes \code{rank_levels} values.
 Correlated draws make the ranks pile at the ends,
 even when inference is correct,
 so a parameter whose bulk effective sample size
 \insertCite{vehtari_rank_normalization_2021}{housepi} falls below
-\code{rank_draws} is flagged.
+\code{rank_levels - 1} is flagged.
+The diagnostics of the fit already flag a bulk effective sample size
+below 100 per chain,
+so this flag matters only when \code{rank_levels - 1} exceeds 100 times
+the number of chains.
 
 Uniformity is tested on the empirical CDF of the ranks, with the
 simultaneous band and the statistic of
@@ -103,6 +125,10 @@ under uniform ranks \insertCite{modrak_simulation_2025}{housepi},
 so a calibrated sampler is rejected with probability at most 0.05.
 The check itself goes back to
 \insertCite{talts_validating_2020;textual}{housepi}.
+
+Posterior draws are thinned to their bulk effective sample size,
+then \code{nrep} of them are picked evenly spaced, one per replicate,
+so the run must hold at least \code{nrep} independent draws.
 
 Each simulated study goes through
 the \code{dataset} reporting process of the model before it is fitted back,
@@ -121,6 +147,15 @@ calibration <- flu_1918_frederick |>
   check_calibration(nrep = 2, houses = 30, progress = FALSE)
 calibration$summarise()
 calibration$overview
+
+# conditional on the attached data
+hh_model <- flu_1918_frederick |>
+  new_housepi_model("final-size") |>
+  add_parameter(import = "template")
+hh_fit <- run_inference(hh_model, chains = 2, progress = FALSE)
+calibration <- check_calibration(hh_model, hh_fit, nrep = 2, houses = 30,
+                                 progress = FALSE)
+calibration
 }
 \references{
 \insertAllCited{}

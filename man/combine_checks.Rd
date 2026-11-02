@@ -26,6 +26,8 @@ so a check grows without running its replicates again.
 The checks must share the model, its definitions, the attached data,
 the structure sampler, the reporting process and the sampler settings.
 Recovery checks must also share the values the studies are simulated at.
+Calibration checks must share their source, prior or posterior,
+and posterior checks rank the draws of distinct runs of \code{\link[=run_inference]{run_inference()}}.
 A sampler or a reporting process created inside another function
 combines only with itself, within one R session.
 Household counts may differ.

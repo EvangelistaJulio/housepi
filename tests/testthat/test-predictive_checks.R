@@ -484,6 +484,21 @@ test_that("Without draws, the check draws parameters from their prior", {
   ppc_2$thin_ess |> expect_false()
 })
 
+test_that("Draws of a run on other data are given values, not a posterior", {
+  # households resampled: same definitions, other data
+  hh_model <- get_dataset(mk_ppc$model) |>
+    sample_house_structure(houses = 20) |>
+    add_dataset(mk_ppc$model, data = _)
+  ppc <- hh_model |>
+    check_predictive(mk_ppc$fit, sar = measure_sar_by_hh_size,
+                     epi = FALSE, nrep = 2, progress = FALSE) |>
+    suppressWarnings()
+  ppc$source |> expect_identical("table")
+  # the draws of a run are thinned to their ESS all the same
+  ppc$thin_ess |> expect_true()
+  print(ppc) |> expect_message("Predictive check for model")
+})
+
 test_that("An epidemic predictive check formats counts per household size", {
   ppc <- check_predictive(mk_ppc$model, mk_ppc$fit) |>
     suppressWarnings()

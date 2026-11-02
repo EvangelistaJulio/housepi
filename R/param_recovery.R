@@ -14,13 +14,20 @@ Several draws are collapsed to their point estimate."
 ########  Recovery  ########
 
 #' Simulation values: the point estimate of `draws`, per declared parameter.
+#' * name not declared -> warning, value dropped;
+#' * `NA` value -> dropped;
+#' * estimated parameter without a value -> error,
+#'   as a recovery check simulates every replicate at the same known values.
+#' @param estimated `character()` Parameters the check is about.
 #' @noRd
-recovery_pins_ <- function(hh_model, draws, point_estimate) {
-  if (is.null(draws)) return(numeric())
-  given <- recovery_collapse_truth_(draws, point_estimate)
-  hh_model$.__enclos_env__$private$assert_no_baseline_value_(given, "draws")
+recovery_values_ <- function(hh_model, draws, point_estimate, estimated) {
+  values <- if (!is.null(draws)) {
+    hh_model$.__enclos_env__$private$read_param_table_(
+      draws, thin_ess = FALSE
+    ) |> recovery_collapse_truth_(point_estimate)
+  }
   declared <- get_parameters(hh_model)[["name"]]
-  unknown <- setdiff(names(given), declared)
+  unknown <- setdiff(names(values), declared)
   if (length(unknown)) warn_h(
     "No parameter named {.val {unknown}} in the model.",
     `!` = "Its {.arg draws} value is ignored.",
@@ -29,30 +36,21 @@ recovery_pins_ <- function(hh_model, draws, point_estimate) {
       otherwise = "Show the model parameters with {.fn get_parameters}."
     )
   )
-  given <- given[intersect(names(given), declared)]
-  given[!is.na(given)]
-}
-
-#' Collapse draws to one named vector of point estimates.
-#' @noRd
-recovery_collapse_truth_ <- function(draws, point_estimate) {
-  tab <- helper_read_param_table_(draws, thin_ess = FALSE)
-  stat <- if (identical(point_estimate, "mean")) mean else stats::median
-  vapply(tab, function(x) stat(as.numeric(x)), numeric(1L))
-}
-
-#' Simulation values of the estimated parameters.
-#' * estimated parameter without a value -> error,
-#' as a recovery check simulates every replicate at the same known values.
-#' @noRd
-recovery_truth_ <- function(hh_model, pins) {
-  estimated <- sweep_estimated_(hh_model)
-  unpinned <- setdiff(estimated, names(pins))
+  values <- values[intersect(names(values), declared)]
+  values <- values[!is.na(values)]
+  unpinned <- setdiff(estimated, names(values))
   if (length(unpinned)) stop_h(
     "No simulation value for parameter{?s} {.val {unpinned}}.",
     "A recovery check simulates at known values: pass them as {.arg draws}."
   )
-  pins[estimated]
+  values
+}
+
+#' Collapse a table of draws to one named vector of point estimates.
+#' @noRd
+recovery_collapse_truth_ <- function(table, point_estimate) {
+  stat <- if (identical(point_estimate, "mean")) mean else stats::median
+  vapply(table, function(x) stat(as.numeric(x)), numeric(1L))
 }
 
 #' Recovery statistics per household count and parameter.
@@ -129,32 +127,33 @@ HousepiRecoveryCheck <- R6::R6Class(
 
   private = list(
     name_ = NA_character_,
+    variables_ = NULL,
     truth_ = NULL,
     point_estimate_ = NA_character_,
     cri_level_ = NA_real_,
     # `HousepiSweep` Replicates fitted.
     sweep_ = NULL,
 
-    # Summarise the draws per parameter: point estimate, posterior sd,
-    # credible interval, whether it covers `truth`, convergence diagnostics.
-    summarise_draws_ = function(draws, truth) {
+    # Reduce one fit to a row per estimated parameter: point estimate,
+    # posterior sd, credible interval, whether it covers `truth`, diagnostics.
+    reduce_ = function(fit, truth) {
+      variables <- private$variables_
       stat <- switch(private$point_estimate_, mean = mean, stats::median)
       probs <- cri_level_probs(private$cri_level_)
-      pdraws <- get_parameter_draws(draws)
       summ <- as.data.frame(posterior::summarise_draws(
-        pdraws,
+        get_parameter_draws(fit),
         estimate = stat,
         sd = stats::sd,
         cri_lower = \(x) unname(stats::quantile(x, probs[["lower"]])),
         cri_upper = \(x) unname(stats::quantile(x, probs[["upper"]]))
       ))
-      summ <- summ[summ[["variable"]] %in% names(private$truth_), ]
-      truth <- unname(truth[summ[["variable"]]])
+      summ <- summ[match(variables, summ[["variable"]]), ]
+      truth <- unname(truth[variables])
       covers <- summ[["cri_lower"]] <= truth & truth <= summ[["cri_upper"]]
       cbind(summ["variable"], truth = truth,
             summ[c("estimate", "sd", "cri_lower", "cri_upper")],
             covers = covers,
-            sweep_diagnostics_(draws, summ[["variable"]]),
+            sweep_diagnostics_(fit, variables),
             row.names = NULL)
     }
   ),
@@ -279,19 +278,19 @@ HousepiRecoveryCheck <- R6::R6Class(
       private$cri_level_ <- get_global_cri_level()
       private$name_ <- hh_model$.__enclos_env__$private$compiled_$name
 
-      pins <- recovery_pins_(hh_model, draws, private$point_estimate_)
-      private$truth_ <- recovery_truth_(hh_model, pins)
-      structure <- sweep_base_structure_(hh_model)
-      houses <- sweep_houses_(structure, houses, is.null(structure_sampler))
-
-      fit_args <- list(steps = steps, thin = thin, adapt = adapt,
-                       chains = chains)
+      private$variables_ <- sweep_estimated_(hh_model)
+      values <- recovery_values_(hh_model, draws, private$point_estimate_,
+                                 private$variables_)
+      private$truth_ <- values[private$variables_]
       private$sweep_ <- HousepiSweep$new(
-        hh_model, structure, structure_sampler, houses, nrep,
-        pins, fit_args, threads, list(...), private$summarise_draws_,
-        progress, "Recovery replicates"
+        hh_model, sampler = structure_sampler, houses = houses, nrep = nrep,
+        values = sweep_param_table_(values, nrep),
+        fit_args = list(steps = steps, thin = thin, adapt = adapt,
+                        chains = chains),
+        threads = threads, dots = list(...), reducer = private$reduce_,
+        progress = progress, label = "Recovery replicates",
+        what = "Parameter recovery"
       )
-      sweep_report_warnings_(private$sweep_$warnings, "Parameter recovery")
       invisible(self)
     },
 

@@ -6,8 +6,8 @@
 \title{Simulation calibration check of a housepi model}
 \description{
 Container for the sweep run by \code{\link[=check_calibration]{check_calibration()}}:
-household studies simulated at parameter values drawn from the prior
-and fitted back,
+household studies simulated at parameter values drawn from the prior,
+or from the posterior of the attached data, and fitted back,
 each value ranked among the posterior draws of its fit.
 }
 \examples{
@@ -24,13 +24,16 @@ calibration$summarise()
     \item{\code{estimates}}{\code{data.frame}
 One row per replicate and parameter
 \describe{
-\item{truth}{Value drawn from the prior the study was simulated at;}
+\item{truth}{Value the study was simulated at,
+drawn from the prior or a posterior draw;}
 \item{rank}{Number of ranked posterior draws below the truth,
-ties split at random;}
+from 0 to \code{rank_levels - 1}, ties split at random;}
 \item{rhat, ess_bulk}{Convergence diagnostics of the fit;}
 \item{flagged}{\code{TRUE} when the diagnostics flagged the parameter:
 R-hat of 1.01 or more; Bulk or Tail Effective Sample Size (ESS) below 100 per chain,
-or when its bulk effective sample size is below \code{rank_draws}.}
+or when its bulk effective sample size is below \code{rank_levels - 1}.
+This adds to the diagnostics only when \code{rank_levels - 1}
+exceeds 100 draws per chain.}
 }}
 
     \item{\code{replicates}}{\code{data.frame}
@@ -58,8 +61,13 @@ a cost of this run, machine and thread count, not of the model.}
     \item{\code{nrep}}{\code{integer()}
 Number of replicates at each household count, in the order of \code{houses}.}
 
-    \item{\code{rank_draws}}{\code{integer(1)}
-Posterior draws each simulating value is ranked among.}
+    \item{\code{source}}{\code{character(1)} Where the parameter values come from, one of:
+\describe{
+\item{\code{"prior"}}{drawn from the prior;}
+\item{\code{"posterior"}}{posterior draws of the model on its attached data.}
+}}
+
+    \item{\code{rank_levels}}{\code{integer(1)} Number of values a rank takes.}
 
     \item{\code{warnings}}{\code{data.frame} Distinct warnings raised,
 recorded whether or not they were reported, and counted by the print.
@@ -92,10 +100,11 @@ Use \code{\link[=check_calibration]{check_calibration()}} instead of calling \ve
     \if{html}{\out{<div class="r">}}
     \preformatted{HousepiCalibrationCheck$new(
   hh_model,
+  draws = NULL,
   nrep = 200L,
   houses = NA_integer_,
   structure_sampler = sample_house_structure,
-  rank_draws = 99L,
+  rank_levels = 100L,
   steps = 2000L,
   thin = 10L,
   adapt = 1000L,
@@ -110,18 +119,23 @@ Use \code{\link[=check_calibration]{check_calibration()}} instead of calling \ve
     \if{html}{\out{<div class="arguments">}}
     \describe{
       \item{\code{hh_model}}{\code{HousepiModel} object.}
+      \item{\code{draws}}{\code{HousepiPosteriorDraws}
+Posterior draws of the model on its attached data, from \code{\link[=run_inference]{run_inference()}}.
+If \code{NULL}, the parameters are drawn from their prior.}
       \item{\code{nrep}}{\code{integer(1)} Number of replicates at each household count.
 Each replicate is a household study simulated and fitted back.}
       \item{\code{houses}}{\code{integer(1)}
 Number of households in each simulated study.
-If \code{NA}, the number of households carried by the attached data.}
+If \code{NA}, the number of households carried by the attached data.
+With posterior \code{draws}, each study is fitted alongside the attached households.}
       \item{\code{structure_sampler}}{\code{function}
 Sampler of the household structure the outbreaks are simulated on,
 called as \code{structure_sampler(data, houses)}.
 If \code{NULL}, the attached structure is reused verbatim and \code{houses} ignored.}
-      \item{\code{rank_draws}}{\code{integer(1)}
-Number of posterior draws each simulating value is ranked among,
-thinned evenly from the stored draws of all chains.}
+      \item{\code{rank_levels}}{\code{integer(1)}
+Number of values a rank takes, from 0 to \code{rank_levels - 1}.
+Each simulating value is ranked among \code{rank_levels - 1} posterior draws,
+thinned evenly from the stored draws pooled over the chains.}
       \item{\code{steps}}{\code{integer(1)} Number of MCMC steps per chain.}
       \item{\code{thin}}{\code{integer(1)} Keep one step every \code{thin} of \code{steps}.}
       \item{\code{adapt}}{\code{integer(1)} Number of steps to adapt proposal scales
@@ -191,7 +205,7 @@ uniformity is rejected, at level 0.05;}
 \if{latex}{\out{\hypertarget{method-HousepiCalibrationCheck-evaluate_ecdf}{}}}
 \subsection{\code{HousepiCalibrationCheck$evaluate_ecdf()}}{
   Evaluate the empirical CDF of the fractional ranks
-\code{(rank + 1) / (rank_draws + 1)} per parameter,
+\code{(rank + 1) / rank_levels} per parameter,
 with its simultaneous band.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}

@@ -264,7 +264,8 @@ measure_dots_ <- function(...) {
 
 #' @title Prior or posterior predictive check of user-defined measures
 #' @description
-#' Prior or posterior predictive checks of measures on simulated household studies.
+#' Prior or posterior predictive checks of measures
+#' on simulated household studies.
 #' @examples
 #' hh_model <- flu_1918_frederick |>
 #'   new_housepi_model("final-size") |>
@@ -369,13 +370,7 @@ HousepiPredictiveCheck <- R6::R6Class(
       assert_read_only_(value, "thin_ess")
       private$thin_ess_
     },
-    #' @field source `character(1)`
-    #' Where the parameter values come from, one of:
-    #' \describe{
-    #' \item{`"prior"`}{drawn from the prior;}
-    #' \item{`"posterior"`}{posterior draws;}
-    #' \item{`"table"`}{values given by the user.}
-    #' }
+    #' @field source `r rd_check_source_()`
     source = function(value) {
       assert_read_only_(value, "source")
       private$source_
@@ -501,12 +496,11 @@ HousepiPredictiveCheck <- R6::R6Class(
       }
       # store decorations for print and read-only access
       private$model_name_ <- hh_model$name
-      private$source_ <- if (is.null(draws)) "prior" else if (
-        inherits(draws, "HousepiPosteriorDraws") || posterior::is_draws(draws)
-      ) "posterior" else "table"
+      # simulation built the model at the wall, stamping its fingerprint
+      private$source_ <- draws_source_(draws, hh_model)
       private$measure_names_ <- all_measure_names
       private$nrep_ <- length(replicates)
-      private$thin_ess_ <- isTRUE(thin_ess) && private$source_ == "posterior"
+      private$thin_ess_ <- isTRUE(thin_ess) && is_draws_(draws)
 
       private$check_observed_in_cri_()
       private$secs_ <- proc.time()[["elapsed"]] - start
@@ -757,6 +751,8 @@ HousepiEpiPredictiveCheck <- R6::R6Class(
 #' Without `draws`, the parameters are drawn from their prior,
 #' as in [run_simulation()], for a prior predictive check.
 #' With posterior draws, it is a posterior predictive check.
+#' Draws of [run_inference()] on another model or other data
+#' make a predictive check at given values, not a posterior one.
 #' It checks standard epidemiological measures by household size:
 #' \describe{
 #' \item{`"attack_rate"`}{see [measure_ar_by_hh_size],

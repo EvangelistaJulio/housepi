@@ -86,28 +86,41 @@ test_that("The calibration summary reads one verdict per parameter", {
 
 # a sweep short enough for the suite, every fit too short to pass the
 # diagnostics, and the attached households are surveyed as they are
+# records of their own feed the fit the posterior check is conditioned on
 mk_calib <- local({
-  hh_model <- data.frame(hh_id = seq(30), status = 1) |>
+  hh_model <- data.frame(hh_id = seq(30), status = 1,
+                         record = stats::rnorm(30, 1, sqrt(2))) |>
     new_housepi_model("test") |>
     add_parameter("rho", prior = "uniform", min = -5, max = 5) |>
     add_latent("hidden", model = "normal", mean = rho, sd = 1) |>
     add_observation("record", model = "normal", mean = hidden, sd = 1)
-  calibration <- hh_model |>
-    check_calibration(nrep = 3, structure_sampler = NULL, rank_draws = 9,
+  prior_calibration <- hh_model |>
+    check_calibration(nrep = 3, structure_sampler = NULL, rank_levels = 10,
                       steps = 400, thin = 1, chains = 1, progress = FALSE) |>
     suppressWarnings()
-  list(model = hh_model, calibration = calibration)
+  hh_fit <- hh_model |>
+    run_inference(steps = 1000, thin = 1, chains = 1, id_draws = ".none",
+                  progress = FALSE) |>
+    suppressWarnings()
+  post_calibration <- hh_model |>
+    check_calibration(hh_fit, nrep = 3, structure_sampler = NULL,
+                      rank_levels = 10, steps = 400, thin = 1, chains = 1,
+                      progress = FALSE) |>
+    suppressWarnings()
+  list(model = hh_model, fit = hh_fit,
+       prior_calib = prior_calibration,
+       post_calib = post_calibration)
 })
 
 test_that("Calibration calibration are read only", {
-  mk_calib$calibration |>
+  mk_calib$prior_calib |>
     expect_read_only_field("estimates", "replicates",
-                           "overview", "houses", "nrep", "rank_draws",
-                           "warnings")
+                           "overview", "houses", "nrep", "source",
+                           "rank_levels", "warnings")
 })
 
 test_that("Every replicate is ranked at a value drawn from the prior", {
-  calibration <- mk_calib$calibration
+  calibration <- mk_calib$prior_calib
   estimates <- calibration$estimates
   estimates |> expect_nrow(3L)
   estimates$rep |> expect_identical(1:3)
@@ -121,17 +134,35 @@ test_that("Every replicate is ranked at a value drawn from the prior", {
   calibration$summarize() |> expect_identical(calibration$summarise())
   calibration$overview$nrep |> expect_identical(3L)
   calibration$houses |> expect_identical(30L)
-  calibration$rank_draws |> expect_identical(9L)
+  calibration$rank_levels |> expect_identical(10L)
+  calibration$source |> expect_identical("prior")
+})
+
+test_that("Every replicate is ranked at a distinct posterior draw of the run", {
+  calibration <- mk_calib$post_calib
+  estimates <- calibration$estimates
+  calibration$source |> expect_identical("posterior")
+  estimates |> expect_nrow(3L)
+  estimates$rank |> expect_in(0:9)
+  unique(estimates$truth) |> expect_length(3L)
+  estimates$truth |>
+    expect_in(as.numeric(get_parameter_draws(mk_calib$fit)$rho))
+  calibration$summarise()$nrep |> expect_identical(3L)
 })
 
 test_that("Calibration calibration print their settings", {
-  calibration <- mk_calib$calibration
+  calibration <- mk_calib$prior_calib
   lines <- helper_print_lines(printed <- print(calibration))
   # printing returns the object itself
   printed |> expect_identical(calibration)
-  lines[1] |> expect_match("[Ss]imulation calibration check.*\"test\"")
+  lines[1] |> expect_match("[Pp]rior calibration check.*\"test\"")
   lines |> expect_contains(c("Households: 30", "Replicates: 3",
-                             "Posterior draws ranked among: 9"))
+                             "Rank levels: 10"))
+  lines |> expect_no_match("Conditioned on")
+  # a posterior check names the households it is conditioned on
+  lines <- helper_print_lines(print(mk_calib$post_calib))
+  lines[1] |> expect_match("[Pp]osterior calibration check.*\"test\"")
+  lines |> expect_contains("Conditioned on: 30 observed households")
   # the count is that of the flagged replicates
   lines |>
     expect_contains(paste("Flagged by diagnostics:",
@@ -144,7 +175,7 @@ test_that("Calibration calibration print their settings", {
 test_that("A sweep reproduces from a seed at any thread count", {
   sweep_at <- function(threads) {
     withr::with_seed(1L, check_calibration(
-      mk_calib$model, nrep = 3, rank_draws = 9, steps = 400, thin = 1,
+      mk_calib$model, nrep = 3, rank_levels = 10, steps = 400, thin = 1,
       chains = 1, threads = threads, progress = FALSE
     )) |>
       suppressWarnings()
@@ -162,12 +193,19 @@ test_that("A sweep reproduces from a seed at any thread count", {
 
 test_that("Calibration refuses a sweep it cannot rank", {
   hh_model <- mk_calib$model
-  check_calibration(hh_model, steps = 100L, chains = 1L, progress = FALSE) |>
-    expect_error("[Ss]tores 10 draws.*fewer than.*rank_draws")
-  check_calibration(hh_model, rank_draws = 0, progress = FALSE) |>
-    expect_error("[Nn]umber of ranked draws")
+  hh_model |>
+    check_calibration(steps = 100L, chains = 1L, progress = FALSE) |>
+    expect_error("[Ss]tores 10 draws.*too few to rank among 99")
+  hh_model |>
+    check_calibration(rank_levels = 0, progress = FALSE) |>
+    expect_error("[Nn]umber of rank levels")
+  # a rank needs one posterior draw at least
+  hh_model |>
+    check_calibration(rank_levels = 1, progress = FALSE) |>
+    expect_error("[Nn]umber of rank levels.*at least 2")
   # one household count per check
-  check_calibration(hh_model, houses = c(10, 20), progress = FALSE) |>
+  hh_model |>
+    check_calibration(houses = c(10, 20), progress = FALSE) |>
     expect_error("[Nn]umber of households")
   data.frame(hh_id = seq(30), status = 1) |>
     new_housepi_model("test") |>
@@ -176,15 +214,63 @@ test_that("Calibration refuses a sweep it cannot rank", {
     expect_error("[Nn]o parameter to estimate")
 })
 
-test_that("Calibration checks of one model pool their replicates", {
-  rerun <- function(nrep = 2, rank_draws = 9, structure_sampler = NULL, ...) {
-    check_calibration(mk_calib$model, nrep = nrep,
-                      structure_sampler = structure_sampler,
-                      rank_draws = rank_draws, steps = 400, thin = 1,
-                      chains = 1, progress = FALSE, ...) |>
+test_that("Posterior calibration refuses draws it cannot condition on", {
+  hh_model <- mk_calib$model
+  hh_fit <- mk_calib$fit
+  hh_model |>
+    check_calibration(get_parameter_draws(hh_fit), progress = FALSE) |>
+    expect_error("[Dd]raws.*should come from.*run_inference")
+  hh_model |>
+    check_calibration(data.frame(rho = 1:3), progress = FALSE) |>
+    expect_error("[Dd]raws.*should come from.*run_inference")
+  # same definitions, other records
+  get_dataset(hh_model) |>
+    transform(record = record + 1) |>
+    add_dataset(hh_model, data = _) |>
+    check_calibration(hh_fit, progress = FALSE) |>
+    expect_error("[Nn]ot fitted to this model.*[Dd]iffer in.*dataset")
+  # a run of 1000 draws holds at most 1000 independent ones
+  check_calibration(hh_model, hh_fit, nrep = 1001, progress = FALSE) |>
+    expect_error("[Ii]ndependent draws, fewer than.*nrep")
+})
+
+test_that("Posterior calibration checks pool across runs only", {
+  hh_model <- mk_calib$model
+  calibration <- mk_calib$post_calib
+  rerun <- function(hh_fit) {
+    hh_model |>
+      check_calibration(hh_fit, nrep = 2, structure_sampler = NULL,
+                        rank_levels = 10, steps = 400, thin = 1, chains = 1,
+                        progress = FALSE) |>
       suppressWarnings()
   }
-  calibration <- mk_calib$calibration
+  hh_fit_2 <- hh_model |>
+    run_inference(steps = 1000, thin = 1, chains = 1,
+                  id_draws = ".none", progress = FALSE) |>
+    suppressWarnings()
+  combined <- c(calibration, rerun(hh_fit_2))
+  combined$nrep |> expect_identical(5L)
+  combined$source |> expect_identical("posterior")
+  # a run pooled into another is still the same run
+  c(calibration, rerun(c(mk_calib$fit, hh_fit_2))) |>
+    expect_error("[Rr]ank draws of the same run")
+  c(calibration, calibration) |>
+    expect_error("[Rr]ank draws of the same run")
+  c(calibration, mk_calib$prior_calib) |>
+    expect_error("[Dd]iffer in.*source")
+})
+
+test_that("Calibration checks of one model pool their replicates", {
+  rerun <- function(nrep = 2, rank_levels = 10, structure_sampler = NULL,
+                    ...) {
+    mk_calib$model |>
+      check_calibration(nrep = nrep,
+                        structure_sampler = structure_sampler,
+                        rank_levels = rank_levels, steps = 400, thin = 1,
+                        chains = 1, progress = FALSE, ...) |>
+      suppressWarnings()
+  }
+  calibration <- mk_calib$prior_calib
   combined <- c(calibration, rerun())
 
   combined$nrep |> expect_identical(5L)
@@ -196,11 +282,11 @@ test_that("Calibration checks of one model pool their replicates", {
   combined$evaluate_ecdf() |> expect_nrow(9L)
   calibration$nrep |> expect_identical(3L)
   c(calibration, calibration) |> expect_error("[Rr]epeat a replicate.*30")
-  c(calibration, rerun(nrep = 1, rank_draws = 8)) |>
-    expect_error("[Dd]iffer in.*rank_draws")
+  c(calibration, rerun(nrep = 1, rank_levels = 9)) |>
+    expect_error("[Dd]iffer in.*rank_levels")
 
   # one count per check, several once pooled
-  resampled <- \(nrep, houses) {
+  resampled <- function(nrep, houses) {
     rerun(nrep, structure_sampler = sample_house_structure, houses = houses)
   }
   calibration_2 <- resampled(2, 30)
@@ -228,4 +314,26 @@ test_that("Latent inference is calibrated against the prior", {
   nrep <- calibration$summarise()$nrep
   threshold <- calibration_log_threshold_(nrep, 99, 0.001)
   (calibration$summarise()$log_gamma >= threshold) |> expect_all_true()
+})
+
+test_that("Latent inference is calibrated on the data", {
+  skip_on_cran()
+  # records far from a prior they outweigh: a fit of the few simulated
+  # households alone would shrink to the prior, and the ranks pile high
+  hh_model <- data.frame(hh_id = seq(30), status = 1,
+                         record = stats::rnorm(30, 3, sqrt(2))) |>
+    new_housepi_model("test") |>
+    add_parameter("rho", prior = "normal", mean = 0, sd = 1) |>
+    add_latent("hidden", model = "normal", mean = rho, sd = 1) |>
+    add_observation("record", model = "normal", mean = hidden, sd = 1)
+  hh_fit <- hh_model |>
+    run_inference(threads = 4, progress = FALSE) |>
+    suppressWarnings()
+  calibration <- hh_model |>
+    check_calibration(hh_fit, nrep = 100, houses = 5, threads = 4,
+                      progress = FALSE) |>
+    suppressWarnings()
+  # a test at level 0.001, so a calibrated sampler fails one run in 1000
+  threshold <- calibration_log_threshold_(100, 99, 0.001)
+  calibration$summarise()$log_gamma |> expect_gte(threshold)
 })

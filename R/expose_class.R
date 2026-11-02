@@ -248,6 +248,18 @@ picked after thinning to their ESS when `thin_ess` is `TRUE`.
 If `NA`, every draw is simulated."
 rd_nrep_prior_ <- "Without `draws`, `nrep` replicates are simulated,
 each with parameters drawn from their prior."
+rd_check_source_ <- function(table = TRUE) {
+  paste0(
+    "`character(1)` Where the parameter values come from, one of:
+\\describe{
+  \\item{`\"prior\"`}{drawn from the prior;}
+  \\item{`\"posterior\"`}{posterior draws of the model on its attached data",
+    if (table) ";}
+  \\item{`\"table\"`}{values given by the user,
+    or draws of [run_inference()] on another model or other data.}" else ".}",
+    "\n}"
+  )
+}
 rd_thin_ess_ <- "`logical(1)`
 Whether to thin posterior `draws` to their bulk effective sample size (ESS)."
 rd_natural_log_ <- "Logarithms are natural (base \\eqn{e})."

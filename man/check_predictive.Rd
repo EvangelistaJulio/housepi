@@ -81,6 +81,8 @@ against their values on household studies simulated from parameter values
 Without \code{draws}, the parameters are drawn from their prior,
 as in \code{\link[=run_simulation]{run_simulation()}}, for a prior predictive check.
 With posterior draws, it is a posterior predictive check.
+Draws of \code{\link[=run_inference]{run_inference()}} on another model or other data
+make a predictive check at given values, not a posterior one.
 It checks standard epidemiological measures by household size:
 \describe{
 \item{\code{"attack_rate"}}{see \link{measure_ar_by_hh_size},

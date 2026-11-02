@@ -673,7 +673,7 @@ HousepiModel <- R6::R6Class(
         .engine$import_latent(mcmc_ptr, payload$latent)
       if (wall) private$fingerprint_ <- c(
         list(model = private$compiled_$module), as.list(private$data_hash_),
-        lapply(payload, rlang::hash)
+        hash_payload_(payload)
       )
 
       invisible(self)

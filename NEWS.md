@@ -15,5 +15,6 @@ First tagged version.
 * `run_inference()` fits the model with Bayesian MCMC over several chains,
   `run_simulation()` draws outbreaks from it and `evaluate_log_lik()` scores a parameter set.
 * Draws are read with the `get_*_draws()` family and summarised with `summarise_draws()`.
-* Fits are validated with posterior predictive checks (`check_predictive()`), parameter
-  recovery checks (`check_recovery()`) and simulation-based calibration (`check_calibration()`).
+* Fits are validated with predictive checks (`check_predictive()`), parameter
+  recovery checks (`check_recovery()`) and simulation-based calibration (`check_calibration()`),
+  against the prior or posterior.

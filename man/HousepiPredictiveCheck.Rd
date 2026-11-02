@@ -5,7 +5,8 @@
 \alias{HousepiPredictiveCheck}
 \title{Prior or posterior predictive check of user-defined measures}
 \description{
-Prior or posterior predictive checks of measures on simulated household studies.
+Prior or posterior predictive checks of measures
+on simulated household studies.
 }
 \examples{
 hh_model <- flu_1918_frederick |>
@@ -33,12 +34,12 @@ ppc$overall
     \item{\code{thin_ess}}{\code{logical(1)}
 Whether posterior draws were thinned to their ESS.}
 
-    \item{\code{source}}{\code{character(1)}
-Where the parameter values come from, one of:
+    \item{\code{source}}{\code{character(1)} Where the parameter values come from, one of:
 \describe{
 \item{\code{"prior"}}{drawn from the prior;}
-\item{\code{"posterior"}}{posterior draws;}
-\item{\code{"table"}}{values given by the user.}
+\item{\code{"posterior"}}{posterior draws of the model on its attached data;}
+\item{\code{"table"}}{values given by the user,
+or draws of \code{\link[=run_inference]{run_inference()}} on another model or other data.}
 }}
 
     \item{\code{model_name}}{\code{character(1)} Name of the underlying model.}

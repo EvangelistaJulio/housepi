@@ -56,7 +56,7 @@ The data only lends its households to the simulated studies.
 
 `check_calibration()` simulates each study on households drawn with replacement from the attached data by `sample_house_structure()`, as many as in Frederick.
 Each fit runs with `run_inference()` default MCMC configuration.
-The drawn value is ranked among 99 draws thinned evenly from these 800:
+The drawn value is ranked among 99 draws thinned evenly from these 800, so its rank takes one of `rank_levels = 100` values, 0 to 99:
 
 ```{r}
 #| label: calibration
@@ -116,12 +116,12 @@ bayesplot draws this band with `ppc_pit_ecdf_grouped()`, from the ranks rescaled
 #|  Three panels, one per parameter. Each shows the difference between the
 #|  empirical CDF of the scaled ranks and the uniform CDF, as a solid step
 #|  line, inside a dashed band around zero.
-rank_draws <- calibration$rank_draws
+rank_levels <- calibration$rank_levels
 
 bayesplot::ppc_pit_ecdf_grouped(
-  pit = calibration$estimates$rank / rank_draws,
+  pit = calibration$estimates$rank / (rank_levels - 1),
   group = calibration$estimates$variable,
-  K = rank_draws + 1, prob = 0.95, plot_diff = TRUE
+  K = rank_levels, prob = 0.95, plot_diff = TRUE
 ) +
   labs(x = "scaled rank")
 ```
@@ -168,9 +168,9 @@ short_summary
 #| fig-alt: >
 #|  Same three panels as above, for the ranks of the short chains.
 bayesplot::ppc_pit_ecdf_grouped(
-  pit = short$estimates$rank / rank_draws,
+  pit = short$estimates$rank / (rank_levels - 1),
   group = short$estimates$variable,
-  K = rank_draws + 1, prob = 0.95, plot_diff = TRUE
+  K = rank_levels, prob = 0.95, plot_diff = TRUE
 ) +
   labs(x = "scaled rank")
 ```
@@ -182,7 +182,7 @@ code_words <- \(x) knitr::combine_words(x, before = "`")
 failed <- short_summary$variable[!short_summary$uniform]
 passed <- short_summary$variable[short_summary$uniform]
 extreme <- with(short$estimates,
-                tapply(rank %in% c(0, rank_draws), variable, mean))
+                tapply(rank %in% c(0, rank_levels - 1), variable, mean))
 ```
 
 `r sum(short$replicates$flagged)` of `r short$nrep` replicates are flagged, since 100 correlated draws are worth far fewer than 99 independent ones.
@@ -190,6 +190,56 @@ Correlated draws sit closer together than the posterior they come from, so the t
 Rank 0 or 99 takes `r knitr::combine_words(paste0(round(100 * extreme), "% of the ranks of \x60", names(extreme), "\x60"))`, against 2% for uniform ranks.
 The ranks of `r code_words(failed)` fail the test: their ECDF jumps at both ends and draws the S of a posterior too narrow, an excess that the first and last bins of a histogram would dilute among ten ranks each.
 `r if (length(passed)) paste("The ranks of", code_words(passed), "pass on flagged fits, which is no evidence of calibration.")`
+
+# Calibrate on the data
+
+The checks above average over the prior.
+Most truths drawn from the uniform priors of `alpha`, `beta` and `gamma` lie far from the values the Frederick data supports.
+Inference can be calibrated on average over the prior and still fail where the posterior of Frederick puts its mass, or fail somewhere the data rules out [@sailynoja_posterior_2026].
+
+Posterior calibration conditions the check on the data.
+Each replicate takes one posterior draw of the Frederick fit as its truth, simulates a study at it, and fits that study together with the Frederick households.
+The truth is then one more draw of the posterior given both, so its rank among the draws of that fit is uniform when inference is correct.
+Passing `draws` to `check_calibration()` runs it:
+
+```{r}
+#| label: posterior-calibration
+hh_fit <- run_inference(hh_model, progress = FALSE)
+posterior_calibration <- hh_model |>
+  check_calibration(hh_fit, nrep = 100, progress = FALSE)
+posterior_calibration
+```
+
+The truths are 100 distinct posterior draws, picked evenly among the draws of the fit thinned to their effective sample size, so the fit must hold at least 100 independent draws.
+Each replicate fits twice the Frederick households, the observed ones and as many simulated, so it costs more than a replicate of the prior check.
+The ranks read with the same test:
+
+```{r}
+#| label: posterior-ecdf
+#| fig-height: 3
+#| message: false
+#| fig-alt: >
+#|  Same three panels as above, for the ranks of the posterior draws.
+bayesplot::ppc_pit_ecdf_grouped(
+  pit = posterior_calibration$estimates$rank / (rank_levels - 1),
+  group = posterior_calibration$estimates$variable,
+  K = rank_levels, prob = 0.95, plot_diff = TRUE
+) +
+  labs(x = "scaled rank")
+
+posterior_calibration$summarise()
+```
+
+```{r}
+#| label: posterior-verdict
+#| include: false
+posterior_verdict <- posterior_calibration$summarise()
+```
+
+Here `r sum(posterior_verdict$uniform)` of `r nrow(posterior_verdict)` parameters pass.
+The draws must come from `run_inference()` on this model and data: draws fitted to other data, or a table of values, are refused.
+Prior calibration tells whether inference works for any study the model could describe.
+Posterior calibration tells whether it works for Frederick.
 
 ```{r footer-child, child = "helpers/_footer.Rmd"}
 ```
