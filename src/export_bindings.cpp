@@ -501,7 +501,7 @@ namespace housepi
 
         void import_group_rate(Rcpp::XPtr<MCMC> mcmc_ptr, SEXP input)
         {
-            mcmc_ptr->data.set_eq_class_covariates(
+            mcmc_ptr->data.set_eq_class_keys(
                 Data::Source::GroupRate,
                 mcmc_ptr->rates.build_group(mcmc_ptr->data.dataset(), mcmc_ptr->param, rdataframe_to<str_table>(input)));
             mcmc_ptr->init_equivalence_class_compression();
@@ -509,7 +509,7 @@ namespace housepi
 
         void import_contact_rate(Rcpp::XPtr<MCMC> mcmc_ptr, SEXP input)
         {
-            mcmc_ptr->data.set_eq_class_covariates(
+            mcmc_ptr->data.set_eq_class_keys(
                 Data::Source::ContactRate,
                 mcmc_ptr->rates.build_contact(mcmc_ptr->data.dataset(), mcmc_ptr->param, rdataframe_to<str_table>(input)));
             mcmc_ptr->init_equivalence_class_compression();

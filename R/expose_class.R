@@ -372,6 +372,7 @@ add_long_dataset <- function(hh_model, data) {
 #' Summarise cases from the statuses in the loaded household data.
 #' The row `classes` counts the equivalence classes,
 #' households the model cannot tell apart, e.g. same size, statuses and rates.
+#' A sampled latent variable makes every household a class of its own.
 #' @param hh_model `r rd_model_in_`
 #' @return `data.frame` One row per metric:
 #' \describe{

@@ -25,6 +25,7 @@ summarize_house_cases(hh_model)
 Summarise cases from the statuses in the loaded household data.
 The row \code{classes} counts the equivalence classes,
 households the model cannot tell apart, e.g. same size, statuses and rates.
+A sampled latent variable makes every household a class of its own.
 }
 \examples{
 hh_model <- new_housepi_model(flu_1918_frederick, "final_size")

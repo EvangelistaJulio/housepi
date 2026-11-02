@@ -39,7 +39,7 @@ namespace housepi
             Latent
         };
 
-        /// Register the data keys declared by `model`, also equivalence-class covariates.
+        /// Register the data keys declared by `model`, also equivalence-class keys.
         explicit Data(const ModelBase &model);
 
         //////  Setter  //////
@@ -52,7 +52,7 @@ namespace housepi
         }
 
         /// Build the dataset from `input`, then reset the read-cells over it.
-        /// * equivalence-class covariates of definitions cleared.
+        /// * equivalence-class keys of definitions cleared.
         void build_dataset(const str_table &input);
         /// Build the long dataset from `input`, matched to the dataset.
         void build_long_dataset(const str_table &input) { long_dataset().build(dataset(), input); }
@@ -70,16 +70,16 @@ namespace housepi
 
         //////  Equivalence classes  //////
 
-        /// Set the equivalence-class covariates of `source` to data columns `names`.
-        void set_eq_class_covariates(Source source, std::vector<std::string> names)
+        /// Set the equivalence-class keys of `source` to data columns `names`.
+        void set_eq_class_keys(Source source, std::vector<std::string> names)
         {
-            eq_class_covariates_[static_cast<size_t>(source)] = std::move(names);
+            eq_class_keys_[static_cast<size_t>(source)] = std::move(names);
         }
         /// Partition households into equivalence classes.
-        /// * equivalent households: same status and covariate cells per member, in sorted member order;
+        /// * equivalent households: same status and key cells per member, in sorted member order;
         /// * equivalent households share one likelihood, computed on the class representative;
         /// * `force_singleton` -> one class per household;
-        /// * covariates read through the read-cells of `state`.
+        /// * keys read through the read-cells of `state`.
         void init_eq_classes(bool force_singleton);
 
         /// Number of equivalence classes.
@@ -121,6 +121,6 @@ namespace housepi
         std::shared_ptr<Store_> store_; /// Imported tables, shared copy-on-write.
 
         /// Data columns telling equivalence classes apart, by source.
-        std::array<std::vector<std::string>, 4> eq_class_covariates_ = {};
+        std::array<std::vector<std::string>, 4> eq_class_keys_ = {};
     };
 }

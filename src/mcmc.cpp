@@ -458,7 +458,6 @@ namespace housepi
             param_values.cols[i++][col] = param.at(p).value();
 
         // pointwise household log-likelihood: transmission + observation + latent
-        // with a latent or observation model, every household is its own equivalence class
         const Data &data = mcmc.data;
         const bool with_obs = mcmc.augm.scheme().is_any_obs_model();
         const bool with_model = mcmc.augm.scheme().is_any_latent_model();
@@ -493,13 +492,10 @@ namespace housepi
 
     void MCMCBase::init_equivalence_class_compression()
     {
-        // singleton equivalence classes when sampling latents, with latent models or member observation nodes
-        bool force_singleton = augm.scheme().is_singleton_eq_class();
-        // false may also mean definitions not provided yet: if required, force singleton classes
-        if (!force_singleton && augm.scheme().list_latent_export.size() == 0)
-            force_singleton = augm.size() > 0;
-
-        data.init_eq_classes(force_singleton);
+        // one class per household when:
+        // * a latent is sampled;
+        // * the model declares latents, no definition provided yet.
+        data.init_eq_classes(augm.scheme().is_any_sample() || (augm.def().empty() && augm.size() > 0));
         data.state.allocate_transm_log_lik();
     }
 
@@ -721,7 +717,8 @@ namespace housepi
         data.reset_readcells(augm.get_produced_cols());
         augm.init_for_evaluation();
         dataset.assert_required_everyone(data.state);
-        data.init_eq_classes(augm.scheme().is_singleton_eq_class());
+        // a sampled latent -> one class per household
+        data.init_eq_classes(augm.scheme().is_any_sample());
         data.state.allocate_cache(dataset);
         data.state.allocate_transm_log_lik();
 
@@ -801,7 +798,7 @@ namespace housepi
             infec_profile.update_cache();
         }
 
-        // with a latent or observation model, equivalence classes coincide with households
+        // class representative, its terms weighted by class size
         LogLik ll = parallel::for_reduce<LogLik>(
             data.n_eq_classes(),
             [&](size_t R) -> LogLik

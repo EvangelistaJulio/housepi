@@ -125,7 +125,7 @@ namespace housepi::data
         };
 
         std::vector<std::vector<Attribute>> readcell_ = {}; /// Read-cells, by member index and column.
-        std::vector<size_t> eq_class_covariates_ = {};      /// Covariates telling equivalence classes apart.
+        std::vector<size_t> eq_class_keys_ = {};            /// Data columns telling equivalence classes apart.
         std::vector<EquivalenceClass_> eq_classes_ = {};    /// Equivalence classes.
         std::vector<EqClassIdx> class_of_ = {};             /// Equivalence class, by household index.
         std::vector<LogProba> transm_log_lik_ = {};         /// Transmission log-likelihood, per equivalence class.

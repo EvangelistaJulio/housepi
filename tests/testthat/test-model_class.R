@@ -518,7 +518,7 @@ test_that("Households apart in any covariate fall in distinct classes", {
   evaluate_log_lik(hh_model) |> expect_equal(sum(log_lik))
 })
 
-test_that("Households apart in a column the model reads fall in distinct classes", {
+test_that("A column the model reads tells households apart", {
   # `h1` and `h2` differ only in `end_date`, infection times fixed
   hh_data <- data.frame(hh_id = rep(c("h1", "h2"), each = 2),
                         status = c(1, 0, 1, 0), end_date = c(10, 10, 30, 30))
@@ -533,6 +533,90 @@ test_that("Households apart in a column the model reads fall in distinct classes
   evaluate_log_lik(hh_model) |> expect_equal(sum(log_lik))
 })
 
+test_that("A column a fixed latent reads tells households apart", {
+  # `h1` and `h2` differ only in `datum`
+  hh_data <- data.frame(hh_id = rep(c("h1", "h2"), each = 2),
+                        status = c(1, 0, 1, 0), end_date = 30,
+                        datum = c(1, 1, 2, 2))
+  hh_model <- new_housepi_model(hh_data, "case-ascertained") |>
+    add_infectivity_profile(import = "template") |>
+    add_parameter(alpha = 0.01, beta = 0.5, gamma = 1, hh_size_ref = 4)
+
+  # pinned to the column, or read through a household observation
+  hh_model_2 <- hh_model |> add_latent("infec_time", const = datum)
+  hh_model_3 <- hh_model |>
+    add_observation(record = min(datum), level = "house") |>
+    add_latent("infec_time", func = record + 1)
+  for (m in list(hh_model_2, hh_model_3)) {
+    summary <- summarise_house_cases(m)
+    summary$count[summary$metric == "classes"] |> expect_identical(2L)
+    log_lik <- vapply(c("h1", "h2"), \(id) evaluate_log_lik(m, id), 0)
+    evaluate_log_lik(m) |> expect_equal(sum(log_lik))
+  }
+})
+
+test_that("A fixed latent with a model leaves alike households in one class", {
+  # `h1` and `h2` alike
+  hh_data <- data.frame(hh_id = rep(c("h1", "h2"), each = 2),
+                        status = c(1, 0, 1, 0), end_date = 30)
+  hh_model <- new_housepi_model(hh_data, "case-ascertained") |>
+    add_infectivity_profile(import = "template") |>
+    add_parameter(alpha = 0.01, beta = 0.5, gamma = 1, hh_size_ref = 4)
+  # infection times read a pinned latent carrying a density
+  hh_model_2 <- hh_model |>
+    add_latent(hidden = list(const = 0, model = "normal", mean = 0, sd = 1),
+               infec_time = list(func = hidden))
+
+  # one class before and after evaluation
+  summary <- summarise_house_cases(hh_model_2)
+  summary$count[summary$metric == "classes"] |> expect_identical(1L)
+  log_lik <- evaluate_log_lik(hh_model_2)
+  summary <- summarise_house_cases(hh_model_2)
+  summary$count[summary$metric == "classes"] |> expect_identical(1L)
+
+  # the density counts once per infected member
+  log_lik_2 <- hh_model |>
+    add_latent(hidden = list(const = 0), infec_time = list(func = hidden)) |>
+    evaluate_log_lik()
+  (log_lik - log_lik_2) |> expect_equal(2 * dnorm(0, log = TRUE))
+})
+
+test_that("An observed datum tells households apart when nothing is sampled", {
+  # `h1` and `h2` alike, but for `record` in `hh_data_2`
+  hh_data <- data.frame(hh_id = rep(c("h1", "h2"), each = 2),
+                        status = c(1, 0, 1, 0), end_date = 30,
+                        record = c(2, NA, 2, NA))
+  hh_data_2 <- transform(hh_data, record = c(2, NA, 3, NA))
+
+  for (case in list(list(data = hh_data, classes = 1L),
+                    list(data = hh_data_2, classes = 2L))) {
+    hh_model <- new_housepi_model(case$data, "case-ascertained") |>
+      add_infectivity_profile(import = "template") |>
+      add_parameter(alpha = 0.01, beta = 0.5, gamma = 1, hh_size_ref = 4) |>
+      add_latent("infec_time", const = 0) |>
+      add_observation(
+        record = list(model = "normal", mean = infec_time, sd = 1)
+      )
+    log_lik <- vapply(c("h1", "h2"), \(id) evaluate_log_lik(hh_model, id), 0)
+    evaluate_log_lik(hh_model) |> expect_equal(sum(log_lik))
+    summary <- summarise_house_cases(hh_model)
+    summary$count[summary$metric == "classes"] |> expect_identical(case$classes)
+  }
+})
+
+test_that("A sampled latent makes every household a class of its own", {
+  # `h1` and `h2` alike
+  hh_model <- data.frame(hh_id = rep(c("h1", "h2"), each = 2),
+                         status = c(1, 0, 1, 0), end_date = 30) |>
+    new_housepi_model("case-ascertained") |>
+    add_infectivity_profile(import = "template") |>
+    add_parameter(alpha = 0.01, beta = 0.5, gamma = 1, hh_size_ref = 4) |>
+    add_latent("infec_time", min = 0, max = 30)
+
+  summary <- summarise_house_cases(hh_model)
+  summary$count[summary$metric == "classes"] |> expect_identical(2L)
+})
+
 test_that("Evaluating a copy leaves the classes of the original in place", {
   # `h1` and `h2` differ only in `datum`, `h3` in size
   hh_data <- data.frame(hh_id = c("h1", "h1", "h2", "h2", "h3", "h3", "h3"),
@@ -542,8 +626,10 @@ test_that("Evaluating a copy leaves the classes of the original in place", {
   hh_model <- new_housepi_model(hh_data, "final-size") |>
     add_parameter(alpha = 0.3, beta = 0.5, gamma = 1, hh_size_ref = 2)
   log_lik <- evaluate_log_lik(hh_model)
-  house_log_lik <- vapply(c("h1", "h2", "h3"),
-                          \(id) inspect_state(hh_model, id)$transmission_log_lik, 0)
+  house_log_lik <- vapply(
+    c("h1", "h2", "h3"),
+    \(id) inspect_state(hh_model, id)$transmission_log_lik, 0
+  )
   sum(house_log_lik) |> expect_equal(log_lik)
 
   # the copy tells `h1` and `h2` apart
@@ -891,7 +977,10 @@ test_that("A failed simulation leaves the observed data in place", {
   log_lik <- evaluate_log_lik(hh_model)
   # the second replicate fails after the first one is simulated
   calls <- 0L
-  fail_second <- \(x) if ((calls <<- calls + 1L) == 2L) stop("stop") else x
+  fail_second <- function(x) {
+    calls <<- calls + 1L # nolint: assignment_linter.
+    if (calls == 2L) stop("stop") else x
+  }
   hh_model |>
     add_reporting_process(fail_second) |>
     run_simulation(nrep = 3L) |>

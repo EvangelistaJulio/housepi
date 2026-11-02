@@ -281,6 +281,25 @@ namespace housepi
             }
             return true;
         }
+
+        std::vector<std::string> DefTable::list_eq_class_keys() const
+        {
+            std::vector<std::string> output;
+            for (const DefRow &row : rows)
+            {
+                // a modelled observation reads its datum in inference
+                if (row.kind == Kind::Member && row.has_model())
+                    output.push_back(row.name);
+                // a produced column is told apart by the sources of its own row
+                for (const parse::Definition *col : row.source_cols())
+                    if (!col->is_na())
+                        for (const std::string &dstr : col->list_dataset_producers())
+                            if (!has_row(dstr, Kind::Member) && !has_row(dstr, Kind::House))
+                                output.push_back(dstr);
+            }
+            vect::sort_unique(output);
+            return output;
+        }
     }
 
     //////////////////////////////  augm::graph  //////////////////////////////
@@ -701,9 +720,9 @@ namespace housepi
 
         //////  augm::SchemeBuilder : order  //////
 
-        std::vector<std::string> SchemeBuilder::order(const std::vector<StatusLvl> &infected,
-                                                      const Parameter &param,
-                                                      bool draws_status)
+        void SchemeBuilder::order(const std::vector<StatusLvl> &infected,
+                                  const Parameter &param,
+                                  bool draws_status)
         {
             const auto &rows = scheme_.status_rows_;
             auto &index = scheme_.status_index_;
@@ -712,7 +731,7 @@ namespace housepi
             // skip if no member definition goes into a status scheme
             // household observations need no status scheme
             if (rows.empty())
-                return {};
+                return;
 
             // load status-specific user definitions first
             // NA, the generic status, needs no check here
@@ -742,7 +761,6 @@ namespace housepi
                     order_status_(status::MISSING, status::MISSING, src);
 
             scheme_.n_base_ = scheme_.status_schemes_.size();
-            return std::move(src.covariates);
         }
 
         void SchemeBuilder::order_status_(StatusLvl s,
@@ -887,11 +905,6 @@ namespace housepi
         bool SchemeBuilder::list_function_(StatusLvl s, size_t k, Sources_ &src)
         {
             const parse::Definition &parser = def_[k].func;
-
-            // raw data are equivalence-class covariates, unless produced
-            for (const std::string &dstr : parser.list_dataset_producers())
-                if (!def_.has_row(dstr, Kind::Member) && !def_.has_row(dstr, Kind::House))
-                    src.covariates.push_back(dstr);
 
             bool all_consts = true; // start assuming all constants
             for (const std::string &pstr : parser.list_parameter_producers())
@@ -1436,8 +1449,9 @@ namespace housepi
             def_.append(input);
         build_append_profile_(infec_profile); // add infectivity profile
 
+        // data columns the definitions read tell equivalence classes apart
+        mcmc_->data.set_eq_class_keys(Data::Source::Latent, def_.list_eq_class_keys());
         // skip if no latent definitions
-        mcmc_->data.set_eq_class_covariates(Data::Source::Latent, {});
         if (def_.empty())
             return;
 
@@ -1459,10 +1473,8 @@ namespace housepi
                 if (indiv.is_infected_status())
                     infected.emplace(indiv.status());
 
-        // definition order per status, and equivalence-class covariates
-        mcmc_->data.set_eq_class_covariates(
-            Data::Source::Latent,
-            builder.order({infected.begin(), infected.end()}, mcmc_->param, status_process.is_defined()));
+        // definition order per status
+        builder.order({infected.begin(), infected.end()}, mcmc_->param, status_process.is_defined());
 
         // surrogate columns
         builder.init_surrogates();

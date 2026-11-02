@@ -115,6 +115,7 @@ summarise_house_cases(hh_model) |>
 The last row is the count of the equivalence classes, i.e. households that are indistinguishable by the
 model (same size, statuses, rates, etc).
 The likelihood is then evaluated just once per class, and multiplied by the number of class members.
+A sampled latent variable makes every household a class of its own.
 
 At any moment we can re-export the full dataset with `get_dataset()`.
 

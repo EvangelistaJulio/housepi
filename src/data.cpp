@@ -38,7 +38,7 @@ namespace housepi
         : store_(std::make_shared<Store_>(model))
     {
         // the transmission model reads its data keys per member
-        set_eq_class_covariates(Source::Model, model.data_keys());
+        set_eq_class_keys(Source::Model, model.data_keys());
     }
 
     Data::Store_::Store_(const ModelBase &model)
@@ -53,16 +53,16 @@ namespace housepi
     {
         dataset().build(input);
         state.reset_readcells(dataset());
-        // definitions push their covariates again over the new data
+        // definitions push their keys again over the new data
         for (Source source : {Source::GroupRate, Source::ContactRate, Source::Latent})
-            set_eq_class_covariates(source, {});
+            set_eq_class_keys(source, {});
     }
 
     //////  Data : equivalence classes  //////
 
     namespace
     {
-        /// Bits of the cell of covariate `d` for `indiv`, as compared in equivalence keys.
+        /// Bits of the cell of column `d` for `indiv`, as compared in partition keys.
         std::uint64_t cell_bits_(const data::State &state, size_t d, const Individual &indiv)
         {
             const double x = state.readcell(d, indiv).value();
@@ -71,7 +71,7 @@ namespace housepi
             return bits;
         }
 
-        /// Whether member `a` sorts before `b`, by status then cell bits of covariates `data_list`.
+        /// Whether member `a` sorts before `b`, by status then cell bits of columns `data_list`.
         bool indiv_less_(const std::vector<size_t> &data_list,
                          const data::State &state,
                          const Individual &a,
@@ -103,7 +103,7 @@ namespace housepi
         }
 
         /// Households of each equivalence class, keyed on their sorted members.
-        /// * key: status, then cell bits of covariates `data_list`, per sorted member;
+        /// * key: status, then cell bits of columns `data_list`, per sorted member;
         /// * NA cell -> equivalent to NA only.
         std::map<std::vector<std::uint64_t>, std::vector<size_t>> partition_houses_(
             const std::vector<size_t> &data_list,
@@ -131,14 +131,20 @@ namespace housepi
     void Data::init_eq_classes(bool force_singleton)
     {
         const size_t total = dataset().report_house.total;
-        std::vector<size_t> &covariates = state.eq_class_covariates_;
-        covariates.clear();
-        for (const std::vector<std::string> &names : eq_class_covariates_)
-            vect::append_unique(covariates, dataset().consult(names));
+        std::vector<size_t> &keys = state.eq_class_keys_;
+        keys.clear();
+        for (const std::vector<std::string> &names : eq_class_keys_)
+            for (const std::string &name : names)
+            {
+                // a column absent from the data tells no household apart
+                const size_t d = dataset().find(name);
+                if (!na::is(d) && !vect::contains(keys, d))
+                    keys.push_back(d);
+            }
 
         std::map<std::vector<std::uint64_t>, std::vector<size_t>> partition;
         if (!force_singleton)
-            partition = partition_houses_(covariates, state, dataset());
+            partition = partition_houses_(keys, state, dataset());
 
         std::vector<data::State::EquivalenceClass_> &classes = state.eq_classes_;
         classes.clear();
@@ -168,10 +174,10 @@ namespace housepi
 
     std::vector<MemberIdx> Data::map_rep_members(const Household &house) const
     {
-        const std::vector<size_t> &covariates = state.eq_class_covariates_;
+        const std::vector<size_t> &keys = state.eq_class_keys_;
         const Household &rep = eq_class_rep(state.eq_class(house));
-        const std::vector<MemberIdx> rep_order = sorted_members_(covariates, state, rep);
-        const std::vector<MemberIdx> house_order = sorted_members_(covariates, state, house);
+        const std::vector<MemberIdx> rep_order = sorted_members_(keys, state, rep);
+        const std::vector<MemberIdx> house_order = sorted_members_(keys, state, house);
 
         std::vector<MemberIdx> output(house.size());
         for (size_t k = 0; k < house.size(); ++k)

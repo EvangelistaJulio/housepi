@@ -103,6 +103,10 @@ namespace housepi::augm
         bool has_continuous_declaration(std::string_view name) const noexcept;
         /// Whether definition row `k` reads only data and numeric sources.
         bool is_pure_data(size_t k) const;
+        /// List the data columns the definitions read, as equivalence-class keys.
+        /// * source of any row -> its data columns, those a definition produces excluded;
+        /// * modelled member observation -> its own column, the datum it reads.
+        std::vector<std::string> list_eq_class_keys() const;
     };
 }
 

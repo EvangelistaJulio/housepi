@@ -43,7 +43,7 @@ namespace housepi::rates
         /// Build group rates from rule table `input`, one block per unique member definition.
         /// * empty `input` -> every declared rate reads the reference.
         /// @note Run it even on an empty `input`, so declared rates are initialized.
-        /// @return Data columns the rules read, as equivalence-class covariates.
+        /// @return Data columns the rules read, as equivalence-class keys.
         std::vector<std::string> build(data::Dataset &dataset,
                                        const Parameter &param,
                                        const str_table &input);

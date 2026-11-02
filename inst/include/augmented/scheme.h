@@ -95,13 +95,6 @@ namespace housepi::augm
         bool is_any_latent_model() const noexcept { return is_any_latent_model_; }
         /// Whether any observation carries a model density.
         bool is_any_obs_model() const noexcept { return is_any_obs_model_; }
-        /// Whether any member observation column is produced, model-carrying or deterministic.
-        bool is_any_obs_node() const noexcept { return !list_obs_member.empty(); }
-        /// Whether definitions imply one equivalence class per household.
-        bool is_singleton_eq_class() const noexcept
-        {
-            return is_any_sample() || is_any_latent_model() || is_any_obs_node();
-        }
 
         /// Whether moving parameter `p` may change the latent log-likelihood.
         bool param_produces_latent_log_lik(size_t p) const noexcept { return param_produces_latent_ll_[p]; }
@@ -143,10 +136,9 @@ namespace housepi::augm
         /// Asserts that definitions are complete and acyclic.
         /// @param infected Infected statuses the data carries.
         /// @param draws_status Whether a status process draws statuses the data may not carry.
-        /// @return Data names read as equivalence-class covariates.
-        std::vector<std::string> order(const std::vector<StatusLvl> &infected,
-                                       const Parameter &param,
-                                       bool draws_status);
+        void order(const std::vector<StatusLvl> &infected,
+                   const Parameter &param,
+                   bool draws_status);
 
         /// Order and classify surrogate columns of both levels into `list_surrogate`.
         /// Household ones are also collected into `list_obs_house`.
@@ -178,11 +170,10 @@ namespace housepi::augm
         const DefTable &def_;   /// Definitions.
         const KeyHolder &keys_; /// Keys of member definitions.
 
-        /// Sources read while ordering, and covariates collected along the way.
+        /// Sources read while ordering.
         struct Sources_
         {
             const Parameter &param;
-            std::vector<std::string> covariates = {};
         };
 
         /// Status scheme of status `s`, once ordered.
