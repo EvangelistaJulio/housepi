@@ -967,22 +967,28 @@ test_that("quantile is truncation-aware", {
   }
 })
 
-test_that("Gamma pdf and log_pdf handle x == 0 across shape regimes", {
+test_that("Gamma and weibull densities handle x == 0 across shape regimes", {
   scale <- 2
-  # test case: shape < 1
-  d1 <- browse_distributions("gamma", shape = 0.5, scale = scale)
-  d1$pdf(0) |> expect_equal(Inf)
-  d1$log_pdf(0) |> expect_equal(Inf)
+  for (name in c("gamma", "weibull")) {
+    # test case: shape < 1
+    distr <- browse_distributions(name, shape = 0.5, scale = scale)
+    distr$pdf(0) |> expect_equal(Inf)
+    distr$log_pdf(0) |> expect_equal(Inf)
+    distr$log_ratio(0, 1) |> expect_equal(-Inf)
 
-  # test case: shape == 1
-  d2 <- browse_distributions("gamma", shape = 1, scale = scale)
-  d2$pdf(0) |> expect_equal(1 / scale)
-  d2$log_pdf(0) |> expect_equal(-log(scale))
+    # test case: shape == 1
+    distr <- browse_distributions(name, shape = 1, scale = scale)
+    distr$pdf(0) |> expect_equal(1 / scale)
+    distr$log_pdf(0) |> expect_equal(-log(scale))
+    distr$log_ratio(0, 1) |> expect_equal(distr$log_pdf(1) + log(scale))
+    distr$log_ratio(1, 0) |> expect_equal(-distr$log_pdf(1) - log(scale))
 
-  # test case: shape > 1
-  d3 <- browse_distributions("gamma", shape = 2, scale = scale)
-  d3$pdf(0) |> expect_equal(0)
-  d3$log_pdf(0) |> expect_equal(-Inf)
+    # test case: shape > 1
+    distr <- browse_distributions(name, shape = 2, scale = scale)
+    distr$pdf(0) |> expect_equal(0)
+    distr$log_pdf(0) |> expect_equal(-Inf)
+    distr$log_ratio(0, 1) |> expect_equal(Inf)
+  }
 })
 
 test_that("rand() is reproducible and plausible for all distributions", {

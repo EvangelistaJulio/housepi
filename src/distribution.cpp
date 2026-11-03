@@ -108,6 +108,17 @@ namespace housepi
             return lgamma(a) + lgamma(b) - lgamma(a + b);
         }
 
+        /// Density at the origin of a law behaving as x^(shape - 1) near it.
+        /// * shape below 1 -> infinity;
+        /// * shape 1 -> 1 / scale;
+        /// * shape above 1 -> 0.
+        double origin_pdf(double shape, double scale)
+        {
+            if (shape == 1.)
+                return 1. / scale;
+            return shape < 1. ? inf::DOUBLE : 0.;
+        }
+
         /// Define left discretization, with a minimum closed at 0.
 #define INIT_DISCR_LEFT_MIN_ZERO_CLOSE()        \
     void discretize() override final            \
@@ -504,11 +515,7 @@ namespace housepi
                     return exp(raw_log_func_(x));
 
                 const auto [shape, scale] = eff_params_();
-                if (shape < 1.)
-                    return inf::DOUBLE;
-                if (shape == 1.)
-                    return exp(-log(scale) - lgamma(1));
-                return 0.;
+                return origin_pdf(shape, scale);
             }
             double raw_primitive_(double x) const override final
             {
@@ -524,18 +531,16 @@ namespace housepi
             {
                 const auto [shape, scale] = eff_params_();
                 if (x == 0.)
-                {
-                    if (shape < 1.)
-                        return inf::DOUBLE;
-                    if (shape == 1.)
-                        return -log(scale);
-                    return -inf::DOUBLE;
-                }
+                    return log(origin_pdf(shape, scale));
                 const double t = x / scale;
                 return shape * log(t) - log(x) - lgamma(shape) - t;
             }
             double raw_log_ratio_(double xo, double xn) const override final
             {
+                // the origin density depends on the shape: difference of log-densities
+                if (xo == 0. || xn == 0.)
+                    return raw_log_func_(xn) - raw_log_func_(xo);
+
                 const auto [shape, scale] = eff_params_();
                 return (shape - 1.) * log(xn / xo) + (xo - xn) / scale;
             }
@@ -620,8 +625,10 @@ namespace housepi
             {
                 const double shape = arg(0);
                 const double scale = arg(1);
-                const double z = x / scale;
-                return (shape / scale) * pow(z, shape - 1.) * exp(-pow(z, shape));
+                if (x == 0.)
+                    return origin_pdf(shape, scale);
+                const double zk = pow(x / scale, shape);
+                return shape / x * zk * exp(-zk);
             }
             double raw_primitive_(double x) const override final
             {
@@ -635,11 +642,17 @@ namespace housepi
             {
                 const double shape = arg(0);
                 const double scale = arg(1);
+                if (x == 0.)
+                    return log(origin_pdf(shape, scale));
                 const double z = x / scale;
                 return log(shape / scale) + (shape - 1.) * log(z) - pow(z, shape);
             }
             double raw_log_ratio_(double xo, double xn) const override final
             {
+                // the origin density depends on the shape: difference of log-densities
+                if (xo == 0. || xn == 0.)
+                    return raw_log_func_(xn) - raw_log_func_(xo);
+
                 const double shape = arg(0);
                 const double scale = arg(1);
                 return (shape - 1.) * log(xn / xo) + pow(xo / scale, shape) - pow(xn / scale, shape);
