@@ -108,6 +108,23 @@ namespace housepi
             return lgamma(a) + lgamma(b) - lgamma(a + b);
         }
 
+        /// Value derived from arguments, stored by finalize() when the arguments it reads are constant.
+        /// * stored -> read per evaluation;
+        /// * NA -> computed per evaluation.
+        struct ArgCache
+        {
+            double value = na::DOUBLE; /// Stored value, NA when not stored.
+
+            /// Whether the value is stored.
+            bool is_stored() const noexcept { return !na::is(value); }
+            /// Store `compute()` when `is_constant`, NA otherwise.
+            template <class F>
+            void store(bool is_constant, F compute) { value = is_constant ? compute() : na::DOUBLE; }
+            /// Stored value, `compute()` when not stored.
+            template <class F>
+            double read(F compute) const { return is_stored() ? value : compute(); }
+        };
+
         /// Density at the origin of a law behaving as x^(shape - 1) near it.
         /// * shape below 1 -> infinity;
         /// * shape 1 -> 1 / scale;
@@ -326,6 +343,22 @@ namespace housepi
 
             INIT_DISCR_LEFT_MIN_ZERO_CLOSE()
 
+            /// Finalize, then store the effective arguments of "mean-sd" when both arguments are constant.
+            void finalize() override final
+            {
+                meanlog_ = sdlog_ = ArgCache{};
+                Function::finalize();
+                const bool is_stored = alt_idx_ == 1 && are_args_constant_({0, 1});
+                meanlog_.store(is_stored, [this]
+                               { return eff_params_().first; });
+                sdlog_.store(is_stored, [this]
+                             { return eff_params_().second; });
+            }
+
+        private:
+            ArgCache meanlog_; /// Effective meanlog of "mean-sd", stored by finalize().
+            ArgCache sdlog_;   /// Effective sdlog of "mean-sd", stored by finalize().
+
         protected:
             /// * meanlog-sdlog -> `sdlog` positive;
             /// * mean-sd -> both positive.
@@ -337,12 +370,16 @@ namespace housepi
             }
 
             /// Effective (meanlog, sdlog) for the active parametrization.
+            /// * "meanlog-sdlog" -> arguments;
+            /// * "mean-sd" -> stored or computed.
             std::pair<double, double> eff_params_() const
             {
                 switch (alt_idx_)
                 {
-                case 1: // "mean-sd"
+                case 1: // "mean-sd": both read mean and sd, stored together
                 {
+                    if (sdlog_.is_stored())
+                        return {meanlog_.value, sdlog_.value};
                     const double m = arg(0), r = arg(1) / m;
                     const double v = log1p(r * r);
                     return {log(m) - 0.5 * v, sqrt(v)};
@@ -490,17 +527,46 @@ namespace housepi
 
             INIT_DISCR_LEFT_MIN_ZERO_CLOSE()
 
+            /// Finalize, then store each value when the arguments it reads are constant.
+            /// * effective arguments of "mean-sd" -> both arguments;
+            /// * log-gamma of the effective shape -> `shape`, or both arguments of "mean-sd";
+            /// * log of the effective scale -> `scale`, or both arguments of "mean-sd".
+            void finalize() override final
+            {
+                shape_ = scale_ = lgamma_shape_ = log_scale_ = ArgCache{};
+                Function::finalize();
+                const bool both = are_args_constant_({0, 1});
+                shape_.store(alt_idx_ == 1 && both, [this]
+                             { return eff_params_().first; });
+                scale_.store(alt_idx_ == 1 && both, [this]
+                             { return eff_params_().second; });
+                lgamma_shape_.store(alt_idx_ == 1 ? both : are_args_constant_({0}), [this]
+                                    { return lgamma(eff_params_().first); });
+                log_scale_.store(alt_idx_ == 1 ? both : are_args_constant_({1}), [this]
+                                 { return log(eff_params_().second); });
+            }
+
+        private:
+            ArgCache shape_;        /// Effective shape of "mean-sd", stored by finalize().
+            ArgCache scale_;        /// Effective scale of "mean-sd", stored by finalize().
+            ArgCache lgamma_shape_; /// Log-gamma of the effective shape, stored by finalize().
+            ArgCache log_scale_;    /// Log of the effective scale, stored by finalize().
+
         protected:
             /// Both arguments positive, in either parametrization.
             ArgRequirements arg_requirements_() const override final { return positive_args_({0, 1}); }
 
             /// Effective (shape, scale) for the active parametrization.
+            /// * "shape-scale" -> arguments;
+            /// * "mean-sd" -> stored or computed.
             std::pair<double, double> eff_params_() const
             {
                 switch (alt_idx_)
                 {
-                case 1: // "mean-sd"
+                case 1: // "mean-sd": both read mean and sd, stored together
                 {
+                    if (scale_.is_stored())
+                        return {shape_.value, scale_.value};
                     const double sd = arg(1), r = arg(0) / sd;
                     return {r * r, sd / r};
                 }
@@ -532,8 +598,11 @@ namespace housepi
                 const auto [shape, scale] = eff_params_();
                 if (x == 0.)
                     return log(origin_pdf(shape, scale));
-                const double t = x / scale;
-                return shape * log(t) - log(x) - lgamma(shape) - t;
+                return (shape - 1.) * log(x) - shape * log_scale_.read([s = scale]
+                                                                       { return log(s); }) -
+                       lgamma_shape_.read([a = shape]
+                                          { return lgamma(a); }) -
+                       x / scale;
             }
             double raw_log_ratio_(double xo, double xn) const override final
             {
@@ -1065,6 +1134,32 @@ namespace housepi
 
             INIT_DISCR_LEFT_MIN_ZERO_CLOSE()
 
+            /// Finalize, then store each onset term when the arguments it reads are constant.
+            void finalize() override final
+            {
+                pema_ = pemTSa_ = ArgCache{};
+                Function::finalize();
+                pema_.store(are_args_constant_({0, 1, 2}), [this]
+                            { return onset_term_(arg(0), arg(1), arg(2)); });
+                pemTSa_.store(are_args_constant_({0, 1, 2, 3}), [this]
+                              { return onset_term_(arg(0), arg(1), arg(2) + arg(3)); });
+            }
+
+        private:
+            ArgCache pema_;   /// Onset term at `c_loc`, stored by finalize().
+            ArgCache pemTSa_; /// Onset term at `c_loc + mean_incub`, stored by finalize().
+
+            /// Onset term (1 + exp(`m` / `s`))^-`a`.
+            static double onset_term_(double a, double s, double m) { return pow(1. + exp(m / s), -a); }
+            /// Onset terms at `c_loc` = `m` and `c_loc + mean_incub` = `m + T`, stored or computed.
+            std::pair<double, double> onset_terms_(double a, double s, double m, double T) const
+            {
+                return {pema_.read([=]
+                                   { return onset_term_(a, s, m); }),
+                        pemTSa_.read([=]
+                                     { return onset_term_(a, s, m + T); })};
+            }
+
         protected:
             /// Every argument positive but `c_loc`.
             ArgRequirements arg_requirements_() const override final
@@ -1078,32 +1173,21 @@ namespace housepi
             double raw_log_func_(double /*x*/) const override final { raise_undefined_call_err_("log_pdf"); }
             double raw_function_(double x) const override final
             {
-                const double a = arg(0);   // 'shape'
-                const double s = arg(1);   // 'scale'
-                const double m = arg(2);   // 'c_loc'
-                const double T = arg(3);   // 'mean_incub'
-                const double i = arg(4);   // 'incub_period'
+                const double a = arg(0), s = arg(1), m = arg(2), T = arg(3), i = arg(4);
                 const double tOST = x - i; // time from onset to transmission
                 const double iT = i / T;   // re-scaled incubation period
+                const auto [pema, pemTSa] = onset_terms_(a, s, m, T);
 
-                const double norm_pdf =
-                    (s / a) * (1. + (iT - 1.) * pow(1 + exp(m / s), -a) - iT * pow(1. + exp((m + T) / s), -a));
-
+                const double norm_pdf = (s / a) * (1. + (iT - 1.) * pema - iT * pemTSa);
                 const double emOSTs = exp((m - (tOST < 0. ? tOST / iT : tOST)) / s);
                 return emOSTs * pow(1. + emOSTs, -a - 1.) / norm_pdf;
             }
             double raw_primitive_(double x) const override final
             {
-                const double a = arg(0);   // 'shape'
-                const double s = arg(1);   // 'scale'
-                const double m = arg(2);   // 'c_loc'
-                const double T = arg(3);   // 'mean_incub'
-                const double i = arg(4);   // 'incub_period'
+                const double a = arg(0), s = arg(1), m = arg(2), T = arg(3), i = arg(4);
                 const double tOST = x - i; // time from onset to transmission
                 const double iT = i / T;   // re-scaled incubation period
-
-                const double pema = pow(1. + exp(m / s), -a);
-                const double pemTSa = pow(1. + exp((m + T) / s), -a);
+                const auto [pema, pemTSa] = onset_terms_(a, s, m, T);
                 const double norm_cdf = 1. + (iT - 1.) * pema - iT * pemTSa;
 
                 if (tOST < 0) // integrate from -incub_period to tOST
@@ -1116,16 +1200,10 @@ namespace housepi
             }
             double raw_ccdf_(double x) const override final
             {
-                const double a = arg(0);   // 'shape'
-                const double s = arg(1);   // 'scale'
-                const double m = arg(2);   // 'c_loc'
-                const double T = arg(3);   // 'mean_incub'
-                const double i = arg(4);   // 'incub_period'
+                const double a = arg(0), s = arg(1), m = arg(2), T = arg(3), i = arg(4);
                 const double tOST = x - i; // time from onset to transmission
                 const double iT = i / T;   // re-scaled incubation period
-
-                const double pema = pow(1. + exp(m / s), -a);
-                const double pemTSa = pow(1. + exp((m + T) / s), -a);
+                const auto [pema, pemTSa] = onset_terms_(a, s, m, T);
                 const double norm_cdf = 1. + (iT - 1.) * pema - iT * pemTSa;
 
                 if (tOST < 0) // integrate from tOST to infinity

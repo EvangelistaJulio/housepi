@@ -129,6 +129,14 @@ namespace housepi
                 reqs.emplace_back(&arguments_(i), Codomain::positive());
             return reqs;
         }
+        /// Whether arguments `idx` of the active parametrization are constant.
+        bool are_args_constant_(std::initializer_list<size_t> idx) const
+        {
+            for (size_t i : idx)
+                if (!arguments_(i).is_constant())
+                    return false;
+            return true;
+        }
 
         //////  Virtual  //////
 
