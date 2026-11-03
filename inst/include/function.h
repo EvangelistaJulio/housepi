@@ -325,7 +325,7 @@ namespace housepi
             Probability,
             Cumulative,
             Fold
-        } eval_mode_ = Evaluate::Function;
+        };
         /// Discretization scheme.
         enum class Discrete : std::uint8_t
         {
@@ -333,7 +333,7 @@ namespace housepi
             Center,
             Left,
             Defined
-        } discr_mode_ = Discrete::None;
+        };
 
     public:
         //////  Constructor  //////
@@ -547,10 +547,12 @@ namespace housepi
             std::string name = {};            /// Parametrization name.
             std::vector<Attribute> args = {}; /// Arguments.
         };
-        std::vector<AltArgSet> alts_;            /// Alternative parametrizations, 0 canonical.
-        std::uint8_t alt_idx_ = 0;               /// Active parametrization.
-        bool is_user_alt_ = false;               /// Whether the user picked a re-parametrization.
-        ErrType err_family_ = ErrType::Function; /// Family word shown in errors.
+        std::vector<AltArgSet> alts_;             /// Alternative parametrizations, 0 canonical.
+        std::uint8_t alt_idx_ = 0;                /// Active parametrization.
+        bool is_user_alt_ = false;                /// Whether the user picked a re-parametrization.
+        ErrType err_family_ = ErrType::Function;  /// Family word shown in errors.
+        Evaluate eval_mode_ = Evaluate::Function; /// Method an implicit evaluate() dispatches to.
+        Discrete discr_mode_ = Discrete::None;    /// Discretization scheme.
 
         /// Register an alternative parametrization.
         void register_alt_(const std::string &name, const default_args &args);
@@ -648,9 +650,14 @@ namespace housepi
             case Trunc::None:
                 return y;
             case Trunc::Max:
-                return y / cdf_max_();
+                return y / trunc_();
             default: // cases Trunc::Min, Trunc::Both
-                return (y - cdf_min_()) / trunc_();
+            {
+                const double lo = cdf_min_();
+                if (trunc_norm_mode_ == TruncNorm::LookUp)
+                    return (y - lo) / lookup_trunc_;
+                return (y - lo) / ((trunc_mode_ == Trunc::Min ? 1. : cdf_max_()) - lo);
+            }
             }
         }
 
@@ -664,14 +671,16 @@ namespace housepi
             Max,  /// Upper-bound truncation.
             Both  /// Two-sided truncation.
         } trunc_mode_ = Trunc::None;
-        /// Source of the log-normalizer.
-        enum class LogTrunc : std::uint8_t
+        /// Source of the normalizer.
+        enum class TruncNorm : std::uint8_t
         {
-            LookUp, /// Constant log-normalizer, stored by finalize().
-            Compute /// Log-normalizer computed per evaluation.
-        } logtrunc_mode_ = LogTrunc::Compute;
-        /// Log-normalizer read in LogTrunc::LookUp mode.
+            LookUp, /// Constant normalizer, stored by finalize().
+            Compute /// Normalizer computed per evaluation.
+        } trunc_norm_mode_ = TruncNorm::Compute;
+        /// Log-normalizer read in TruncNorm::LookUp mode.
         double lookup_log_trunc_ = na::DOUBLE;
+        /// Normalizer read in TruncNorm::LookUp mode.
+        double lookup_trunc_ = na::DOUBLE;
 
         /// Primitive at the minimum, with discretization correction.
         /// @note Call only with a minimum.
@@ -711,6 +720,8 @@ namespace housepi
         /// @note Call only when truncated.
         double trunc_() const
         {
+            if (trunc_norm_mode_ == TruncNorm::LookUp)
+                return lookup_trunc_;
             switch (trunc_mode_)
             {
             case Trunc::Min:
@@ -724,7 +735,7 @@ namespace housepi
 
         /// Log-normalizer of the truncation.
         /// @note Call only when truncated.
-        double logtrunc_() const { return logtrunc_mode_ == LogTrunc::LookUp ? lookup_log_trunc_ : std::log(trunc_()); }
+        double logtrunc_() const { return trunc_norm_mode_ == TruncNorm::LookUp ? lookup_log_trunc_ : std::log(trunc_()); }
 
         //////  Discretization  //////
 
