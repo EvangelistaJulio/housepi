@@ -73,7 +73,7 @@ namespace housepi::data
 
         /// Imported value of column `d` for member `indiv`.
         /// * column produced by an observation -> missing.
-        double raw(size_t d, const Individual &indiv) const noexcept { return indiv_data_[Index::of(indiv)].vec[d]; }
+        double raw(size_t d, const Individual &indiv) const noexcept { return indiv_values_[Index::of(indiv) * size() + d]; }
 
         /// User id of member `indiv`.
         const std::string &id(const Individual &indiv) const noexcept { return indiv_ids_[Index::of(indiv)]; }
@@ -115,16 +115,10 @@ namespace housepi::data
     private:
         //////  Data  //////
 
-        /// Dataset row of one member.
-        struct IndivRow_
-        {
-            StatusLvl status = status::MISSING; /// Imported status.
-            std::vector<double> vec = {};       /// Imported values, by column.
-        };
-
         std::vector<size_t> request_everyone_ = {}; /// Keys requested for every member.
         dict<size_t> hh_id_to_index_ = {};          /// Internal index per household user id.
-        std::vector<IndivRow_> indiv_data_;         /// Member data, by member index.
+        std::vector<StatusLvl> indiv_status_ = {};  /// Imported status, by member index.
+        std::vector<double> indiv_values_ = {};     /// Imported values, by member index then column.
         std::vector<std::string> indiv_ids_ = {};   /// Member user ids, by member index.
         std::vector<std::string> hh_ids_ = {};      /// Household user ids, by household index.
         size_t n_imported_ = 0;                     /// Number of columns known at import.

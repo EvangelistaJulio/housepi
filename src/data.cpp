@@ -282,7 +282,9 @@ namespace housepi::data
                 std::to_string(std::numeric_limits<IndivIdx>::max()) + " individuals.");
 
         // pre-allocate external data storage
-        indiv_data_.resize(report_indiv.total);
+        const size_t n_cols = size();
+        indiv_status_.resize(report_indiv.total);
+        indiv_values_.resize(report_indiv.total * n_cols);
         indiv_ids_.resize(report_indiv.total);
 
         // store households
@@ -326,13 +328,11 @@ namespace housepi::data
             }
 
             // read individual data into external storage
-            IndivRow_ &idata = indiv_data_[i];
-            idata.status = status;
-            idata.vec.resize(size());
-            for (size_t d = 0; d < idata.vec.size(); ++d)
+            indiv_status_[i] = status;
+            for (size_t d = 0; d < n_cols; ++d)
             {
                 const std::string &dname = consult(d);
-                double &x = idata.vec[d];
+                double &x = indiv_values_[i * n_cols + d];
 
                 // model-required column absent at import: missing, reported at the run wall
                 x = na::DOUBLE;
@@ -381,7 +381,7 @@ namespace housepi::data
 
             // assign the individual the respective household
             indiv_ids_[i] = id;
-            house.add_indiv(static_cast<IndivIdx>(i), idata.status);
+            house.add_indiv(static_cast<IndivIdx>(i), status);
         }
 
         // columns known at import: model-declared keys plus the user ones
@@ -399,10 +399,18 @@ namespace housepi::data
 
     void Dataset::add_produced_cols(const std::vector<std::string> &produced_cols)
     {
+        const size_t n_old = size();
         for (const std::string &name : produced_cols)
             add_(name);
-        for (IndivRow_ &idata : indiv_data_)
-            idata.vec.resize(size(), na::DOUBLE);
+        const size_t n_new = size();
+        if (n_new == n_old)
+            return;
+
+        // restride the imported values, produced columns missing
+        std::vector<double> values(indiv_status_.size() * n_new, na::DOUBLE);
+        for (size_t i = 0; i < indiv_status_.size(); ++i)
+            std::copy_n(indiv_values_.begin() + i * n_old, n_old, values.begin() + i * n_new);
+        indiv_values_.swap(values);
     }
 
     size_t Dataset::index_of_(std::string_view hh_id) const
@@ -418,7 +426,8 @@ namespace housepi::data
     {
         house_vector_.clear();
         hh_id_to_index_.clear();
-        indiv_data_.clear();
+        indiv_status_.clear();
+        indiv_values_.clear();
         indiv_ids_.clear();
         hh_ids_.clear();
         report_indiv = ReportIndividual();
@@ -512,7 +521,7 @@ namespace housepi::data
     {
         for (Household &house : house_vector_)
             for (Individual &indiv : house)
-                house.set_new_status_(indiv, indiv_data_[Index::of(indiv)].status);
+                house.set_new_status_(indiv, indiv_status_[Index::of(indiv)]);
     }
 
     //////////////////////////////  data::State  //////////////////////////////
@@ -689,12 +698,7 @@ namespace housepi::data
         }
     }
 
-    void LongDataset::helper_build_clear_data_()
-    {
-        // data sequence headers
-        headers.clear();
-        indiv_datalist.clear();
-    }
+    void LongDataset::helper_build_clear_data_() { indiv_datalist.clear(); }
 
     void LongDataset::helper_build_data_headers_(const Dataset &dataset,
                                                  const str_table &input)
@@ -703,7 +707,7 @@ namespace housepi::data
             msg::stop(
                 "Long dataset attached before the dataset.");
 
-        headers = extract_keys(input);
+        std::vector<std::string> headers = extract_keys(input);
         // check for individual IDs
         if (!vect::contains(headers, "id"))
             msg::stop(
