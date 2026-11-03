@@ -329,10 +329,8 @@ test_that("inspect_state reads parameters and sampler", {
   state <- inspect_state(hh_model)
   state |> names() |> expect_identical(c("parameters", ".sampler"))
   state$.sampler$moves$name |> expect_setequal(c("alpha", "beta", "gamma"))
-  state$.sampler$moves$block |> expect_all_na()
   (state$.sampler$moves$scale > 0) |> expect_all_true()
   state$.sampler$moves$member |> expect_all_na()
-  state$.sampler$blocks |> expect_nrow(0L)
 
   # a household adds its own entries, the sampler last
   inspect_state(hh_model, 1) |>

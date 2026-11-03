@@ -815,29 +815,35 @@ namespace housepi
         return out;
     }
 
-    std::vector<std::vector<size_t>> Rates::list_param_blocks(const Parameter &param) const
+    std::vector<std::vector<size_t>> Rates::list_param_rw_blocks(const Parameter &param) const
     {
         const auto is_movable = [&](size_t p)
         { return vect::contains(param.scheme().sample, p) && param.at(p).can_join_block(); };
 
-        std::vector<std::vector<size_t>> blocks = {};
+        // candidate members: each sampled baseline with its heavy rates, then each requested set
+        std::vector<std::vector<size_t>> sets = {};
         for (const rates::Anchor &anchor : anchors_)
         {
             if (!is_movable(anchor.baseline))
                 continue;
-            std::vector<size_t> block = {anchor.baseline};
-            const auto join = [&](const rates::ScaleAnchor &scaling)
-            {
-                for (size_t p : scaling.list_heavy())
-                    if (is_movable(p) && !vect::contains(block, p))
-                        block.push_back(p);
-            };
+            std::vector<size_t> set = {anchor.baseline};
             for (size_t g : anchor.rates)
                 for (const rates::ScaleAnchor &scaling : group_.scale_anchors(g))
-                    join(scaling);
+                    vect::append(set, scaling.list_heavy());
             if (anchor.contacts)
                 for (const rates::ScaleAnchor &scaling : contact_.scale_anchors())
-                    join(scaling);
+                    vect::append(set, scaling.list_heavy());
+            sets.push_back(std::move(set));
+        }
+        vect::append(sets, param.rw_blocks());
+
+        std::vector<std::vector<size_t>> blocks = {};
+        for (const std::vector<size_t> &set : sets)
+        {
+            std::vector<size_t> block = {};
+            for (size_t p : set)
+                if (is_movable(p) && !vect::contains(block, p))
+                    block.push_back(p);
 
             // blocks sharing a member merge
             for (size_t b = 0; b < blocks.size();)
@@ -850,9 +856,7 @@ namespace housepi
                     ++b;
                     continue;
                 }
-                for (size_t p : blocks[b])
-                    if (!vect::contains(block, p))
-                        block.push_back(p);
+                vect::append_unique(block, blocks[b]);
                 blocks.erase(blocks.begin() + static_cast<std::ptrdiff_t>(b));
             }
             blocks.push_back(std::move(block));

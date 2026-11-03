@@ -767,7 +767,7 @@ namespace housepi
     {
         pblocks_.clear();
         in_pblock_.assign(param.size(), 0);
-        for (std::vector<size_t> &keys : rates.list_param_blocks(param))
+        for (std::vector<size_t> &keys : rates.list_param_rw_blocks(param))
         {
             ParamBlock block;
             block.keys = std::move(keys);

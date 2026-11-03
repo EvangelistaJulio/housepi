@@ -101,7 +101,8 @@ for a household of size \eqn{n} where member \eqn{i} has status \eqn{s_i = 1}{s_
 
 In a household of size \eqn{n} the baseline person-to-person rate is \eqn{\beta (n_\mathrm{ref}/n)^{\gamma}}{beta (n_ref / n)^gamma} \insertCite{cauchemez_bayesian_2004}{housepi},
 so \eqn{\beta}{beta} is the baseline rate in a household of size \eqn{n_\mathrm{ref}}{n_ref}.
-The choice of \eqn{n_\mathrm{ref}}{n_ref} leaves the likelihood unchanged, but \eqn{\beta}{beta} and \eqn{\gamma}{gamma} can become strongly correlated and chains mix slowly.
+The choice of \eqn{n_\mathrm{ref}}{n_ref} leaves the likelihood unchanged, but \eqn{\beta}{beta} and \eqn{\gamma}{gamma} can become strongly correlated.
+Sampled with no declared proposal, they move together in one block that follows their correlation, see \code{\link[=run_inference]{run_inference()}}.
 Choose \eqn{n_\mathrm{ref}}{n_ref} from \code{\link[=measure_geom_mean_hh_size]{measure_geom_mean_hh_size()}} to keep them nearly uncorrelated.
 }
 

@@ -13,6 +13,16 @@ mk_final_size <- local({
   list(model = model, template = model |> add_parameter(import = "template"))
 })
 
+# case-ascertained model with every shipped template
+mk_case_ascertained <- local({
+  model <- sarscov2_2021_icofs |>
+    new_housepi_model("case-ascertained", quiet = TRUE) |>
+    add_parameter(import = "template") |>
+    add_infectivity_profile(import = "template") |>
+    add_latent(import = "template")
+  list(model = model)
+})
+
 ####  Definitions  ####
 
 test_that("Default parameter definitions are correct", {
@@ -468,11 +478,7 @@ test_that("Parameter template import loads the shipped definitions", {
 })
 
 test_that("A parameter meets the model definition requirements", {
-  hh_model <- sarscov2_2021_icofs |>
-    new_housepi_model("case-ascertained", quiet = TRUE) |>
-    add_parameter(import = "template") |>
-    add_infectivity_profile(import = "template") |>
-    add_latent(import = "template")
+  hh_model <- mk_case_ascertained$model
 
   # the household size reference is required strictly positive
   hh_model |>
@@ -499,6 +505,45 @@ test_that("A parameter meets the model definition requirements", {
     suppressWarnings() |>
     evaluate_log_lik() |>
     expect_all_finite()
+})
+
+test_that("A transmission model moves gamma in the block of beta", {
+  # block of each parameter after a short run, NA if it moves alone
+  read_blocks <- function(hh_model) {
+    hh_model |>
+      run_inference(steps = 10L, adapt = 10L, chains = 1L, threads = 1L,
+                    progress = FALSE, warn = FALSE)
+    moves <- inspect_state(hh_model)$.sampler$moves
+    stats::setNames(moves$block, moves$name)[is.na(moves$member)]
+  }
+  hh_model <- mk_final_size$template$copy()
+
+  # beta and gamma sampled with the default proposal
+  blocks <- read_blocks(hh_model)
+  blocks[c("beta", "gamma")] |> expect_identical(c(beta = 1L, gamma = 1L))
+  blocks[["alpha"]] |> expect_all_na()
+  blocks <- read_blocks(mk_case_ascertained$model$copy())
+  blocks[c("beta", "gamma")] |> expect_identical(c(beta = 1L, gamma = 1L))
+
+  # a rate coupled to beta shares the block
+  mask <- flu_2014_matsumoto$hh_id %in% unique(flu_2014_matsumoto$hh_id)[1:300]
+  strata <- tibble::tribble(~from_member, ~to_member, ~param_name,
+                            "father",     "mother",   ".reference",
+                            NA,           NA,         "ctr_rest")
+  blocks <- flu_2014_matsumoto[mask, ] |>
+    new_housepi_model("final-size") |>
+    add_contact_rate(strata = strata) |>
+    add_parameter(import = "template") |>
+    read_blocks()
+  blocks[c("ctr_rest", "beta", "gamma")] |>
+    expect_identical(c(ctr_rest = 1L, beta = 1L, gamma = 1L))
+
+  # pinned beta: gamma moves alone
+  hh_model |>
+    add_parameter(beta = 0.1) |>
+    suppressWarnings() |>
+    read_blocks() |>
+    expect_all_na()
 })
 
 test_that("Strict positivity propagates through a parameter function", {

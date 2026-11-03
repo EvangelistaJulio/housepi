@@ -44,6 +44,8 @@ namespace housepi
         void build_for_predic(const dbl_table &input);
         /// Mark parameter `p` as a producer of the transmission cache.
         void mark_produces_transm_cache(size_t p) { scheme_.mark_produces_transm_cache(p); }
+        /// Request parameters `vec` in one block random walk (see Rates::list_param_rw_blocks).
+        void request_rw_block(std::vector<size_t> vec) { rw_blocks_.push_back(std::move(vec)); }
 
         /// Initialize parameters to sample, for inference.
         void restart(RndGen &prng) { param::restart(scheme_, state, prng); }
@@ -59,6 +61,8 @@ namespace housepi
 
         /// Sampling scheme of parameters.
         const param::Scheme &scheme() const noexcept { return scheme_; }
+        /// Parameter sets requested in one block random walk each.
+        const std::vector<std::vector<size_t>> &rw_blocks() const noexcept { return rw_blocks_; }
 
         /// Parameter `p`.
         Variable &at(size_t p) noexcept { return state.vec[p]; }
@@ -91,8 +95,9 @@ namespace housepi
         bool is_any_sample() const noexcept { return !scheme_.sample.empty(); }
 
     private:
-        param::DefTable def_;  /// Parameter definitions.
-        param::Scheme scheme_; /// Sampling scheme built from definitions.
+        param::DefTable def_;                             /// Parameter definitions.
+        param::Scheme scheme_;                            /// Sampling scheme built from definitions.
+        std::vector<std::vector<size_t>> rw_blocks_ = {}; /// Parameter sets the model requests in one block each.
 
         /// Bind Variables to definitions, producer before consumer.
         /// * each Variable checked against the requests on its key.

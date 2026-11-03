@@ -34,6 +34,8 @@ public:
     {
         request_param_positive(
             {Param::alpha, Param::hh_size_ref});
+        request_param_rw_block(
+            {Param::beta, Param::gamma});
         request_rate_identifiability(
             Param::alpha, {GroupRate::community});
         request_rate_identifiability(

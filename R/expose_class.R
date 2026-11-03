@@ -1408,6 +1408,8 @@ inspect_state <- function(hh_model, hh_id = NULL) {
 #' when a reference couples them:
 #' a baseline and each rate ratio of its rule groups
 #' matching at least a tenth as many members or pairs as the reference.
+#' A model can also request parameters that move together with a baseline,
+#' see its `template_<model>` help page.
 #' They take as many joint moves per step as they have members.
 #' A parameter whose prior or bounds read another of them moves alone,
 #' as does a rate whose number of members or pairs is unknown.

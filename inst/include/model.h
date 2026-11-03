@@ -145,6 +145,10 @@ namespace housepi
         void request_param_discrete(std::vector<size_t> vec) { mcmc_->param.request_discrete(vec); }
         /// Request positive parameters `vec`.
         void request_param_positive(std::vector<size_t> vec) { mcmc_->param.request_positive(vec); }
+        /// Request parameters `vec` in one block random walk, joining any block holding one of them.
+        /// * sampled with the default proposal -> moves in the block;
+        /// * pinned, or a declared proposal -> left out.
+        void request_param_rw_block(std::vector<size_t> vec) { mcmc_->param.request_rw_block(std::move(vec)); }
 
         /// Request discrete latents `vec`.
         void request_latent_discrete(std::vector<size_t> vec) { mcmc_->augm.request_discrete(vec); }

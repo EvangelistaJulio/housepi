@@ -282,7 +282,7 @@ namespace housepi
         }
 
         std::vector<ParamRoute> routes_ = {};  /// Route of each sampled parameter, by key.
-        std::vector<ParamBlock> pblocks_ = {}; /// Blocks of the run, see Rates::list_param_blocks().
+        std::vector<ParamBlock> pblocks_ = {}; /// Blocks of the run, see Rates::list_param_rw_blocks().
         std::vector<char> in_pblock_ = {};     /// Whether each parameter belongs to a block.
         bool is_warm_ = false;                 /// Whether the adaptation warm-up runs, block members moving one at a time.
         double gain_ = 0.;                     /// Robbins-Monro gain of the scalar proposals at this step.
