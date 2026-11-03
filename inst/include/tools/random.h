@@ -5,6 +5,7 @@
 
 #pragma once
 
+#include <cmath>
 #include <cstdint>
 #include <random>
 
@@ -59,4 +60,29 @@ namespace housepi
 
     /// Draw a unit-rate exponential variate, stateless.
     inline double standard_exponential(RndGen &prng) { return std::exponential_distribution<double>()(prng); }
+
+    /// Draw a unit-scale gamma variate of shape `shape`, stateless.
+    /// Based on @cite marsaglia_simple_2000
+    /// * shape at least 1 -> squeeze and rejection on a cubed normal;
+    /// * shape below 1 -> variate of shape + 1, times U^(1 / shape).
+    inline double standard_gamma(RndGen &prng, double shape)
+    {
+        if (shape < 1.)
+            return standard_gamma(prng, shape + 1.) * std::pow(standard_uniform(prng), 1. / shape);
+
+        const double d = shape - 1. / 3., c = 1. / std::sqrt(9. * d);
+        double z, z2, v, u;
+        do
+        {
+            do
+            {
+                z = standard_normal(prng);
+                v = 1. + c * z;
+            } while (v <= 0.);
+            v = v * v * v;
+            z2 = z * z;
+            u = standard_uniform(prng);
+        } while (u >= 1. - 0.0331 * z2 * z2 && std::log(u) >= 0.5 * z2 + d * (1. - v + std::log(v)));
+        return d * v;
+    }
 }

@@ -16,7 +16,6 @@
 #include <boost/math/special_functions/beta.hpp>
 #include <boost/math/special_functions/erf.hpp>
 #include <boost/math/special_functions/gamma.hpp>
-#include <boost/random/beta_distribution.hpp>
 
 /// Block boost long double policy.
 using no_promote_policy = boost::math::policies::policy<
@@ -505,7 +504,8 @@ namespace housepi
             }
             double raw_rand_(RndGen &prng) const override final
             {
-                return boost::random::beta_distribution<double>(arg(0), arg(1))(prng);
+                const double x = standard_gamma(prng, arg(0));
+                return x / (x + standard_gamma(prng, arg(1)));
             }
         };
         HOUSEPI_REGISTER_FUNCTION(Beta_, Continuous)
@@ -621,7 +621,7 @@ namespace housepi
             double raw_rand_(RndGen &prng) const override final
             {
                 const auto [shape, scale] = eff_params_();
-                return std::gamma_distribution<double>(shape, scale)(prng);
+                return scale * standard_gamma(prng, shape);
             }
         };
         HOUSEPI_REGISTER_FUNCTION(Gamma_, Continuous)
