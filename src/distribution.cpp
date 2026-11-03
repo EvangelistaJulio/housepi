@@ -129,6 +129,13 @@ namespace housepi
             helper_init_distr_truncation_();    \
     }
 
+        /// Refuse discretization, for a law with no discrete counterpart.
+#define INIT_DISCR_REFUSED()                                             \
+    void discretize() override final                                     \
+    {                                                                    \
+        msg::stop("Invoked invalid option discrete for " + str() + "."); \
+    }
+
         //////////////////////////////  Uniform  //////////////////////////////
 
         class Uniform_ final : public Cloneable<Uniform_, Distribution>
@@ -157,6 +164,48 @@ namespace housepi
             }
         };
         HOUSEPI_REGISTER_FUNCTION(Uniform_, Continuous)
+
+        //////////////////////////////  Loguniform  //////////////////////////////
+
+        /// Reciprocal distribution: flat in log x over [min, max], 0 < min < max.
+        /// * support -> the domain itself, no truncation;
+        /// * `min` and `max` -> required, no default.
+        class Loguniform_ final : public Cloneable<Loguniform_, Distribution>
+        {
+        public:
+            static constexpr const char *NAME = "loguniform";
+            Loguniform_() = default;
+
+            INIT_DISCR_REFUSED()
+
+        private:
+            /// Log-width log(max / min).
+            double norm_() const { return log1p((domain_.max.value() - domain_.min.value()) / domain_.min.value()); }
+
+        protected:
+            /// Both bounds positive, so both required.
+            ArgRequirements arg_requirements_() const override final
+            {
+                return {{&domain_.min, Codomain::positive()}, {&domain_.max, Codomain::positive()}};
+            }
+
+            double raw_pdf_(double x) const override final { return 1. / (x * norm_()); }
+            double raw_cdf_(double x) const override final
+            {
+                const double a = domain_.min.value();
+                return log1p((x - a) / a) / norm_();
+            }
+            double raw_ccdf_(double x) const override final { return log1p((domain_.max.value() - x) / x) / norm_(); }
+            double raw_log_pdf_(double x) const override final { return -log(x * norm_()); }
+            double raw_log_ratio_(double xo, double xn) const override final { return log(xo / xn); }
+            double raw_quantile_(double p) const override final
+            {
+                const double a = domain_.min.value();
+                return a + a * math::expm1(p * norm_());
+            }
+            double raw_rand_(RndGen &prng) const override final { return raw_quantile_(standard_uniform(prng)); }
+        };
+        HOUSEPI_REGISTER_FUNCTION(Loguniform_, Continuous)
 
         //////////////////////////////  Discrete uniform  //////////////////////////////
 
@@ -357,11 +406,7 @@ namespace housepi
                 domain_.above = Interval::Open;
             }
 
-            void discretize() override final
-            {
-                msg::stop(
-                    "Invoked invalid option discrete for " + str() + ".");
-            }
+            INIT_DISCR_REFUSED()
             void truncate() override final
             {
                 const double sx = domain_.min.value();
@@ -946,7 +991,7 @@ namespace housepi
             }
             double raw_log_pdf_(double x) const override final
             {
-                return log(arg(static_cast<size_t>(x))) - log(norm_());
+                return log(arg(static_cast<size_t>(x)) / norm_());
             }
             double raw_cdf_(double x) const override final
             {
@@ -958,7 +1003,7 @@ namespace housepi
             }
             double raw_log_ratio_(double xo, double xn) const override final
             {
-                return log(arg(static_cast<size_t>(xn))) - log(arg(static_cast<size_t>(xo)));
+                return log(arg(static_cast<size_t>(xn)) / arg(static_cast<size_t>(xo)));
             }
             double raw_quantile_(double p) const override final
             {

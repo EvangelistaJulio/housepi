@@ -8,6 +8,8 @@ First tagged version.
 * Household data are attached as a dataset, one row per member (`add_dataset()`),
   and an optional long dataset, any number of rows per member (`add_long_dataset()`).
 * Parameters take priors and proposals written in a small DSL (`add_parameter()`).
+  A `"loguniform"` prior, flat on the log scale between `min` and `max`, suits a rate of
+  unknown order of magnitude.
 * Group and contact rates (`add_group_rate()`, `add_contact_rate()`) and infectivity
   profiles (`add_infectivity_profile()`) shape transmission between members.
 * Unobserved quantities are handled by data augmentation: `add_latent()`, `add_observation()`,

@@ -14,6 +14,15 @@ prayleigh <- function(q, scale, lower.tail = TRUE) {
 }
 qrayleigh <- \(p, scale) scale * sqrt(-2 * log1p(-p))
 
+# Loguniform reference, flat in log x over [min, max].
+dloguniform <- function(x, min, max) {
+  ifelse(x >= min & x <= max, 1 / (x * log(max / min)), 0)
+}
+ploguniform <- function(q, min, max) {
+  pmin(log(pmax(q, min) / min) / log(max / min), 1)
+}
+qloguniform <- \(p, min, max) min * (max / min)^p
+
 # R reference `<prefix><ref>` (e.g. "d" + "norm") bound to named arguments.
 stats_ref <- function(prefix, ref, args) {
   f <- get(paste0(prefix, ref), mode = "function")
@@ -526,6 +535,8 @@ test_that("An argument outside its domain is refused", {
     expect_error("scale.*weibull.*must be greater than 0")
   browse_distributions("rayleigh", scale = 0) |>
     expect_error("scale.*rayleigh.*must be greater than 0")
+  browse_distributions("loguniform", min = 0, max = 1) |>
+    expect_error("min.*loguniform.*must be greater than 0")
   browse_distributions("exponential", rate = -1) |>
     expect_error("rate.*exponential.*must be greater than 0")
   browse_distributions("poisson", lambda = 0) |>
@@ -567,6 +578,13 @@ test_that("An argument outside its domain is refused", {
 test_that("Options outside the support of a law are rejected", {
   browse_distributions("beta", shape1 = 2, shape2 = 3, discr = TRUE) |>
     expect_error("invalid.*discrete")
+  browse_distributions("loguniform", min = 1e-3, max = 1, discr = TRUE) |>
+    expect_error("invalid.*discrete")
+  # the loguniform has no default bounds
+  browse_distributions("loguniform", max = 1) |>
+    expect_error("[Mm]issing non default argument.*min.*loguniform")
+  browse_distributions("loguniform", min = 1, max = 1e-3) |>
+    expect_error("[Ii]nconsistent domain")
   browse_distributions("beta", shape1 = 2, shape2 = 3, min = -0.5) |>
     expect_error("min")
   browse_distributions("beta", shape1 = 2, shape2 = 3, max = 1.5) |>
@@ -604,6 +622,8 @@ test_that("Standard distributions match R reference d/p/log_pdf/log_ratio", {
                               domain = "[0, Inf)")
   expect_distribution_matches("rayleigh", list(scale = 2), "rayleigh",
                               domain = "[0, Inf)", x = seq(0, 10, 0.5))
+  expect_distribution_matches("loguniform", list(min = 1e-3, max = 10),
+                              "loguniform", domain = "[0.001, 10]")
 })
 
 test_that("Categorical distribution is correct", {
@@ -905,6 +925,7 @@ test_that("quantile matches R reference for standard distributions", {
     list("beta", list(shape1 = 2, shape2 = 3), "beta"),
     list("weibull", list(shape = 2, scale = 2), "weibull"),
     list("rayleigh", list(scale = 2), "rayleigh"),
+    list("loguniform", list(min = 1e-3, max = 10), "loguniform"),
     list("poisson", list(lambda = 5), "pois"),
     list("binomial", list(size = 10, prob = 0.4), "binom"),
     list("geometric", list(prob = 0.3), "geom"),

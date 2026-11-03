@@ -384,7 +384,8 @@ test_that("Default random walks sample their target", {
   draws <- mk_param$model |>
     add_parameter(rho = list(prior = "beta", shape1 = 2, shape2 = 5),
                   rho_2 = list(prior = "gamma", shape = 2, scale = 1),
-                  rho_3 = list(prior = "normal", mean = 0, sd = 1, max = 0)) |>
+                  rho_3 = list(prior = "normal", mean = 0, sd = 1, max = 0),
+                  rho_4 = list(prior = "loguniform", min = 1e-6, max = 1)) |>
     run_inference(steps = 1e4L, thin = 1L, adapt = 500L, chains = 1L) |>
     suppressWarnings() |>
     get_parameter_draws()
@@ -392,6 +393,11 @@ test_that("Default random walks sample their target", {
   mean(draws[["rho"]]) |> expect_equal(2 / 7, tolerance = 0.06)
   mean(draws[["rho_2"]]) |> expect_equal(2, tolerance = 0.06)
   mean(draws[["rho_3"]]) |> expect_equal(-sqrt(2 / pi), tolerance = 0.06)
+  # log of a loguniform on six decades is flat on (log 1e-6, 0)
+  log_rho_4 <- log(draws[["rho_4"]])
+  mean(log_rho_4) |> expect_equal(log(1e-6) / 2, tolerance = 0.06)
+  quartiles <- quantile(log_rho_4, c(0.25, 0.5, 0.75), names = FALSE)
+  (abs(quartiles - log(1e-6) * c(0.75, 0.5, 0.25)) < 0.7) |> expect_all_true()
 })
 
 test_that("A random walk adapts its scale unless the scale is a number", {

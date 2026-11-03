@@ -474,12 +474,14 @@ namespace housepi
         bool is_discretized() const noexcept { return discr_mode_ != Discrete::None; }
         /// Whether the return value is always strictly positive.
         bool is_positive() const noexcept { return codomain().is_positive(); }
-        /// Whether no argument is empty.
+        /// Whether no argument is missing, see get_missing_argument().
         bool is_callable_explicitly() const noexcept;
         /// Whether it can be called implicitly, with `x` bound too.
         bool is_callable_implicitly() const noexcept { return !x_arg_.is_empty() && is_callable_explicitly(); }
 
         /// Collect names of missing arguments.
+        /// * argument of the active parametrization -> missing when empty;
+        /// * domain bound -> missing when empty and listed by arg_requirements_().
         std::vector<std::string> get_missing_argument() const;
         /// Throw if not callable explicitly.
         void assert_is_callable_explicitly() const;

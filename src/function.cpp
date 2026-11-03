@@ -657,21 +657,18 @@ namespace housepi
         return true;
     }
 
-    bool Function::is_callable_explicitly() const noexcept
-    {
-        for (const Attribute &attr : arguments_())
-            if (attr.is_empty())
-                return false;
-        return true;
-    }
+    bool Function::is_callable_explicitly() const noexcept { return get_missing_argument().empty(); }
 
-    /// Collect names of missing arguments, from the active parametrization.
     std::vector<std::string> Function::get_missing_argument() const
     {
         std::vector<std::string> undefined_args = {};
         for (const Attribute &attr : arguments_())
             if (attr.is_empty())
                 undefined_args.emplace_back(attr.name());
+        // a domain bound under a requirement is an argument of the law
+        for (const auto &[attr, req] : arg_requirements_())
+            if ((attr == &domain_.min || attr == &domain_.max) && attr->is_empty())
+                undefined_args.emplace_back(attr->name());
         return undefined_args;
     }
 
