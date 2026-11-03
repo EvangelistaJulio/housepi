@@ -18,6 +18,7 @@ The household is followed from its first infection, the primary case, which ente
 It needs a value for every member, escaped ones included.
 An observation standing for it is defined at household level, or from data columns only.
 In simulation the primary case is drawn uniformly among the members \insertCite{cauchemez_bayesian_2004}{housepi}, and infected at time 0.
+In discrete time, the community can infect any other member on that same day.
 There \code{end_date} counts days from that infection, and calendar dates are not supported.
 }
 
@@ -67,7 +68,7 @@ for a household of size \eqn{n} where member \eqn{i} has status \eqn{s_i = 1}{s_
 \item \eqn{f_{j}}{f_j}: infectivity profile of member \eqn{j} as a function of time since its infection, set by \code{\link[=add_infectivity_profile]{add_infectivity_profile()}}
 \item \eqn{\mu^\mathrm{ctc}_{ji}}{mu^ctc_ji}: contact rate from member \eqn{j} to member \eqn{i}, equal to 1 unless set by \code{\link[=add_contact_rate]{add_contact_rate()}}
 \item \eqn{t_{0}}{t_0}: introduction time, earliest infection time in the household
-\item \eqn{i_{0}}{i_0}: primary case, infected at \eqn{t_{0}}{t_0} (on ties, the first in household order)
+\item \eqn{i_{0}}{i_0}: primary case, infected at \eqn{t_{0}}{t_0}
 }
 
 \subsection{Real time}{
@@ -79,11 +80,17 @@ for a household of size \eqn{n} where member \eqn{i} has status \eqn{s_i = 1}{s_
 }
 }
 \subsection{Discrete time}{
+Members infected on day \eqn{t_{0}}{t_0} form the set \eqn{\mathcal{I}_{0}}{I_0}, which holds the primary case.
+On that day only the community infects, with probability \eqn{q_{i} = 1 - \exp(-\alpha \, \mu^\mathrm{com}_{i})}{q_i = 1 - exp(-alpha mu^com_i)}.
+Any member of \eqn{\mathcal{I}_{0}}{I_0} may be the primary case, so the first-day contribution sums over them
+\insertCite{cauchemez_household_2009,zhang_frequent_2026}{housepi}, and the transmission probability becomes \eqn{p^\mathrm{transm} = p^\mathrm{esc} \, p^\mathrm{inf} \, p^\mathrm{prim}}{p^transm = p^esc p^inf p^prim}.
 \itemize{
+\item First-day contribution:
+\eqn{p^\mathrm{prim} = \sum_{i \in \mathcal{I}_{0}} \prod_{k \in \mathcal{I}_{0},\, k \neq i} q_{k}}{p^prim = sum_{i in I_0} prod_{k in I_0, k != i} q_k}
 \item Infected contribution:
-\eqn{p^\mathrm{inf} = \prod_{i:\,s_{i} = 1,\, i \neq i_{0}} \left(1 - \exp\left(-\lambda_{i}(t_{i})\right)\right) \exp\left(-\sum_{t = t_{0} + 1}^{t_{i} - 1} \lambda_{i}(t)\right)}{p^inf = prod_{i: s_i = 1, i != i_0} (1 - exp(-lambda_i(t_i))) exp(-sum_{t = t_0 + 1}^{t_i - 1} lambda_i(t))}
+\eqn{p^\mathrm{inf} = \prod_{i:\,s_{i} = 1,\, t_{i} > t_{0}} \left(1 - \exp\left(-\lambda_{i}(t_{i})\right)\right) \exp\left(-\sum_{t = t_{0}}^{t_{i} - 1} \lambda_{i}(t)\right)}{p^inf = prod_{i: s_i = 1, t_i > t_0} (1 - exp(-lambda_i(t_i))) exp(-sum_{t = t_0}^{t_i - 1} lambda_i(t))}
 \item Escaped contribution:
-\eqn{p^\mathrm{esc} = \prod_{i:\,s_{i} = 0} \exp\left(-\sum_{t = t_{0} + 1}^{t_\mathrm{end}} \lambda_{i}(t)\right)}{p^esc = prod_{i: s_i = 0} exp(-sum_{t = t_0 + 1}^{t_end} lambda_i(t))}
+\eqn{p^\mathrm{esc} = \prod_{i:\,s_{i} = 0} \exp\left(-\sum_{t = t_{0}}^{t_\mathrm{end}} \lambda_{i}(t)\right)}{p^esc = prod_{i: s_i = 0} exp(-sum_{t = t_0}^{t_end} lambda_i(t))}
 }
 }
 }

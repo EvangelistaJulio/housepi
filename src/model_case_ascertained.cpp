@@ -13,9 +13,10 @@
 
 HOUSEPI_OPEN_MODULE_NAMESPACE()
 
-/// Model ascertained cases with augmented infection times and a single introduction per household.
+/// Model case-ascertained studies with latent infection times, assuming an introduction per household.
 /// Simulation infects a member drawn uniformly at the time origin, see ModelBase::set_introduction().
-/// Based on @cite cauchemez_bayesian_2004
+/// * discrete time -> the community also infects other members on that day @cite zhang_frequent_2026;
+/// * continuous time -> other members are infected later @cite cauchemez_bayesian_2004.
 class Model final : public ModelBase
 {
 public:
@@ -106,10 +107,17 @@ public:
         const double alpha = par(Param::alpha);
         const double beta = transmission_rate(house.size());
 
+#ifdef _HOUSEPI_DISCRETE_TIME
+        // co-primaries C, infected on day t0 besides i0
+        // sum over i in C of prod_{k in C \ i} p_k, and prod_{k in C} p_k
+        double intro_day_sum = 0., intro_day_prod = 1.;
+#endif
+
         double output = 0.;
+        // community exposure from t0 through the end of day `end_date`
         for (const Individual &indiv_s : house.escaped_indivs())
         {
-            const double exposure = follow_up_end(indiv_s) - t_intro;
+            const double exposure = data(Data::end_date, indiv_s) + 1. - t_intro;
             output -= alpha * exposure * group_rate(GroupRate::community, indiv_s);
         }
 
@@ -125,6 +133,18 @@ public:
 
             if (i == i0)
                 continue;
+
+            const double t_infec_i = aug(Latent::infec_time, indiv_i);
+#ifdef _HOUSEPI_DISCRETE_TIME
+            // co-primary, infected on day t0 by the community alone
+            if (t_infec_i == t_intro)
+            {
+                const double p_i = -math::expm1(-alpha * group_rate(GroupRate::community, indiv_i));
+                intro_day_sum = intro_day_sum * p_i + intro_day_prod;
+                intro_day_prod *= p_i;
+                continue;
+            }
+#endif
 
             // rate of infection from the other infected members j
             double roi_inst_i = 0.;
@@ -146,20 +166,22 @@ public:
             roi_inst_i *= b_i;
             roi_cumul_i *= b_i;
             roi_inst_i += a_i;
+            // community exposure from t0 to infection, day t0 included
+            roi_cumul_i += a_i * (t_infec_i - t_intro);
 
 #ifdef _HOUSEPI_DISCRETE_TIME
-            // days escaped before infection: none for a member infected the day after the introduction
-            // a co-primary cannot survive fewer
-            const double survived = aug(Latent::infec_time, indiv_i) - 1. - t_intro;
-            if (survived > 0.)
-                roi_cumul_i += a_i * survived;
             output += math::log1mexp(roi_inst_i) - roi_cumul_i;
 #else
-            roi_cumul_i += a_i * (aug(Latent::infec_time, indiv_i) - t_intro);
             output += std::log(roi_inst_i) - roi_cumul_i;
 #endif
         }
 
+#ifdef _HOUSEPI_DISCRETE_TIME
+        // first-day set S = C + i0: prod_{k in C} p_k + p_i0 * sum, log 1 = 0 without co-primaries
+        if (intro_day_sum > 0.)
+            output += std::log(intro_day_prod -
+                               math::expm1(-alpha * group_rate(GroupRate::community, indiv_0)) * intro_day_sum);
+#endif
         return output;
     }
 
@@ -342,25 +364,26 @@ public:
     //////////////////////////////  Model : household simulation  //////////////////////////////
 
     /// Simulate the outbreak in `house` as a Poisson point process.
+    /// * discrete time: profile is ensured 0 on the day of infection -> only community co-primaries on day d0
     void simulate_single_house(Household &house) override final
     {
+        //////  Generation 0: single introduction  //////
+
+        const MemberIdx i0 = set_introduction(house, Latent::infec_time);
+        double t_first = aug(Latent::infec_time, house.at(i0));
+
+        //////  Generation 1+: infection by the previous generation  //////
+
 #ifdef _HOUSEPI_DISCRETE_TIME
         const double Dt = 1;
 #else
         const double Dt = real_time_step();
+        t_first += Dt;
 #endif
-        //////  Generation 0: single introduction  //////
-
-        const MemberIdx i0 = set_introduction(house, Latent::infec_time);
-        Individual &indiv_0 = house.at(i0);
-
-        //////  Generation 1+: infection by the previous generation  //////
-
         const double alpha = par(Param::alpha);
         const double beta = transmission_rate(house.size());
 
-        const double t0 = aug(Latent::infec_time, indiv_0);
-        for (double t = t0 + Dt; house.n_escaped_status() > 0; t += Dt)
+        for (double t = t_first; house.n_escaped_status() > 0; t += Dt)
         {
             bool any_at_risk = false;
             for (Individual &indiv_i : house)

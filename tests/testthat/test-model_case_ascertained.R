@@ -46,7 +46,7 @@ transmission_rate <- function(house, param) {
 
 # log-likelihood contribution of escaped members
 loglike_escaped <- function(house, param, discr) {
-  t_intro <- find_introduction(house)$infec_time
+  t_intro <- find_introduction(house)$infec_time[1]
   alpha <- param$alpha
   beta <- transmission_rate(house, param)
 
@@ -55,7 +55,8 @@ loglike_escaped <- function(house, param, discr) {
     # continuous time observes the whole last day: window closes at end_date + 1
     t_end_k <- house[k, "end_date"] + !discr
     roi_cumul <- 0
-    alpha_cumul <- alpha * (t_end_k - t_intro)
+    # community exposure from t0 through the end of day end_date, day t0 included
+    alpha_cumul <- alpha * (house[k, "end_date"] + 1 - t_intro)
     for (i in which(house$status == 1)) {
       exposure <- t_end_k - house[i, "infec_time"]
       roi_cumul <- roi_cumul + infec_profile_cumul(exposure, param, discr)
@@ -66,18 +67,26 @@ loglike_escaped <- function(house, param, discr) {
 }
 
 # log-likelihood contribution of infectious members
+# discrete time: the m members infected on day t0 add log(m * p^(m - 1)),
+# where p is the probability of a community infection that day
 loglike_infectious <- function(house, param, discr) {
   member_0 <- find_introduction(house)
-  i0 <- rownames(member_0)
-  t_intro <- member_0$infec_time
+  i0 <- rownames(member_0)[1]
+  t_intro <- member_0$infec_time[1]
 
   alpha <- param$alpha
   beta <- transmission_rate(house, param)
 
   output <- 0.
+  if (discr) {
+    m <- nrow(member_0)
+    output <- log(m) + (m - 1) * log(-expm1(-alpha))
+  }
   for (i in which(house$status == 1)) {
-    if (i != i0) {
-      t_infec_i <- house[i, "infec_time"]
+    t_infec_i <- house[i, "infec_time"]
+    # discrete time: day t0 is scored above, continuous time: i0 alone
+    after_intro <- if (discr) t_infec_i > t_intro else i != i0
+    if (after_intro) {
       roi_inst_i <- 0.
       roi_cumul_i <- 0.
       for (k in which(house$status == 1)) {
@@ -92,7 +101,7 @@ loglike_infectious <- function(house, param, discr) {
       roi_cumul_i <- roi_cumul_i * beta + alpha * (t_infec_i - t_intro)
       roi_inst_i <- roi_inst_i * beta + alpha
       if (discr) {
-        output <- output + log(-expm1(-roi_inst_i)) - roi_cumul_i + alpha
+        output <- output + log(-expm1(-roi_inst_i)) - roi_cumul_i
       } else {
         output <- output + log(roi_inst_i) - roi_cumul_i
       }
@@ -164,6 +173,27 @@ test_that("A saturated transmission infects every member", {
   simulated$infec_time |> expect_no_na()
 })
 
+test_that("In discrete time the community infects other members on day 0", {
+  # every household keeps its introduction on day 0
+  # each other member joins it with the probability of a community infection
+  simulated <- sarscov2_2021_icofs |>
+    dplyr::filter(hh_id %in% utils::head(unique(hh_id), 100)) |>
+    transform(end_date = 21) |>
+    new_housepi_model("case-ascertained", discr = TRUE, quiet = TRUE) |>
+    add_infectivity_profile(import = "template") |>
+    add_parameter(alpha = 0.3, beta = 0, gamma = 1, hh_size_ref = 4) |>
+    run_simulation()
+  day_0 <- tapply(simulated$status > 0 & simulated$infec_time == 0,
+                  simulated$hh_id, sum)
+  as.vector(day_0 >= 1) |> expect_all_true()
+
+  # binomial z-score, within 5 sd
+  p <- -expm1(-0.3)
+  n_others <- nrow(simulated) - length(day_0)
+  share <- sum(day_0 - 1) / n_others
+  (abs(share - p) / sqrt(p * (1 - p) / n_others)) |> expect_lt(5)
+})
+
 ####  Log-likelihood  ####
 
 test_that("Sentinel against no introduction throws error", {
@@ -226,6 +256,17 @@ test_that("Log-likelihood of case ascertained model is correct", {
     }
     print(hh_model) |> expect_snapshot()
   }
+})
+
+test_that("Co-primaries on the introduction day score the first-day set", {
+  # `m1` and `m2` are infected on day 0, either one may be the introduction
+  # `m3` escapes the community from day 0
+  house <- data.frame(id = c("m1", "m2", "m3"), hh_id = "h1",
+                      status = c(1, 1, 0), infec_time = c(0, 0, NA),
+                      end_date = 21)
+  build_onset_model(house, mk_house$param, TRUE) |>
+    evaluate_log_lik() |>
+    expect_equal(latent_infec_obs_log_lik(house, mk_house$param, TRUE))
 })
 
 test_that("A case with no source of infection has zero likelihood", {
