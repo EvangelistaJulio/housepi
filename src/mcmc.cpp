@@ -499,76 +499,20 @@ namespace housepi
         data.state.allocate_transm_log_lik();
     }
 
-    namespace infprof
-    {
-        namespace
-        {
-            /// Throw if the profile transmits at generation time 0.
-            /// Only a determinate profile is checked: an argument resolved per member leaves it undetermined.
-            void assert_zero_at_origin(const Function &f, bool is_discr_requested)
-            {
-                // skip for hand-written infectivity profiles
-                if (!is_discr_requested && registry::instance(registry::Kind::InfecProfile).contains(f.name()))
-                    return;
-
-                const Domain &domain = f.domain();
-                // relocated domain, not support(): the dense rule of support() would relax a floor at zero
-                const Codomain reach = domain.relocated();
-                // the bounds keep every attainable draw past the origin
-                if (reach.is_positive())
-                    return;
-
-                std::string sms = "Infectivity profile " + msg::val(f.name());
-
-                if (na::is(domain.delocate(0.)))
-                {
-                    // the origin reads an undrawn value the bounds do not keep away from it
-                    sms += " is not kept away from generation " +
-                           std::string(is_discr_requested ? "day" : "time") + " 0.\n" +
-                           msg::alert("Its support is " + reach.str() + ", so it can put infectivity on the " +
-                                      (is_discr_requested ? "day" : "instant") + " of infection.");
-                }
-                else
-                {
-                    const double y = f.pdf(0.);
-                    if (std::abs(y) < 1.e-10 || na::is(y))
-                        return;
-
-                    sms += " is non-zero at generation ";
-                    if (is_discr_requested)
-                        sms += "day 0 (F[0] = " + str::format(y) + ").\n" +
-                               "A discrete-time profile admits no transmission on the day of infection.";
-                    else
-                        sms += "time 0 (f(0) = " + str::format(y) + ").\n" +
-                               "A continuous-time profile admits no transmission at the instant of infection.";
-                }
-
-                msg::stop(
-                    sms +
-                    "\nConsider truncating the distribution with " + msg::arg("min") +
-                    ", or shifting with " + msg::arg("loc") + ".");
-            }
-        }
-    }
-
     void MCMCBase::assert_valid_infectivity_profile() const
     {
-        if (!infec_profile.generic && !infec_profile.is_latent())
+        infec_profile.assert_valid();
+        if (!infec_profile.is_latent())
             return;
 
-        bool is_discr = infec_profile.is_required_discrete();
-
-        if (infec_profile.generic)
-            infprof::assert_zero_at_origin(*infec_profile.generic, is_discr);
-        else
-            for (const Household &house : data.dataset())
-                for (const Individual &indiv : house.infected_indivs())
-                {
-                    // check status-specific profiles
-                    const Variable &avar = augm.at(infec_profile.latent_key, indiv);
-                    // @todo Check that `avar` holds a function.
-                    infprof::assert_zero_at_origin(*avar.function(), is_discr);
-                }
+        // check per-member profiles
+        for (const Household &house : data.dataset())
+            for (const Individual &indiv : house.infected_indivs())
+            {
+                const Variable &avar = augm.at(infec_profile.latent_key, indiv);
+                // @todo Check that `avar` holds a function.
+                infec_profile.assert_zero_at_origin(*avar.function());
+            }
     }
 
     //////  MCMCBase : Getter  //////

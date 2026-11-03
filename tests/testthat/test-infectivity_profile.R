@@ -278,6 +278,11 @@ test_that("A non-zero profile at day 0 is always refused in discrete time", {
     add_infectivity_profile("ferretti20", incub_period = 5, min = 0) |>
     evaluate_log_lik() |>
     expect_error("non-zero at generation day 0")
+  # simulation refuses it too, before any household is drawn
+  mk_house_discr$model |>
+    add_infectivity_profile("gamma", mean = 4, sd = sqrt(3), min = 0) |>
+    run_simulation() |>
+    expect_error("non-zero at generation day 0")
 })
 
 test_that("Shifting a profile with 'loc' matches the explicit bounds", {
@@ -323,13 +328,23 @@ test_that("A profile shifted by a sampled latent is judged on its support", {
     evaluate_log_lik() |>
     expect_all_finite()
 
+  # simulation judges the undrawn shift on the same support
+  simulated <- kept_away |>
+    add_infectivity_profile("uniform", loc = incub_period, max = 2) |>
+    run_simulation()
+  simulated$incub_period[simulated$status > 0] |> expect_all_finite()
+
   # dropping the incubation's own minimum makes day 0 attainable
-  hh_model |>
+  not_kept <- hh_model |>
     add_latent(
       "incub_period", model = "gamma", discr = TRUE, mean = 3, sd = 2
     ) |>
-    add_infectivity_profile("uniform", loc = incub_period, max = 2) |>
+    add_infectivity_profile("uniform", loc = incub_period, max = 2)
+  not_kept |>
     evaluate_log_lik() |>
+    expect_error("not kept away from generation day 0")
+  not_kept |>
+    run_simulation() |>
     expect_error("not kept away from generation day 0")
 })
 

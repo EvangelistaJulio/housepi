@@ -144,6 +144,19 @@ namespace housepi
         /// Request a discrete profile.
         void request_discrete() noexcept { is_required_discrete_ = true; };
 
+        //////  Assertion  //////
+
+        /// Throw if profile `f` transmits at generation time 0.
+        /// * bound reading an undrawn value -> judged on the interval its codomain reaches;
+        /// * registered profile in continuous time -> trusted.
+        void assert_zero_at_origin(const Function &f) const;
+        /// Throw if the generic profile transmits at generation time 0.
+        void assert_valid() const
+        {
+            if (generic)
+                assert_zero_at_origin(*generic);
+        }
+
         //////  Getter  //////
 
         /// Instantaneous profile of member `indiv_ptr` at time `t`.

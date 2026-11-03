@@ -1377,10 +1377,7 @@ namespace housepi
                 engine.model->init_model_for_simulation(); // model-specific initialization
                 engine.rates.assert_identifiability(engine.param);
                 engine.augm.init_members_for_simulation(engine.status_process); // bind member definitions once per run
-
-                // @todo Assert the infectivity profile here.
-                // latents are not built yet, so a latent profile cannot be checked
-                // engine.assert_valid_infectivity_profile(); // assert profile is valid
+                engine.infec_profile.assert_valid();                            // a latent profile is checked as its members bind
 
                 //////  Reporting Process & Measures  //////
 

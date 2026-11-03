@@ -191,6 +191,50 @@ namespace housepi
         return output;
     }
 
+    void InfecProfile::assert_zero_at_origin(const Function &f) const
+    {
+        const bool is_discr = is_required_discrete_;
+        // skip for hand-written infectivity profiles
+        if (!is_discr && registry::instance(registry::Kind::InfecProfile).contains(f.name()))
+            return;
+
+        const Domain &domain = f.domain();
+        // relocated domain, not support(): the dense rule of support() would relax a floor at zero
+        const Codomain reach = domain.relocated();
+        // the bounds keep every attainable draw past the origin
+        if (reach.is_positive())
+            return;
+
+        std::string sms = "Infectivity profile " + msg::val(f.name());
+
+        if (na::is(domain.delocate(0.)))
+        {
+            // the origin reads an undrawn value the bounds do not keep away from it
+            sms += " is not kept away from generation " + std::string(is_discr ? "day" : "time") + " 0.\n" +
+                   msg::alert("Its support is " + reach.str() + ", so it can put infectivity on the " +
+                              (is_discr ? "day" : "instant") + " of infection.");
+        }
+        else
+        {
+            const double y = f.pdf(0.);
+            if (std::abs(y) < 1.e-10 || na::is(y))
+                return;
+
+            sms += " is non-zero at generation ";
+            if (is_discr)
+                sms += "day 0 (F[0] = " + str::format(y) + ").\n" +
+                       "A discrete-time profile admits no transmission on the day of infection.";
+            else
+                sms += "time 0 (f(0) = " + str::format(y) + ").\n" +
+                       "A continuous-time profile admits no transmission at the instant of infection.";
+        }
+
+        msg::stop(
+            sms +
+            "\nConsider truncating the distribution with " + msg::arg("min") +
+            ", or shifting with " + msg::arg("loc") + ".");
+    }
+
     //////////////////////////////  augm::DefTable  //////////////////////////////
 
     namespace augm
@@ -1935,6 +1979,12 @@ namespace housepi
                     bound.push_back(a);
                     binder.bind_member(st.vec[a], k, indiv, true);
                 }
+
+                // the profile reads undrawn values: judged on the intervals they reach
+                const InfecProfile &profile = mcmc_->infec_profile;
+                if (profile.is_latent())
+                    if (const Function *f = st.vec[profile.latent_key].function())
+                        profile.assert_zero_at_origin(*f);
             }
             // raised if the member reaches this status scheme
             catch (const std::exception &)
