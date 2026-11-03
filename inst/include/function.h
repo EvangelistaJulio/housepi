@@ -396,7 +396,8 @@ namespace housepi
         /// Leave argument `key` unbound, so no requirement is judged on it.
         void init_attr_unbound(std::string_view key) { find_arg_(key).init_numeric(na::DOUBLE); }
 
-        /// Finalize: prune indirections, collapse constants to numeric.
+        /// Finalize: prune indirections, collapse constants to numeric,
+        /// store the truncation normalizer when nothing it reads can move.
         virtual void finalize();
 
         //////  Getter  //////
@@ -582,47 +583,148 @@ namespace housepi
         /// Read once, when the definition is reshaped.
         virtual ArgRequirements arg_requirements_() const { return {}; }
 
-        /// Raw function.
+        /// Raw function, density or mass for a distribution.
         virtual double raw_function_(double /*x*/) const = 0;
-        /// Raw log-function.
+        /// Raw log-function, log-density or log-mass for a distribution.
         virtual double raw_log_func_(double /*x*/) const { raise_undefined_call_err_("log_func"); }
-        /// Raw primitive.
+        /// Raw primitive, cumulative distribution for a distribution.
         virtual double raw_primitive_(double /*x*/) const { raise_undefined_call_err_("primitive"); }
+        /// Raw complementary cumulative distribution, 1 - cdf.
+        ///
+        /// * continuous distribution -> a tail-accurate closed form, read by Center and Left discretization;
+        /// * any other -> undefined.
+        virtual double raw_ccdf_(double /*x*/) const { raise_undefined_call_err_("ccdf"); }
 
-        /// Evaluate the function under the discretization scheme.
-        virtual double function_(double x) const
+        /// Evaluate the function under the discretization scheme, truncation normalized.
+        double function_(double x) const
         {
+            double y;
             switch (discr_mode_)
             {
             case Discrete::None:
-                return raw_function_(x);
+                y = raw_function_(x);
+                break;
             case Discrete::Center:
-                return discr_func_center_(x);
+                y = discr_func_center_(x);
+                break;
             case Discrete::Left:
-                return discr_func_left_(x);
+                y = discr_func_left_(x);
+                break;
             default: // Discrete::Defined:
-                return raw_function_(std::floor(x));
+                y = raw_function_(std::floor(x));
+                break;
             }
+            return trunc_mode_ == Trunc::None ? y : y / trunc_();
         }
 
-        /// Evaluate the log-function under the discretization scheme.
-        virtual double log_func_(double x) const
+        /// Evaluate the log-function under the discretization scheme, truncation normalized.
+        double log_func_(double x) const
         {
+            double y;
             switch (discr_mode_)
             {
             case Discrete::None:
-                return raw_log_func_(x);
+                y = raw_log_func_(x);
+                break;
             case Discrete::Center:
-                return std::log(discr_func_center_(x));
+                y = std::log(discr_func_center_(x));
+                break;
             case Discrete::Left:
-                return std::log(discr_func_left_(x));
+                y = std::log(discr_func_left_(x));
+                break;
             default: // Discrete::Defined:
-                return raw_log_func_(std::floor(x));
+                y = raw_log_func_(std::floor(x));
+                break;
+            }
+            return trunc_mode_ == Trunc::None ? y : y - logtrunc_();
+        }
+
+        /// Evaluate the primitive under the discretization scheme, truncation normalized.
+        double primitive_(double x) const
+        {
+            const double y = raw_primitive_(primitive_x_helper_(x));
+            switch (trunc_mode_)
+            {
+            case Trunc::None:
+                return y;
+            case Trunc::Max:
+                return y / cdf_max_();
+            default: // cases Trunc::Min, Trunc::Both
+                return (y - cdf_min_()) / trunc_();
             }
         }
 
-        /// Evaluate the primitive under the discretization scheme.
-        virtual double primitive_(double x) const { return raw_primitive_(primitive_x_helper_(x)); }
+        //////  Truncation  //////
+
+        /// Truncated sides, set by a distribution only.
+        enum class Trunc : std::uint8_t
+        {
+            None, /// No truncation.
+            Min,  /// Lower-bound truncation.
+            Max,  /// Upper-bound truncation.
+            Both  /// Two-sided truncation.
+        } trunc_mode_ = Trunc::None;
+        /// Source of the log-normalizer.
+        enum class LogTrunc : std::uint8_t
+        {
+            LookUp, /// Constant log-normalizer, stored by finalize().
+            Compute /// Log-normalizer computed per evaluation.
+        } logtrunc_mode_ = LogTrunc::Compute;
+        /// Log-normalizer read in LogTrunc::LookUp mode.
+        double lookup_log_trunc_ = na::DOUBLE;
+
+        /// Primitive at the minimum, with discretization correction.
+        /// @note Call only with a minimum.
+        double cdf_min_() const
+        {
+            switch (discr_mode_)
+            {
+            case Discrete::Defined:
+                return raw_primitive_(std::ceil(domain_.min.value()) - 1.);
+            case Discrete::Center:
+                return raw_primitive_(std::ceil(domain_.min.value()) - 0.5);
+            case Discrete::Left:
+                return raw_primitive_(std::ceil(domain_.min.value()));
+            default: // case Discrete::None:
+                return raw_primitive_(domain_.min.value());
+            }
+        }
+
+        /// Primitive at the maximum, with discretization correction.
+        /// @note Call only with a maximum.
+        double cdf_max_() const
+        {
+            switch (discr_mode_)
+            {
+            case Discrete::Defined:
+                return raw_primitive_(std::floor(domain_.max.value()));
+            case Discrete::Center:
+                return raw_primitive_(std::floor(domain_.max.value()) + 0.5);
+            case Discrete::Left:
+                return raw_primitive_(std::floor(domain_.max.value()) + 1.);
+            default: // case Discrete::None:
+                return raw_primitive_(domain_.max.value());
+            }
+        }
+
+        /// Normalizing constant of the truncation.
+        /// @note Call only when truncated.
+        double trunc_() const
+        {
+            switch (trunc_mode_)
+            {
+            case Trunc::Min:
+                return 1. - cdf_min_();
+            case Trunc::Max:
+                return cdf_max_();
+            default: // case Trunc::Both:
+                return cdf_max_() - cdf_min_();
+            }
+        }
+
+        /// Log-normalizer of the truncation.
+        /// @note Call only when truncated.
+        double logtrunc_() const { return logtrunc_mode_ == LogTrunc::LookUp ? lookup_log_trunc_ : std::log(trunc_()); }
 
         //////  Discretization  //////
 
@@ -643,16 +745,21 @@ namespace housepi
         }
 
         /// Mass of the unit bin centered on `x`.
-        double discr_func_center_(double x) const
-        {
-            const double i = std::round(x);
-            return raw_primitive_(i + 0.5) - raw_primitive_(i - 0.5);
-        }
+        double discr_func_center_(double x) const { return discr_bin_(std::round(x) - 0.5); }
         /// Mass of the unit bin starting at floor(`x`).
-        double discr_func_left_(double x) const
+        double discr_func_left_(double x) const { return discr_bin_(std::floor(x)); }
+
+    private:
+        static constexpr double TAIL_MASS = 0x1p-20; /// Upper-tail mass below which cumulatives lose precision.
+
+        /// Mass of the unit bin starting at `a`.
+        ///
+        /// * default -> difference of primitives;
+        /// * bin above the median with mass below `TAIL_MASS` -> difference of complementary cumulatives.
+        double discr_bin_(double a) const
         {
-            const double i = std::floor(x);
-            return raw_primitive_(i + 1.) - raw_primitive_(i);
+            const double hi = raw_primitive_(a + 1.), lo = raw_primitive_(a), p = hi - lo;
+            return p > TAIL_MASS || lo < 0.5 ? p : raw_ccdf_(a) - raw_ccdf_(a + 1.);
         }
     };
 

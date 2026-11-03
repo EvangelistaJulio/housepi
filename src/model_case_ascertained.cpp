@@ -257,6 +257,25 @@ public:
 #endif
     }
 
+    /// Store profiles from infector `indiv_i` to escaped members, up to their follow-up end.
+    /// * escaped members sharing a follow-up end -> profile evaluated once.
+    void helper_update_escaped_cache(matrix &cumul_mtx,
+                                     const Household &house,
+                                     const Individual &indiv_i,
+                                     double t_infec_i) const
+    {
+        const MemberIdx i = Index::member(indiv_i);
+        double exposure = na::DOUBLE, cumul = 0.;
+        for (MemberIdx s : house.escaped_members())
+        {
+            const double e = follow_up_end(house.at(s)) - t_infec_i;
+            if (e != exposure)
+                exposure = e, cumul = infec_profile_cumul(indiv_i, e);
+            cumul_mtx[i][s] = cumul;
+            cumul_mtx[s][i] = 0.0;
+        }
+    }
+
     /// Commit the introduction: earliest infection, ties to the smallest member index.
     static void helper_commit_intro(MemberIdx &i0,
                                     double &t0,
@@ -264,10 +283,7 @@ public:
                                     double t)
     {
         if (t < t0 || (t == t0 && i < i0))
-        {
-            t0 = t;
-            i0 = i;
-        }
+            t0 = t, i0 = i;
     }
 
     /// Store cumulative and instantaneous infectivity profiles of `house`.
@@ -288,17 +304,7 @@ public:
             const Individual &indiv_i = house.at(i);
             const double t_infec_i = aug(Latent::infec_time, indiv_i);
 
-            //////  Escaped members  //////
-
-            for (MemberIdx s : house.escaped_members())
-            {
-                const Individual &indiv_s = house.at(s);
-                const double exposure = follow_up_end(indiv_s) - t_infec_i;
-                cumul_mtx[i][s] = infec_profile_cumul(indiv_i, exposure);
-                cumul_mtx[s][i] = 0.0;
-            }
-
-            //////  Infectious members  //////
+            helper_update_escaped_cache(cumul_mtx, house, indiv_i, t_infec_i);
 
             for (MemberIdx b = a + 1; b < n_infec; ++b)
             {
@@ -328,17 +334,7 @@ public:
         const MemberIdx i = Index::member(indiv_i);
         const double t_infec_i = aug(Latent::infec_time, indiv_i);
 
-        //////  Escaped members  //////
-
-        for (MemberIdx s : house.escaped_members())
-        {
-            const Individual &indiv_s = house.at(s);
-            double exposure = follow_up_end(indiv_s) - t_infec_i;
-            cumul_mtx[i][s] = infec_profile_cumul(indiv_i, exposure);
-            cumul_mtx[s][i] = 0.0;
-        }
-
-        //////  Infectious members  //////
+        helper_update_escaped_cache(cumul_mtx, house, indiv_i, t_infec_i);
 
         // commit introduction to current member
         i0 = i;

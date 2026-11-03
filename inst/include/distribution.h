@@ -42,18 +42,6 @@ namespace housepi
             return std::unique_ptr<Distribution>(static_cast<Distribution *>(clone().release()));
         }
 
-        /// Finalize, then store the truncation normalizer when nothing it reads can move.
-        void finalize() override
-        {
-            Function::finalize();
-            if (trunc_mode_ == Trunc::None)
-                logtrunc_mode_ = LogTrunc::None;
-            else if (has_constant_args_())
-                logtrunc_mode_ = LogTrunc::LookUp, lookup_log_trunc_ = std::log(trunc_());
-            else
-                logtrunc_mode_ = LogTrunc::Compute;
-        }
-
         //////  Getter  //////
 
         /// Draw a value, truncation included.
@@ -106,7 +94,9 @@ namespace housepi
                 return domain_.min.is_empty() ? -inf::DOUBLE : relocate_(domain_.min.value());
             if (p >= 1.)
                 return domain_.max.is_empty() ? inf::DOUBLE : relocate_(domain_.max.value());
-            return relocate_(cast_discr_(raw_quantile_(shift_() + p * trunc_())));
+            if (trunc_mode_ != Trunc::None)
+                p = trunc_mode_ == Trunc::Max ? p * cdf_max_() : cdf_min_() + p * trunc_();
+            return relocate_(cast_discr_(raw_quantile_(p)));
         }
 
         /// Values the distribution draws can take.
@@ -142,73 +132,12 @@ namespace housepi
 
         //////  Virtual  //////
 
-        /// Raw density or mass.
-        virtual double raw_pdf_(double /*x*/) const = 0;
-        /// Raw cumulative distribution function.
-        virtual double raw_cdf_(double /*x*/) const = 0;
-        /// Raw complementary cumulative distribution, 1 - cdf.
-        ///
-        /// * continuous distribution -> a tail-accurate closed form, read by Center and Left discretization;
-        /// * any other -> undefined.
-        virtual double raw_ccdf_(double /*x*/) const { raise_undefined_call_err_("ccdf"); }
         /// Raw quantile at cumulative probability `p`.
         virtual double raw_quantile_(double /*p*/) const = 0;
-        /// Raw log-density or log-mass.
-        virtual double raw_log_pdf_(double /*x*/) const = 0;
         /// Raw log-ratio of densities or masses from `xo` to `xn`.
         virtual double raw_log_ratio_(double /*xo*/, double /*xn*/) const = 0;
         /// Raw random draw.
         virtual double raw_rand_(RndGen & /*prng*/) const = 0;
-
-        /// Raw function: undefined for a distribution.
-        double raw_function_(double /*x*/) const override final { raise_undefined_call_err_("function"); }
-
-        /// Evaluate density or mass under the discretization scheme.
-        double function_(double x) const override final
-        {
-            double y;
-            switch (discr_mode_)
-            {
-            case Discrete::None:
-                y = raw_pdf_(x);
-                break;
-            case Discrete::Center:
-                y = discr_dist_center_(x);
-                break;
-            case Discrete::Left:
-                y = discr_dist_left_(x);
-                break;
-            default: // Discrete::Defined:
-                y = raw_pdf_(std::floor(x));
-                break;
-            }
-            return y / trunc_();
-        }
-
-        /// Evaluate log-density or log-mass under the discretization scheme.
-        double log_func_(double x) const override final
-        {
-            double y;
-            switch (discr_mode_)
-            {
-            case Discrete::None:
-                y = raw_log_pdf_(x);
-                break;
-            case Discrete::Center:
-                y = std::log(discr_dist_center_(x));
-                break;
-            case Discrete::Left:
-                y = std::log(discr_dist_left_(x));
-                break;
-            default: // Discrete::Defined:
-                y = raw_log_pdf_(std::floor(x));
-                break;
-            }
-            return y - logtrunc_();
-        }
-
-        /// Evaluate the truncated cumulative under the discretization scheme.
-        double primitive_(double x) const override final { return (raw_cdf_(primitive_x_helper_(x)) - shift_()) / trunc_(); }
 
         /// Evaluate the log-ratio of densities or masses under the discretization scheme.
         double log_ratio_(double xo, double xn) const
@@ -218,9 +147,9 @@ namespace housepi
             case Discrete::None:
                 return raw_log_ratio_(xo, xn);
             case Discrete::Center:
-                return std::log(discr_dist_center_(xn)) - std::log(discr_dist_center_(xo));
+                return std::log(discr_func_center_(xn)) - std::log(discr_func_center_(xo));
             case Discrete::Left:
-                return std::log(discr_dist_left_(xn)) - std::log(discr_dist_left_(xo));
+                return std::log(discr_func_left_(xn)) - std::log(discr_func_left_(xo));
             default: // Discrete::Defined:
                 return raw_log_ratio_(std::floor(xo), std::floor(xn));
             }
@@ -284,24 +213,6 @@ namespace housepi
 
         //////  Truncation  //////
 
-        /// Truncated sides.
-        enum class Trunc : std::uint8_t
-        {
-            None, /// No truncation.
-            Min,  /// Lower-bound truncation.
-            Max,  /// Upper-bound truncation.
-            Both  /// Two-sided truncation.
-        } trunc_mode_ = Trunc::None;
-        /// Source of the log-normalizer.
-        enum class LogTrunc : std::uint8_t
-        {
-            None,   /// No truncation, null log-normalizer.
-            LookUp, /// Constant log-normalizer, stored by finalize().
-            Compute /// Log-normalizer computed per evaluation.
-        } logtrunc_mode_ = LogTrunc::Compute;
-        /// Log-normalizer read in LogTrunc::LookUp mode.
-        double lookup_log_trunc_ = na::DOUBLE;
-
         /// Select truncation mode.
         void helper_init_distr_truncation_()
         {
@@ -316,100 +227,6 @@ namespace housepi
                 trunc_mode_ = Trunc::Max;
             else
                 trunc_mode_ = Trunc::Both;
-        }
-
-        /// CDF at the minimum, with discretization correction.
-        double cdf_min_() const
-        {
-            switch (discr_mode_)
-            {
-            case Discrete::Defined:
-                return raw_cdf_(std::ceil(domain_.min.value()) - 1.);
-            case Discrete::Center:
-                return raw_cdf_(std::ceil(domain_.min.value()) - 0.5);
-            case Discrete::Left:
-                return raw_cdf_(std::ceil(domain_.min.value()));
-            default: // case Discrete::None:
-                return raw_cdf_(domain_.min.value());
-            }
-        }
-
-        /// CDF at the maximum, with discretization correction.
-        double cdf_max_() const
-        {
-            switch (discr_mode_)
-            {
-            case Discrete::Defined:
-                return raw_cdf_(std::floor(domain_.max.value()));
-            case Discrete::Center:
-                return raw_cdf_(std::floor(domain_.max.value()) + 0.5);
-            case Discrete::Left:
-                return raw_cdf_(std::floor(domain_.max.value()) + 1.);
-            default: // case Discrete::None:
-                return raw_cdf_(domain_.max.value());
-            }
-        }
-
-        /// Normalizing constant for the truncated distribution.
-        double trunc_() const
-        {
-            switch (trunc_mode_)
-            {
-            case Trunc::Min:
-                return 1. - cdf_min_();
-            case Trunc::Max:
-                return cdf_max_();
-            case Trunc::Both:
-                return cdf_max_() - cdf_min_();
-            default: // case Trunc::None:
-                return 1.;
-            }
-        }
-
-        /// CDF offset subtracted by the primitive for truncated distributions.
-        double shift_() const
-        {
-            switch (trunc_mode_)
-            {
-            case Trunc::Min:
-            case Trunc::Both:
-                return cdf_min_();
-            default: // cases Trunc::None, Trunc::Max
-                return 0.;
-            }
-        }
-
-        /// Log-normalizer of the truncated distribution.
-        double logtrunc_() const
-        {
-            switch (logtrunc_mode_)
-            {
-            case LogTrunc::None:
-                return 0.;
-            case LogTrunc::LookUp:
-                return lookup_log_trunc_;
-            default: // case LogTrunc::Compute:
-                return std::log(trunc_());
-            }
-        }
-
-    private:
-        //////  Discretization  //////
-
-        static constexpr double TAIL_MASS = 0x1p-20; /// Upper-tail mass below which cumulatives lose precision.
-
-        /// Mass of the unit bin centered on `x`.
-        double discr_dist_center_(double x) const { return discr_bin_(std::round(x) - 0.5); }
-        /// Mass of the unit bin starting at floor(`x`).
-        double discr_dist_left_(double x) const { return discr_bin_(std::floor(x)); }
-        /// Mass of the unit bin starting at `a`.
-        ///
-        /// * default -> difference of cumulatives;
-        /// * bin above the median with mass below `TAIL_MASS` -> difference of complementary cumulatives.
-        double discr_bin_(double a) const
-        {
-            const double hi = raw_cdf_(a + 1.), lo = raw_cdf_(a), p = hi - lo;
-            return p > TAIL_MASS || lo < 0.5 ? p : raw_ccdf_(a) - raw_ccdf_(a + 1.);
         }
     };
 
@@ -431,9 +248,9 @@ namespace housepi
 
     protected:
         double raw_rand_(RndGen & /*prng*/) const override final { return range_.inf; }
-        double raw_pdf_(double /*x*/) const override final { return 1.; }
-        double raw_log_pdf_(double /*x*/) const override final { return 0.; }
-        double raw_cdf_(double x) const override final { return x < range_.inf ? 0. : 1.; }
+        double raw_function_(double /*x*/) const override final { return 1.; }
+        double raw_log_func_(double /*x*/) const override final { return 0.; }
+        double raw_primitive_(double x) const override final { return x < range_.inf ? 0. : 1.; }
         double raw_quantile_(double /*p*/) const override final { return range_.inf; }
         double raw_log_ratio_(double /*xo*/, double /*xn*/) const override final { return 0.; }
 

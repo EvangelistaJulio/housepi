@@ -958,6 +958,10 @@ namespace housepi
         domain_.loc.finalize();
         domain_.min.finalize();
         domain_.max.finalize();
+        if (trunc_mode_ != Trunc::None && has_constant_args_())
+            logtrunc_mode_ = LogTrunc::LookUp, lookup_log_trunc_ = std::log(trunc_());
+        else
+            logtrunc_mode_ = LogTrunc::Compute;
     }
 
     //////////////////////////////  registry::RegFunctions  //////////////////////////////

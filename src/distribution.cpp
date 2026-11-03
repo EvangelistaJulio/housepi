@@ -148,10 +148,10 @@ namespace housepi
             double norm_() const { return domain_.max.value() - domain_.min.value(); }
 
         protected:
-            double raw_pdf_(double) const override final { return 1. / norm_(); }
-            double raw_cdf_(double x) const override final { return (x - domain_.min.value()) / norm_(); }
+            double raw_function_(double) const override final { return 1. / norm_(); }
+            double raw_primitive_(double x) const override final { return (x - domain_.min.value()) / norm_(); }
             double raw_ccdf_(double x) const override final { return (domain_.max.value() - x) / norm_(); }
-            double raw_log_pdf_(double) const override final { return -log(norm_()); }
+            double raw_log_func_(double) const override final { return -log(norm_()); }
             double raw_log_ratio_(double, double) const override final { return 0.; }
             double raw_rand_(RndGen &prng) const override final
             {
@@ -189,14 +189,14 @@ namespace housepi
                 return {{&domain_.min, Codomain::positive()}, {&domain_.max, Codomain::positive()}};
             }
 
-            double raw_pdf_(double x) const override final { return 1. / (x * norm_()); }
-            double raw_cdf_(double x) const override final
+            double raw_function_(double x) const override final { return 1. / (x * norm_()); }
+            double raw_primitive_(double x) const override final
             {
                 const double a = domain_.min.value();
                 return log1p((x - a) / a) / norm_();
             }
             double raw_ccdf_(double x) const override final { return log1p((domain_.max.value() - x) / x) / norm_(); }
-            double raw_log_pdf_(double x) const override final { return -log(x * norm_()); }
+            double raw_log_func_(double x) const override final { return -log(x * norm_()); }
             double raw_log_ratio_(double xo, double xn) const override final { return log(xo / xn); }
             double raw_quantile_(double p) const override final
             {
@@ -227,9 +227,9 @@ namespace housepi
                 return {{&domain_.min, Codomain::integers()}, {&domain_.max, Codomain::integers()}};
             }
 
-            double raw_pdf_(double) const override final { return 1. / norm_(); }
-            double raw_cdf_(double x) const override final { return (x - domain_.min.value() + 1.) / norm_(); }
-            double raw_log_pdf_(double) const override final { return -log(norm_()); }
+            double raw_function_(double) const override final { return 1. / norm_(); }
+            double raw_primitive_(double x) const override final { return (x - domain_.min.value() + 1.) / norm_(); }
+            double raw_log_func_(double) const override final { return -log(norm_()); }
             double raw_log_ratio_(double, double) const override final { return 0.; }
             double raw_quantile_(double p) const override final { return domain_.min.value() + std::ceil(p * norm_()) - 1.; }
             double raw_rand_(RndGen &prng) const override final
@@ -261,13 +261,13 @@ namespace housepi
         protected:
             ArgRequirements arg_requirements_() const override final { return positive_args_({1}); }
 
-            double raw_pdf_(double x) const override final
+            double raw_function_(double x) const override final
             {
                 const double sd = arg(1);
                 const double z = (x - arg(0)) / sd;
                 return M_1_SQRT_2PI * exp(-0.5 * z * z) / sd;
             }
-            double raw_cdf_(double x) const override final
+            double raw_primitive_(double x) const override final
             {
                 return 0.5 * std::erfc(M_SQRT1_2 * (arg(0) - x) / arg(1));
             }
@@ -275,7 +275,7 @@ namespace housepi
             {
                 return 0.5 * std::erfc(M_SQRT1_2 * (x - arg(0)) / arg(1));
             }
-            double raw_log_pdf_(double x) const override final
+            double raw_log_func_(double x) const override final
             {
                 const double sd = arg(1);
                 const double z = (x - arg(0)) / sd;
@@ -341,7 +341,7 @@ namespace housepi
                 }
             }
 
-            double raw_pdf_(double x) const override final
+            double raw_function_(double x) const override final
             {
                 if (x == 0.)
                     return 0.;
@@ -350,7 +350,7 @@ namespace housepi
                 const double z = (log(x) - meanlog) / sdlog;
                 return exp(-0.5 * z * z) * M_1_SQRT_2PI / (x * sdlog);
             }
-            double raw_cdf_(double x) const override final
+            double raw_primitive_(double x) const override final
             {
                 const auto [meanlog, sdlog] = eff_params_();
                 return 0.5 * std::erfc(M_SQRT1_2 * (meanlog - log(x)) / sdlog);
@@ -360,7 +360,7 @@ namespace housepi
                 const auto [meanlog, sdlog] = eff_params_();
                 return 0.5 * std::erfc(M_SQRT1_2 * (log(x) - meanlog) / sdlog);
             }
-            double raw_log_pdf_(double x) const override final
+            double raw_log_func_(double x) const override final
             {
                 if (x == 0.)
                     return -inf::DOUBLE;
@@ -427,13 +427,13 @@ namespace housepi
         protected:
             ArgRequirements arg_requirements_() const override final { return positive_args_({0, 1}); }
 
-            double raw_pdf_(double x) const override final
+            double raw_function_(double x) const override final
             {
                 const double alpha = arg(0);
                 const double beta = arg(1);
                 return exp((alpha - 1.) * log(x) + (beta - 1.) * log1p(-x) - lbeta(alpha, beta));
             }
-            double raw_cdf_(double x) const override final
+            double raw_primitive_(double x) const override final
             {
                 return boost::math::ibeta(arg(0), arg(1), x, no_promote_policy{});
             }
@@ -441,7 +441,7 @@ namespace housepi
             {
                 return boost::math::ibetac(arg(0), arg(1), x, no_promote_policy{});
             }
-            double raw_log_pdf_(double x) const override final
+            double raw_log_func_(double x) const override final
             {
                 const double alpha = arg(0);
                 const double beta = arg(1);
@@ -498,10 +498,10 @@ namespace housepi
                 }
             }
 
-            double raw_pdf_(double x) const override final
+            double raw_function_(double x) const override final
             {
                 if (x != 0.)
-                    return exp(raw_log_pdf_(x));
+                    return exp(raw_log_func_(x));
 
                 const auto [shape, scale] = eff_params_();
                 if (shape < 1.)
@@ -510,7 +510,7 @@ namespace housepi
                     return exp(-log(scale) - lgamma(1));
                 return 0.;
             }
-            double raw_cdf_(double x) const override final
+            double raw_primitive_(double x) const override final
             {
                 const auto [shape, scale] = eff_params_();
                 return boost::math::gamma_p(shape, x / scale, no_promote_policy{});
@@ -520,7 +520,7 @@ namespace housepi
                 const auto [shape, scale] = eff_params_();
                 return boost::math::gamma_q(shape, x / scale, no_promote_policy{});
             }
-            double raw_log_pdf_(double x) const override final
+            double raw_log_func_(double x) const override final
             {
                 const auto [shape, scale] = eff_params_();
                 if (x == 0.)
@@ -565,13 +565,13 @@ namespace housepi
         protected:
             ArgRequirements arg_requirements_() const override final { return positive_args_({0}); }
 
-            double raw_pdf_(double x) const override final
+            double raw_function_(double x) const override final
             {
                 const double scale = arg(0);
                 const double scale2 = scale * scale;
                 return x * exp(-0.5 * x * x / scale2) / scale2;
             }
-            double raw_cdf_(double x) const override final
+            double raw_primitive_(double x) const override final
             {
                 const double scale = arg(0);
                 return -math::expm1(-0.5 * x * x / (scale * scale));
@@ -581,7 +581,7 @@ namespace housepi
                 const double scale = arg(0);
                 return exp(-0.5 * x * x / (scale * scale));
             }
-            double raw_log_pdf_(double x) const override final
+            double raw_log_func_(double x) const override final
             {
                 const double scale = arg(0);
                 const double scale2 = scale * scale;
@@ -616,14 +616,14 @@ namespace housepi
         protected:
             ArgRequirements arg_requirements_() const override final { return positive_args_({0, 1}); }
 
-            double raw_pdf_(double x) const override final
+            double raw_function_(double x) const override final
             {
                 const double shape = arg(0);
                 const double scale = arg(1);
                 const double z = x / scale;
                 return (shape / scale) * pow(z, shape - 1.) * exp(-pow(z, shape));
             }
-            double raw_cdf_(double x) const override final
+            double raw_primitive_(double x) const override final
             {
                 return -math::expm1(-pow(x / arg(1), arg(0)));
             }
@@ -631,7 +631,7 @@ namespace housepi
             {
                 return exp(-pow(x / arg(1), arg(0)));
             }
-            double raw_log_pdf_(double x) const override final
+            double raw_log_func_(double x) const override final
             {
                 const double shape = arg(0);
                 const double scale = arg(1);
@@ -668,12 +668,12 @@ namespace housepi
         protected:
             ArgRequirements arg_requirements_() const override final { return positive_args_({0}); }
 
-            double raw_pdf_(double x) const override final
+            double raw_function_(double x) const override final
             {
                 const double rate = arg(0);
                 return rate * exp(-rate * x);
             }
-            double raw_cdf_(double x) const override final
+            double raw_primitive_(double x) const override final
             {
                 return -math::expm1(-arg(0) * x);
             }
@@ -681,7 +681,7 @@ namespace housepi
             {
                 return exp(-arg(0) * x);
             }
-            double raw_log_pdf_(double x) const override final
+            double raw_log_func_(double x) const override final
             {
                 const double rate = arg(0);
                 return log(rate) - rate * x;
@@ -717,15 +717,15 @@ namespace housepi
         protected:
             ArgRequirements arg_requirements_() const override final { return positive_args_({0}); }
 
-            double raw_pdf_(double x) const override final
+            double raw_function_(double x) const override final
             {
-                return exp(raw_log_pdf_(x));
+                return exp(raw_log_func_(x));
             }
-            double raw_cdf_(double x) const override final
+            double raw_primitive_(double x) const override final
             {
                 return boost::math::gamma_q(x + 1., arg(0), no_promote_policy{});
             }
-            double raw_log_pdf_(double x) const override final
+            double raw_log_func_(double x) const override final
             {
                 const double lambda = arg(0);
                 return x * log(lambda) - lambda - lgamma(x + 1.);
@@ -789,20 +789,20 @@ namespace housepi
                         {&arguments_(1), Codomain::unit(Interval::Open, Interval::Open)}};
             }
 
-            double raw_pdf_(double x) const override final
+            double raw_function_(double x) const override final
             {
                 const double size = arg(0);
                 const double prob = arg(1);
                 return exp(log_binom_coeff(size, x) + x * log(prob) + (size - x) * log1p(-prob));
             }
-            double raw_cdf_(double x) const override final
+            double raw_primitive_(double x) const override final
             {
                 const double size = arg(0);
                 if (x > size)
                     return 1.;
                 return boost::math::ibeta(size - x, x + 1, 1. - arg(1), no_promote_policy{});
             }
-            double raw_log_pdf_(double x) const override final
+            double raw_log_func_(double x) const override final
             {
                 const double size = arg(0);
                 const double prob = arg(1);
@@ -847,17 +847,17 @@ namespace housepi
                         {&arguments_(1), Codomain::unit(Interval::Open, Interval::Open)}};
             }
 
-            double raw_pdf_(double x) const override final
+            double raw_function_(double x) const override final
             {
                 const double size = arg(0);
                 const double prob = arg(1);
                 return exp(log_binom_coeff(x + size - 1., x) + x * log1p(-prob) + size * log(prob));
             }
-            double raw_cdf_(double x) const override final
+            double raw_primitive_(double x) const override final
             {
                 return boost::math::ibeta(arg(0), x + 1., arg(1), no_promote_policy{});
             }
-            double raw_log_pdf_(double x) const override final
+            double raw_log_func_(double x) const override final
             {
                 const double size = arg(0);
                 const double prob = arg(1);
@@ -904,16 +904,16 @@ namespace housepi
                 return {{&arguments_(0), Codomain::unit(Interval::Open, Interval::Open)}};
             }
 
-            double raw_pdf_(double x) const override final
+            double raw_function_(double x) const override final
             {
                 const double prob = arg(0);
                 return prob * exp(x * log1p(-prob));
             }
-            double raw_cdf_(double x) const override final
+            double raw_primitive_(double x) const override final
             {
                 return -math::expm1((x + 1.) * log1p(-arg(0)));
             }
-            double raw_log_pdf_(double x) const override final
+            double raw_log_func_(double x) const override final
             {
                 const double prob = arg(0);
                 return log(prob) + x * log1p(-prob);
@@ -926,7 +926,7 @@ namespace housepi
             {
                 // closed form overshoots by one where the cumulative rounds below `p`: step back
                 const double k = std::ceil(log1p(-p * QUANTILE_SHRINK) / log1p(-arg(0)) - 1.);
-                return k > 0. && raw_cdf_(k - 1.) >= p ? k - 1. : k;
+                return k > 0. && raw_primitive_(k - 1.) >= p ? k - 1. : k;
             }
             double raw_rand_(RndGen &prng) const override final
             {
@@ -985,15 +985,15 @@ namespace housepi
 
             Attribute &find_arg_(std::string_view key) override final { return append_arg_(key); }
 
-            double raw_pdf_(double x) const override final
+            double raw_function_(double x) const override final
             {
                 return arg(static_cast<size_t>(x)) / norm_();
             }
-            double raw_log_pdf_(double x) const override final
+            double raw_log_func_(double x) const override final
             {
                 return log(arg(static_cast<size_t>(x)) / norm_());
             }
-            double raw_cdf_(double x) const override final
+            double raw_primitive_(double x) const override final
             {
                 const size_t k = static_cast<size_t>(x);
                 double acc = 0.;
@@ -1062,8 +1062,8 @@ namespace housepi
             double raw_rand_(RndGen & /*prng*/) const override final { raise_undefined_call_err_("rand"); }
             double raw_log_ratio_(double /*xo*/, double /*xn*/) const override final { raise_undefined_call_err_("log_ratio"); }
             double raw_quantile_(double /*p*/) const override final { raise_undefined_call_err_("quantile"); }
-            double raw_log_pdf_(double /*x*/) const override final { raise_undefined_call_err_("log_pdf"); }
-            double raw_pdf_(double x) const override final
+            double raw_log_func_(double /*x*/) const override final { raise_undefined_call_err_("log_pdf"); }
+            double raw_function_(double x) const override final
             {
                 const double a = arg(0);   // 'shape'
                 const double s = arg(1);   // 'scale'
@@ -1079,7 +1079,7 @@ namespace housepi
                 const double emOSTs = exp((m - (tOST < 0. ? tOST / iT : tOST)) / s);
                 return emOSTs * pow(1. + emOSTs, -a - 1.) / norm_pdf;
             }
-            double raw_cdf_(double x) const override final
+            double raw_primitive_(double x) const override final
             {
                 const double a = arg(0);   // 'shape'
                 const double s = arg(1);   // 'scale'
