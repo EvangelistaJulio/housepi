@@ -591,8 +591,11 @@ test_that("Options outside the support of a law are rejected", {
     expect_error("max")
   browse_distributions("binomial", size = 10, prob = 0.5, min = -1) |>
     expect_error("min")
+  # a bound never exceeds the count of trials
+  browse_distributions("binomial", size = 10, prob = 0.5, max = 11) |>
+    expect_error("[Ii]nvalid max value 11 .*binomial.*size 10\\.")
   browse_distributions("binomial", size = 10, prob = 0.5, min = 11) |>
-    expect_error("max")
+    expect_error("[Ii]nconsistent domain \\[11, 10\\]")
   # bounds crossing each other, reported in the located frame
   browse_distributions("normal", mean = 0, sd = 1, min = 2, max = 1, loc = 1) |>
     expect_error("[Ii]nconsistent domain \\[3, 2\\]")

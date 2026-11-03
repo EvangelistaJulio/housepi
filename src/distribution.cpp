@@ -771,11 +771,11 @@ namespace housepi
                         " for " + str() + ".");
                 if (sx > 0. || arguments_(0).pointer() != max().pointer())
                 {
-                    const double dx = domain_.min.value();
+                    const double dx = domain_.max.value();
                     if (dx > arg(0))
                         msg::stop(
                             "Invoked invalid max value " + str::format(dx) +
-                            " for " + str() + " with size " + std::to_string(arg(0)) + ".");
+                            " for " + str() + " with size " + str::format(arg(0)) + ".");
                     helper_init_standard_domain_();
                     helper_init_distr_truncation_();
                 }
