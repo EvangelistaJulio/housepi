@@ -1624,11 +1624,13 @@ namespace housepi
         builder.init_models();
         const augm::Binder binder = binder_();
 
-        // define latent variables for all latent individuals in order
+        // bind latents of every infected member in order, each distinct warning raised once
+        msg::WarningBuffer warnings;
         for (const Household &house : mcmc_->data.dataset())
             for (const Individual &indiv : house.infected_indivs())
                 for (size_t k : helper_materialize_definition_order_(indiv, false))
                     binder.bind_member(state.of(indiv).vec[consult(def_[k].name)], k, indiv, false);
+        warnings.flush();
 
         // observations the data provide a value for, and what still reaches a sink
         init_live_schemes_(builder);

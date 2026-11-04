@@ -282,37 +282,6 @@ namespace housepi
             return c;
         }
 
-        /// Format interval notation around bounds rendered by the caller.
-        std::string str_interval_(const std::string &str_min,
-                                  const std::string &str_max,
-                                  Interval below,
-                                  Interval above)
-        {
-            std::string output;
-
-            switch (below)
-            {
-            case Interval::Open:
-                output = "(" + str_min;
-                break;
-            case Interval::Closed:
-                output = "[" + str_min;
-                break;
-            default: // case Interval::Unbounded
-                output = "(-Inf";
-                break;
-            }
-            switch (above)
-            {
-            case Interval::Open:
-                return output + ", " + str_max + ")";
-            case Interval::Closed:
-                return output + ", " + str_max + "]";
-            default: // case Interval::Unbounded
-                return output + ", Inf)";
-            }
-        }
-
         /// Codomain of number `v`: the interval holding only itself.
         Codomain numeric_codomain_(double v) noexcept
         {
@@ -329,7 +298,9 @@ namespace housepi
 
     std::string Codomain::str() const
     {
-        return str_interval_(str::format(inf), str::format(sup), below, above);
+        const std::string lo = below == Interval::Unbounded ? "(-Inf" : (below == Interval::Open ? "(" : "[") + str::format(inf);
+        const std::string hi = above == Interval::Unbounded ? "Inf)" : str::format(sup) + (above == Interval::Open ? ")" : "]");
+        return lo + ", " + hi;
     }
 
     bool Codomain::is_within(const Codomain &outer) const noexcept
@@ -405,47 +376,48 @@ namespace housepi
         MAKE_ATTR_MODE(value_ == other.value_,
                        attr_ == other.attr_,
                        func_ == other.func_,
-                       true)
+                       true);
     }
 
     std::string Attribute::name() const { return name_pool_().at(name_id_); }
     std::string Attribute::str() const { return str::format(err_type_) + " " + msg::val(name()); }
 
-    std::string Attribute::str_val() const
+    std::string Attribute::str_source() const
     {
-        MAKE_ATTR_MODE(str::format(value_),
-                       attr_->str_val(),
-                       "<>",
-                       str::format(na::DOUBLE))
+        const Attribute *source = pointer();
+        if (source->is_function())
+            return msg::arg(source->name()) + " definition";
+        return is_pointer() ? source->str() : str::format(value_);
     }
 
-    // @todo Fix the formatting of is_constant().
-    bool Attribute::is_constant() const noexcept {
+    bool Attribute::is_constant() const noexcept
+    {
         MAKE_ATTR_MODE(is_user_const_,
-                       attr_ -> is_constant(),
+                       attr_->is_constant(),
                        func_->is_constant(),
-                       false)}
+                       false);
+    }
 
     Codomain Attribute::codomain() const noexcept
     {
         MAKE_ATTR_MODE(numeric_codomain_(value_),
                        attr_->codomain(),
                        func_->codomain(),
-                       Codomain())
+                       Codomain());
     }
     bool Attribute::is_na() const noexcept
     {
         MAKE_ATTR_MODE(na::is(value_),
                        attr_->is_na(),
                        false,
-                       true)
+                       true);
     }
     bool Attribute::is_callable() const noexcept
     {
         MAKE_ATTR_MODE(!na::is(value_),
                        attr_->is_callable(),
                        func_->is_callable_implicitly(),
-                       false)
+                       false);
     }
 
     //////////////////////////////  Attribute : setter  //////////////////////////////
@@ -690,9 +662,9 @@ namespace housepi
         [[noreturn]] void raise_not_discrete_(const Attribute &attr, std::string sms)
         {
             if (attr.is_numeric())
-                sms += "\nSet argument " + msg::arg(attr.name()) + " from " + attr.str_val() + " to integer.";
+                sms += "\nChange " + msg::arg(attr.name()) + " (" + attr.str_source() + ") to an integer.";
             else
-                sms += "\nChange " + attr.pointer()->str() + " to discrete " + msg::code("discr = TRUE") + ".";
+                sms += "\nChange " + attr.str_source() + " to discrete.";
             msg::stop(sms);
         }
 
@@ -715,20 +687,14 @@ namespace housepi
         [[noreturn]] void raise_outside_(const Attribute &attr, const Codomain &req, const std::string &owner)
         {
             const std::string bounds = str_bounds_(req);
-            // an expression is named after the argument it defines
-            const std::string source = attr.pointer()->is_function() ? "its definition" : attr.pointer()->str();
+            // a number is named after its argument, a source by itself
+            const std::string source = attr.is_numeric() ? msg::arg(attr.name()) : attr.str_source();
             std::string sms = msg::arg(attr.name()) + " of " + owner + " must be " + bounds;
-            if (attr.is_numeric())
-                sms += ".\nSet argument " + msg::arg(attr.name()) + " from " + attr.str_val() + " to a value " +
-                       bounds + ".";
-            else if (attr.is_constant())
-                sms += ".\nChange " + source + " from " + str::format(attr.value()) + " to a value " + bounds + ".";
+            if (attr.is_numeric() || attr.is_constant())
+                sms += ".\nChange " + source + " (" + str::format(attr.value()) + ") to a value " + bounds + ".";
             else
-            {
-                std::string lead = source;
-                lead[0] = static_cast<char>(std::toupper(static_cast<unsigned char>(lead[0])));
-                sms += ".\n" + lead + " can take other values.\nRestrict " + source + " to values " + bounds + ".";
-            }
+                sms += ".\n" + source + " can take other values.\nRestrict " + source + " to values " +
+                       bounds + ".";
             msg::stop(sms);
         }
     }
@@ -884,20 +850,6 @@ namespace housepi
         return c;
     }
 
-    std::string Domain::str() const
-    {
-        std::string str_min = min.str_val();
-        std::string str_max = max.str_val();
-        if (loc.is_callable())
-        {
-            if (min.is_callable())
-                str_min = str::format(relocate(min.value()));
-            if (max.is_callable())
-                str_max = str::format(relocate(max.value()));
-        }
-        return str_interval_(str_min, str_max, below, above);
-    }
-
     //////////////////////////////  Function : arguments  //////////////////////////////
 
     void Function::init_attr(std::string_view key, const Attribute &attr)
@@ -914,9 +866,7 @@ namespace housepi
         catch (const std::exception &e)
         {
             msg::stop(
-                "Impossible to associate " + attr.str() +
-                " as argument " + msg::arg(std::string(key)) + " of " + str() + ".\n" +
-                msg::alert(e.what()));
+                "Invalid argument " + msg::arg(std::string(key)) + " for " + str() + ".\n" + msg::alert(e.what()));
         }
 
         // transfer attribute
@@ -934,19 +884,17 @@ namespace housepi
                 msg::stop(
                     "Non default argument" + std::string(undefined_args.size() > 1 ? "s " : " ") +
                     str::format(undefined_args, false) +
-                    " of " + attr.str() + " cannot be missing.");
+                    " of " + attr.function()->str() + " cannot be missing.");
 
             if (!attr.function()->is_callable_implicitly())
                 msg::stop(
-                    "Argument " + msg::arg("x") + " of " + attr.str() + " cannot be missing.");
+                    "Argument " + msg::arg("x") + " of " + attr.function()->str() + " cannot be missing.");
         }
         else if (attr.is_constant())
         {
             double x = attr.value();
             if (key == "x" && !is_valid(x))
-                msg::stop(
-                    "Value " + str::format(x) + " for argument " + msg::arg(std::string(key)) +
-                    " is outside of domain " + domain_.str() + ".");
+                msg::stop("Value " + str::format(x) + " is outside of domain " + domain_.str() + ".");
         }
     }
 

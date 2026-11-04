@@ -1058,18 +1058,18 @@ test_that("A collapsed baseline is reported again only on a new declaration", {
   # an untouched baseline and a copy of the model say nothing more
   hh_model |>
     add_parameter(gamma = 2) |>
-    capture_warnings() |>
-    expect_no_match("[Bb]aseline")
+    expect_no_warning(message = "[Bb]aseline") |>
+    expect_warning("[Oo]verwriting.*gamma")
   hh_model$copy() |>
     add_parameter(gamma = 2) |>
-    capture_warnings() |>
-    expect_no_match("[Bb]aseline")
+    expect_no_warning(message = "[Bb]aseline") |>
+    expect_warning("[Oo]verwriting.*gamma")
 
   # a new range for the same prior is a new declaration
   hh_model |>
     add_parameter(alpha = list(prior = "uniform", min = 0, max = 2)) |>
-    capture_warnings() |>
-    expect_match("[Bb]aseline.*constant reference", all = FALSE)
+    expect_warning("[Bb]aseline.*constant reference") |>
+    expect_warning("[Oo]verwriting.*alpha")
 
   # a baseline its rate released is reported again once re-collapsed
   released <- hh_model |>
@@ -1077,8 +1077,8 @@ test_that("A collapsed baseline is reported again only on a new declaration", {
     suppressWarnings() # suppress overwrite warning
   get_parameters(released, "alpha")$const |> expect_all_na()
   add_group_rate(released, "community", by = "member") |>
-    capture_warnings() |>
-    expect_match("[Bb]aseline.*constant reference", all = FALSE)
+    expect_warning("[Bb]aseline.*constant reference") |>
+    expect_warning("[Oo]verwriting.*community")
 })
 
 test_that("A measure table cannot give a collapsed baseline its scale back", {

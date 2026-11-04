@@ -274,13 +274,13 @@ test_that("Unsupported parameter definitions throw errors", {
   mk_param$model |>
     add_parameter(rho = list(func = "log", x = -1)) |>
     evaluate_log_lik() |>
-    expect_error("[Vv]alue -1 for argument .x. is outside of domain")
+    expect_error("[Vv]alue -1 is outside of domain")
 })
 
 test_that("A degenerate domain raises an error for parameters", {
   mk_param$model |>
     add_parameter("rho", prior = "uniform", min = 3, max = 3) |>
-    expect_error("[Dd]egenerate domain")
+    expect_error("[Dd]egenerate domain.*.min. \\(3\\) equals .max. \\(3\\)")
 })
 
 test_that("Invalid proposal name is rejected", {

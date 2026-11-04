@@ -187,17 +187,11 @@ namespace housepi
         /// Throw: the support of the proposal cannot cover the domain of the prior.
         [[noreturn]] void raise_uncovered_(const std::string &owner) const
         {
-            Domain support;
+            Codomain support;
             if (!na::is(intrinsic_min_))
-            {
-                support.min = Attribute(intrinsic_min_);
-                support.below = Interval::Closed;
-            }
+                support.inf = intrinsic_min_, support.below = Interval::Closed;
             if (!na::is(intrinsic_max_))
-            {
-                support.max = Attribute(intrinsic_max_);
-                support.above = Interval::Closed;
-            }
+                support.sup = intrinsic_max_, support.above = Interval::Closed;
             msg::stop("Proposal " + msg::val(distr_->name()) + " has support " + support.str() +
                       " that cannot cover the domain " + prior_->domain().str() +
                       " of " + owner + ".\nCorrect the proposal rule.");

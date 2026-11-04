@@ -192,8 +192,6 @@ namespace housepi
         RndWalkProposal &unconstrained_() { return static_cast<RndWalkProposal &>(*prop_); }
         const RndWalkProposal &unconstrained_() const { return static_cast<const RndWalkProposal &>(*prop_); }
 
-        /// Initialize null proposal.
-        void helper_init_null_proposal_();
         /// Initialize independence proposal drawing directly from distribution.
         void helper_init_forward_proposal_();
         /// Initialize a random-walk proposal: rw, rw_log or rw_unif.

@@ -214,8 +214,11 @@ namespace housepi
         std::string name() const;
         /// Name formatted for error messages.
         std::string str() const;
-        /// Value formatted for error messages.
-        std::string str_val() const;
+        /// Source formatted for error messages.
+        /// * number -> its value;
+        /// * pointer -> the attribute it reads, e.g. `data "lo"`;
+        /// * function, or pointer to one -> the definition of the attribute holding it, e.g. "`sd` definition".
+        std::string str_source() const;
 
     protected:
         /// Storage mode.
@@ -307,8 +310,8 @@ namespace housepi
         /// @param owner Name of the definition, for the error it may raise.
         void assert_consistent(const std::string &owner) const;
 
-        /// Interval notation, in the absolute frame.
-        std::string str() const;
+        /// Interval notation of the values the bounds reach, in the absolute frame.
+        std::string str() const { return relocated().str(); }
     };
 
     //////////////////////////////  Function  //////////////////////////////

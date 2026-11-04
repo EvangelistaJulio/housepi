@@ -896,9 +896,9 @@ test_that("Discrete draws from rand() have type integer", {
 
 test_that("Location off the integers is refused when discrete", {
   browse_distributions("poisson", lambda = 3, loc = 0.5) |>
-    expect_error("[Ss]et.*loc.*integer")
+    expect_error("loc.*incompatible with discrete")
   browse_distributions("gamma", shape = 2, discr = TRUE, loc = -1.5) |>
-    expect_error("[Ss]et.*loc.*integer")
+    expect_error("loc.*incompatible with discrete")
   # an integer shift, and a fractional bound that only truncates, are fine
   browse_distributions("poisson", lambda = 3, loc = -2)$pdf(-2) |>
     expect_equal(stats::dpois(0, 3))

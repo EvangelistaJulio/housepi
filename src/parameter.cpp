@@ -73,41 +73,40 @@ namespace housepi
         const Domain &domain = distr_->domain();
         domain.assert_consistent(str());
 
-        // nothing to do on a non-degenerate domain
-        if (!domain.is_degenerate())
-            return;
-
-        // a live bound or location has no point to pin yet
-        if (!domain.min.is_constant() || !domain.max.is_constant() || is_user_const_ ||
+        // nothing to pin: a non-degenerate domain, or a live bound or location
+        if (!domain.is_degenerate() || !domain.min.is_constant() || !domain.max.is_constant() ||
             (!domain.loc.is_empty() && !domain.loc.is_constant()))
             return;
 
-        const std::string sms = "Definitions of " + msg::arg("min") + " as " + domain.min.str() +
-                                " and " + msg::arg("max") + " as " + domain.max.str() +
-                                " produced a degenerate domain";
+        // bounds named by source, identical across members so the warning is raised once
+        const std::string detail = msg::alert(msg::arg("min") + " (" + domain.min.str_source() + ") equals " +
+                                              msg::arg("max") + " (" + domain.max.str_source() + ").");
+        const double x0 = domain.relocate(domain.min.value());
+        const Codomain point{x0, x0, Interval::Closed, Interval::Closed, distr_->support().lattice};
+
+        // observation or user constant: its model replaced by a point mass, its value kept
+        if (err_type_ == ErrType::Observation || is_user_const_)
+        {
+            msg::warn(str() + " has a single possible value for (at least) one member.\n" + detail);
+            return pin_to(point);
+        }
+
         // parameter
         if (err_type_ == ErrType::Parameter)
-            msg::stop(sms + " for " + str() + ".");
+            msg::stop("Found a degenerate domain for " + str() + ".\n" + detail);
 
-        // latent: pinned to the point, its degenerate model replaced by a null one
-        msg::warn("Collapsed (at least) one " + str() + " to constant.\n" +
-                  msg::alert(sms + "."));
-        const double x0 = domain.relocate(domain.min.value());
+        // latent: pinned to the point, its degenerate model replaced by a pinned one
+        msg::warn("Collapsed (at least) one " + str() + " to constant.\n" + detail);
         init_numeric(x0);
-        pin_to({x0, x0, Interval::Closed, Interval::Closed, distr_->support().lattice});
+        pin_to(point);
     }
 
     void Variable::pin_to(Codomain range)
     {
-        distr_ = std::make_unique<NullDistribution>(range);
-        helper_init_null_proposal_();
-    }
-
-    void Variable::helper_init_null_proposal_()
-    {
+        // pinned distribution reporting the range
+        distr_ = std::make_unique<PinnedDistribution>(range);
         // proposal that never moves
         prop_ = std::make_unique<NullProposal>();
-
         // no ratio, no validity check
         move_mode_ = Move::Forward;
     }

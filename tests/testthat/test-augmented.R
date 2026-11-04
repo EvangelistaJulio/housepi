@@ -322,7 +322,7 @@ test_that("Independence proposal must cover the prior domain", {
     add_latent("hidden", model = "uniform", min = rho, max = 5,
                proposal = "gamma", proposal_shape = 2) |>
     evaluate_log_lik() |>
-    expect_error("support \\[0, Inf\\) that cannot cover")
+    expect_error("support \\[0, Inf\\) that cannot cover the domain \\(-1, 5\\]")
 
   # a proposal bounded on both sides against an unbounded model
   mk_latent$model |>
@@ -569,6 +569,12 @@ test_that("A location off the integers is refused when discrete", {
     add_latent("hidden", model = "poisson", lambda = 2, loc = rho) |>
     evaluate_log_lik() |>
     expect_error("[Cc]hange parameter.*rho.*discrete")
+  # an expression over a sampled declaration shifts it alike
+  hh_model |>
+    add_parameter("rho", prior = "uniform", min = 0, max = 1) |>
+    add_latent("hidden", model = "poisson", lambda = 2, loc = rho * 2) |>
+    evaluate_log_lik() |>
+    expect_error("loc.*incompatible with discrete")
 })
 
 test_that("An argument read from a source is judged on every value it takes", {
@@ -593,7 +599,18 @@ test_that("An argument read from a source is judged on every value it takes", {
   hh_model |>
     add_observation("record", model = "normal", sd = datum) |>
     evaluate_log_lik() |>
-    expect_error("sd.*normal.*must be greater than 0.*datum.*from -1.*m2")
+    expect_error("sd.*normal.*must be greater than 0.*datum.*-1.*m2")
+
+  # an expression reaching zero or below is refused, live or constant
+  hh_model |>
+    add_parameter(rho = list(prior = "exponential")) |>
+    add_observation("record", model = "normal", sd = rho - 1) |>
+    evaluate_log_lik() |>
+    expect_error("sd.*normal.*must be greater than 0")
+  hh_model |>
+    add_observation("record", model = "normal", sd = datum_2 - 1) |>
+    evaluate_log_lik() |>
+    expect_error("sd.*normal.*must be greater than 0")
 
   # an expression is judged on the values its operands take
   with_rho <- hh_model |> add_parameter(rho = list(prior = "exponential"))
@@ -1621,17 +1638,52 @@ test_that("A latent degenerate domain warns and collapses", {
   )
   vapply(simulated, \(x) x$hidden[1], numeric(1)) |> expect_all_equal(3)
 
-  # both members collapse: one warning for the run
+  # both members collapse: one warning for the run, naming the bound sources
   hh_model_2 <- data.frame(hh_id = "h1", id = c("m1", "m2"), status = 1,
-                           datum = 1) |>
+                           datum = 1, obs = 0) |>
     new_housepi_model("test") |>
     add_latent("hidden", model = "uniform", min = datum, max = datum,
                loc = 2)
-  warnings <- capture_warnings(simulated <- run_simulation(hh_model_2,
-                                                           nrep = 3L))
-  warnings |> expect_length(1L)
-  warnings |> expect_match("[Cc]ollapsed .*latent .hidden. to constant")
+  collapsed <- paste0("[Cc]ollapsed .*latent .hidden. to constant",
+                      ".*.min. \\(data .datum.\\) equals .max. \\(data .datum.\\)")
+  expect_warning(simulated <- run_simulation(hh_model_2, nrep = 3L), collapsed)
   unlist(lapply(simulated, `[[`, "hidden")) |> expect_all_equal(3)
+  expect_warning(
+    log_lik <- hh_model_2 |>
+      helper_flat_sink(loc = hidden) |>
+      evaluate_log_lik(),
+    collapsed
+  )
+  log_lik |> expect_all_finite()
+
+  # an expression bound meeting the other collapses alike
+  data.frame(hh_id = "h1", id = c("m1", "m2"), status = 1, datum = 1,
+             obs = 0) |>
+    new_housepi_model("test") |>
+    add_latent("hidden", model = "uniform", min = datum + 1, max = 2) |>
+    helper_flat_sink(loc = hidden) |>
+    evaluate_log_lik() |>
+    expect_warning("[Cc]ollapsed .*latent .hidden. to constant")
+})
+
+test_that("A constant latent with a degenerate model is a point mass", {
+  # the bounds meet on 2: the model puts all its mass there, the value stays
+  hh_model <- data.frame(hh_id = "h1", id = c("m1", "m2"), status = 1,
+                         record = 2) |>
+    new_housepi_model("test") |>
+    add_observation(record = list(model = "normal", mean = hidden, sd = 1))
+  hh_model_2 <- hh_model |>
+    add_latent("hidden", const = 3, model = "uniform", min = 2, max = 2)
+  hh_model <- hh_model |>
+    add_latent("hidden", const = 2, model = "uniform", min = 2, max = 2)
+  point_mass <- paste0("[Ll]atent .hidden. has a single possible value",
+                       ".*.min. \\(2\\) equals .max. \\(2\\)")
+
+  # a value on the point contributes log 1, one off it is impossible
+  expect_warning(log_lik <- evaluate_log_lik(hh_model), point_mass)
+  log_lik |> expect_all_finite()
+  expect_warning(log_lik_2 <- evaluate_log_lik(hh_model_2), point_mass)
+  log_lik_2 |> expect_identical(-Inf)
 })
 
 test_that("Nested latents are sampled through their transformation", {
@@ -1753,6 +1805,30 @@ test_that("Evaluating a model allocates its latent storage", {
 })
 
 ####  Observation end-to-end  ####
+
+test_that("A degenerate observation domain is a point mass", {
+  # the bounds meet on 2: a continuous model puts all its mass there
+  hh_model <- data.frame(hh_id = "h1", id = c("m1", "m2"), status = 1,
+                         record = 2) |>
+    new_housepi_model("test") |>
+    add_observation(record = list(model = "normal", mean = 2, sd = 1,
+                                  min = 2, max = 2))
+  hh_model_2 <- hh_model |>
+    add_dataset(transform(get_dataset(hh_model), record = c(2, 3)))
+  point_mass <- paste0("[Oo]bservation .record. has a single possible value",
+                       ".*.min. \\(2\\) equals .max. \\(2\\)")
+
+  # a datum on the point contributes log 1, one warning for the run
+  expect_warning(log_lik <- evaluate_log_lik(hh_model), point_mass)
+  log_lik |> expect_equal(0)
+  # a datum off the point is impossible
+  expect_warning(log_lik_2 <- evaluate_log_lik(hh_model_2), point_mass)
+  log_lik_2 |> expect_identical(-Inf)
+
+  # simulation draws the point
+  expect_warning(simulated <- run_simulation(hh_model, nrep = 3L), point_mass)
+  unlist(lapply(simulated, `[[`, "record")) |> expect_all_equal(2)
+})
 
 test_that("Observation-aware initialization", {
   window <- 0.1

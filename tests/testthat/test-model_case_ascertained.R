@@ -5,9 +5,6 @@ library(testthat)
 # Over budget: the likelihood test builds the discrete-time model, a DLL
 # compile the infectivity-profile tests then find cached.
 
-# household of three cases and four escapees, the introduction at day 0
-mk_house <- helper_onset_house
-
 # simulation over real households, the transmission rate left to each test
 mk_simulation <- local({
   hh_model <- sarscov2_2021_icofs |>
@@ -55,7 +52,7 @@ loglike_escaped <- function(house, param, discr) {
     # continuous time observes the whole last day: window closes at end_date + 1
     t_end_k <- house[k, "end_date"] + !discr
     roi_cumul <- 0
-    # community exposure from t0 through the end of day end_date, day t0 included
+    # community exposure from day t0 through the end of day end_date
     alpha_cumul <- alpha * (house[k, "end_date"] + 1 - t_intro)
     for (i in which(house$status == 1)) {
       exposure <- t_end_k - house[i, "infec_time"]
@@ -208,7 +205,7 @@ test_that("Sentinel against no introduction throws error", {
 })
 
 test_that("Sentinel against a member missing a follow-up date throws error", {
-  hh_data <- transform(mk_house$data, infec_date = infec_time)
+  hh_data <- transform(helper_onset_house$data, infec_date = infec_time)
   hh_model <- new_housepi_model(model = "case-ascertained") |>
     add_parameter(import = "template") |>
     add_latent(infec_time = infec_date) |>
@@ -230,14 +227,18 @@ test_that("Sentinel against a member missing a follow-up date throws error", {
 })
 
 test_that("Log-likelihood of case ascertained model is correct", {
-  house <- mk_house$data[c("id", "hh_id", "status", "infec_time", "end_date")]
+  house <- helper_onset_house$data[c("id", "hh_id", "status", "infec_time",
+                                     "end_date")]
   # rates far below the machine epsilon
-  tiny <- modifyList(mk_house$param, list(alpha = 1e-20, beta = 1e-20))
+  tiny <- modifyList(helper_onset_house$param,
+                     list(alpha = 1e-20, beta = 1e-20))
 
   for (discr in c(FALSE, TRUE)) {
-    hh_model <- build_onset_model(house, mk_house$param, discr)
+    hh_model <- build_onset_model(house, helper_onset_house$param, discr)
     evaluate_log_lik(hh_model) |>
-      expect_equal(latent_infec_obs_log_lik(house, mk_house$param, discr))
+      expect_equal(
+        latent_infec_obs_log_lik(house, helper_onset_house$param, discr)
+      )
 
     build_onset_model(house, tiny, discr) |>
       evaluate_log_lik() |>
@@ -251,7 +252,7 @@ test_that("Log-likelihood of case ascertained model is correct", {
                            const = c(NA, 0))
       hh_model <- house |>
         transform(age = c("adult", "child", rep("adult", 5))) |>
-        build_onset_model(mk_house$param, discr) |>
+        build_onset_model(helper_onset_house$param, discr) |>
         add_group_rate("community", strata = strata)
     }
     print(hh_model) |> expect_snapshot()
@@ -264,21 +265,23 @@ test_that("Co-primaries on the introduction day score the first-day set", {
   house <- data.frame(id = c("m1", "m2", "m3"), hh_id = "h1",
                       status = c(1, 1, 0), infec_time = c(0, 0, NA),
                       end_date = 21)
-  build_onset_model(house, mk_house$param, TRUE) |>
+  build_onset_model(house, helper_onset_house$param, TRUE) |>
     evaluate_log_lik() |>
-    expect_equal(latent_infec_obs_log_lik(house, mk_house$param, TRUE))
+    expect_equal(
+      latent_infec_obs_log_lik(house, helper_onset_house$param, TRUE)
+    )
 })
 
 test_that("A case with no source of infection has zero likelihood", {
   # `m2` is the only child, out of reach of the community,
   # and no household transmission
-  hh_data <- transform(mk_house$data[c("id", "hh_id", "status", "infec_time",
-                                       "end_date")],
+  hh_data <- transform(helper_onset_house$data[c("id", "hh_id", "status",
+                                                 "infec_time", "end_date")],
                        age = c("adult", "child", rep("adult", 5)))
   strata <- data.frame(age = c(NA, "child"),
                        param_name = c(".reference", "com_child"),
                        const = c(NA, 0))
-  param <- modifyList(mk_house$param, list(beta = 0))
+  param <- modifyList(helper_onset_house$param, list(beta = 0))
 
   for (discr in c(FALSE, TRUE)) {
     build_onset_model(hh_data, param, discr) |>
@@ -292,14 +295,14 @@ test_that("Model quantities are the rates of the force of infection", {
   # `m2` is the only child: its own community, susceptibility, infectivity
   # and contact with the adults
   child <- c(FALSE, TRUE, rep(FALSE, 5))
-  house <- transform(mk_house$data[c("id", "hh_id", "status", "infec_time",
-                                     "end_date")],
+  house <- transform(helper_onset_house$data[c("id", "hh_id", "status",
+                                               "infec_time", "end_date")],
                      age = ifelse(child, "child", "adult"))
   strata <- function(param_name, value) {
     data.frame(age = c(NA, "child"), param_name = c(".reference", param_name),
                const = c(NA, value))
   }
-  hh_model <- build_onset_model(house, mk_house$param, FALSE) |>
+  hh_model <- build_onset_model(house, helper_onset_house$param, FALSE) |>
     add_group_rate(community = list(strata = strata("com_child", 2)),
                    susceptibility = list(strata = strata("sus_child", 3)),
                    infectivity = list(strata = strata("inf_child", 0.5))) |>
@@ -311,7 +314,7 @@ test_that("Model quantities are the rates of the force of infection", {
   evaluate_log_lik(hh_model)
 
   # infector by row, infectee by column, no self-contact
-  par <- mk_house$param
+  par <- helper_onset_house$param
   beta_star <- par$beta * (par$hh_size_ref / nrow(house))^par$gamma
   ctr <- ifelse(outer(child, child, xor), 1.5, 1)
   diag(ctr) <- 0
@@ -325,7 +328,8 @@ test_that("Model quantities are the rates of the force of infection", {
 })
 
 test_that("Latent moves preserve log-likelihood", {
-  house <- mk_house$data[c("id", "hh_id", "status", "onset_date", "end_date")]
+  house <- helper_onset_house$data[c("id", "hh_id", "status", "onset_date",
+                                     "end_date")]
   hh_model <- house |>
     new_housepi_model("case-ascertained", quiet = TRUE) |>
     add_parameter(import = "template") |>

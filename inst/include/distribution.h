@@ -238,19 +238,23 @@ namespace housepi
         }
     };
 
-    //////////////////////////////  NullDistribution  //////////////////////////////
+    //////////////////////////////  PinnedDistribution  //////////////////////////////
 
-    /// Closed range carrying no density: the model of a variable pinned within it.
+    /// Model of a variable pinned within a closed range, which it reports as its values.
     ///
+    /// * single point -> point mass, as for a collapsed model;
+    /// * interval -> support only, as for a parameter read from a column of values per repetition;
     /// * log-density and log-ratio -> 0, the variable never moves;
-    /// * support -> the range, lattice included;
-    /// * draws -> the lower end, the pinned point of a collapsed model.
+    /// * domain and support -> the range, lattice included;
+    /// * value outside the range -> guarded log-density is minus infinity;
+    /// * draws and quantiles -> the lower end.
     /// @note Unregistered: built in place of a collapsed model or of a pinned prior, never named by the user.
-    class NullDistribution final : public Cloneable<NullDistribution, Distribution>
+    class PinnedDistribution final : public Cloneable<PinnedDistribution, Distribution>
     {
     public:
-        static constexpr const char *NAME = "null";
-        NullDistribution(Codomain range) : range_(range) {}
+        static constexpr const char *NAME = "pinned";
+        PinnedDistribution(Codomain range)
+            : Cloneable({}, range.inf, range.sup), range_(range) {}
 
         Codomain support() const noexcept override final { return range_; }
 
