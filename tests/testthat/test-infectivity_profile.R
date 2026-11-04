@@ -365,6 +365,29 @@ test_that("A latent parameterizing the profile drives transmission", {
   identical(short, long) |> expect_false()
 })
 
+test_that("A profile reading a parameter follows each draw in simulation", {
+  # the first case of each household infects the others one generation later
+  hh_model <- data.frame(id = seq(150), hh_id = rep(seq(50), each = 3),
+                         status = 1, start_date = 0, end_date = 40) |>
+    new_housepi_model("case-ascertained", quiet = TRUE) |>
+    add_parameter(alpha = 1e-6, beta = 50, gamma = 0, hh_size_ref = 3,
+                  rho = list(prior = "uniform", min = 1, max = 20)) |>
+    add_latent("infec_time", min = start_date, max = end_date) |>
+    add_infectivity_profile("gamma", mean = rho, sd = 0.5)
+  # time from the first infection of each household to the other ones
+  gaps <- function(simulated) {
+    unlist(tapply(simulated$infec_time, simulated$hh_id, function(t) {
+      t <- t[!is.na(t)]
+      t[t > min(t)] - min(t)
+    }))
+  }
+
+  # gaps below 6 for a mean of 2, above 6 for a mean of 12
+  simulated <- run_simulation(hh_model, draws = data.frame(rho = c(2, 12)))
+  (gaps(simulated[[1]]) < 6) |> expect_all_true()
+  (gaps(simulated[[2]]) > 6) |> expect_all_true()
+})
+
 test_that("The household snapshot reports the profile of each member", {
   hh_model <- mk_house$model
   profiles_of <- \(h) inspect_state(h, "h1")$infectivity_profiles

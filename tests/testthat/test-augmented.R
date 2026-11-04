@@ -1447,6 +1447,19 @@ test_that("Latent definitions are integrated in simulations", {
     expect_all_true()
 })
 
+test_that("A latent reading a parameter follows each draw in simulation", {
+  hh_model <- data.frame(id = seq(40), hh_id = rep(seq(10), each = 4),
+                         status = 1) |>
+    new_housepi_model("test") |>
+    add_parameter(rho = list(prior = "uniform", max = 20)) |>
+    add_latent(hidden = list(model = "gamma", mean = rho, sd = 0.1))
+
+  # each replicate draws around its own value
+  simulated <- run_simulation(hh_model, draws = data.frame(rho = c(1, 10)))
+  (abs(simulated[[1]]$hidden - 1) < 1) |> expect_all_true()
+  (abs(simulated[[2]]$hidden - 10) < 1) |> expect_all_true()
+})
+
 test_that("A constant with a model is pinned, its density kept", {
   mk <- function(max) {
     data.frame(id = c("m1", "m2"), hh_id = "h1", status = 1, datum = 7,
@@ -2067,6 +2080,21 @@ test_that("Household observation derives from simulated observations", {
     expected <- tapply(infected$test_date, infected$hh_id, min)
     as.numeric(unlist(per_house)[names(expected)]) |>
       expect_equal(as.numeric(expected))
+  }
+})
+
+test_that("A member observation follows the drawn observation it reads", {
+  reps <- data.frame(id = seq(40), hh_id = rep(seq(10), each = 4),
+                     status = 1) |>
+    new_housepi_model("test") |>
+    add_latent(hidden = list(model = "uniform", min = 2, max = 8)) |>
+    add_observation(record = list(model = "normal", mean = hidden, sd = 1),
+                    record_2 = record + 1) |>
+    run_simulation(nrep = 2)
+
+  # 'record' is drawn per replicate, 'record_2' reads each draw
+  for (simulated in reps) {
+    (simulated$record_2 - simulated$record) |> expect_equal(rep(1, 40))
   }
 })
 

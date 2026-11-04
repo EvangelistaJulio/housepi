@@ -73,7 +73,8 @@ namespace housepi
         /// Bind the member variables a simulation reads, once per run.
         ///
         /// * one block per status scheme the member can reach, handed out by init_definitions_for_simulation();
-        /// * reachable status: the observed one, and every one `status_process` can draw.
+        /// * reachable status: the observed one, and every one `status_process` can draw;
+        /// * each block finalized while bound -> constants folded per status scheme.
         ///
         /// A binding error is kept, and raised only if the member reaches what failed.
         /// Distinct warnings are raised once each.

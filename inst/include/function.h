@@ -136,7 +136,7 @@ namespace housepi
         /// Transfer definition from `other`.
         void transfer(const Attribute &other);
         /// Finalize: prune indirections, collapse constants to numeric.
-        /// @note Evaluation only, never run for simulations.
+        /// @note Call only when every read flagged constant keeps its value for the whole run.
         virtual void finalize();
 
         /// Set attribute value.

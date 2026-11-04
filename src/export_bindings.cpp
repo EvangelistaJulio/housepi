@@ -1374,6 +1374,7 @@ namespace housepi
             {
                 engine.augm.init_house_for_simulation(); // build household-level observations
                 dataset.assert_required_everyone(engine.data.state, augm.get_drawn_cols());
+                engine.infec_profile.finalize();           // store constant terms of the generic profile
                 engine.model->init_model_for_simulation(); // model-specific initialization
                 engine.rates.assert_identifiability(engine.param);
                 engine.augm.init_members_for_simulation(engine.status_process); // bind member definitions once per run
