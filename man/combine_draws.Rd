@@ -32,7 +32,7 @@ and do not combine.
 hh_model <- flu_1918_frederick |>
   new_housepi_model("final-size") |>
   add_parameter(import = "template")
-hh_fit <- run_inference(hh_model, chains = 2, progress = FALSE)
-hh_fit_2 <- run_inference(hh_model, chains = 2, progress = FALSE)
+hh_fit <- run_inference(hh_model, chains = 2)
+hh_fit_2 <- run_inference(hh_model, chains = 2)
 c(hh_fit, hh_fit_2)
 }

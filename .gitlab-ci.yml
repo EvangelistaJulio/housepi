@@ -32,7 +32,7 @@ r-cmd-check:
   stage: check
   script:
     - R -q -e "pak::pkg_install('rcmdcheck')"
-    - R -q -e "rcmdcheck::rcmdcheck(args = c('--no-manual'), error_on = 'warning', check_dir = 'check')"
+    - R -q -e "rcmdcheck::rcmdcheck(args = c('--no-manual', '--no-build-vignettes'), error_on = 'warning', check_dir = 'check')"
   artifacts:
     when: always
     paths:

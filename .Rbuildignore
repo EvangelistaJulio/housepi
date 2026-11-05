@@ -16,7 +16,6 @@
 ^cleanup.win$
 ^src/Makevars$
 ^src/Makevars\.win$
-^data-raw$
 ^doc$
 ^vignettes/articles$
 ^pkgdown$

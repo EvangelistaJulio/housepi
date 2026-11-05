@@ -61,7 +61,7 @@ Otherwise the call falls through to \code{\link[posterior:summarise_draws]{poste
 hh_fit <- flu_1918_frederick |>
   new_housepi_model("final-size") |>
   add_parameter(import = "template") |>
-  run_inference(chains = 2, progress = FALSE)
+  run_inference(chains = 2)
 
 # all parameters and stored latent variables
 summarise_draws(hh_fit)

@@ -105,7 +105,7 @@ recovery <- flu_1918_frederick |>
   new_housepi_model("final-size") |>
   add_parameter(import = "template") |>
   check_recovery(c(alpha = 0.15, beta = 0.2, gamma = 1),
-                 nrep = 2, houses = 30, progress = FALSE)
+                 nrep = 2, houses = 30)
 recovery$summarise()
 recovery$overview
 }

@@ -31,9 +31,9 @@ with \code{counts} the number of households with a case;}
 hh_model <- flu_1918_frederick |>
   new_housepi_model("final-size") |>
   add_parameter(import = "template")
-hh_fit <- run_inference(hh_model, chains = 2, progress = FALSE)
+hh_fit <- run_inference(hh_model, chains = 2)
 
-ppc <- check_predictive(hh_model, hh_fit, nrep = 50, progress = FALSE)
+ppc <- check_predictive(hh_model, hh_fit, nrep = 50)
 ppc$format_attack_rate()
 }
 \section{Super class}{

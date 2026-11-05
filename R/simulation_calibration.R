@@ -179,7 +179,7 @@ calibration_ecdf_ <- function(estimates, size, threshold) {
 #' calibration <- flu_1918_frederick |>
 #'   new_housepi_model("final-size") |>
 #'   add_parameter(import = "template") |>
-#'   check_calibration(nrep = 2, houses = 30, progress = FALSE)
+#'   check_calibration(nrep = 2, houses = 30)
 #' calibration
 #' calibration$summarise()
 #' @docType class
@@ -519,7 +519,7 @@ HousepiCalibrationCheck <- R6::R6Class(
 #' calibration <- flu_1918_frederick |>
 #'   new_housepi_model("final-size") |>
 #'   add_parameter(import = "template") |>
-#'   check_calibration(nrep = 2, houses = 30, progress = FALSE)
+#'   check_calibration(nrep = 2, houses = 30)
 #' calibration$summarise()
 #' calibration$overview
 #'
@@ -527,9 +527,8 @@ HousepiCalibrationCheck <- R6::R6Class(
 #' hh_model <- flu_1918_frederick |>
 #'   new_housepi_model("final-size") |>
 #'   add_parameter(import = "template")
-#' hh_fit <- run_inference(hh_model, chains = 2, progress = FALSE)
-#' calibration <- check_calibration(hh_model, hh_fit, nrep = 2, houses = 30,
-#'                                  progress = FALSE)
+#' hh_fit <- run_inference(hh_model, chains = 2)
+#' calibration <- check_calibration(hh_model, hh_fit, nrep = 2, houses = 30)
 #' calibration
 #' @export
 check_calibration <- function(hh_model,

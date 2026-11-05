@@ -144,7 +144,7 @@ at any \code{threads} up to \code{nrep}.
 calibration <- flu_1918_frederick |>
   new_housepi_model("final-size") |>
   add_parameter(import = "template") |>
-  check_calibration(nrep = 2, houses = 30, progress = FALSE)
+  check_calibration(nrep = 2, houses = 30)
 calibration$summarise()
 calibration$overview
 
@@ -152,9 +152,8 @@ calibration$overview
 hh_model <- flu_1918_frederick |>
   new_housepi_model("final-size") |>
   add_parameter(import = "template")
-hh_fit <- run_inference(hh_model, chains = 2, progress = FALSE)
-calibration <- check_calibration(hh_model, hh_fit, nrep = 2, houses = 30,
-                                 progress = FALSE)
+hh_fit <- run_inference(hh_model, chains = 2)
+calibration <- check_calibration(hh_model, hh_fit, nrep = 2, houses = 30)
 calibration
 }
 \references{

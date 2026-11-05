@@ -66,7 +66,7 @@ splits into \code{lprior} and \code{log_lik}.
 hh_fit <- flu_1918_frederick |>
   new_housepi_model("final-size") |>
   add_parameter(import = "template") |>
-  run_inference(chains = 2, progress = FALSE)
+  run_inference(chains = 2)
 get_parameter_draws(hh_fit, c("alpha", "beta"))
 
 # parameters, pointwise log_lik and lprior side by side

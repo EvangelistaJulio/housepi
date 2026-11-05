@@ -89,7 +89,7 @@ flu_1918_frederick |>
   new_housepi_model("final-size") |>
   add_parameter(import = "template") |>
   run_inference(steps = 50, thin = 2,
-                chains = 2, progress = FALSE) |>
+                chains = 2) |>
   get_parameter_draws() |>
   posterior::summarize_draws()
 }

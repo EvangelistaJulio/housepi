@@ -23,7 +23,7 @@ editor_options:
 options(housepi.footer.sample = TRUE)
 ```
 
-Bayesian data augmentation is a computational strategy that expands the parameter space by introducing latent variables (also referred to as hidden or augmented variables) to make sampling from the posterior easier [@tanner_calculation_1987].
+Bayesian data augmentation is a computational strategy that expands the parameter space by introducing latent variables (also referred to as hidden or augmented variables), so that a likelihood intractable on the observed data alone becomes tractable on the augmented data [@tanner_calculation_1987].
 
 For example, consider a single infectious individual $i$.
 Imagine that someone reported the date of symptom onset $T^\mathrm{ons}_{i}$.

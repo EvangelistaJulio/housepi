@@ -323,8 +323,8 @@ The observed `onset_date` enters as an observation likelihood.
 hh_model <- hh_model |>
   add_dataset(simulated)
 
-# run inference, updating progress bar every 3 seconds
-hh_fit <- hh_model |> run_inference(progress = 3)
+# run inference on two threads, updating progress bar every 3 seconds
+hh_fit <- hh_model |> run_inference(threads = 2, progress = 3)
 ```
 We can visualize traces vs expected values as follows
 

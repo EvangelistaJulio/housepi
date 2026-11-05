@@ -410,10 +410,8 @@ sweep_pool_ <- function(sweeps) {
 #'   new_housepi_model("final-size") |>
 #'   add_parameter(import = "template")
 #' draws <- c(alpha = 0.15, beta = 0.2, gamma = 1)
-#' recovery <- check_recovery(hh_model, draws, nrep = 2, houses = 30,
-#'                            progress = FALSE)
-#' recovery_2 <- check_recovery(hh_model, draws, nrep = 2, houses = 30,
-#'                              progress = FALSE)
+#' recovery <- check_recovery(hh_model, draws, nrep = 2, houses = 30)
+#' recovery_2 <- check_recovery(hh_model, draws, nrep = 2, houses = 30)
 #' c(recovery, recovery_2)$nrep
 #' @name combine_checks
 #' @export

@@ -1,7 +1,8 @@
 
 format_flu_1918 <- function(location) {
   # path to hand-copied file
-  hand_copied <- sprintf("data-raw/flu_1918_%s.csv", location)
+  hand_copied <- system.file("data-raw", sprintf("flu_1918_%s.csv", location),
+                             package = "housepi")
 
   read.csv(hand_copied) |>
     tidyr::pivot_longer(cols = tidyr::starts_with("cases_"),

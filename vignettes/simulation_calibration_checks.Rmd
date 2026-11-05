@@ -1,12 +1,12 @@
 ---
-title: "Simulation-based calibration checks"
+title: "Simulation-based calibration"
 output:
   rmarkdown::html_vignette:
     toc: true
 bibliography: ../inst/REFERENCES.bib
 link-citations: true
 vignette: >
-  %\VignetteIndexEntry{Simulation-based calibration checks}
+  %\VignetteIndexEntry{Simulation-based calibration}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 editor_options:
@@ -55,13 +55,13 @@ The data only lends its households to the simulated studies.
 # Rank the prior draws
 
 `check_calibration()` simulates each study on households drawn with replacement from the attached data by `sample_house_structure()`, as many as in Frederick.
-Each fit runs with `run_inference()` default MCMC configuration.
+Each fit runs the default MCMC configuration of `run_inference()`, here on two threads.
 The drawn value is ranked among 99 draws thinned evenly from these 800, so its rank takes one of `rank_levels = 100` values, 0 to 99:
 
 ```{r}
 #| label: calibration
 calibration <- hh_model |>
-  check_calibration(nrep = 100, progress = FALSE)
+  check_calibration(nrep = 100, threads = 2)
 calibration
 
 # overview of the sweep, averaged over replicates
@@ -156,7 +156,7 @@ We repeat the check with two chains of 50 steps, the first 25 of each spent adap
 #| label: short-chains
 short <- hh_model |>
   check_calibration(nrep = 100, steps = 50, thin = 1, adapt = 25,
-                    chains = 2, progress = FALSE)
+                    chains = 2, threads = 2)
 short_summary <- short$summarise()
 short_summary
 ```
@@ -204,9 +204,9 @@ Passing `draws` to `check_calibration()` runs it:
 
 ```{r}
 #| label: posterior-calibration
-hh_fit <- run_inference(hh_model, progress = FALSE)
+hh_fit <- run_inference(hh_model, threads = 2)
 posterior_calibration <- hh_model |>
-  check_calibration(hh_fit, nrep = 100, progress = FALSE)
+  check_calibration(hh_fit, nrep = 100, threads = 2)
 posterior_calibration
 ```
 

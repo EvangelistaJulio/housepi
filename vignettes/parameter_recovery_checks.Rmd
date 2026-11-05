@@ -1,12 +1,12 @@
 ---
-title: "Parameter recovery checks"
+title: "Parameter recovery"
 output:
   rmarkdown::html_vignette:
     toc: true
 bibliography: ../inst/REFERENCES.bib
 link-citations: true
 vignette: >
-  %\VignetteIndexEntry{Parameter recovery checks}
+  %\VignetteIndexEntry{Parameter recovery}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 editor_options:
@@ -44,7 +44,7 @@ hh_model <- flu_1918_frederick |>
 
 # store posterior draws
 hh_fit <- hh_model |>
-  run_inference(progress = FALSE)
+  run_inference(threads = 2)
 
 hh_fit
 ```
@@ -75,7 +75,7 @@ We can run different replicates at each sample size using `check_recovery()`:
 ```{r}
 #| label: sweep
 recovery <- hh_model |>
-  check_recovery(hh_fit, nrep = 15, houses = houses, progress = FALSE)
+  check_recovery(hh_fit, nrep = 15, houses = houses, threads = 2)
 recovery
 
 # overview of the checks per sample size, averaged over replicates

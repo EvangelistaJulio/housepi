@@ -35,18 +35,37 @@ remotes::install_gitlab("mmmi-pasteur/housepi", host = "gitlab.pasteur.fr")
 
 ## Getting started
 
-Fit the final-size model to the 1918 influenza outbreak in Frederick (USA),
-shipped with the package, using the parameter definitions of the model template:
+Simulate the final sizes of 200 households of 2 to 6 members with the 
+[final-size model](https://mmmi-pasteur.pages.pasteur.fr/housepi/reference/template_final_size),
+using the parameter definitions of the model template,
+then fit the model to the simulated survey:
 ``` r
 library(housepi)
+set.seed(42)
 
-fit <- flu_1918_frederick |>
-  new_housepi_model("final_size") |>
-  add_parameter(import = "template") |>
+# household structure: one row per member
+houses <- data.frame(
+  hh_id = rep(1:200, times = sample(2:6, 200, replace = TRUE))
+)
+
+hh_model <- houses |>
+  new_housepi_model("final-size") |>
+  add_parameter(import = "template")
+
+# simulate the infection status of every member
+simulated <- hh_model |>
+  run_simulation(c(alpha = 0.1, beta = 0.3, gamma = 1))
+
+fit <- hh_model |>
+  add_dataset(simulated) |>
   run_inference()
 
 summarise_draws(fit)
 ```
+Similarly can be done with [case-ascertained model](https://mmmi-pasteur.pages.pasteur.fr/housepi/reference/template_case_ascertained) studies,
+where unobserved quantities like infection times are sampled as latent variables (see
+[Data augmentation](https://mmmi-pasteur.pages.pasteur.fr/housepi/articles/data_augmentation)).
+
 Learn more about data format, parameter definitions, inference and simulation,
 in the guide [Get started](https://mmmi-pasteur.pages.pasteur.fr/housepi/articles/housepi).
 

@@ -381,13 +381,13 @@ test_that("Latent inference recovers the simulating parameter", {
   skip_on_cran()
   # @note test model simulates only on the statuses it is given
   # `rho` mixes as slowly whatever the household count: few households and a
-  # long thinned chain keep R-hat clear of its limit
+  # long thinned chain keep R-hat about six sd below its limit
   data.frame(hh_id = seq(50), status = 1) |>
     new_housepi_model("test") |>
     add_parameter("rho", prior = "uniform", min = -5, max = 5) |>
     add_latent("hidden", model = "normal", mean = rho, sd = 1) |>
     add_observation("record", model = "normal", mean = hidden, sd = 1) |>
-    check_recovery(data.frame(rho = 2), nrep = 1, steps = 4000, thin = 20,
+    check_recovery(data.frame(rho = 2), nrep = 1, steps = 8000, thin = 20,
                    progress = FALSE) |>
     suppressWarnings() |>
     expect_recovered()

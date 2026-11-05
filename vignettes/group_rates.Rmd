@@ -176,7 +176,7 @@ hh_model <- hh_model |>
 
 # perform inference
 hh_fit <- hh_model |>
-  run_inference(progress = 4)
+  run_inference(threads = 2, progress = 4)
 
 bayesplot::mcmc_trace(get_parameter_draws(hh_fit))
 ```

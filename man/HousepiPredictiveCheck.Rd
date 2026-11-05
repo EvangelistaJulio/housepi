@@ -12,14 +12,14 @@ on simulated household studies.
 hh_model <- flu_1918_frederick |>
   new_housepi_model("final-size") |>
   add_parameter(import = "template")
-hh_fit <- run_inference(hh_model, chains = 2, progress = FALSE)
+hh_fit <- run_inference(hh_model, chains = 2)
 
 # a user-defined measure: the overall attack rate
 overall_ar <- function(data) mean(data$status > 0)
 ppc <- check_predictive(hh_model, hh_fit,
                         sar = measure_sar_by_hh_size,
                         overall = overall_ar,
-                        epi = FALSE, nrep = 50, progress = FALSE)
+                        epi = FALSE, nrep = 50)
 ppc$overall
 }
 \section{Active bindings}{

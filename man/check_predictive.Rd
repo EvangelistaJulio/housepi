@@ -103,25 +103,25 @@ and credible level of the global options, see \code{\link[=set_housepi_summary]{
 hh_model <- flu_1918_frederick |>
   new_housepi_model("final-size") |>
   add_parameter(import = "template")
-hh_fit <- run_inference(hh_model, chains = 2, progress = FALSE)
+hh_fit <- run_inference(hh_model, chains = 2)
 
-ppc <- check_predictive(hh_model, hh_fit, nrep = 50, progress = FALSE)
+ppc <- check_predictive(hh_model, hh_fit, nrep = 50)
 ppc
 
 # prior predictive check, before any inference
-ppc <- check_predictive(hh_model, nrep = 50, progress = FALSE)
+ppc <- check_predictive(hh_model, nrep = 50)
 ppc
 
 # a user-defined measure: the overall attack rate
 overall_ar <- function(data) mean(data$status > 0)
 ppc <- check_predictive(hh_model, hh_fit, overall = overall_ar,
-                        nrep = 50, progress = FALSE)
+                        nrep = 50)
 ppc
 ppc$overall$observed
 
 # only the user-defined measures
 ppc <- check_predictive(hh_model, hh_fit, overall = overall_ar,
-                        epi = FALSE, nrep = 50, progress = FALSE)
+                        epi = FALSE, nrep = 50)
 ppc
 }
 \references{
