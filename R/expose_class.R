@@ -84,6 +84,7 @@ Random walks update the current value:
     positive non-discrete values only;}
   \\item{`\"rw_unif\"`}{uniform increments, bounded values only.}
 }
+A discrete variable takes its increments rounded to the nearest whole number.
 Independence samplers draw a fresh value from a distribution:
 \\describe{
   \\item{`\"forward\"`}{drawn from the variable's own defining distribution,
@@ -96,7 +97,8 @@ the value itself when unbounded,
 the log of its distance to the bound when bounded on one side,
 the logit of its position when bounded on both sides.
 The move never leaves those bounds.
-A discrete variable takes `\"rw\"`.
+A discrete variable takes normal increments of the value itself,
+and a move past its bounds is refused.
 The latent variables of one member with `NA` move together,
 and so do the parameters a reference couples, see [run_inference()].
 "
@@ -1316,6 +1318,8 @@ inspect_augmented_data <- function(hh_model) {
 #'   `coord` is the coordinate its jumps are drawn in.
 #'   `scale` is the scale of the jumps in that coordinate,
 #'   the standard deviation of the jump of a variable moving in a block.
+#'   For a discrete variable, it is the scale before the jump is rounded
+#'   to an integer.
 #'   `block` identifies the block the variable moves in,
 #'   `NA` if it moves alone;}
 #'   \item{`blocks`}{one row per block of variables moving together.

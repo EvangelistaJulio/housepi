@@ -322,7 +322,7 @@ test_that("Independence proposal must cover the prior domain", {
     add_latent("hidden", model = "uniform", min = rho, max = 5,
                proposal = "gamma", proposal_shape = 2) |>
     evaluate_log_lik() |>
-    expect_error("support \\[0, Inf\\) that cannot cover the domain \\(-1, 5\\]")
+    expect_error("support \\[0, Inf\\).*cannot cover.*domain \\(-1, 5\\]")
 
   # a proposal bounded on both sides against an unbounded model
   mk_latent$model |>
@@ -1231,7 +1231,8 @@ test_that("A household observation with no datum yet reads as NA", {
 test_that("A deterministic observation proves the requirement its model asks", {
   # a deterministic observation filling 'end_date' answers the discreteness
   # 'case_ascertained' asks of the column, and answers for what it can return,
-  # not for the value it happens to settle on. A household-level definition reduces over its members,
+  # not for the value it happens to settle on.
+  # A household-level definition reduces over its members,
   # so its root is the reduction; the member level takes the algebra directly
   mk <- function(defin, level = "house") {
     data.frame(id = c("m1", "m2", "m3", "m4"),
@@ -1645,7 +1646,7 @@ test_that("A latent degenerate domain warns and collapses", {
     add_latent("hidden", model = "uniform", min = datum, max = datum,
                loc = 2)
   collapsed <- paste0("[Cc]ollapsed .*latent .hidden. to constant",
-                      ".*.min. \\(data .datum.\\) equals .max. \\(data .datum.\\)")
+                      ".*.min.*data .datum.*equals .max.*data .datum")
   expect_warning(simulated <- run_simulation(hh_model_2, nrep = 3L), collapsed)
   unlist(lapply(simulated, `[[`, "hidden")) |> expect_all_equal(3)
   expect_warning(
@@ -1792,6 +1793,54 @@ test_that("The latents of a member that declare no proposal move in a block", {
     expect_all_equal("rw")
   sampler$moves$proposal[sampler$moves$name == "hidden_2"] |> expect_all_na()
   sampler$blocks |> expect_nrow(0L)
+})
+
+test_that("Discrete latents join a block beside continuous ones", {
+  # record pins hidden + hidden_2 to {11, 12, 13}
+  # record_2 pins hidden_3 within 1.5 of 8 - hidden
+  hh_model <- data.frame(id = c("m1", "m2"), hh_id = "h1", status = c(1, 0),
+                         record = 12, record_2 = 8) |>
+    new_housepi_model("test") |>
+    add_latent(
+      hidden = list(model = "poisson", lambda = 6, discr = TRUE),
+      hidden_2 = list(model = "poisson", lambda = 4, discr = TRUE),
+      hidden_3 = list(model = "gamma", shape = 3, scale = 1)
+    ) |>
+    add_observation("record", model = "uniform", min = -1.5, max = 1.5,
+                    loc = hidden + hidden_2) |>
+    add_observation("record_2", model = "uniform", min = -1.5, max = 1.5,
+                    loc = hidden + hidden_3)
+  hh_fit <- hh_model |>
+    run_inference(steps = 20000L, adapt = 1000L, chains = 1L, id_draws = "m1",
+                  progress = FALSE, warn = FALSE) |>
+    suppressWarnings()
+
+  # one block: the lattice walks in the identity coordinate
+  moves <- inspect_state(hh_model, "h1")$.sampler$moves
+  moves$block |> expect_all_equal(1L)
+  moves$coord[moves$name != "hidden_3"] |> expect_all_equal("identity")
+
+  # exact posterior over the pairs on the ridge, hidden_3 integrated per pair
+  pairs <- expand.grid(hidden = 0:13, hidden_2 = 0:13)
+  pairs <- pairs[abs(pairs$hidden + pairs$hidden_2 - 12) <= 1.5, ]
+  lower <- pmax(0, 6.5 - pairs$hidden)
+  upper <- pmax(0, 9.5 - pairs$hidden)
+  prior <- dpois(pairs$hidden, 6) * dpois(pairs$hidden_2, 4)
+  weight <- prior * (pgamma(upper, 3) - pgamma(lower, 3))
+  weight <- weight / sum(weight)
+  # E[hidden_3 1(window)] = 3 P_shape4(window) for a Gamma(3, 1)
+  mean_3 <- sum(prior * 3 * (pgamma(upper, 4) - pgamma(lower, 4))) /
+    sum(prior * (pgamma(upper, 3) - pgamma(lower, 3)))
+  mean_1 <- sum(weight * pairs$hidden)
+
+  draws <- get_latent_draws(hh_fit)
+  mean(draws$m1_hidden) |> expect_equal(mean_1, tolerance = 0.03)
+  var(draws$m1_hidden) |>
+    expect_equal(sum(weight * (pairs$hidden - mean_1)^2), tolerance = 0.2)
+  mean(draws$m1_hidden + draws$m1_hidden_2 == 12) |>
+    expect_equal(sum(weight[pairs$hidden + pairs$hidden_2 == 12]),
+                 tolerance = 0.15)
+  mean(draws$m1_hidden_3) |> expect_equal(mean_3, tolerance = 0.07)
 })
 
 test_that("Evaluating a model allocates its latent storage", {

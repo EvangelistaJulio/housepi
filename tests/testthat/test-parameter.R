@@ -376,6 +376,26 @@ test_that("Lattice random walks sample their target", {
   }
 })
 
+test_that("A lattice uniform walk adapts its scale as its continuous twin", {
+  # same prior, discretized or not: rounding the jumps barely moves the
+  # scale reaching the target acceptance, ratio 0.95 with sd 0.12
+  hh_model <- data.frame(id = "m1", hh_id = "h1", status = 0) |>
+    new_housepi_model("test") |>
+    add_parameter(
+      rho = list(prior = "normal", mean = 0, sd = 3, proposal = "rw_unif"),
+      rho_2 = list(prior = "normal", mean = 0, sd = 3, discr = TRUE,
+                   proposal = "rw_unif")
+    )
+  hh_model |>
+    run_inference(steps = 10L, thin = 1L, adapt = 2000L, chains = 1L,
+                  progress = FALSE, warn = FALSE) |>
+    invisible()
+
+  scale <- inspect_state(hh_model, "h1")$.sampler$moves$scale
+  (scale[2] / scale[1]) |> expect_gt(0.6)
+  (scale[2] / scale[1]) |> expect_lt(1.5)
+})
+
 test_that("Default random walks sample their target", {
   # no proposal declared: each parameter moves in the coordinate of its domain,
   # logit on (0, 1), log above a minimum, log below a maximum
@@ -416,6 +436,20 @@ test_that("A random walk adapts its scale unless the scale is a number", {
   scale[["rho_2"]] |> expect_identical(0.5)
   # 1 is the placeholder a walk holds before its first reset
   (scale[["rho"]] == 1) |> expect_false()
+})
+
+test_that("A fixed random-walk scale must be positive and finite", {
+  # 0 and Inf never move, a negative scale has no reading
+  for (def in list(
+    list(prior = "normal", proposal = "rw", proposal_scale = 0),
+    list(prior = "uniform", max = 5, proposal = "rw_unif", proposal_scale = -1),
+    list(prior = "gamma", shape = 2, scale = 1, proposal = "rw_log", proposal_scale = Inf)
+  )) {
+    mk_param$model |>
+      add_parameter(rho = def) |>
+      run_inference(steps = 10L, chains = 1L) |>
+      expect_error("[Pp]roposal scale .* is not a positive finite number")
+  }
 })
 
 test_that("A discrete prior resolves 'uniform' to the discrete distribution", {

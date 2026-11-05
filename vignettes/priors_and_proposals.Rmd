@@ -231,6 +231,8 @@ They come in two families.
   nor discrete values);
 * **rw_unif**: uniform (bounded) increments inside a window.
 
+On a discrete variable, the increments of a random walk are rounded to the nearest integer.
+
 Only the random walks are adaptable.
 By default, housepi tunes the scale on the fly to target an acceptance rate of about 44% [@sherlock_optimal_2009].
 This is enabled by supplying `adapt = N` to `run_inference()`.

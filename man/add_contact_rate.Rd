@@ -93,6 +93,7 @@ Random walks update the current value:
 positive non-discrete values only;}
 \item{\code{"rw_unif"}}{uniform increments, bounded values only.}
 }
+A discrete variable takes its increments rounded to the nearest whole number.
 Independence samplers draw a fresh value from a distribution:
 \describe{
 \item{\code{"forward"}}{drawn from the variable's own defining distribution,
@@ -105,7 +106,8 @@ the value itself when unbounded,
 the log of its distance to the bound when bounded on one side,
 the logit of its position when bounded on both sides.
 The move never leaves those bounds.
-A discrete variable takes \code{"rw"}.
+A discrete variable takes normal increments of the value itself,
+and a move past its bounds is refused.
 The latent variables of one member with \code{NA} move together,
 and so do the parameters a reference couples, see \code{\link[=run_inference]{run_inference()}}.}
 

@@ -225,19 +225,19 @@ namespace housepi
     public:
         //////  Constructor  //////
 
-        /// Build distribution `distr_name`.
-        /// * NA `scale` -> adaptive.
-        AdaptableProposal(const std::string &distr_name,
-                          double scale,
-                          bool is_discr)
-            : distr_(registry::create_distribution(
-                  distr_name,
-                  ErrType::Proposal,
-                  registry::distr_search_order(is_discr)))
+        /// Build continuous distribution `distr_name`, the law of the jumps.
+        /// * discrete `prior` -> jumps rounded, see is_lattice();
+        /// * NA `scale` -> adaptive;
+        /// * otherwise -> fixed, an error unless positive and finite.
+        AdaptableProposal(const std::string &distr_name, double scale, const Distribution *prior)
+            : distr_(registry::create_distribution(distr_name, ErrType::Proposal, registry::distr_search_order(false))),
+              is_lattice_(prior->is_discretized())
         {
             is_adaptive_ = na::is(scale);
-            distr_->reshape(is_discr);
-            is_discrete_ = distr_->is_discretized();
+            if (!is_adaptive_ && !(std::isfinite(scale) && scale > 0.))
+                msg::stop("Proposal scale " + msg::val(str::format(scale)) + " is not a positive finite number.\nSet " +
+                          msg::arg("proposal_scale") + " above 0, or leave it out to adapt the scale.");
+            distr_->reshape(false);
         }
 
         /// Destructor.
@@ -262,6 +262,9 @@ namespace housepi
 
         /// Whether the scale is adaptive.
         bool is_adaptive() const noexcept { return is_adaptive_; }
+        /// Whether the jumps are rounded half away from zero, onto the unit lattice of a discrete prior.
+        /// Rounding is odd in the jump, so a symmetric jump law keeps a log-ratio of 0.
+        bool is_lattice() const noexcept { return is_lattice_; }
         /// Current scale of the proposal distribution.
         double scale() const noexcept override final { return get_scale_(); }
         /// Return the default scale, from `prior`.
@@ -275,10 +278,10 @@ namespace housepi
 
         std::unique_ptr<Distribution> distr_; /// Proposal distribution.
         bool is_adaptive_ = true;             /// Whether the scale is adaptive.
-        bool is_discrete_ = false;            /// Whether the proposal draws discrete values.
+        const bool is_lattice_;               /// Whether the jumps are rounded, see is_lattice().
 
         /// Initialize scale at construction.
-        void init_scale_(double scale) { set_scale_(is_adaptive() ? 1. : std::fabs(scale)); }
+        void init_scale_(double scale) { set_scale_(is_adaptive() ? 1. : scale); }
 
         /// Read current scale.
         virtual double get_scale_() const = 0;
@@ -300,18 +303,25 @@ namespace housepi
     //////////////////////////////  RndWalkUnifProposal  //////////////////////////////
 
     /// Random walk with uniform jumps in [-scale, scale].
+    /// * discrete prior -> jumps in [-scale - 1/2, scale + 1/2], rounded half away from zero.
+    /// A whole `scale` jumps uniformly over the integers within it.
     class RndWalkUnifProposal final : public AdaptableProposal
     {
     public:
         static constexpr const char *NAME = "rw_unif";
 
         RndWalkUnifProposal(double scale, const Distribution *prior)
-            : AdaptableProposal("uniform", scale, prior->is_discretized()) { init_scale_(scale); }
+            : AdaptableProposal("uniform", scale, prior) { init_scale_(scale); }
 
         std::string name() const override final { return NAME; }
         std::string coord() const override final { return "identity"; }
 
-        double propose(RndGen &prng, double xo) override final { return xo + distr_->rand(prng); }
+        /// Jump `xo` by a uniform draw, rounded on a lattice.
+        double propose(RndGen &prng, double xo) override final
+        {
+            const double dz = distr_->rand(prng);
+            return xo + (is_lattice_ ? std::round(dz) : dz);
+        }
         double log_ratio(double, double) const override final { return 0.; }
 
         /// Default jump half-width from `prior`: its interquartile range.
@@ -325,12 +335,11 @@ namespace housepi
         }
 
     protected:
-        double get_scale_() const override final { return distr_->max().value(); }
-        /// Set jumps to [-scale, scale].
-        /// * discrete -> scale rounded, at least 1.
+        double get_scale_() const override final { return distr_->max().value() - (is_lattice_ ? 0.5 : 0.); }
+        /// Set jumps to [-scale, scale], widened by 1/2 on a lattice.
         void set_scale_(double scale) override final
         {
-            const double s = is_discrete_ ? std::max(1., std::round(scale)) : scale;
+            const double s = scale + (is_lattice_ ? 0.5 : 0.);
             distr_->set_min(-s);
             distr_->set_max(s);
         }
@@ -342,8 +351,11 @@ namespace housepi
     /// * `Identity` -> z = x;
     /// * `Log` -> z = log(x - loc), `loc` the location of the prior;
     /// * `Half` -> z = log|x - c|, `c` the bound of a half-line domain;
-    /// * `Logit` -> z = logit((x - a) / (b - a)), on a domain bounded by `a` < `b`.
-    /// Bounds are read live: `Half` and `Logit` never leave the domain.
+    /// * `Logit` -> z = logit((x - a) / (b - a)), on a domain bounded by `a` < `b`;
+    /// * `Lattice` -> z = x on a discrete prior, the jump rounded half away from zero;
+    /// * `CheckedLattice` -> as `Lattice`, for the default walk.
+    /// The jumps are drawn continuous in z.
+    /// Bounds are read live: `Half` and `Logit` stay in the domain, `CheckedLattice` refuses a value outside it.
     class RndWalkProposal final : public AdaptableProposal
     {
     public:
@@ -356,18 +368,23 @@ namespace housepi
             Identity,
             Log,
             Half,
-            Logit
+            Logit,
+            CheckedLattice,
+            Lattice
         };
 
         /// Build declared walk `rw`, in `Identity`, or `rw_log`, in `Log`.
+        /// * `rw` on a discrete prior -> `Lattice`;
         /// * NA `scale` -> adaptive.
         RndWalkProposal(double scale, const Distribution *prior, Coord coord)
-            : AdaptableProposal("normal", scale, prior->is_discretized()), domain_(&prior->domain()),
-              name_(coord == Coord::Log ? LOG_NAME : NAME), coord_(coord)
+            : AdaptableProposal("normal", scale, prior),
+              coord_(coord == Coord::Identity && is_lattice_ ? Coord::Lattice : coord),
+              is_declared_(true),
+              domain_(&prior->domain())
         {
             if (coord == Coord::Log)
             {
-                if (prior->is_discretized())
+                if (is_lattice_)
                     msg::stop("Proposal " + msg::val(LOG_NAME) + " cannot move on a discrete prior.\nUse " +
                               msg::val(NAME) + " or " + msg::val(RndWalkUnifProposal::NAME) + " instead.");
 
@@ -380,17 +397,27 @@ namespace housepi
         }
 
         /// Build the default walk, adaptive, in the coordinate mapping the domain of `prior` onto the real line.
+        /// * discrete prior -> `CheckedLattice`.
         explicit RndWalkProposal(const Distribution *prior)
-            : AdaptableProposal("normal", na::DOUBLE, false), domain_(&prior->domain())
+            : AdaptableProposal("normal", na::DOUBLE, prior),
+              domain_(&prior->domain())
         {
             const bool lower = domain_->below != Interval::Unbounded;
             const bool upper = domain_->above != Interval::Unbounded;
-            coord_ = lower && upper ? Coord::Logit : (lower || upper ? Coord::Half : Coord::Identity);
+            coord_ = is_lattice_ ? Coord::CheckedLattice
+                                 : (lower && upper ? Coord::Logit : (lower || upper ? Coord::Half : Coord::Identity));
             side_ = upper && !lower ? -1. : 1.;
             init_scale_(na::DOUBLE);
         }
 
-        std::string name() const override final { return name_; }
+        std::string name() const override final
+        {
+            if (!is_declared_)
+                return "";
+            if (coord_ == Coord::Log)
+                return LOG_NAME;
+            return NAME;
+        }
         std::string coord() const override final
         {
             switch (coord_)
@@ -400,7 +427,7 @@ namespace housepi
                 return "log";
             case Coord::Logit:
                 return "logit";
-            default: // case Coord::Identity:
+            default: // cases Coord::Identity, Coord::Lattice, Coord::CheckedLattice
                 return "identity";
             }
         }
@@ -410,7 +437,8 @@ namespace housepi
 
         /// Jump `xo` by `dz` in its coordinate, and cache the log-ratio of the move.
         /// * log coordinate -> J(xn) - J(xo) = -dz, with J = log|dz/dx|;
-        /// * value rounded onto a bound -> infinity, the move refused.
+        /// * lattice -> `dz` rounded, the log-ratio 0;
+        /// * value rounded onto a bound, or `CheckedLattice` value outside the domain -> infinity, the move refused.
         double jump(double xo, double dz)
         {
             switch (coord_)
@@ -426,6 +454,15 @@ namespace housepi
                 const double eo = (b - xo) / (xo - a), en = eo * std::exp(-dz);
                 const double xn = a + (b - a) / (1. + en);
                 log_ratio_ = xn > a && xn < b ? dz + 2. * std::log((1. + en) / (1. + eo)) : inf::DOUBLE;
+                return xn;
+            }
+            case Coord::Lattice:
+                log_ratio_ = 0.;
+                return xo + std::round(dz);
+            case Coord::CheckedLattice:
+            {
+                const double xn = xo + std::round(dz);
+                log_ratio_ = domain_->is_valid(xn) ? 0. : inf::DOUBLE;
                 return xn;
             }
             default: // case Coord::Identity:
@@ -448,7 +485,7 @@ namespace housepi
                 return std::log(side_ * (x - bound_()));
             case Coord::Logit:
                 return std::log((x - lower_()) / (upper_() - x));
-            default: // case Coord::Identity:
+            default: // cases Coord::Identity, Coord::Lattice, Coord::CheckedLattice
                 return x;
             }
         }
@@ -468,9 +505,9 @@ namespace housepi
         }
 
     protected:
-        const Domain *domain_;          /// Domain of the prior.
-        const char *name_ = "";         /// Name as declared, empty for the default walk.
         Coord coord_ = Coord::Identity; /// Coordinate the jumps are drawn in.
+        bool is_declared_ = false;      /// Whether declared as `rw` or `rw_log`, false for the default walk.
+        const Domain *domain_;          /// Domain of the prior.
         double side_ = 1.;              /// Side of the domain from its anchor: 1 above, -1 below.
         double log_ratio_ = 0.;         /// Log-ratio of the last move proposed.
 
@@ -541,6 +578,8 @@ namespace housepi
         /// log(2.38), the log of the optimal random-walk scale 2.38 / sqrt(d) at d = 1.
         /// Based on @cite roberts_weak_1997
         constexpr double LOG_2_38 = 0.8671004876833833;
+        /// Variance of rounding to a unit lattice.
+        constexpr double LATTICE_VAR = 1. / 12.;
 
         /// Index of entry (`i`, `j`), `j` <= `i`, in a lower triangle packed by rows.
         constexpr size_t packed(size_t i, size_t j) noexcept { return i * (i + 1) / 2 + j; }
@@ -579,11 +618,24 @@ namespace housepi
             std::vector<double> m2 = {};    /// Running sums of centred products of the coordinates, packed.
             std::vector<double> work = {};  /// Scratch of the draw and of the moments.
             std::vector<double> chol = {};  /// Scratch of the factorization.
+            std::vector<bool> lattice = {}; /// Whether each member moves on a unit lattice.
             std::uint64_t n_obs = 0;        /// States observed.
             double log_scale = 0.;          /// Log of the multiplier of L.
+            bool all_lattice = false;       /// Whether every member moves on a unit lattice.
 
             /// Dimension of the block.
             size_t dim() const noexcept { return jump.size(); }
+            /// Whether the last jump rounds to 0 on every member, all on a unit lattice.
+            /// * some member off a lattice -> false, the jump never read.
+            bool is_null_jump() const
+            {
+                if (!all_lattice)
+                    return false;
+                for (double dz : jump)
+                    if (!(std::fabs(dz) < 0.5))
+                        return false;
+                return true;
+            }
             /// Covariance e^(2 log_scale) L L^T of the joint jump, entry (`i`, `j`).
             double jump_cov(size_t i, size_t j) const
             {
@@ -596,9 +648,12 @@ namespace housepi
             double jump_sd(size_t i) const { return std::sqrt(jump_cov(i, i)); }
 
             /// Set L diagonal from `scales`, the multiplier to 2.38 / sqrt(d), and restart the adaptation.
-            void init(const std::vector<double> &scales)
+            /// @param on_lattice Whether each member moves on a unit lattice.
+            void init(const std::vector<double> &scales, std::vector<bool> on_lattice)
             {
                 const size_t d = scales.size(), n_packed = d * (d + 1) / 2;
+                lattice = std::move(on_lattice);
+                all_lattice = std::find(lattice.begin(), lattice.end(), false) == lattice.end();
                 lower.assign(n_packed, 0.);
                 for (size_t i = 0; i < d; ++i)
                     lower[packed(i, i)] = scales[i];
@@ -652,6 +707,7 @@ namespace housepi
             }
 
             /// Set L to the Cholesky factor of the running covariance, regularized.
+            /// * lattice member -> covariance of its continuous embedding, LATTICE_VAR added;
             /// * fewer than 5 d states, or not positive definite -> L kept.
             void reshape()
             {
@@ -665,7 +721,7 @@ namespace housepi
                 const double eps = 1e-6 * tr / (d * n1) + 1e-12;
                 for (size_t i = 0; i < d; ++i)
                     for (size_t j = 0; j <= i; ++j)
-                        chol[packed(i, j)] = m2[packed(i, j)] / n1 + (i == j ? eps : 0.);
+                        chol[packed(i, j)] = m2[packed(i, j)] / n1 + (i == j ? eps + lattice[i] * LATTICE_VAR : 0.);
                 if (cholesky(chol, d))
                     lower.swap(chol);
             }

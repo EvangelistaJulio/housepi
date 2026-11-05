@@ -38,6 +38,8 @@ and the latent variables of the infected members of the household.
 \code{coord} is the coordinate its jumps are drawn in.
 \code{scale} is the scale of the jumps in that coordinate,
 the standard deviation of the jump of a variable moving in a block.
+For a discrete variable, it is the scale before the jump is rounded
+to an integer.
 \code{block} identifies the block the variable moves in,
 \code{NA} if it moves alone;}
 \item{\code{blocks}}{one row per block of variables moving together.

@@ -125,7 +125,7 @@ namespace housepi
 
         try
         {
-            // none declared: random walk in the unconstrained coordinate
+            // none declared: the default random walk
             // "forward", or distribution name: independence sampler
             // "rw", "rw_log", "rw_unif": random walk tuned by a "scale" argument
             if (proposal.empty())
@@ -168,13 +168,9 @@ namespace housepi
 
     void Variable::helper_init_default_proposal_()
     {
-        // a discrete prior moves on its lattice
-        if (distr_->is_discretized())
-            return helper_init_random_walk_proposal_(RndWalkProposal::NAME, na::DOUBLE);
-
-        // the move never leaves the domain, a value rounded onto a bound refused by the proposal
+        // the proposal refuses a value rounded onto a bound, or a lattice value outside the domain
         prop_ = std::make_unique<RndWalkProposal>(distr_.get());
-        move_mode_ = Move::Unconstrained;
+        move_mode_ = Move::ProposalChecked;
     }
 
     void Variable::helper_init_independence_proposal_(const std::string &proposal,

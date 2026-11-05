@@ -107,7 +107,7 @@ namespace housepi
         void propose(RndGen &prng) { set(prop_->propose(prng, value_)); }
         /// Whether the last proposed value is valid.
         /// * `RandomWalk` -> inside the domain of the distribution;
-        /// * `Unconstrained` -> proposal log-ratio finite, infinite on a value rounded onto a bound;
+        /// * `ProposalChecked` -> proposal log-ratio finite, infinite on values rounded onto a bound or off the domain;
         /// * otherwise -> always.
         bool is_valid_move() const
         {
@@ -115,7 +115,7 @@ namespace housepi
             {
             case Move::RandomWalk:
                 return distr_->is_valid(value_);
-            case Move::Unconstrained:
+            case Move::ProposalChecked:
                 return proposal_log_ratio() < inf::DOUBLE;
             default: // case Move::Forward, Move::Independence:
                 return true;
@@ -124,24 +124,29 @@ namespace housepi
 
         /// Restore previous value.
         void restore() noexcept { value_ = old_; }
+        /// Whether the last move proposed the value held, as a lattice jump rounded to 0.
+        bool is_null_move() const noexcept { return value_ == old_; }
 
-        /// Whether the variable can join a block: it moves by a random walk in the unconstrained coordinate.
-        bool can_join_block() const noexcept { return move_mode_ == Move::Unconstrained; }
-        /// Jump by `dz` in the unconstrained coordinate, keeping the previous value.
+        /// Whether the variable can join a block: it moves by the default walk.
+        bool can_join_block() const noexcept { return move_mode_ == Move::ProposalChecked; }
+        /// Jump by `dz` in the coordinate of its walk, keeping the previous value.
         /// @return Proposal log-ratio of the move.
         /// @note Expects can_join_block().
         double block_jump(double dz)
         {
-            RndWalkProposal &prop = unconstrained_();
+            RndWalkProposal &prop = walk_();
             set(prop.jump(value_, dz));
             return prop.log_ratio(old_, value_);
         }
-        /// Current value in the unconstrained coordinate.
+        /// Current value in the coordinate of its walk.
         /// @note Expects can_join_block().
-        double block_coord() const { return unconstrained_().to_coord(value_); }
-        /// Default jump scale in the unconstrained coordinate.
+        double block_coord() const { return walk_().to_coord(value_); }
+        /// Default jump scale in the coordinate of its walk.
         /// @note Expects can_join_block().
-        double block_scale() const { return unconstrained_().default_scale(distr_.get()); }
+        double block_scale() const { return walk_().default_scale(distr_.get()); }
+        /// Whether the jumps are rounded onto a unit lattice, see AdaptableProposal::is_lattice().
+        /// @note Expects can_join_block().
+        bool block_on_lattice() const noexcept { return walk_().is_lattice(); }
 
         /// Name of the proposal, see Proposal::name().
         std::string proposal_name() const { return prop_->name(); }
@@ -176,10 +181,10 @@ namespace housepi
         /// Proposal family, read by is_valid_move() and get_move_log_ratio().
         enum class Move : std::uint8_t
         {
-            Forward,      /// Never moves, or draws from its own distribution: no ratio, always valid.
-            Independence, /// Draws inside the domain: ratio computed, always valid.
-            RandomWalk,   /// May move outside the domain: ratio computed, value checked.
-            Unconstrained /// Moves in the unconstrained coordinate: ratio computed, proposal judges validity.
+            Forward,        /// Never moves, or draws from its own distribution: no ratio, always valid.
+            Independence,   /// Draws inside the domain: ratio computed, always valid.
+            RandomWalk,     /// May move outside the domain: ratio computed, value checked.
+            ProposalChecked /// Default walk: ratio computed, proposal judges validity.
         } move_mode_ = Move::Forward;
 
         double old_ = na::DOUBLE;             /// Previous value.
@@ -188,16 +193,16 @@ namespace housepi
 
         //////  Helpers  //////
 
-        /// Proposal as a random walk in the unconstrained coordinate.
-        RndWalkProposal &unconstrained_() { return static_cast<RndWalkProposal &>(*prop_); }
-        const RndWalkProposal &unconstrained_() const { return static_cast<const RndWalkProposal &>(*prop_); }
+        /// Proposal as the default random walk.
+        RndWalkProposal &walk_() { return static_cast<RndWalkProposal &>(*prop_); }
+        const RndWalkProposal &walk_() const { return static_cast<const RndWalkProposal &>(*prop_); }
 
         /// Initialize independence proposal drawing directly from distribution.
         void helper_init_forward_proposal_();
         /// Initialize a random-walk proposal: rw, rw_log or rw_unif.
         void helper_init_random_walk_proposal_(const std::string &proposal, double scale);
-        /// Initialize the default proposal, a random walk in the unconstrained coordinate.
-        /// * discrete prior -> rw on its lattice.
+        /// Initialize the default proposal, a random walk in the coordinate mapping the domain onto the real line.
+        /// * discrete prior -> walk on its lattice.
         void helper_init_default_proposal_();
         /// Initialize an independence proposal drawing from a named distribution.
         void helper_init_independence_proposal_(const std::string &proposal, const dict<Attribute> &args);

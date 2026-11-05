@@ -819,9 +819,13 @@ namespace housepi
                     if (block_rw::Factor *factor = augm.block_factor(indiv))
                     {
                         std::vector<double> scales = {};
+                        std::vector<bool> lattice = {};
                         for (size_t a : augm.list_block(indiv))
+                        {
                             scales.push_back(augm.at(a, indiv).block_scale());
-                        factor->init(scales);
+                            lattice.push_back(augm.at(a, indiv).block_on_lattice());
+                        }
+                        factor->init(scales, std::move(lattice));
                     }
                 }
     }
@@ -896,9 +900,13 @@ namespace housepi
         for (ParamBlock &block : pblocks_)
         {
             std::vector<double> scales = {};
+            std::vector<bool> lattice = {};
             for (size_t p : block.keys)
+            {
                 scales.push_back(param.at(p).block_scale());
-            block.factor.init(scales);
+                lattice.push_back(param.at(p).block_on_lattice());
+            }
+            block.factor.init(scales, std::move(lattice));
         }
         // moment windows after the warm-up, doubling from WINDOW steps, the last running to the end
         Settings::Step window = block_rw::WINDOW, window_end = n_warm;
@@ -978,6 +986,14 @@ namespace housepi
         // set new value of the parameter and store the old to buffer
         this_par.propose(settings.prng());
 
+        // a null move is accepted without evaluation
+        if (this_par.is_null_move())
+        {
+            if constexpr (Adapt)
+                this_par.adapt_proposal(1., gain_);
+            return;
+        }
+
         // proceed only if the new value is consistent, else refuse the move
         if (this_par.is_valid_move())
         {
@@ -1005,6 +1021,17 @@ namespace housepi
         if constexpr (Adapt)
             block.factor.reshape();
         block.factor.propose(settings.prng());
+
+        // a null jump is accepted without evaluation
+        if (block.factor.is_null_jump())
+        {
+            if constexpr (Adapt)
+            {
+                block.factor.adapt(1., block_gain_);
+                observe_param_block_(block);
+            }
+            return;
+        }
 
         // move every member by its jump, the log-ratio starting from their Jacobians
         double r = 0.;
@@ -1090,7 +1117,16 @@ namespace housepi
         const bool produces_transm = augm.produces_transm(indiv, a);
 
         avar.propose(settings.prng()); // propose new value and save old
-        if (avar.is_valid_move())      // proceed only if new value is valid
+
+        // a null move is accepted without evaluation
+        if (avar.is_null_move())
+        {
+            if constexpr (Adapt)
+                avar.adapt_proposal(1., gain_);
+            return {0., 0., 0.};
+        }
+
+        if (avar.is_valid_move()) // proceed only if new value is valid
         {
             // recompute the cached quantities consuming this member
             if (produces_transm)
@@ -1128,6 +1164,17 @@ namespace housepi
         if constexpr (Adapt)
             factor.reshape();
         factor.propose(settings.prng());
+
+        // a null jump is accepted without evaluation
+        if (factor.is_null_jump())
+        {
+            if constexpr (Adapt)
+            {
+                factor.adapt(1., block_gain_);
+                observe_latent_block_(indiv, factor);
+            }
+            return {};
+        }
 
         // move every latent by its jump, the log-ratio starting from their Jacobians
         double r = 0.;
