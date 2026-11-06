@@ -52,10 +52,10 @@ test_that("The threshold is the largest level whose band holds at 0.95", {
 test_that("Uniform ranks are rejected at the level of the test", {
   skip_on_cran()
   threshold <- calibration_log_threshold_(50, 99, 0.05)
-  log_gamma <- replicate(2000L, {
+  log_gamma <- replicate(8000L, {
     calibration_log_gamma_(sample.int(100L, 50L, replace = TRUE) - 1L, 99)
   })
-  # four Monte Carlo standard errors around 0.05
+  # eight Monte Carlo standard errors around 0.05
   mean(log_gamma < threshold) |> expect_equal(0.05, tolerance = 0.02 / 0.05)
 })
 
@@ -87,13 +87,15 @@ test_that("The calibration summary reads one verdict per parameter", {
 # a sweep short enough for the suite, every fit too short to pass the
 # diagnostics, and the attached households are surveyed as they are
 # records of their own feed the fit the posterior check is conditioned on
+# record_2 is computed from data: simulated studies carry it, the data does not
 mk_calib <- local({
   hh_model <- data.frame(hh_id = seq(30), status = 1,
                          record = stats::rnorm(30, 1, sqrt(2))) |>
     new_housepi_model("test") |>
     add_parameter("rho", prior = "uniform", min = -5, max = 5) |>
     add_latent("hidden", model = "normal", mean = rho, sd = 1) |>
-    add_observation("record", model = "normal", mean = hidden, sd = 1)
+    add_observation("record", model = "normal", mean = hidden, sd = 1) |>
+    add_observation(record_2 = record + 1)
   prior_calibration <- hh_model |>
     check_calibration(nrep = 3, structure_sampler = NULL, rank_levels = 10,
                       steps = 400, thin = 1, chains = 1, progress = FALSE) |>

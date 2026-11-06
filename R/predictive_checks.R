@@ -126,10 +126,12 @@ measure_geom_mean_hh_size <- function(data, escaped = "escaped") {
 #' @return `data.frame` Same shape, with the columns and row names of the first.
 #' @noRd
 ppc_frame_apply <- function(frame_list, func, name = NA_character_) {
-  # ensure all elements share the same dimensions
+  # ensure all elements share the same dimensions, vectors their length
   elem_n1 <- frame_list[[1]]
-  dims_match <- vapply(frame_list[-1], \(f) identical(dim(f), dim(elem_n1)),
-                       logical(1))
+  same_shape <- function(f) {
+    identical(dim(f), dim(elem_n1)) && length(f) == length(elem_n1)
+  }
+  dims_match <- vapply(frame_list[-1], same_shape, logical(1))
   if (!all(dims_match)) stop_h(
     paste0("Not all computed measures share identical dimensions",
            if (is.na(name)) "." else " in measure {.field {name}}."),

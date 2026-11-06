@@ -89,7 +89,6 @@ namespace housepi
         /// * unknown units -> left out;
         /// * set requested by the model (see Parameter::request_rw_block) -> one block;
         /// * not sampled, or a declared proposal -> left out;
-        /// * prior or bounds reading another member -> moves alone;
         /// * blocks sharing a member -> merged, a block of fewer than two members dropped.
         /// @note "Enough" is `rates::BLOCK_MIN_SHARE` of the units of the reference of its rule group.
         std::vector<std::vector<size_t>> list_param_rw_blocks(const Parameter &param) const;

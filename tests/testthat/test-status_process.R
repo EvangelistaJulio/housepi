@@ -149,7 +149,8 @@ test_that("A status table is checked against the data", {
     add_status_process(strata = strata) |>
     expect_error("[Tt]ied rules.*datum.*status")
 
-  strata <- data.frame(datum = 1, status = c("a", "b"), weight = 0)
+  # a factor status reads as its labels
+  strata <- data.frame(datum = 1, status = factor(c("a", "b")), weight = 0)
   mk_latent$model |>
     add_status_process(strata = strata) |>
     expect_error("zero weight for 1 member")
@@ -195,16 +196,17 @@ test_that("Status is a constant in inference", {
 test_that("Status process generates a labelled status factor in simulation", {
   simulated <- mk_outbreak$model |>
     # categorical drawn first; labels (declaration order) name the statuses
-    add_status_process(symptomatic = 0.2, asymptomatic = 0.8) |>
+    add_status_process(symptomatic = 0, asymptomatic = 1) |>
     run_simulation()
 
   # status is a factor: code 0 -> escaped, 1 -> symptomatic, 2 -> asymptomatic
   simulated$status |> expect_s3_class("factor")
   levels(simulated$status) |>
     expect_identical(c("escaped", "symptomatic", "asymptomatic"))
-  infected <- as.character(simulated$status[simulated$status != "escaped"])
-  # outcome split follows the probabilities (0.2 symptomatic)
-  abs(mean(infected == "symptomatic") - 0.2) |> expect_lt(0.08)
+  # the second label is certain: a swapped label order or a draw stuck on the
+  # first code labels some infected member symptomatic
+  as.character(simulated$status[simulated$status != "escaped"]) |>
+    expect_all_equal("asymptomatic")
 
   # feed the factor-status output back for inference: factorization maps the
   # labels to the same codes (escaped -> 0), so the density is finite

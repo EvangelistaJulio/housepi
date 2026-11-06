@@ -321,6 +321,25 @@ test_that("Custom measures are checked next to the standard ones", {
   lines |> expect_match(", and overall$", all = FALSE)
 })
 
+test_that("Custom measures return values of one shape that summarise", {
+  mk_ppc$model |>
+    check_predictive(mk_ppc$fit, empty = \(x) numeric(), epi = FALSE,
+                     thin_ess = FALSE, nrep = 5) |>
+    expect_error("[Ee]mpty observation on data")
+  # one value per case: replicates differ in length
+  mk_ppc$model |>
+    check_predictive(mk_ppc$fit, ragged = \(x) seq_len(sum(x$status > 0)),
+                     epi = FALSE, thin_ess = FALSE, nrep = 5) |>
+    expect_error("[Nn]ot all computed measures share identical dimensions") |>
+    suppressWarnings()
+  # a label that differs across replicates has no median
+  mk_ppc$model |>
+    check_predictive(mk_ppc$fit, label = \(x) as.character(sum(x$status > 0)),
+                     epi = FALSE, thin_ess = FALSE, nrep = 5) |>
+    expect_error("[Uu]ndefined .median.*non-numeric, non-unique") |>
+    suppressWarnings()
+})
+
 test_that("Standard measures can be dropped", {
   ppc <- mk_ppc$model |>
     check_predictive(mk_ppc$fit, overall = \(x) mean(x$status > 0),
@@ -463,7 +482,7 @@ test_that("Observed values outside the interval are recorded as warnings", {
   helper_print_lines(print(ppc_2)) |> expect_no_match("Warning")
 })
 
-test_that("Without draws, the check draws parameters from their prior", {
+test_that("The check names the source of the values it simulates at", {
   mk_ppc$model |> check_predictive() |> expect_error("[Pp]rior.*nrep")
 
   ppc <- mk_ppc$model |>
@@ -482,6 +501,14 @@ test_that("Without draws, the check draws parameters from their prior", {
     suppressWarnings()
   ppc_2$source |> expect_identical("table")
   ppc_2$thin_ess |> expect_false()
+
+  # draws taken out of a run stay a posterior
+  ppc_3 <- mk_ppc$model |>
+    check_predictive(get_parameter_draws(mk_ppc$fit), nrep = 2,
+                     progress = FALSE) |>
+    suppressWarnings()
+  ppc_3$source |> expect_identical("posterior")
+  ppc_3$thin_ess |> expect_true()
 })
 
 test_that("Draws of a run on other data are given values, not a posterior", {

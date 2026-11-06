@@ -323,6 +323,8 @@ test_that("Function arguments are validated", {
   # no close argument points to the call showing them
   browse_functions("pow", x2 = 5, unrelated = 3) |>
     expect_error("Unused argument.*unrelated.*browse_functions..pow")
+  browse_distributions("gamma", shape = 2, unrelated = 3) |>
+    expect_error("Unused argument.*unrelated.*browse_distributions..gamma")
   # no close name points to the registry browser
   browse_functions("unrelated") |>
     expect_error("[Uu]nknown function.*browse_functions")
@@ -464,6 +466,16 @@ test_that("Truncated discrete rand() reaches every bin of the support", {
   max(distr$rand(2e4L)) |> expect_identical(max(i))
 })
 
+test_that("Gamma and beta draws below unit shape match their moments", {
+  # limits sit about 7 sd out: mean 0.5 for both, variance 0.5 and 0.125
+  x <- browse_distributions("gamma", shape = 0.5, scale = 1)$rand(2e4)
+  mean(x) |> expect_equal(0.5, tolerance = 0.07)
+  var(x) |> expect_equal(0.5, tolerance = 0.17)
+  x <- browse_distributions("beta", shape1 = 0.5, shape2 = 0.5)$rand(2e4)
+  mean(x) |> expect_equal(0.5, tolerance = 0.035)
+  var(x) |> expect_equal(0.125, tolerance = 0.035)
+})
+
 test_that("Discrete uniform spreads flat mass over the integers", {
   k <- 0:10
   distr <- browse_distributions("uniform", min = 0, max = 10, discr = TRUE)
@@ -573,6 +585,16 @@ test_that("An argument outside its domain is refused", {
   # a weight is never negative, though the weights sum to a positive total
   browse_distributions("categorical", a = 2, b = -1) |>
     expect_error("b.*categorical.*must be at least 0")
+
+  # the bounds of a uniform law set its support: an infinite one spreads no mass
+  browse_distributions("uniform", min = -Inf, max = 1) |>
+    expect_error("min.*uniform.*must be finite.*finite value")
+  browse_distributions("uniform", min = 0, max = Inf) |>
+    expect_error("max.*uniform.*must be finite")
+  browse_distributions("uniform", min = -Inf, max = 3, discr = TRUE) |>
+    expect_error("min.*uniform.*must be finite")
+  browse_distributions("loguniform", min = 1, max = Inf) |>
+    expect_error("max.*loguniform.*must be greater than 0 and finite")
 })
 
 test_that("Options outside the support of a law are rejected", {
@@ -700,6 +722,15 @@ test_that("Gamma and lognormal accept a mean/sd parametrization", {
     d_alt$cdf(x) |> expect_equal(d_can$cdf(x))
     d_alt$log_pdf(x) |> expect_equal(d_can$log_pdf(x))
   }
+
+  # a model stores the effective arguments of constant mean and sd
+  hh_model <- data.frame(hh_id = "h1", status = 1, record = 3) |>
+    new_housepi_model("test")
+  log_lik <- hh_model |>
+    add_observation("record", model = "lognormal", mean = !!m, sd = !!s) |>
+    evaluate_log_lik()
+  log_lik |> expect_equal(stats::dlnorm(3, canonical$lognormal$meanlog,
+                                        sdlog, log = TRUE))
 })
 
 test_that("Non-integer x maps to floor for Discrete::Defined distributions", {

@@ -175,6 +175,12 @@ namespace housepi
             double norm_() const { return domain_.max.value() - domain_.min.value(); }
 
         protected:
+            /// Both bounds finite: they set the support.
+            ArgRequirements arg_requirements_() const override final
+            {
+                return {{&domain_.min, Codomain::finite()}, {&domain_.max, Codomain::finite()}};
+            }
+
             double raw_function_(double) const override final { return 1. / norm_(); }
             double raw_primitive_(double x) const override final { return (x - domain_.min.value()) / norm_(); }
             double raw_ccdf_(double x) const override final { return (domain_.max.value() - x) / norm_(); }
@@ -210,10 +216,11 @@ namespace housepi
             double norm_() const { return log1p((domain_.max.value() - domain_.min.value()) / domain_.min.value()); }
 
         protected:
-            /// Both bounds positive, so both required.
+            /// Both bounds positive and finite, so both required.
             ArgRequirements arg_requirements_() const override final
             {
-                return {{&domain_.min, Codomain::positive()}, {&domain_.max, Codomain::positive()}};
+                const Codomain req = {0., inf::DOUBLE, Interval::Open, Interval::Open};
+                return {{&domain_.min, req}, {&domain_.max, req}};
             }
 
             double raw_function_(double x) const override final { return 1. / (x * norm_()); }
@@ -251,7 +258,8 @@ namespace housepi
         protected:
             ArgRequirements arg_requirements_() const override final
             {
-                return {{&domain_.min, Codomain::integers()}, {&domain_.max, Codomain::integers()}};
+                return {{&domain_.min, Codomain::finite(Lattice::Integers)},
+                        {&domain_.max, Codomain::finite(Lattice::Integers)}};
             }
 
             double raw_function_(double) const override final { return 1. / norm_(); }

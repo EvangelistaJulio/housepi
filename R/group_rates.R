@@ -103,8 +103,7 @@ pad_rate_cols_ <- function(df, cols) {
 
 # Parameter-name prefix: empty, or the given prefix closed by an underscore.
 format_rate_prefix_ <- function(prefix) {
-  if (identical(prefix, "") || !is.character(prefix)) ""
-  else paste0(prefix, "_")
+  if (identical(prefix, "")) "" else paste0(prefix, "_")
 }
 
 # Tidy rate table for the read surface, definitions expanded from data.

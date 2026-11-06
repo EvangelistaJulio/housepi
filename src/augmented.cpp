@@ -692,9 +692,9 @@ namespace housepi
                     msg::stop(
                         "Exceeded attempts to initialize latent variables of " +
                         context + " due to observations.\n" +
-                        "Widen latent model of " + str::format(str::unique(latent_producers), false, 3) +
-                        ", revise the observation domain of " + msg::val(def[k].name) +
-                        ", or check the observed individual data.");
+                        "Match the latent model of " + str::format(str::unique(latent_producers), false, 3) +
+                        " to the values observation " + msg::val(def[k].name) +
+                        " accepts, revise its domain, or check the observed individual data.");
 
                 // non-constant parameter in domain cannot be fixed by per-individual resampling
                 for (const std::string &pstr : str::unique(param_producers))
@@ -1214,12 +1214,6 @@ namespace housepi
                               const str_table &input,
                               size_t n_levels)
     {
-        blocks_.clear();
-        totals_.clear();
-        block_of_.assign(dataset.report_indiv.total, 0);
-        if (input.empty())
-            return;
-
         // every column but weight and rule group is a covariate
         std::vector<std::string> covariates = extract_keys(input);
         vect::remove(covariates, {"weight", "rule_group"});

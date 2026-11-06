@@ -375,13 +375,18 @@ test_that("Group rates load from a list of definitions", {
       community = list(by = c("age", "sex"), prefix = "ct",
                        prior = "uniform", min = 0, max = 10),
       susceptibility = list(by = c("age", "sex"),
-                            prior = "lognormal", sdlog = 3)
+                            prior = "lognormal", sdlog = 3),
+      # an empty prefix leaves the parameter names bare
+      infectivity = list(by = "sex", prefix = "")
     ) |>
     get_group_rates()
 
-  unique(tidy$group_rate) |> expect_setequal(c("community", "susceptibility"))
+  unique(tidy$group_rate) |>
+    expect_setequal(c("community", "susceptibility", "infectivity"))
   tidy$param_name |> expect_match("^ct_", all = FALSE)
   tidy$param_name |> expect_match("^susceptibility_", all = FALSE)
+  subset(tidy, group_rate == "infectivity")$param_name |>
+    expect_setequal(c("sex_M", "sex_F"))
 })
 
 test_that("An unknown covariate in a group rate points to the close one", {

@@ -29,7 +29,6 @@ namespace housepi
     struct StatusProcess
     {
         /// Resolve the weights of every member from rule table `input`, over `n_levels` infected levels.
-        /// * empty `input` -> no status process.
         /// @note Coverage, ties and positive totals are asserted R-side.
         void build(const data::Dataset &dataset,
                    const str_table &input,

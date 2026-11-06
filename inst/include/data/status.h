@@ -28,5 +28,5 @@ namespace housepi::status
     /// Whether individual status is missing.
     inline bool is_missing(int s) { return s == MISSING; }
     /// Associate a category (0=infected, 1=escaped, 2=missing).
-    inline size_t category(int s) { return is_infected(s) ? 0 : (is_escaped(s) ? 1 : 2); };
+    inline size_t category(int s) { return is_infected(s) ? 0 : (is_escaped(s) ? 1 : 2); }
 }

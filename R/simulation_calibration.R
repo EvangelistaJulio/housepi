@@ -377,7 +377,10 @@ HousepiCalibrationCheck <- R6::R6Class(
         posterior <- calibration_posterior_(hh_model, draws, nrep)
         values <- posterior$values
         private$draws_seed_ <- posterior$seed
+        # a latent is no data: its like-named column leaves, as in the studies
         conditioned <- get_dataset(hh_model)
+        latent <- get_latent(hh_model)[["name"]]
+        conditioned <- conditioned[setdiff(names(conditioned), latent)]
         private$observed_houses_ <- length(unique(conditioned[["hh_id"]]))
       }
       private$sweep_ <- HousepiSweep$new(

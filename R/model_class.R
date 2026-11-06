@@ -647,10 +647,10 @@ HousepiModel <- R6::R6Class(
       private$assert_status_()
 
       # rates derive from their own covariates (they append to param_$defs)
-      if (derive && length(private$group_rates_$defs))
+      if (derive) {
         private$build_group_rates_(wall)
-      if (derive && length(private$contact_rates_$defs))
         private$build_contact_rates_()
+      }
 
       # defer the engine push while required data is incomplete
       if (length(private$assert_dataset_(FALSE, simulating = TRUE)) > 0)

@@ -587,10 +587,14 @@ resolve_status_codes_ <- function(defs, dictionary) {
   )
   if (any(is_lab)) {
     code <- match(st[is_lab], dictionary)
-    if (anyNA(code)) stop_h(paste(
-      "Status label(s) {.val {unique(st[is_lab][is.na(code)])}}",
-      "not among the declared statuses {.val {dictionary}}."
-    ))
+    unknown <- unique(st[is_lab][is.na(code)])
+    if (length(unknown)) stop_h(
+      "Unknown status label{?s} {.val {unknown}}.",
+      find_closest_match(
+        unknown, dictionary,
+        otherwise = "Use a status label of the data or of the status process."
+      )
+    )
     st[is_lab] <- as.character(code)
     defs[["status"]] <- st
   }

@@ -871,8 +871,9 @@ namespace housepi
         ll.transm = commit_transm_log_lik_(house);
         if (!std::isfinite(ll.transm))
             msg::stop(
-                "Initial transmission log-likelihood returned infinity for " +
-                data.dataset().str(house) + ".");
+                "The transmission probability of " + data.dataset().str(house) +
+                " is numerically zero at the initial values.\n"
+                "Check the parameters and latents the transmission model reads.");
 
         // latent
         if (augm.scheme().is_any_latent_model())
@@ -884,8 +885,9 @@ namespace housepi
                 ll.latent += augm.commit_latent_log_lik(indiv);
                 if (!std::isfinite(ll.latent))
                     msg::stop(
-                        "Initial latent log-likelihood returned infinity for " +
-                        data.dataset().str(indiv) + ".");
+                        "The latent density of " + data.dataset().str(indiv) +
+                        " is numerically zero at the initial values.\n"
+                        "Check the latent models of " + data.dataset().str(indiv) + ".");
             }
 
         return ll;

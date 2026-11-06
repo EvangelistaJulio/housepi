@@ -31,7 +31,7 @@ namespace housepi::str
 
     /// Format a boolean value.
     std::string format(bool condition);
-    /// Format a double value, NA included.
+    /// Format a double value, NA, Inf and -Inf included.
     std::string format(double x);
     /// Format a list of string options.
     std::string format(const std::vector<std::string> &options,

@@ -41,8 +41,7 @@ family2model_col <- function(family) {
 family2function_col <- function(family) {
   if (is_latent_family(family)) c("model", "func")
   else if (family == "infectivity profile") "func"
-  else if (family == "parameter") c("prior", "func")
-  else "prior"
+  else c("prior", "func")
 }
 
 # Select the exposure error to surface, keyed on its last line, the cause.

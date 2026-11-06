@@ -306,14 +306,15 @@ namespace housepi
     bool Codomain::is_within(const Codomain &outer) const noexcept
     {
         // a side holds where the outer side is unbounded, or bounds every value on it
+        // an unbounded side reads as open at -Inf or Inf
+        const double lo = below == Interval::Unbounded ? -inf::DOUBLE : inf;
+        const double hi = above == Interval::Unbounded ? inf::DOUBLE : sup;
         const bool is_low_within =
             outer.below == Interval::Unbounded ||
-            (below != Interval::Unbounded &&
-             (inf > outer.inf || (inf == outer.inf && (below == Interval::Open || outer.below == Interval::Closed))));
+            lo > outer.inf || (lo == outer.inf && (below != Interval::Closed || outer.below == Interval::Closed));
         const bool is_high_within =
             outer.above == Interval::Unbounded ||
-            (above != Interval::Unbounded &&
-             (sup < outer.sup || (sup == outer.sup && (above == Interval::Open || outer.above == Interval::Closed))));
+            hi < outer.sup || (hi == outer.sup && (above != Interval::Closed || outer.above == Interval::Closed));
         return is_low_within && is_high_within && (!outer.on_integers() || on_integers());
     }
 
@@ -669,14 +670,28 @@ namespace housepi
         }
 
         /// Words for the bounds of `c`, as read by the user.
+        /// * side open at -Inf or Inf -> "finite", once.
         std::string str_bounds_(const Codomain &c)
         {
             std::string sms;
+            bool is_finite = false;
             if (c.below != Interval::Unbounded)
-                sms = (c.below == Interval::Open ? "greater than " : "at least ") + str::format(c.inf);
+            {
+                if (std::isinf(c.inf))
+                    is_finite = true;
+                else
+                    sms = (c.below == Interval::Open ? "greater than " : "at least ") + str::format(c.inf);
+            }
             if (c.above != Interval::Unbounded)
-                sms += (sms.empty() ? "" : " and ") +
-                       std::string(c.above == Interval::Open ? "less than " : "at most ") + str::format(c.sup);
+            {
+                if (std::isinf(c.sup))
+                    is_finite = true;
+                else
+                    sms += (sms.empty() ? "" : " and ") +
+                           std::string(c.above == Interval::Open ? "less than " : "at most ") + str::format(c.sup);
+            }
+            if (is_finite)
+                sms += (sms.empty() ? "" : " and ") + std::string("finite");
             return sms;
         }
 
@@ -690,11 +705,13 @@ namespace housepi
             // a number is named after its argument, a source by itself
             const std::string source = attr.is_numeric() ? msg::arg(attr.name()) : attr.str_source();
             std::string sms = msg::arg(attr.name()) + " of " + owner + " must be " + bounds;
+            const bool is_finite_only = bounds == "finite";
             if (attr.is_numeric() || attr.is_constant())
-                sms += ".\nChange " + source + " (" + str::format(attr.value()) + ") to a value " + bounds + ".";
+                sms += ".\nChange " + source + " (" + str::format(attr.value()) + ") to " +
+                       (is_finite_only ? "a finite value" : "a value " + bounds) + ".";
             else
-                sms += ".\n" + source + " can take other values.\nRestrict " + source + " to values " +
-                       bounds + ".";
+                sms += ".\n" + source + " can take other values.\nRestrict " + source + " to " +
+                       (is_finite_only ? "finite values" : "values " + bounds) + ".";
             msg::stop(sms);
         }
     }

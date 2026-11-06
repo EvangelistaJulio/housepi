@@ -1051,7 +1051,7 @@ namespace housepi
                 member.push_back(owner);
                 proposal.push_back(v.proposal_name());
                 coord.push_back(v.proposal_coord());
-                scale.push_back(f ? f->jump_sd(i) : v.proposal_scale());
+                scale.push_back(f ? f->jump_sd(i) : hsp_to_rcpp(v.proposal_scale()));
                 block.push_back(f ? block_id : NA_INTEGER);
             };
 

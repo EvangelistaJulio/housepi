@@ -77,6 +77,10 @@ test_that("Latent definition errors are recognized", {
   mk_latent$model |>
     add_latent("hidden@") |>
     expect_error("[Ii]nvalid.*characters")
+  # a uniform model spread to infinity holds no mass to draw from
+  mk_latent$model |>
+    add_latent(hidden = list(model = "uniform", min = -Inf, max = 1.1)) |>
+    expect_error("min.*uniform.*must be finite.*Change .min. \\(-Inf\\)")
   mk_latent$model |>
     add_latent("hidden") |>
     expect_error("[Ii]ncomplete definition")
@@ -1290,7 +1294,7 @@ test_that("Escaped label colliding with an infected status is rejected", {
     expect_error("collides with the escaped-status label")
 })
 
-test_that("Mixing integer and character status declarations is rejected", {
+test_that("Status declarations are all integers or all declared labels", {
   # one call carries both an integer and a character status: caught at the wall
   mk_status$model |>
     add_latent(
@@ -1300,6 +1304,13 @@ test_that("Mixing integer and character status declarations is rejected", {
     ) |>
     evaluate_log_lik() |>
     expect_error("[Mm]ix")
+  # a label the status process does not declare points to the close one
+  mk_status$model |>
+    add_status_process(symptomatic = 0.5, asymptomatic = 0.5) |>
+    add_latent(incub_period = list(model = "gamma", shape = 2, scale = 1,
+                                   status = "symptomatc")) |>
+    evaluate_log_lik() |>
+    expect_error("[Uu]nknown status label .symptomatc.*[Dd]id you mean")
 })
 
 ####  Latent end-to-end  ####
@@ -1328,7 +1339,7 @@ test_that("Latent variables moving together sample their models", {
     add_latent(layer_1 = list(model = "gamma", shape = 4, scale = 0.5),
                hidden = list(model = "normal", mean = layer_1, sd = 0.1)) |>
     helper_flat_sink(loc = hidden) |>
-    run_inference(steps = 40000L, adapt = 500L, thin = 1L, chains = 2L) |>
+    run_inference(steps = 2e5L, adapt = 500L, thin = 5L, chains = 2L) |>
     suppressWarnings()
 
   draws <- latent_frame(hh_fit)
@@ -1701,7 +1712,7 @@ test_that("Nested latents are sampled through their transformation", {
     add_dataset(transform(get_dataset(hh_model), obs = 0, obs_norm = 0)) |>
     helper_flat_sink(loc = z0) |>
     helper_flat_sink(loc = norm, column = "obs_norm") |>
-    run_inference(steps = 1e5L, chains = 1L, adapt = 0L, thin = 1L)
+    run_inference(steps = 2.5e5L, chains = 1L, adapt = 0L, thin = 1L)
   # no parameters nor priors, only latent
   get_parameter_draws(hh_fit) |> expect_warning("[Ee]mpty draws")
   posterior::nvariables(get_latent_draws(hh_fit)) |>
@@ -1811,7 +1822,7 @@ test_that("Discrete latents join a block beside continuous ones", {
     add_observation("record_2", model = "uniform", min = -1.5, max = 1.5,
                     loc = hidden + hidden_3)
   hh_fit <- hh_model |>
-    run_inference(steps = 20000L, adapt = 1000L, chains = 1L, id_draws = "m1",
+    run_inference(steps = 50000L, adapt = 1000L, chains = 1L, id_draws = "m1",
                   progress = FALSE, warn = FALSE) |>
     suppressWarnings()
 
@@ -1841,6 +1852,41 @@ test_that("Discrete latents join a block beside continuous ones", {
     expect_equal(sum(weight[pairs$hidden + pairs$hidden_2 == 12]),
                  tolerance = 0.15)
   mean(draws$m1_hidden_3) |> expect_equal(mean_3, tolerance = 0.07)
+})
+
+test_that("A block of discrete latents alone samples their exact posterior", {
+  # record pins hidden + hidden_2 to {11, 12, 13}
+  # a joint jump rounded to 0 on both is accepted without evaluation
+  hh_model <- data.frame(id = c("m1", "m2"), hh_id = "h1", status = c(1, 0),
+                         record = 12) |>
+    new_housepi_model("test") |>
+    add_latent(
+      hidden = list(model = "poisson", lambda = 6, discr = TRUE),
+      hidden_2 = list(model = "poisson", lambda = 4, discr = TRUE)
+    ) |>
+    add_observation("record", model = "uniform", min = -1.5, max = 1.5,
+                    loc = hidden + hidden_2)
+  hh_fit <- hh_model |>
+    run_inference(steps = 20000L, adapt = 1000L, chains = 1L, id_draws = "m1",
+                  progress = FALSE, warn = FALSE) |>
+    suppressWarnings()
+  inspect_state(hh_model, "h1")$.sampler$moves$block |> expect_all_equal(1L)
+
+  # exact posterior over the pairs on the ridge
+  # limits sit about 7 sd out, measured over 15 runs
+  pairs <- expand.grid(hidden = 0:13, hidden_2 = 0:13)
+  pairs <- pairs[abs(pairs$hidden + pairs$hidden_2 - 12) <= 1.5, ]
+  weight <- dpois(pairs$hidden, 6) * dpois(pairs$hidden_2, 4)
+  weight <- weight / sum(weight)
+  mean_1 <- sum(weight * pairs$hidden)
+
+  draws <- get_latent_draws(hh_fit)
+  mean(draws$m1_hidden) |> expect_equal(mean_1, tolerance = 0.04)
+  var(draws$m1_hidden) |>
+    expect_equal(sum(weight * (pairs$hidden - mean_1)^2), tolerance = 0.19)
+  mean(draws$m1_hidden + draws$m1_hidden_2 == 12) |>
+    expect_equal(sum(weight[pairs$hidden + pairs$hidden_2 == 12]),
+                 tolerance = 0.15)
 })
 
 test_that("Evaluating a model allocates its latent storage", {

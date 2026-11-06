@@ -63,15 +63,16 @@ namespace housepi
         {
             return {0., 1., below, above};
         }
-        /// Integer values.
-        static Codomain integers() noexcept
+        /// Finite values, `-Inf` and `Inf` excluded.
+        static Codomain finite(Lattice l = Lattice::Doubles) noexcept
         {
-            return {-inf::DOUBLE, inf::DOUBLE, Interval::Unbounded, Interval::Unbounded, Lattice::Integers};
+            return {-inf::DOUBLE, inf::DOUBLE, Interval::Open, Interval::Open, l};
         }
 
         /// Whether every value returned is an integer.
         bool on_integers() const noexcept { return lattice == Lattice::Integers; }
         /// Whether every value lies within `outer`, its lattice included.
+        /// An unbounded side holds finite values: open at -Inf or Inf.
         bool is_within(const Codomain &outer) const noexcept;
 
         /// Interval notation, in the absolute frame.

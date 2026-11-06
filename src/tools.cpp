@@ -239,6 +239,8 @@ namespace housepi::str
     {
         if (na::is(x))
             return "NA";
+        if (std::isinf(x))
+            return x > 0. ? "Inf" : "-Inf";
         char buf[32];
         std::snprintf(buf, sizeof buf, "%g", x);
         return buf;

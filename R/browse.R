@@ -423,16 +423,10 @@ copy_template_to_path <- function(name, path) {
   dir.create(path, recursive = TRUE, showWarnings = FALSE)
   if (!dir.exists(path)) raise_permissions_error()
 
-  # source cpp is always present
-  required <- "model.cpp"
-  # definition templates are optional
-  optional <- unname(template_def_files)
-  for (f in c(required, optional)) {
+  # source cpp is always present, definition templates are optional
+  for (f in c("model.cpp", unname(template_def_files))) {
     from_file <- file.path(get_template_dir(name), f)
     if (file.exists(from_file)) overwrite(from_file, file.path(path, f))
-    else if (f %in% required) stop_h(
-      "Template {.val {name}} is missing required file {.file {f}}."
-    )
   }
 }
 

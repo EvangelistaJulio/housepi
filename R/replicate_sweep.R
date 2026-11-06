@@ -139,26 +139,21 @@ sweep_fingerprint_ <- function(hh_model, structure, sampler, conditioned,
 }
 
 #' Data a study is fitted on: the households of `observed`,
-#' then those of `simulated`, numbered past them.
+#' then those of `simulated`, labelled apart from them.
 #' * `observed` NULL -> `simulated` unchanged;
-#' * numeric `hh_id` or `id` on both sides -> offset by the observed maximum,
-#'   else character labels distinct from the observed ones;
+#' * `hh_id` and `id` -> simulated labels distinct from the observed ones;
 #' * column on one side only -> `NA` on the other, of the same class.
 #' @noRd
 sweep_condition_ <- function(observed, simulated) {
   if (is.null(observed)) return(simulated)
   relabel <- function(sim, obs) {
     key <- match(sim, unique(sim))
-    if (is.numeric(sim) && is.numeric(obs)) return(max(obs) + key)
-    obs <- unique(as.character(obs))
+    obs <- unique(obs)
     fresh <- make.unique(c(obs, paste0("sim_", seq_len(max(key)))))
     fresh[-seq_along(obs)][key]
   }
-  for (key in intersect(c("hh_id", "id"), names(simulated))) {
+  for (key in intersect(c("hh_id", "id"), names(simulated)))
     simulated[[key]] <- relabel(simulated[[key]], observed[[key]])
-    if (!is.numeric(simulated[[key]]))
-      observed[[key]] <- as.character(observed[[key]])
-  }
   cols <- union(names(observed), names(simulated))
   fill <- function(d, other) {
     for (col in setdiff(cols, names(d)))

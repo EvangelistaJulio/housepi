@@ -446,31 +446,14 @@ namespace housepi
             }
     }
 
-    bool Parameter::reads_any(size_t p, const std::vector<size_t> &others) const
-    {
-        const std::string &pstr = consult(p);
-        for (const param::DefRow &row : def_.rows)
-        {
-            if (row.name != pstr)
-                continue;
-            for (const parse::Definition *col : {&row.prior, &row.min, &row.max})
-                for (const std::string &producer : col->list_parameter_producers())
-                    for (size_t o : others)
-                        if (o != p && producer == consult(o))
-                            return true;
-        }
-        return false;
-    }
-
     bool Parameter::is_rate_only(size_t p) const
     {
         if (is_declared(p) || vect::contains(scheme_.sample_cached, p))
             return false;
         const std::string &pstr = consult(p);
         for (const param::DefRow &row : def_.rows)
-            for (const parse::Definition *col : {&row.func, &row.min, &row.max})
-                if (vect::contains(col->list_parameter_producers(), pstr))
-                    return false;
+            if (vect::contains(row.func.list_parameter_producers(), pstr))
+                return false;
         return true;
     }
 
@@ -857,15 +840,7 @@ namespace housepi
             blocks.push_back(std::move(block));
         }
 
-        // a member whose prior or bounds read another member moves alone
-        for (std::vector<size_t> &block : blocks)
-        {
-            std::vector<size_t> kept = {};
-            for (size_t p : block)
-                if (!param.reads_any(p, block))
-                    kept.push_back(p);
-            block = std::move(kept);
-        }
+        // a single member moves alone
         blocks.erase(std::remove_if(blocks.begin(), blocks.end(),
                                     [](const std::vector<size_t> &block)
                                     { return block.size() < 2; }),
