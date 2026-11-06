@@ -114,6 +114,28 @@ mk_calib <- local({
        post_calib = post_calibration)
 })
 
+# the records read the parameter with no latent between them,
+# so the log-likelihood is a closed form and ranked beside the parameter
+mk_calib_direct <- local({
+  hh_model <- data.frame(hh_id = seq(30), status = 1,
+                         record = stats::rnorm(30, 1, sqrt(2))) |>
+    new_housepi_model("test") |>
+    add_parameter("rho", prior = "uniform", min = -5, max = 5) |>
+    add_observation("record", model = "normal", mean = rho, sd = 1)
+  hh_fit <- hh_model |>
+    run_inference(steps = 400, thin = 1, chains = 1, progress = FALSE) |>
+    suppressWarnings()
+  sweep <- function(draws) {
+    hh_model |>
+      check_calibration(draws, nrep = 3, structure_sampler = NULL,
+                        rank_levels = 10, steps = 400, thin = 1, chains = 1,
+                        progress = FALSE) |>
+      suppressWarnings()
+  }
+  list(model = hh_model, fit = hh_fit,
+       prior_calib = sweep(NULL), post_calib = sweep(hh_fit))
+})
+
 test_that("Calibration calibration are read only", {
   mk_calib$prior_calib |>
     expect_read_only_field("estimates", "replicates",
@@ -124,15 +146,15 @@ test_that("Calibration calibration are read only", {
 test_that("Every replicate is ranked at a value drawn from the prior", {
   calibration <- mk_calib$prior_calib
   estimates <- calibration$estimates
-  estimates |> expect_nrow(3L)
-  estimates$rep |> expect_identical(1:3)
+  estimates |> expect_nrow(6L)
+  estimates$rep |> expect_identical(rep(1:3, each = 2L))
   estimates$rank |> expect_in(0:9)
   # a fresh prior draw per replicate, not the pin
-  unique(estimates$truth) |> expect_length(3L)
-  (estimates$truth > -5 & estimates$truth < 5 & estimates$truth != 2) |>
-    expect_all_true()
-  calibration$evaluate_ecdf() |> expect_nrow(9L)
-  calibration$summarise()$nrep |> expect_identical(3L)
+  truth <- estimates$truth[estimates$variable == "rho"]
+  unique(truth) |> expect_length(3L)
+  (truth > -5 & truth < 5 & truth != 2) |> expect_all_true()
+  calibration$evaluate_ecdf() |> expect_nrow(18L)
+  calibration$summarise()$nrep |> expect_identical(c(3L, 3L))
   calibration$summarize() |> expect_identical(calibration$summarise())
   calibration$overview$nrep |> expect_identical(3L)
   calibration$houses |> expect_identical(30L)
@@ -144,12 +166,61 @@ test_that("Every replicate is ranked at a distinct posterior draw of the run", {
   calibration <- mk_calib$post_calib
   estimates <- calibration$estimates
   calibration$source |> expect_identical("posterior")
-  estimates |> expect_nrow(3L)
+  estimates |> expect_nrow(6L)
   estimates$rank |> expect_in(0:9)
-  unique(estimates$truth) |> expect_length(3L)
-  estimates$truth |>
-    expect_in(as.numeric(get_parameter_draws(mk_calib$fit)$rho))
-  calibration$summarise()$nrep |> expect_identical(3L)
+  truth <- estimates$truth[estimates$variable == "rho"]
+  unique(truth) |> expect_length(3L)
+  truth |> expect_in(as.numeric(get_parameter_draws(mk_calib$fit)$rho))
+  calibration$summarise()$nrep |> expect_identical(c(3L, 3L))
+})
+
+test_that("The log-likelihood is ranked beside the parameters", {
+  checks <- c(mk_calib[c("prior_calib", "post_calib")],
+              mk_calib_direct[c("prior_calib", "post_calib")])
+  for (calibration in checks) {
+    estimates <- calibration$estimates
+    estimates$variable |> expect_identical(rep(c("rho", "log_lik"), 3L))
+    estimates$rank |> expect_in(0:9)
+    estimates$truth |> expect_all_finite()
+    calibration$summarise()$variable |> expect_identical(c("log_lik", "rho"))
+  }
+})
+
+test_that("The log-likelihood truth is the stored one at the same values", {
+  # draw k of a fit, evaluated on the engine of the fit
+  fit_draw <- function(fixture) {
+    hh_model <- fixture$model$copy()
+    hh_fit <- hh_model |>
+      run_inference(steps = 400, thin = 1, chains = 1,
+                    id_draws = list(hh_id = as.character(1:30)),
+                    progress = FALSE) |>
+      suppressWarnings()
+    list(ptr = hh_model$.__enclos_env__$private$mcmc_ptr_,
+         record = get_dataset(hh_model)$record,
+         fit = hh_fit, rho = as.numeric(get_parameter_draws(hh_fit)$rho),
+         stored = rowSums(as.data.frame(get_log_lik_draws(hh_fit))[, 1:30]))
+  }
+  k <- sample.int(400L, 1L)
+
+  # no latent
+  draw <- fit_draw(mk_calib_direct)
+  truth <- sweep_truth_log_lik_(draw$ptr, c(rho = draw$rho[[k]]),
+                                latents = data.frame(row.names = 1:30),
+                                observed = character())
+  truth |> expect_equal(draw$stored[[k]])
+  truth |>
+    expect_equal(sum(stats::dnorm(draw$record, draw$rho[[k]], 1, log = TRUE)))
+
+  # latents pinned at the same draw
+  draw <- fit_draw(mk_calib)
+  hidden <- as.numeric(as.data.frame(get_latent_draws(draw$fit))[k, 1:30])
+  truth <- sweep_truth_log_lik_(draw$ptr, c(rho = draw$rho[[k]]),
+                                latents = data.frame(hidden = hidden),
+                                observed = character())
+  truth |> expect_equal(draw$stored[[k]])
+  truth |>
+    expect_equal(sum(stats::dnorm(draw$record, hidden, 1, log = TRUE),
+                     stats::dnorm(hidden, draw$rho[[k]], 1, log = TRUE)))
 })
 
 test_that("Calibration calibration print their settings", {
@@ -276,12 +347,12 @@ test_that("Calibration checks of one model pool their replicates", {
   combined <- c(calibration, rerun())
 
   combined$nrep |> expect_identical(5L)
-  combined$estimates$rep |> expect_identical(1:5)
+  combined$estimates$rep |> expect_identical(rep(1:5, each = 2L))
   # the uniformity test reads the pooled replicates
-  combined$summarise()$nrep |> expect_identical(5L)
+  combined$summarise()$nrep |> expect_identical(c(5L, 5L))
   combined$summarise()$log_gamma_threshold |>
-    expect_equal(calibration_log_threshold_(5, 9, 0.05))
-  combined$evaluate_ecdf() |> expect_nrow(9L)
+    expect_equal(rep(calibration_log_threshold_(5, 9, 0.05), 2L))
+  combined$evaluate_ecdf() |> expect_nrow(18L)
   calibration$nrep |> expect_identical(3L)
   c(calibration, calibration) |> expect_error("[Rr]epeat a replicate.*30")
   c(calibration, rerun(nrep = 1, rank_levels = 9)) |>
@@ -299,9 +370,9 @@ test_that("Calibration checks of one model pool their replicates", {
   with(combined$replicates, rep[houses == 30L]) |> expect_identical(1:3)
   # each count is tested at its own number of replicates
   combined$summarise()$log_gamma_threshold |>
-    expect_equal(c(calibration_log_threshold_(3, 9, 0.05),
-                   calibration_log_threshold_(1, 9, 0.05)))
-  combined$evaluate_ecdf() |> expect_nrow(18L)
+    expect_equal(rep(c(calibration_log_threshold_(3, 9, 0.05),
+                       calibration_log_threshold_(1, 9, 0.05)), each = 2L))
+  combined$evaluate_ecdf() |> expect_nrow(36L)
   c(calibration, calibration_2) |>
     expect_error("[Dd]iffer in.*structure_sampler")
 })
@@ -313,7 +384,7 @@ test_that("Latent inference is calibrated against the prior", {
     check_calibration(threads = 4, progress = FALSE) |>
     suppressWarnings()
   # a test at level 0.001, so a calibrated sampler fails one run in 1000
-  nrep <- calibration$summarise()$nrep
+  nrep <- calibration$summarise()$nrep[[1L]]
   threshold <- calibration_log_threshold_(nrep, 99, 0.001)
   (calibration$summarise()$log_gamma >= threshold) |> expect_all_true()
 })
@@ -337,5 +408,5 @@ test_that("Latent inference is calibrated on the data", {
     suppressWarnings()
   # a test at level 0.001, so a calibrated sampler fails one run in 1000
   threshold <- calibration_log_threshold_(100, 99, 0.001)
-  calibration$summarise()$log_gamma |> expect_gte(threshold)
+  (calibration$summarise()$log_gamma >= threshold) |> expect_all_true()
 })

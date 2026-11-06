@@ -15,7 +15,6 @@ rd_model_out_ <- paste(
   "Deep clone of input with new definitions."
 )
 rd_dataset_ <- "`data.frame` Household data, one row per member."
-rd_hh_id_ <- "`character(1)` ID of the household of interest."
 rd_mdl_choice_ <- "`character(1)` Model to use, one of:
 \\describe{
   \\item{`<template>`}{a built-in template name;}
@@ -1247,8 +1246,10 @@ add_reporting_process <- function(hh_model, dataset, long_dataset) {
 #' transmission plus observation.
 #' With latent variables, it is conditioned on their current values.
 #' @param hh_model `r rd_model_in_`
-#' @param hh_id `r rd_hh_id_` If `NA`, the whole data.
+#' @param total `logical(1)` If `TRUE`, the sum over households,
+#' else one value per household.
 #' @return `numeric(1)` The complete-data log-likelihood.
+#' With `total = FALSE`, a `numeric` vector named by household ID.
 #' `r rd_natural_log_`
 #' @examples
 #' flu_1918_frederick |>
@@ -1256,11 +1257,12 @@ add_reporting_process <- function(hh_model, dataset, long_dataset) {
 #'   add_parameter(import = "template") |>
 #'   evaluate_log_lik()
 #' @export
-evaluate_log_lik <- function(hh_model, hh_id = NA_character_) {
+evaluate_log_lik <- function(hh_model, total = TRUE) {
   stopifnothousepi(hh_model)
   pvt <- hh_model$.__enclos_env__$private
   pvt$build_full_()
-  .engine$evaluate_log_lik(pvt$mcmc_ptr_, hh_id)
+  house <- .engine$evaluate_log_lik(pvt$mcmc_ptr_)
+  if (total) sum(house) else house
 }
 
 #' @title Inspect the augmented data of a housepi model
@@ -1301,8 +1303,8 @@ inspect_augmented_data <- function(hh_model) {
 #' see its `template_<model>` help page, and `.sampler`.
 #' An empty definition is dropped unless the model requires it.
 #' The transmission log-likelihood is `NA` and `model_quantities` absent
-#' until the household is evaluated at the current definitions,
-#' by [evaluate_log_lik()] on it or on every household, or by [run_inference()].
+#' until the households are evaluated at the current definitions,
+#' by [evaluate_log_lik()] or [run_inference()].
 #' Each evaluation discards the previous one.
 #'
 #' `.sampler` reads how the variables move, absent while nothing is sampled.

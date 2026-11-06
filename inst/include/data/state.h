@@ -53,15 +53,13 @@ namespace housepi::data
         void finalize_readcells();
 
         /// Allocate transmission log-likelihoods, one per equivalence class.
-        /// * clears the evaluated flags.
+        /// * clears the evaluated flag.
         void allocate_transm_log_lik();
         /// Allocate model caches, per equivalence class of `dataset`, sized by household and cache keys.
-        /// * clears the evaluated flags.
+        /// * clears the evaluated flag.
         void allocate_cache(const Dataset &dataset);
         /// Flag whether transmission log-likelihoods and model caches hold an evaluation of every class.
-        void set_evaluated(bool evaluated) noexcept { evaluated_.assign(evaluated_.size(), evaluated); }
-        /// Flag the equivalence class of `house` as evaluated.
-        void set_evaluated(const Household &house) noexcept { evaluated_[eq_class(house)] = true; }
+        void set_evaluated(bool evaluated) noexcept { evaluated_ = evaluated; }
 
         /// Save every model cache.
         void save_cache() { previous_ = current_; }
@@ -85,12 +83,9 @@ namespace housepi::data
 
         /// Transmission log-likelihood of the equivalence class of `house`.
         LogProba &transm_log_lik(const Household &house) noexcept { return transm_log_lik_[eq_class(house)]; }
-        /// Whether transmission log-likelihood and model cache hold an evaluation of the class of `house`.
-        /// * households not partitioned yet -> false.
-        bool is_evaluated(const Household &house) const noexcept
-        {
-            return Index::of(house) < class_of_.size() && evaluated_[eq_class(house)];
-        }
+        const LogProba &transm_log_lik(const Household &house) const noexcept { return transm_log_lik_[eq_class(house)]; }
+        /// Whether transmission log-likelihoods and model caches hold an evaluation of every class.
+        bool is_evaluated() const noexcept { return evaluated_; }
 
         /// Cached member value.
         MAKE_HOUSEPI_CACHE_ACCESSOR(MemberIdx, member)
@@ -131,7 +126,7 @@ namespace housepi::data
         std::vector<LogProba> transm_log_lik_ = {};         /// Transmission log-likelihood, per equivalence class.
         std::vector<Cache_> current_ = {};                  /// Model cache, per equivalence class.
         std::vector<Cache_> previous_ = {};                 /// Model cache at the last save, per equivalence class.
-        std::vector<bool> evaluated_ = {};                  /// Whether evaluated, per equivalence class.
+        bool evaluated_ = false;                            /// Whether every class is evaluated.
     };
 }
 

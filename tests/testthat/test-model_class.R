@@ -198,11 +198,6 @@ test_that("Model class 'test' calls", {
   hh_data <- sarscov2_2021_icofs
   hh_data$datum <- as.Date(runif(nrow(hh_data), max = 100))
   get_dataset(new_housepi_model(hh_data, "test")) |> expect_equal(hh_data)
-
-  # not existing household id
-  hh_model |>
-    evaluate_log_lik("h9") |>
-    expect_error("[Ii]ndex.*h9.*did not match")
 })
 
 test_that("Household snapshot reads before any definition is pushed", {
@@ -249,22 +244,19 @@ test_that("Household snapshot reports a household once it is evaluated", {
   # never evaluated
   expect_unevaluated(hh_model, "h2")
 
-  # one household evaluated, its equivalent with it
-  evaluate_log_lik(hh_model, "h2")
+  # one value per household, equivalent households alike
+  log_lik <- evaluate_log_lik(hh_model, total = FALSE)
+  names(log_lik) |> expect_identical(c("h1", "h2", "h3"))
+  log_lik[c("h2", "h3")] |> expect_equal(c(h2 = -0.3, h3 = -0.3))
   summary <- summarise_house_cases(hh_model)
   summary$count[summary$metric == "classes"] |> expect_equal(2)
   expect_escaped(hh_model, "h2")
   expect_escaped(hh_model, "h3")
-  expect_unevaluated(hh_model, "h1")
+  inspect_state(hh_model, "h1")$transmission_log_lik |>
+    expect_equal(log_lik[["h1"]])
 
-  # each evaluation starts afresh from the definitions
-  evaluate_log_lik(hh_model, "h1")
-  inspect_state(hh_model, "h1")$transmission_log_lik |> expect_all_finite()
-  expect_unevaluated(hh_model, "h2")
-
-  # every household evaluated
-  evaluate_log_lik(hh_model)
-  expect_escaped(hh_model, "h2")
+  # the total sums the households
+  evaluate_log_lik(hh_model) |> expect_equal(sum(log_lik))
 
   # a redefinition or a simulation discards the evaluation
   expect_warning(hh_model_2 <- add_parameter(hh_model, alpha = 0.5),
@@ -512,8 +504,8 @@ test_that("Households apart in any covariate fall in distinct classes", {
 
   summary <- summarise_house_cases(hh_model)
   summary$count[summary$metric == "classes"] |> expect_identical(2L)
-  log_lik <- vapply(c("h1", "h2"), \(id) evaluate_log_lik(hh_model, id), 0)
-  evaluate_log_lik(hh_model) |> expect_equal(sum(log_lik))
+  log_lik <- evaluate_log_lik(hh_model, total = FALSE)
+  (log_lik[["h1"]] != log_lik[["h2"]]) |> expect_true()
 })
 
 test_that("A column the model reads tells households apart", {
@@ -527,8 +519,8 @@ test_that("A column the model reads tells households apart", {
 
   summary <- summarise_house_cases(hh_model)
   summary$count[summary$metric == "classes"] |> expect_identical(2L)
-  log_lik <- vapply(c("h1", "h2"), \(id) evaluate_log_lik(hh_model, id), 0)
-  evaluate_log_lik(hh_model) |> expect_equal(sum(log_lik))
+  log_lik <- evaluate_log_lik(hh_model, total = FALSE)
+  (log_lik[["h1"]] != log_lik[["h2"]]) |> expect_true()
 })
 
 test_that("A column a fixed latent reads tells households apart", {
@@ -548,8 +540,8 @@ test_that("A column a fixed latent reads tells households apart", {
   for (m in list(hh_model_2, hh_model_3)) {
     summary <- summarise_house_cases(m)
     summary$count[summary$metric == "classes"] |> expect_identical(2L)
-    log_lik <- vapply(c("h1", "h2"), \(id) evaluate_log_lik(m, id), 0)
-    evaluate_log_lik(m) |> expect_equal(sum(log_lik))
+    log_lik <- evaluate_log_lik(m, total = FALSE)
+    (log_lik[["h1"]] != log_lik[["h2"]]) |> expect_true()
   }
 })
 
@@ -595,8 +587,9 @@ test_that("An observed datum tells households apart when nothing is sampled", {
       add_observation(
         record = list(model = "normal", mean = infec_time, sd = 1)
       )
-    log_lik <- vapply(c("h1", "h2"), \(id) evaluate_log_lik(hh_model, id), 0)
-    evaluate_log_lik(hh_model) |> expect_equal(sum(log_lik))
+    # alike households read one value
+    log_lik <- evaluate_log_lik(hh_model, total = FALSE)
+    (log_lik[["h1"]] == log_lik[["h2"]]) |> expect_identical(case$classes == 1L)
     summary <- summarise_house_cases(hh_model)
     summary$count[summary$metric == "classes"] |> expect_identical(case$classes)
   }

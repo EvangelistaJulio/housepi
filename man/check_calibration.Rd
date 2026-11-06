@@ -117,6 +117,21 @@ below 100 per chain,
 so this flag matters only when \code{rank_levels - 1} exceeds 100 times
 the number of chains.
 
+Next to the parameters, the log-likelihood of the simulated households
+is ranked as \code{log_lik} \insertCite{modrak_simulation_2025}{housepi}.
+Its truth is evaluated at the values the study was simulated at,
+and each of its draws sums the pointwise log-likelihood of
+\code{\link[=get_log_lik_draws]{get_log_lik_draws()}} over the same households.
+It reads the data and every parameter at once,
+so it catches a fit that ignores the data,
+which the ranks of the parameters cannot see.
+The log-likelihood is evaluated by the model itself:
+a likelihood that leaves out part of the data leaves it out of the truth
+as well, and goes unnoticed.
+On a model with latent variables, \code{log_lik} adds their log-density,
+as in \code{\link[=get_log_lik_draws]{get_log_lik_draws()}},
+and its truth reads the latent values the study was simulated with.
+
 Uniformity is tested on the empirical CDF of the ranks, with the
 simultaneous band and the statistic of
 \insertCite{sailynoja_graphical_2022;textual}{housepi}.

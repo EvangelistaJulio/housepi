@@ -457,20 +457,10 @@ namespace housepi
         for (size_t p : param.scheme().func)
             param_values.cols[i++][col] = param.at(p).value();
 
-        // pointwise household log-likelihood: transmission + observation + latent
+        // pointwise household log-likelihood
         const Data &data = mcmc.data;
-        const bool with_obs = mcmc.augm.scheme().is_any_obs_model();
-        const bool with_model = mcmc.augm.scheme().is_any_latent_model();
         for (size_t R = 0; R < data.n_eq_classes(); ++R)
-        {
-            const Household &rep = data.eq_class_rep(R);
-            double value = mcmc.data.state.transm_log_lik(rep).value();
-            if (with_obs)
-                value += mcmc.house_obs_log_lik(rep);
-            if (with_model)
-                value += mcmc.house_latent_log_lik(rep);
-            house_log_lik.cols[R][col] = value;
-        }
+            house_log_lik.cols[R][col] = mcmc.house_log_lik(data.eq_class_rep(R));
 
         // latent variable draws, member by member
         const Augmented &augm = mcmc.augm;
@@ -587,27 +577,21 @@ namespace housepi
 
     //////  Evaluation  //////
 
-    double MCMC::evaluate_log_lik(std::string_view hh_id)
+    std::vector<double> MCMC::evaluate_log_lik()
     {
         settings.n_chains = 0; // using '0 chains' as a state variable
         init_for_evaluation_();
+        param.load_sample_values(0);
         param.draw_sample(settings.prng());
         augm.draw_sample(settings.prng());
+        commit_total_log_posterior_(all_terms_());
+        data.state.set_evaluated(true);
 
-        // complete-data log-likelihood at current state: observation + transmission + latent model
-        if (na::is(hh_id))
-        {
-            // evaluation across all households
-            commit_total_log_posterior_(all_terms_());
-            data.state.set_evaluated(true);
-            return tot_log_lik.value();
-        }
-
-        // single household evaluation
-        const Household &house = data.dataset().at(hh_id);
-        infec_profile.update_cache();
-        const double output = commit_house_log_posterior_(house, all_terms_()).value();
-        data.state.set_evaluated(house);
+        // each household reads the terms of its class representative
+        std::vector<double> output;
+        output.reserve(data.dataset().report_house.total);
+        for (const Household &house : data.dataset())
+            output.push_back(house_log_lik(data.eq_class_rep(house)));
         return output;
     }
 

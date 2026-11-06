@@ -256,9 +256,12 @@ HousepiSweep <- R6::R6Class(
     # @param conditioned `data.frame` Data every study is fitted alongside,
     # `NULL` for none.
     # @param one `logical(1)` Demand a single household count.
+    # @param log_lik `logical(1)` Add to each truth its entry `log_lik`,
+    # the log-likelihood of the simulated households at the truth,
+    # see sweep_truth_log_lik_().
     initialize = function(hh_model, sampler, houses, nrep, values, fit_args,
                           threads, dots, reducer, progress, label, what,
-                          conditioned = NULL, one = FALSE) {
+                          conditioned = NULL, one = FALSE, log_lik = FALSE) {
       structure <- sweep_base_structure_(hh_model)
       houses <- sweep_houses_(structure, houses, is.null(sampler), one)
       do.call(resolve_settings_, fit_args)
@@ -287,12 +290,15 @@ HousepiSweep <- R6::R6Class(
         seeds <- draw_seed_(nrep)
         reduced <- vector("list", nrep)
         for (reps in waves) {
-          fits <- sweep_fit_wave_(
+          wave <- sweep_fit_wave_(
             hh_model, studies$dataset[reps], reps = reps, houses = n,
             seeds = seeds[reps], fit_args = fit_args, outer = workers$outer,
-            bar = bar, conditioned = conditioned
+            bar = bar, conditioned = conditioned,
+            truths = if (log_lik) truths[reps]
           )
-          reduced[reps] <- Map(sweep_reduce_one_, fits, truths[reps], reps,
+          if (log_lik)
+            truths[reps] <- Map(c, truths[reps], log_lik = wave$log_lik)
+          reduced[reps] <- Map(sweep_reduce_one_, wave$fits, truths[reps], reps,
                                seeds[reps],
                                MoreArgs = list(houses = n, reducer = reducer))
         }
@@ -510,29 +516,68 @@ sweep_guard_ <- function(expr, rep, houses) {
 #' @param bar Progress bar each fit fills by one unit, `NULL` for none.
 #' @param conditioned `data.frame` Data every study is fitted alongside,
 #' `NULL` for none.
-#' @return Posterior draws of each study.
+#' @param truths `list` Named values each study was simulated at,
+#' `NULL` for no log-likelihood.
+#' @return `list` Entries `fits`, posterior draws of each study,
+#' and `log_lik`, log-likelihood of each study at its truth,
+#' `NULL` without `truths`.
 #' @noRd
 sweep_fit_wave_ <- function(hh_model, datasets, reps, houses, seeds, fit_args,
-                            outer, bar, conditioned = NULL) {
+                            outer, bar, conditioned = NULL, truths = NULL) {
   local_quiet_warnings_(TRUE)
   fits <- Map(sweep_prepare_one_, datasets, seeds,
               MoreArgs = list(hh_model = hh_model, conditioned = conditioned,
                               fit_args = fit_args))
-  ran <- .engine$run_inference_list(lapply(fits, `[[`, "ptr"), outer, bar)
+  ptrs <- lapply(fits, `[[`, "ptr")
+  ran <- .engine$run_inference_list(ptrs, outer, bar)
   if (!is.null(ran$error)) sweep_guard_(
     with_cpp_conditions(stop(ran$error)), reps[[ran$failed]], houses
   )
-  Map(\(fit, i) wrap_inference_(fit$model, ran, i), fits, seq_along(fits))
+  # draws copied to R first: the evaluation reuses each engine
+  draws <- Map(\(fit, i) wrap_inference_(fit$model, ran, i),
+               fits, seq_along(fits))
+  log_lik <- if (!is.null(truths)) unlist(Map(
+    sweep_truth_log_lik_, ptrs, truths, lapply(fits, `[[`, "latents"),
+    MoreArgs = list(observed = sweep_observed_ids_(conditioned))
+  ))
+  list(fits = draws, log_lik = log_lik)
 }
 
-#' Build the fit of one study, alongside `conditioned`: its model and engine.
+#' Household ids of `conditioned`, `character()` for none.
+#' @noRd
+sweep_observed_ids_ <- function(conditioned) {
+  as.character(unique(conditioned[["hh_id"]]))
+}
+
+#' Log-likelihood of the simulated households of a fit at `truth`,
+#' the values they were simulated at, evaluated on the engine `ptr` of the fit.
+#' Its terms and households match those of `get_log_lik_draws()`,
+#' summed over the same columns.
+#' * parameters -> pinned at `truth`;
+#' * latents -> pinned at `latents`, `NA` cells drawn from their model;
+#' * households of `observed` -> left out of the sum.
+#' @param latents `data.frame` Latent columns of the fitted data,
+#' one row per member in data order.
+#' @note Call once the draws are copied to R: the pins outlast the evaluation.
+#' @noRd
+sweep_truth_log_lik_ <- function(ptr, truth, latents, observed) {
+  .engine$import_param_table(ptr, as.data.frame(as.list(truth),
+                                                check.names = FALSE))
+  .engine$import_latent_table(ptr, latents)
+  house <- .engine$evaluate_log_lik(ptr)
+  sum(house[setdiff(names(house), observed)])
+}
+
+#' Build the fit of one study, alongside `conditioned`: its model and engine,
+#' and the simulated latents left out of its data, one row per member.
 #' @noRd
 sweep_prepare_one_ <- function(simulated, seed, hh_model, conditioned,
                                fit_args) {
-  kept <- setdiff(names(simulated), get_latent(hh_model)[["name"]])
-  model <- add_dataset(hh_model, sweep_condition_(conditioned, simulated[kept]))
+  full <- sweep_condition_(conditioned, simulated)
+  latent <- names(full) %in% get_latent(hh_model)[["name"]]
+  model <- add_dataset(hh_model, full[!latent])
   ptr <- do.call(prepare_inference_, c(list(model), fit_args, seed = seed))
-  list(model = model, ptr = ptr)
+  list(model = model, ptr = ptr, latents = full[latent])
 }
 
 #' Reduce the fit of one replicate against `truth`.

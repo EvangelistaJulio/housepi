@@ -89,6 +89,8 @@ namespace housepi
         /// Representative household of equivalence class `R`.
         Household &eq_class_rep(size_t R) noexcept { return dataset().at(state.eq_classes_[R].rep_); }
         const Household &eq_class_rep(size_t R) const noexcept { return dataset().at(state.eq_classes_[R].rep_); }
+        /// Representative household of the equivalence class of `house`.
+        const Household &eq_class_rep(const Household &house) const noexcept { return eq_class_rep(state.eq_class(house)); }
         /// Member of `house` paired with each member of its class representative, by representative index.
         /// * equivalent members pair up in sorted order, so ties pair arbitrarily.
         std::vector<MemberIdx> map_rep_members(const Household &house) const;

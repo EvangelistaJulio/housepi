@@ -22,15 +22,18 @@ calibration$summarise()
   \if{html}{\out{<div class="r6-active-bindings">}}
   \describe{
     \item{\code{estimates}}{\code{data.frame}
-One row per replicate and parameter
+One row per replicate and ranked quantity,
+each estimated parameter and the log-likelihood \code{log_lik}
 \describe{
 \item{truth}{Value the study was simulated at,
-drawn from the prior or a posterior draw;}
+drawn from the prior or a posterior draw.
+For \code{log_lik}, the log-likelihood of the simulated households
+at that value;}
 \item{rank}{Number of ranked posterior draws below the truth,
 from 0 to \code{rank_levels - 1}, ties split at random;}
 \item{rhat, ess_bulk}{Convergence diagnostics of the fit;}
-\item{flagged}{\code{TRUE} when the diagnostics flagged the parameter:
-R-hat of 1.01 or more; Bulk or Tail Effective Sample Size (ESS) below 100 per chain,
+\item{flagged}{\code{TRUE} when the diagnostics flagged the quantity:
+R-hat of 1.01 or more, or undefined; Bulk or Tail Effective Sample Size (ESS) below 100 per chain, or undefined,
 or when its bulk effective sample size is below \code{rank_levels - 1}.
 This adds to the diagnostics only when \code{rank_levels - 1}
 exceeds 100 draws per chain.}
@@ -42,8 +45,8 @@ One row per household count and replicate
 \item{seed}{Seed of the fit's random number generators;}
 \item{inference_secs}{Wall-clock of the sampling loop;}
 \item{min_ess_bulk}{Smallest bulk effective sample size
-over the parameters of the fit;}
-\item{flagged}{Whether any parameter of the fit was flagged.}
+over the ranked quantities of the fit;}
+\item{flagged}{Whether any ranked quantity of the fit was flagged.}
 }}
 
     \item{\code{overview}}{\code{data.frame}

@@ -86,6 +86,17 @@ namespace housepi
                 model += latent_log_lik_(indiv).value();
             return model;
         }
+        /// Sum the transmission, observation and latent log-likelihood stored for `house`.
+        /// * observation, latent -> only when the model declares them.
+        double house_log_lik(const Household &house) const
+        {
+            double value = data.state.transm_log_lik(house).value();
+            if (augm.scheme().is_any_obs_model())
+                value += house_obs_log_lik(house);
+            if (augm.scheme().is_any_latent_model())
+                value += house_latent_log_lik(house);
+            return value;
+        }
 
     protected:
         //////  Log-likelihood  //////

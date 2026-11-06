@@ -55,7 +55,7 @@ The data only lends its households to the simulated studies.
 # Rank the prior draws
 
 `check_calibration()` simulates each study on households drawn with replacement from the attached data by `sample_house_structure()`, as many as in Frederick.
-Each fit runs the default MCMC configuration of `run_inference()`, here on two threads.
+Each fit runs the default MCMC configuration of `run_inference()`, which returns 800 draws, here on two threads.
 The drawn value is ranked among 99 draws thinned evenly from these 800, so its rank takes one of `rank_levels = 100` values, 0 to 99:
 
 ```{r}
@@ -72,16 +72,21 @@ A rank is uniform only if the 99 draws it is taken among behave like independent
 A parameter is flagged when its bulk effective sample size [@vehtari_rank_normalization_2021] falls below 99,
 or when its fit fails the convergence diagnostics: here `r calibration$overview$n_flagged` of `r calibration$nrep` replicates were flagged.
 
-The rank of every parameter in every replicate is stored in `calibration$estimates`.
+The check also ranks the log-likelihood `log_lik` of each simulated study.
+A fit that ignores data would return the prior as its posterior, keeping the parameter ranks uniform.
+Ranking also `log_lik` allows to spot the consequent mismatch on simulated draws [@modrak_simulation_2025].
+
+The rank of every parameter and of the log-likelihood in every replicate is stored in `calibration$estimates`.
 Uniform ranks fill each bin of ten ranks with about `r calibration$nrep / 10` replicates:
 
 ```{r}
 #| label: rank-histogram
 #| fig-height: 3
 #| fig-alt: >
-#|  Three histograms, one per parameter, of the ranks of the drawn values
-#|  among 99 posterior draws, in bins of ten ranks, against a horizontal
-#|  line at the count expected for uniform ranks.
+#|  Four histograms, one per parameter and one for the log-likelihood,
+#|  of the ranks of the drawn values among 99 posterior draws, in bins of
+#|  ten ranks, against a horizontal line at the count expected for uniform
+#|  ranks.
 library(ggplot2)
 
 ggplot(calibration$estimates, aes(x = rank)) +
@@ -93,7 +98,7 @@ ggplot(calibration$estimates, aes(x = rank)) +
 
 Ranks piling at both ends mean the posterior is too narrow, so the truth falls in its tails too often.
 Ranks piling in the middle mean it is too wide.
-Ranks piling on one side mean it is shifted: low ranks put the truth below most posterior draws, so the model overestimates the parameter.
+Ranks piling on one side mean it is shifted: low ranks put the truth below most posterior draws, so the posterior overestimates the parameter.
 
 # Test for uniformity
 
@@ -105,17 +110,17 @@ bins <- table(calibration$estimates$variable, calibration$estimates$rank %/% 10)
 
 With 100 replicates a bin of ten ranks holds 10 on average, give or take 3, and the picture changes with the bin width.
 Here the bins hold from `r min(bins)` to `r max(bins)` ranks.
-@sailynoja_graphical_2022 compare instead the empirical CDF of the ranks with the uniform CDF, inside a band that a uniform ECDF stays within at every point at once with 95% probability.
+@sailynoja_graphical_2022 instead compare the empirical CDF of the ranks with the uniform CDF, inside a band that a uniform ECDF stays within at every point at once with 95% probability.
 bayesplot draws this band with `ppc_pit_ecdf_grouped()`, from the ranks rescaled to $[0, 1]$:
 
 ```{r}
 #| label: rank-ecdf
-#| fig-height: 3
+#| fig-height: 5
 #| message: false
 #| fig-alt: >
-#|  Three panels, one per parameter. Each shows the difference between the
-#|  empirical CDF of the scaled ranks and the uniform CDF, as a solid step
-#|  line, inside a dashed band around zero.
+#|  Four panels, one per parameter and one for the log-likelihood.
+#|  Each shows the difference between the empirical CDF of the scaled ranks
+#|  and the uniform CDF, as a solid step line, inside a dashed band around zero.
 rank_levels <- calibration$rank_levels
 
 bayesplot::ppc_pit_ecdf_grouped(
@@ -127,7 +132,8 @@ bayesplot::ppc_pit_ecdf_grouped(
 ```
 
 A posterior that overestimates puts the curve above zero, since low ranks make the ECDF rise early, and one that underestimates puts it below.
-A posterior too narrow draws an S, above zero on the left and below on the right; one too wide draws the mirror image.
+A posterior too narrow draws an S, above zero on the left and below on the right.
+One too wide draws the mirror image.
 
 `calibration$summarise()` reads the same test: `uniform` is `FALSE` when the ECDF leaves the band at any point, which happens to uniform ranks in at most 5% of checks.
 
@@ -143,7 +149,7 @@ verdict <- calibration$summarise()
 n_uniform <- sum(verdict$uniform)
 ```
 
-Here `r n_uniform` of `r nrow(verdict)` parameters pass.
+Here `r n_uniform` of `r nrow(verdict)` ranked quantities pass.
 Passing says that the sampler and the likelihood agree with the prior and the model.
 It says nothing about whether the model fits Frederick: for that, compare its predictions with the data in [Predictive checks](predictive_checks.html).
 
@@ -163,10 +169,10 @@ short_summary
 
 ```{r}
 #| label: short-chains-ecdf
-#| fig-height: 3
+#| fig-height: 5
 #| message: false
 #| fig-alt: >
-#|  Same three panels as above, for the ranks of the short chains.
+#|  Same four panels as above, for the ranks of the short chains.
 bayesplot::ppc_pit_ecdf_grouped(
   pit = short$estimates$rank / (rank_levels - 1),
   group = short$estimates$variable,
@@ -211,15 +217,15 @@ posterior_calibration
 ```
 
 The truths are 100 distinct posterior draws, picked evenly among the draws of the fit thinned to their effective sample size, so the fit must hold at least 100 independent draws.
-Each replicate fits twice the Frederick households, the observed ones and as many simulated, so it costs more than a replicate of the prior check.
-The ranks read with the same test:
+Each replicate fits twice as many households as Frederick has, the observed ones plus as many simulated, so it costs more than a replicate of the prior check.
+We test the ranks the same way:
 
 ```{r}
 #| label: posterior-ecdf
-#| fig-height: 3
+#| fig-height: 5
 #| message: false
 #| fig-alt: >
-#|  Same three panels as above, for the ranks of the posterior draws.
+#|  Same four panels as above, for the ranks of the posterior draws.
 bayesplot::ppc_pit_ecdf_grouped(
   pit = posterior_calibration$estimates$rank / (rank_levels - 1),
   group = posterior_calibration$estimates$variable,
@@ -236,7 +242,7 @@ posterior_calibration$summarise()
 posterior_verdict <- posterior_calibration$summarise()
 ```
 
-Here `r sum(posterior_verdict$uniform)` of `r nrow(posterior_verdict)` parameters pass.
+Here `r sum(posterior_verdict$uniform)` of `r nrow(posterior_verdict)` ranked quantities pass.
 The draws must come from `run_inference()` on this model and data: draws fitted to other data, or a table of values, are refused.
 Prior calibration tells whether inference works for any study the model could describe.
 Posterior calibration tells whether it works for Frederick.

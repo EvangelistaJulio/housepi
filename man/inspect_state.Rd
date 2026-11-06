@@ -21,8 +21,8 @@ Then come the latent, observation and transmission log-likelihoods,
 see its \verb{template_<model>} help page, and \code{.sampler}.
 An empty definition is dropped unless the model requires it.
 The transmission log-likelihood is \code{NA} and \code{model_quantities} absent
-until the household is evaluated at the current definitions,
-by \code{\link[=evaluate_log_lik]{evaluate_log_lik()}} on it or on every household, or by \code{\link[=run_inference]{run_inference()}}.
+until the households are evaluated at the current definitions,
+by \code{\link[=evaluate_log_lik]{evaluate_log_lik()}} or \code{\link[=run_inference]{run_inference()}}.
 Each evaluation discards the previous one.
 
 \code{.sampler} reads how the variables move, absent while nothing is sampled.

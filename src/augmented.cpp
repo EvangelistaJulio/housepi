@@ -1539,6 +1539,7 @@ namespace housepi
         scheme_ = augm::Scheme();
         clear_optional_();
         state.clear();
+        pins_.clear();
     }
 
     void Augmented::build_append_profile_(InfecProfile &infec_profile)
@@ -2049,7 +2050,26 @@ namespace housepi
 
         for (const Household &house : mcmc_->data.dataset())
             for (const Individual &indiv : house.infected_indivs())
-                augm::draw_sample(scheme_of_(indiv).sample, state.of(indiv), prng);
+            {
+                augm::IndivState &st = state.of(indiv);
+                // definition order: a latent reading a pinned one follows it
+                for (size_t a : scheme_of_(indiv).sample)
+                {
+                    const double x = pins_.empty() || pins_[a].empty() ? na::DOUBLE : pins_[a][Index::of(indiv)];
+                    if (na::is(x))
+                        st.vec[a].draw_value(prng);
+                    else
+                        st.vec[a].set(x);
+                }
+            }
+    }
+
+    void Augmented::pin_values(const dbl_table &table)
+    {
+        pins_.assign(size(), {});
+        for (const auto &[name, values] : table)
+            if (const size_t a = find(name); !na::is(a))
+                pins_[a] = values;
     }
 
     void Augmented::finalize()

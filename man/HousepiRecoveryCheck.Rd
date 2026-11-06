@@ -31,7 +31,7 @@ One row per household count, replicate and parameter
 \item{covers}{Whether the credible interval covers the truth;}
 \item{rhat, ess_bulk}{Convergence diagnostics of the fit;}
 \item{flagged}{\code{TRUE} when the diagnostics flagged the parameter:
-R-hat of 1.01 or more; Bulk or Tail Effective Sample Size (ESS) below 100 per chain.}
+R-hat of 1.01 or more, or undefined; Bulk or Tail Effective Sample Size (ESS) below 100 per chain, or undefined.}
 }}
 
     \item{\code{replicates}}{\code{data.frame}

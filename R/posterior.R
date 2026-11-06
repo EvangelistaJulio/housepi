@@ -22,9 +22,10 @@ diagnostic_ <- list(
 
 # What each diagnostic flags, worded once for the warnings and the docs.
 diagnostic_flags_ <- list(
-  rhat = sprintf("R-hat of %.2f or more", diagnostic_[["rhat_bound"]]),
+  rhat = sprintf("R-hat of %.2f or more, or undefined",
+                 diagnostic_[["rhat_bound"]]),
   ess = sprintf(
-    "Bulk or Tail Effective Sample Size (ESS) below %d per chain",
+    "Bulk or Tail Effective Sample Size (ESS) below %d per chain, or undefined",
     diagnostic_[["ess_chain_min"]]
   )
 )
@@ -209,7 +210,7 @@ summarize_draws.HousepiPosteriorDraws <- summarise_draws.HousepiPosteriorDraws
 
 # Per-variable R-hat, Bulk and Tail ESS of a draws block over `nchains` chains,
 # and which of them fail.
-# * undefined diagnostic -> `NA`.
+# * undefined diagnostic -> failed.
 diagnose_block_ <- function(d, nchains) {
   if (is.null(d) || posterior::nvariables(d) == 0L) return(NULL)
   # a capped ESS on a short sample is reported as a low ESS finding
@@ -217,9 +218,10 @@ diagnose_block_ <- function(d, nchains) {
     d, rhat = posterior::rhat, ess_bulk = posterior::ess_bulk,
     ess_tail = posterior::ess_tail
   )))
-  sm$bad_rhat <- sm$rhat >= diagnostic_[["rhat_bound"]]
+  sm$bad_rhat <- is.na(sm$rhat) | sm$rhat >= diagnostic_[["rhat_bound"]]
   ess_min <- diagnostic_[["ess_chain_min"]] * nchains
-  sm$bad_ess <- sm$ess_bulk < ess_min | sm$ess_tail < ess_min
+  sm$bad_ess <- is.na(sm$ess_bulk) | is.na(sm$ess_tail) |
+    sm$ess_bulk < ess_min | sm$ess_tail < ess_min
   sm
 }
 
@@ -228,8 +230,8 @@ diagnose_block_ <- function(d, nchains) {
 # * nothing flagged -> `NULL`.
 check_diagnostics_one_ <- function(sm, draws_kind) {
   if (is.null(sm)) return(NULL)
-  bad_rhat <- which(sm$bad_rhat %in% TRUE)
-  bad_bulk <- which(sm$bad_ess %in% TRUE)
+  bad_rhat <- which(sm$bad_rhat)
+  bad_bulk <- which(sm$bad_ess)
   both <- intersect(bad_rhat, bad_bulk)
   only_rhat <- setdiff(bad_rhat, both)
   only_bulk <- setdiff(bad_bulk, both)
@@ -277,7 +279,7 @@ check_diagnostics_ <- function(draws) {
   param <- sm$param
   if (!is.null(param)) param <- data.frame(
     param[c("variable", "rhat", "ess_bulk", "ess_tail")],
-    flagged = !param$bad_rhat %in% FALSE | !param$bad_ess %in% FALSE
+    flagged = param$bad_rhat | param$bad_ess
   )
   list(blocks = blocks, param = param)
 }

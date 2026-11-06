@@ -193,27 +193,46 @@ HousepiCalibrationCheck <- R6::R6Class(
     source_ = NA_character_,
     # engine seed of each run the posterior draws come from
     draws_seed_ = NULL,
-    observed_houses_ = NA_integer_,
+    # household ids of the attached data each study is fitted alongside
+    observed_ids_ = character(),
     rank_levels_ = NA_integer_,
+    # estimated parameters, then `log_lik`
     variables_ = NULL,
     # `HousepiSweep` Replicates fitted.
     sweep_ = NULL,
 
-    # Reduce one fit to a row per estimated parameter: rank of `truth`
+    # Reduce one fit to a row per ranked quantity: rank of `truth`
     # among the posterior draws, diagnostics.
     # * draws too correlated for `size` independent ones -> flagged.
     reduce_ = function(fit, truth) {
-      pdraws <- get_parameter_draws(fit)
       size <- private$ranked_draws_()
       variables <- private$variables_
+      params <- setdiff(variables, "log_lik")
+      pdraws <- get_parameter_draws(fit)
+      log_lik <- private$log_lik_draws_(fit)
+      draws <- c(lapply(stats::setNames(nm = params),
+                        \(v) as.numeric(pdraws[[v]])),
+                 list(log_lik = log_lik$log_lik))
+      sm <- diagnose_block_(log_lik, posterior::nchains(log_lik))
+      diag <- rbind(sweep_diagnostics_(fit, params),
+                    data.frame(sm[c("rhat", "ess_bulk")],
+                               flagged = sm$bad_rhat | sm$bad_ess))
       rank <- vapply(variables, function(v) {
-        calibration_rank_(as.numeric(pdraws[[v]]), truth[[v]], size)
+        calibration_rank_(draws[[v]], truth[[v]], size)
       }, integer(1L))
-      diag <- sweep_diagnostics_(fit, variables)
       diag[["flagged"]] <- diag[["flagged"]] |
-        !((diag[["ess_bulk"]] >= size) %in% TRUE)
+        is.na(diag[["ess_bulk"]]) | diag[["ess_bulk"]] < size
       data.frame(variable = variables, truth = unname(truth[variables]),
                  rank = unname(rank), diag, row.names = NULL)
+    },
+
+    # Sum the pointwise log-likelihood draws over the simulated households,
+    # chains kept, as variable `log_lik`.
+    log_lik_draws_ = function(fit) {
+      draws <- posterior::as_draws_matrix(get_log_lik_draws(fit))
+      simulated <- setdiff(colnames(draws), private$observed_ids_)
+      posterior::draws_df(log_lik = rowSums(draws[, simulated, drop = FALSE]),
+                          .nchains = posterior::nchains(draws))
     },
 
     # Name the check after the source of its parameter values.
@@ -242,14 +261,17 @@ HousepiCalibrationCheck <- R6::R6Class(
 
   active = list(
     #' @field estimates `data.frame`
-    #' One row per replicate and parameter
+    #' One row per replicate and ranked quantity,
+    #' each estimated parameter and the log-likelihood `log_lik`
     #' \describe{
     #'   \item{truth}{Value the study was simulated at,
-    #'     drawn from the prior or a posterior draw;}
+    #'     drawn from the prior or a posterior draw.
+    #'     For `log_lik`, the log-likelihood of the simulated households
+    #'     at that value;}
     #'   \item{rank}{Number of ranked posterior draws below the truth,
     #'     from 0 to `rank_levels - 1`, ties split at random;}
     #'   \item{rhat, ess_bulk}{Convergence diagnostics of the fit;}
-    #'   \item{flagged}{`TRUE` when the diagnostics flagged the parameter:
+    #'   \item{flagged}{`TRUE` when the diagnostics flagged the quantity:
     #'     `r paste(diagnostic_flags_, collapse = "; ")`,
     #'     or when its bulk effective sample size is below `rank_levels - 1`.
     #'     This adds to the diagnostics only when `rank_levels - 1`
@@ -266,8 +288,8 @@ HousepiCalibrationCheck <- R6::R6Class(
     #'   \item{seed}{Seed of the fit's random number generators;}
     #'   \item{inference_secs}{Wall-clock of the sampling loop;}
     #'   \item{min_ess_bulk}{Smallest bulk effective sample size
-    #'     over the parameters of the fit;}
-    #'   \item{flagged}{Whether any parameter of the fit was flagged.}
+    #'     over the ranked quantities of the fit;}
+    #'   \item{flagged}{Whether any ranked quantity of the fit was flagged.}
     #' }
     replicates = function(value) {
       assert_read_only_(value, "replicates")
@@ -364,7 +386,7 @@ HousepiCalibrationCheck <- R6::R6Class(
               "{.arg rank_levels}.")
       )
       private$name_ <- hh_model$.__enclos_env__$private$compiled_$name
-      private$variables_ <- sweep_estimated_(hh_model)
+      private$variables_ <- c(sweep_estimated_(hh_model), "log_lik")
 
       if (is.null(draws)) {
         private$source_ <- "prior"
@@ -381,7 +403,7 @@ HousepiCalibrationCheck <- R6::R6Class(
         conditioned <- get_dataset(hh_model)
         latent <- get_latent(hh_model)[["name"]]
         conditioned <- conditioned[setdiff(names(conditioned), latent)]
-        private$observed_houses_ <- length(unique(conditioned[["hh_id"]]))
+        private$observed_ids_ <- sweep_observed_ids_(conditioned)
       }
       private$sweep_ <- HousepiSweep$new(
         hh_model, sampler = structure_sampler, houses = houses, nrep = nrep,
@@ -390,7 +412,8 @@ HousepiCalibrationCheck <- R6::R6Class(
                         chains = chains),
         threads = threads, dots = list(...), reducer = private$reduce_,
         progress = progress, label = "Calibration replicates",
-        what = private$kind_(), conditioned = conditioned, one = TRUE
+        what = private$kind_(), conditioned = conditioned, one = TRUE,
+        log_lik = TRUE
       )
       invisible(self)
     },
@@ -435,7 +458,7 @@ HousepiCalibrationCheck <- R6::R6Class(
       model <- spaced_choice(private$name_)
       kind <- private$kind_()
       conditioned <- if (private$source_ == "posterior") c(
-        `Conditioned on` = "{private$observed_houses_} observed households"
+        `Conditioned on` = "{length(private$observed_ids_)} observed households"
       )
       private$sweep_$print_rows(
         "{kind} of model {.val {model}}.",
@@ -499,6 +522,21 @@ HousepiCalibrationCheck <- R6::R6Class(
 #' below 100 per chain,
 #' so this flag matters only when `rank_levels - 1` exceeds 100 times
 #' the number of chains.
+#'
+#' Next to the parameters, the log-likelihood of the simulated households
+#' is ranked as `log_lik` \insertCite{modrak_simulation_2025}{housepi}.
+#' Its truth is evaluated at the values the study was simulated at,
+#' and each of its draws sums the pointwise log-likelihood of
+#' [get_log_lik_draws()] over the same households.
+#' It reads the data and every parameter at once,
+#' so it catches a fit that ignores the data,
+#' which the ranks of the parameters cannot see.
+#' The log-likelihood is evaluated by the model itself:
+#' a likelihood that leaves out part of the data leaves it out of the truth
+#' as well, and goes unnoticed.
+#' On a model with latent variables, `log_lik` adds their log-density,
+#' as in [get_log_lik_draws()],
+#' and its truth reads the latent values the study was simulated with.
 #'
 #' Uniformity is tested on the empirical CDF of the ranks, with the
 #' simultaneous band and the statistic of

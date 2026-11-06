@@ -80,7 +80,7 @@ A parameter whose prior or bounds read another of them moves alone,
 as does a rate whose number of members or pairs is unknown.
 }
 \details{
-The run warns on any of: R-hat of 1.01 or more; Bulk or Tail Effective Sample Size (ESS) below 100 per chain.
+The run warns on any of: R-hat of 1.01 or more, or undefined; Bulk or Tail Effective Sample Size (ESS) below 100 per chain, or undefined.
 R-hat and bulk ESS are the rank-normalized ones of
 \insertCite{vehtari_rank_normalization_2021;textual}{housepi}.
 }

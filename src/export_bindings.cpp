@@ -546,6 +546,13 @@ namespace housepi
             mcmc_ptr->data.state.set_evaluated(false);
         }
 
+        /// Pin latents to the columns of `input`, see Augmented::pin_values().
+        void import_latent_table(Rcpp::XPtr<MCMC> mcmc_ptr, SEXP input)
+        {
+            mcmc_ptr->augm.pin_values(rdataframe_to<dbl_table>(input));
+            mcmc_ptr->data.state.set_evaluated(false);
+        }
+
         //////////////////////////////  MCMC : exports to Rcpp  //////////////////////////////
 
         /// Export the current settings to an R list.
@@ -999,11 +1006,11 @@ namespace housepi
         Rcpp::List rcpp_snapshot_model_quantities(Rcpp::XPtr<MCMC> mcmc_ptr,
                                                   const Household &house)
         {
-            if (!mcmc_ptr->data.state.is_evaluated(house))
+            if (!mcmc_ptr->data.state.is_evaluated())
                 return Rcpp::List::create();
 
             const data::Dataset &dataset = mcmc_ptr->data.dataset();
-            const Household &rep = mcmc_ptr->data.eq_class_rep(mcmc_ptr->data.state.eq_class(house));
+            const Household &rep = mcmc_ptr->data.eq_class_rep(house);
             HouseQuantities out(rep.size());
             mcmc_ptr->model->export_house_quantities(rep, out);
 
@@ -1174,7 +1181,7 @@ namespace housepi
                     Rcpp::_["infectivity_profiles"] = rcpp_snapshot_infec_profile(mcmc_ptr, house),
                     Rcpp::_["latent_log_lik"] = rcpp_snapshot_log_lik(mcmc_ptr, house, augm.scheme().list_latent_export),
                     Rcpp::_["observation_log_lik"] = rcpp_snapshot_log_lik(mcmc_ptr, house, augm.scheme().list_obs_member),
-                    Rcpp::_["transmission_log_lik"] = state.is_evaluated(house) ? hsp_to_rcpp(state.transm_log_lik(house).value()) : NA_REAL,
+                    Rcpp::_["transmission_log_lik"] = state.is_evaluated() ? hsp_to_rcpp(state.transm_log_lik(house).value()) : NA_REAL,
                     Rcpp::_["model_quantities"] = rcpp_snapshot_model_quantities(mcmc_ptr, house),
                     Rcpp::_[".sampler"] = rcpp_snapshot_sampler(mcmc_ptr, &house));
             }
@@ -1541,9 +1548,17 @@ namespace housepi
             return mcmc_ptr->model->has_case_ascertainment();
         }
 
-        double evaluate_log_lik(Rcpp::XPtr<MCMC> mcmc_ptr, std::string hh_id)
+        /// Evaluate the log-likelihood of every household, named by household id.
+        Rcpp::NumericVector evaluate_log_lik(Rcpp::XPtr<MCMC> mcmc_ptr)
         {
-            return mcmc_ptr->evaluate_log_lik(hh_id);
+            Rcpp::NumericVector output = Rcpp::wrap(mcmc_ptr->evaluate_log_lik());
+            const data::Dataset &dataset = mcmc_ptr->data.dataset();
+            Rcpp::CharacterVector names(output.size());
+            size_t i = 0;
+            for (const Household &house : dataset)
+                names[i++] = dataset.hh_id(house);
+            output.names() = names;
+            return output;
         }
         /// Run inference on every engine of `engine_list`, `workers` of them at once.
         ///
@@ -1581,7 +1596,8 @@ namespace housepi
                     failed = static_cast<int>(run.failure.index) + 1;
                 }
 
-            return Rcpp::List::create(Rcpp::_["seconds"] = seconds, Rcpp::_["error"] = error,
+            return Rcpp::List::create(Rcpp::_["seconds"] = seconds,
+                                      Rcpp::_["error"] = error,
                                       Rcpp::_["failed"] = failed);
         }
 
@@ -1757,6 +1773,7 @@ RCPP_MODULE(housepi)
     Rcpp::function("import_latent", &import_latent);
     Rcpp::function("import_status_process", &import_status_process);
     Rcpp::function("import_param_table", &import_param_table);
+    Rcpp::function("import_latent_table", &import_latent_table);
     Rcpp::function("has_contact_rate", &has_contact_rate);
     Rcpp::function("has_infec_profile", &has_infec_profile);
     Rcpp::function("has_case_ascertainment", &has_case_ascertainment);

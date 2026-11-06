@@ -114,8 +114,14 @@ namespace housepi
         }
         /// Draw the sampled latents of every individual from their models, for evaluation.
         /// Unlike restart(), it uses no proposal.
-        /// * no latent to sample -> skipped.
+        /// * no latent to sample -> skipped;
+        /// * latent pinned by pin_values() -> set to its value, read by the latents after it.
         void draw_sample(RndGen &prng);
+        /// Pin latents to the columns of `table`, for draw_sample().
+        /// * column -> latent of the same name, one value per member in dataset order;
+        /// * `NA` cell, latent without a column -> not pinned.
+        /// @note Pins set values only: sampling schemes and equivalence classes stay as built.
+        void pin_values(const dbl_table &table);
 
         /// Finalize every variable, see Variable::finalize().
         void finalize();
@@ -233,8 +239,9 @@ namespace housepi
     private:
         MCMCBase *mcmc_; /// Owning MCMCBase. @todo Drop.
 
-        std::vector<size_t> user_transm_vec_ = {}; /// Model-declared latent keys generated and read by transmission.
-        std::vector<bool> sim_fixed_ = {};         /// Key -> whether simulation binds it for the whole run.
+        std::vector<size_t> user_transm_vec_ = {};   /// Model-declared latent keys generated and read by transmission.
+        std::vector<bool> sim_fixed_ = {};           /// Key -> whether simulation binds it for the whole run.
+        std::vector<std::vector<double>> pins_ = {}; /// Key -> pinned value per member, empty when not pinned.
 
         augm::DefTable def_;  /// Latent and observation definitions.
         augm::Scheme scheme_; /// Sampling schemes built from definitions.

@@ -7,6 +7,7 @@
 #include <fstream>
 #include <iomanip>
 #include <iostream>
+#include <numeric>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -533,7 +534,10 @@ namespace housepi
         try
         {
             if (opts.is_log_lik)
-                std::cout << engine.evaluate_log_lik("") << std::endl;
+            {
+                const std::vector<double> house = engine.evaluate_log_lik();
+                std::cout << std::accumulate(house.begin(), house.end(), 0.) << std::endl;
+            }
             if (opts.is_simulate)
                 print_simulated_dataset(engine, opts.file.output);
             if (opts.is_infer)

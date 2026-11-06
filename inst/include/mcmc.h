@@ -50,10 +50,11 @@ namespace housepi
 
         //////  Evaluation  //////
 
-        /// Initialize the model and evaluate the complete-data log-likelihood, joint over latents.
-        /// * sum of observation, transmission and latent terms;
-        /// * missing `hh_id` -> every household, flagged evaluated.
-        double evaluate_log_lik(std::string_view hh_id);
+        /// Initialize the model and evaluate the complete-data log-likelihood of every household.
+        /// * sum of observation, transmission and latent terms, as stored in the posterior draws;
+        /// * every household flagged evaluated.
+        /// @return One value per household, in dataset order.
+        std::vector<double> evaluate_log_lik();
 
         //////  Inference  //////
 

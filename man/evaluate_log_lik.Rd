@@ -4,15 +4,17 @@
 \alias{evaluate_log_lik}
 \title{Evaluate the log-likelihood of a housepi model at current values}
 \usage{
-evaluate_log_lik(hh_model, hh_id = NA_character_)
+evaluate_log_lik(hh_model, total = TRUE)
 }
 \arguments{
 \item{hh_model}{\code{HousepiModel} object.}
 
-\item{hh_id}{\code{character(1)} ID of the household of interest. If \code{NA}, the whole data.}
+\item{total}{\code{logical(1)} If \code{TRUE}, the sum over households,
+else one value per household.}
 }
 \value{
 \code{numeric(1)} The complete-data log-likelihood.
+With \code{total = FALSE}, a \code{numeric} vector named by household ID.
 Logarithms are natural (base \eqn{e}).
 }
 \description{

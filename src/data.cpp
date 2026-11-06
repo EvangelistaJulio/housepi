@@ -175,7 +175,7 @@ namespace housepi
     std::vector<MemberIdx> Data::map_rep_members(const Household &house) const
     {
         const std::vector<size_t> &keys = state.eq_class_keys_;
-        const Household &rep = eq_class_rep(state.eq_class(house));
+        const Household &rep = eq_class_rep(house);
         const std::vector<MemberIdx> rep_order = sorted_members_(keys, state, rep);
         const std::vector<MemberIdx> house_order = sorted_members_(keys, state, house);
 
@@ -553,12 +553,12 @@ namespace housepi::data
     void State::allocate_transm_log_lik()
     {
         transm_log_lik_.assign(eq_classes_.size(), LogProba());
-        evaluated_.assign(eq_classes_.size(), false);
+        evaluated_ = false;
     }
 
     void State::allocate_cache(const Dataset &dataset)
     {
-        evaluated_.assign(eq_classes_.size(), false);
+        evaluated_ = false;
         previous_.resize(eq_classes_.size());
         current_.resize(eq_classes_.size());
 
