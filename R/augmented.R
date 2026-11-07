@@ -219,7 +219,8 @@ HousepiAugmented <- R6::R6Class(
                    const = if (is.null(const)) NA_real_ else const,
                    discr = as.logical(discr),
                    func = if (is.null(func)) NA_character_ else func,
-                   fcumul = FALSE, # @todo expose as an option
+                   # @todo expose as an option
+                   fcumul = FALSE,
                    model = as.character(model),
                    kind = as.character(.kind),
                    min = if (is.null(min)) NA_real_ else min,

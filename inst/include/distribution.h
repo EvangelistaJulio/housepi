@@ -158,7 +158,8 @@ namespace housepi
                 return std::log(discr_func_center_(xn)) - std::log(discr_func_center_(xo));
             case Discrete::Left:
                 return std::log(discr_func_left_(xn)) - std::log(discr_func_left_(xo));
-            default: // Discrete::Defined:
+            // Discrete::Defined:
+            default:
                 return raw_log_ratio_(std::floor(xo), std::floor(xn));
             }
         }
@@ -185,7 +186,8 @@ namespace housepi
                 return static_cast<double>(std::lround(x));
             case Discrete::Left:
                 return std::floor(x);
-            default: // cases Discrete::Defined, Discrete::None
+            // cases Discrete::Defined, Discrete::None
+            default:
                 return x;
             }
         }
@@ -267,6 +269,7 @@ namespace housepi
         double raw_log_ratio_(double /*xo*/, double /*xn*/) const override final { return 0.; }
 
     private:
-        Codomain range_; /// Values the pinned variable takes.
+        /// Values the pinned variable takes.
+        Codomain range_;
     };
 }

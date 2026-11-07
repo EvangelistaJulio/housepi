@@ -25,9 +25,12 @@ namespace housepi::rates
     /// Baseline parameter and the rate ratios scaling it, as declared by the model.
     struct Anchor
     {
-        size_t baseline;           /// Parameter scaled by the rates.
-        std::vector<size_t> rates; /// Group-rate keys scaling the baseline.
-        bool contacts;             /// Whether contact rates scale the same term.
+        /// Parameter scaled by the rates.
+        size_t baseline;
+        /// Group-rate keys scaling the baseline.
+        std::vector<size_t> rates;
+        /// Whether contact rates scale the same term.
+        bool contacts;
     };
 
     /// Scale anchoring of one rule group, read off its rules (see Rates::assert_identifiability).
@@ -36,10 +39,14 @@ namespace housepi::rates
     /// @note Every member or pair reading the rate matches a rule of the group, asserted R-side.
     struct ScaleAnchor
     {
-        bool anchored = false;                   /// Whether a rule of the group names the reference.
-        std::vector<size_t> scaling_params = {}; /// Distinct rates the group applies.
-        double n_reference = 0.;                 /// Units the reference rules resolve, NA if any is unknown.
-        std::vector<double> n_params = {};       /// Units the rules of each of `scaling_params` resolve, NA if any is unknown.
+        /// Whether a rule of the group names the reference.
+        bool anchored = false;
+        /// Distinct rates the group applies.
+        std::vector<size_t> scaling_params = {};
+        /// Units the reference rules resolve, NA if any is unknown.
+        double n_reference = 0.;
+        /// Units the rules of each of `scaling_params` resolve, NA if any is unknown.
+        std::vector<double> n_params = {};
 
         /// List the rates holding at least a minimum share of the units of the reference.
         /// * no reference, or unknown units -> skipped.

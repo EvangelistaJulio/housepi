@@ -861,7 +861,8 @@ test_that("rand() draws are reproducible and statistically plausible", {
   x1 <- d$rand(50L)
   set.seed(42L)
   x2 <- d$rand(50L)
-  x1 |> expect_identical(x2) # same R seed -> same draws
+  # same R seed -> same draws
+  x1 |> expect_identical(x2)
   x1 |> expect_length(50L)
   # different seed -> different draws
   set.seed(43L)

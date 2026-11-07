@@ -27,9 +27,11 @@ namespace housepi
         if (!std::isfinite(secs))
             return "?s";
         long t = static_cast<long>(std::ceil(secs));
-        if (t >= 3600) // seconds hidden, round up to minutes
+        // seconds hidden, round up to minutes
+        if (t >= 3600)
             t = (t + 59) / 60 * 60;
-        if (t >= 86400) // minutes hidden, round up to hours
+        // minutes hidden, round up to hours
+        if (t >= 86400)
             t = (t + 3599) / 3600 * 3600;
         const long dys = t / 86400, hrs = t / 3600 % 24, mns = t / 60 % 60, scs = t % 60;
         std::ostringstream oss;
@@ -106,7 +108,8 @@ namespace housepi
             oss << std::fixed << std::setprecision(0) << 100. * prog << "% "
                 << format_secs(secs) << "<"
                 << (secs >= silencer_ && prog > 0. ? format_secs(secs * (1. - prog) / prog) : "?s")
-                << std::setw(interactive_ ? 10 : 0) << ""; // wipe a longer previous line
+                // wipe a longer previous line
+                << std::setw(interactive_ ? 10 : 0) << "";
             print_(oss, false);
         }
 
@@ -134,23 +137,38 @@ namespace housepi
         }
 
     private:
-        static constexpr const char *ANSI_RESET = "\033[39m"; /// Default foreground colour.
-        static constexpr const char *ANSI_GREEN = "\033[32m"; /// Green foreground colour.
+        /// Default foreground colour.
+        static constexpr const char *ANSI_RESET = "\033[39m";
+        /// Green foreground colour.
+        static constexpr const char *ANSI_GREEN = "\033[32m";
 
-        const bool interactive_;       /// Whether prints overwrite the current line.
-        const bool document_;          /// Whether only the closing line prints.
-        const bool coloured_;          /// Whether the bar is filled in green.
-        const std::string symbol_;     /// Character filling the bar.
-        const std::string text_;       /// Text heading the bar.
-        const unsigned barwidth_ = 33; /// Bar total size.
-        const double silencer_ = 3.;   /// Minimal time to wait before estimating.
-        const double total_ = 1.;      /// Units of a full bar.
-        const double thintime_ = 1.;   /// Seconds between two prints.
+        /// Whether prints overwrite the current line.
+        const bool interactive_;
+        /// Whether only the closing line prints.
+        const bool document_;
+        /// Whether the bar is filled in green.
+        const bool coloured_;
+        /// Character filling the bar.
+        const std::string symbol_;
+        /// Text heading the bar.
+        const std::string text_;
+        /// Bar total size.
+        const unsigned barwidth_ = 33;
+        /// Minimal time to wait before estimating.
+        const double silencer_ = 3.;
+        /// Units of a full bar.
+        const double total_ = 1.;
+        /// Seconds between two prints.
+        const double thintime_ = 1.;
 
-        double offset_ = 0.;                     /// Units filled by past runs.
-        double next_ = 1.;                       /// Seconds from opening of the next print.
-        bool has_line_ = false;                  /// Whether the bar is past its first print time.
-        Clock::time_point start_ = Clock::now(); /// Time of opening.
+        /// Units filled by past runs.
+        double offset_ = 0.;
+        /// Seconds from opening of the next print.
+        double next_ = 1.;
+        /// Whether the bar is past its first print time.
+        bool has_line_ = false;
+        /// Time of opening.
+        Clock::time_point start_ = Clock::now();
 
         /// Seconds since opening.
         double secs_() const { return std::chrono::duration<double>(Clock::now() - start_).count(); }

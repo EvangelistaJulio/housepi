@@ -394,7 +394,8 @@ test_that("An unknown covariate in a group rate points to the close one", {
     add_group_rate("susceptibility", by = "agee") |>
     expect_error("[Uu]nknown covariate.*agee.*[Dd]id you mean .age")
   mk_rate$model |>
-    add_group_rate("susceptibility", by = "age", reference = c(agee = "adult")) |>
+    add_group_rate("susceptibility", by = "age",
+                   reference = c(agee = "adult")) |>
     expect_error("[Uu]nknown covariate.*reference.*[Dd]id you mean .age")
 })
 
@@ -1016,7 +1017,7 @@ test_that("An absolute group rate holds its baseline at the reference", {
   # a stratum held constant anchors the same way
   hh_model |>
     add_parameter(community_member_student = 1.7) |>
-    suppressWarnings() |> # suppress overwrite warning
+    suppressWarnings() |>
     evaluate_log_lik() |>
     expect_all_finite()
 })
@@ -1037,7 +1038,7 @@ test_that("A declared baseline is collapsed at the decorator", {
   # a later definition on an untouched baseline says nothing again
   hh_model |>
     add_parameter(gamma = 2) |>
-    suppressWarnings() |> # suppress overwrite warning
+    suppressWarnings() |>
     evaluate_log_lik() |>
     expect_all_finite()
 
@@ -1054,7 +1055,7 @@ test_that("A collapsed baseline is reported again only on a new declaration", {
   hh_model <- mk_flu$model |>
     add_parameter(beta = 0.1, gamma = 1, hh_size_ref = 4) |>
     add_parameter(alpha = list(prior = "uniform", min = 0, max = 1)) |>
-    suppressWarnings() # suppress overwrite warning
+    suppressWarnings()
   expect_warning(
     hh_model <- add_group_rate(hh_model, "community", by = "member"),
     "[Bb]aseline.*constant reference"
@@ -1079,7 +1080,7 @@ test_that("A collapsed baseline is reported again only on a new declaration", {
   # a baseline its rate released is reported again once re-collapsed
   released <- hh_model |>
     add_group_rate("community", by = "member", reference = "student") |>
-    suppressWarnings() # suppress overwrite warning
+    suppressWarnings()
   get_parameters(released, "alpha")$const |> expect_all_na()
   add_group_rate(released, "community", by = "member") |>
     expect_warning("[Bb]aseline.*constant reference") |>

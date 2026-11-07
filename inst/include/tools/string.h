@@ -13,9 +13,10 @@
 
 namespace housepi::str
 {
-    constexpr size_t MAX_PRINT = 5;      /// Max elements to print.
-    constexpr size_t MIN_DIST = 2;       /// Similarity threshold distance.
-    constexpr char LIST_DELIMITER = ':'; /// Delimiter of list entries.
+    constexpr size_t MAX_PRINT = 5;
+    /// Similarity threshold distance.
+    constexpr size_t MIN_DIST = 2;
+    constexpr char LIST_DELIMITER = ':';
 
     /// Convert to upper case.
     std::string toup(std::string s);

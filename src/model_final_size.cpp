@@ -17,9 +17,11 @@ HOUSEPI_OPEN_MODULE_NAMESPACE()
 class Model final : public ModelBase
 {
 private:
-    chain_binom::LookUpTables lut_;                /// Chain-binomial lookup tables.
-    std::vector<chain_binom::ShapeIdx> shape_idx_; /// Shape index in `lut_`, per class representative household.
-    std::vector<chain_binom::Scratch> scratch_;    /// Chain-binomial buffers, per thread slot.
+    chain_binom::LookUpTables lut_;
+    /// Shape index in `lut_`, per class representative household.
+    std::vector<chain_binom::ShapeIdx> shape_idx_;
+    /// Chain-binomial buffers, per thread slot.
+    std::vector<chain_binom::Scratch> scratch_;
 
 public:
     HOUSEPI_DECLARE_GROUP_RATE_KEYS(community, susceptibility, infectivity)
@@ -74,15 +76,18 @@ public:
         const MemberIdx n_infec = house.n_infected_status();
         auto &part_counts = cache_member_vector(house, HouseMemberVec::part_counts);
         auto &part_indexes = cache_member_vector(house, HouseMemberVec::part_indexes);
-        MemberIdx K = 0; // number of partitions
+        // number of partitions
+        MemberIdx K = 0;
 
         for (MemberIdx oi = 0; oi < n_infec; ++oi)
         {
             // search existing partitions for a match
-            MemberIdx p = K; // tentatively new
+            // tentatively new
+            MemberIdx p = K;
             for (MemberIdx oj = 0; oj < K; ++oj)
                 if (is_same_rate_partition(house, order[part_indexes[oj]], order[oi]))
-                    p = oj; // partitions are disjoint: at most one matches
+                    // partitions are disjoint: at most one matches
+                    p = oj;
 
             if (p == K)
             {
@@ -147,7 +152,8 @@ public:
         // fill in member order
         for (MemberIdx oi = 0; oi < house_size; ++oi)
         {
-            MemberIdx i = order[oi]; // member index, partition representative
+            // member index, partition representative
+            MemberIdx i = order[oi];
             const Individual &indiv_i = house.at(i);
             const double inf_i_scl = group_rate(GroupRate::infectivity, indiv_i) * p2p_rate;
             const double sus_i = group_rate(GroupRate::susceptibility, indiv_i);

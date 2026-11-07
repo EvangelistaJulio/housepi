@@ -648,8 +648,10 @@ HousepiGroupRate <- R6::R6Class(
     # Implement through automatic mode.
     helper_implement_auto_ = function(rate_id, dataset,
                                       status_levels, status_observed) {
-      this_def <- self$defs[[rate_id]] # definition of the rate
-      covariates <- as.list(this_def[["by"]]) # data covariates
+      # definition of the rate
+      this_def <- self$defs[[rate_id]]
+      # data covariates
+      covariates <- as.list(this_def[["by"]])
       covariates <- sort(as.character(covariates[!is.na(covariates)]))
       # status is carried by the model, not required as a data column
       assert_data_covariates(setdiff(covariates, "status"), colnames(dataset))

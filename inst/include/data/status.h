@@ -11,15 +11,20 @@
 
 namespace housepi
 {
-    using StatusLvl = std::uint8_t; /// Individual status level.
+    /// Individual status level.
+    using StatusLvl = std::uint8_t;
 }
 
 namespace housepi::status
 {
-    constexpr StatusLvl ESCAPED = 0;                                     /// Escaped status, matched by equality.
-    constexpr StatusLvl INFECTED = 1;                                    /// Lowest infected status.
-    constexpr StatusLvl MISSING = std::numeric_limits<StatusLvl>::max(); /// Missing status, the top level.
-    constexpr StatusLvl MAX_INFECTED = MISSING - 1;                      /// Highest infected status.
+    /// Escaped status, matched by equality.
+    constexpr StatusLvl ESCAPED = 0;
+    /// Lowest infected status.
+    constexpr StatusLvl INFECTED = 1;
+    /// Missing status, the top level.
+    constexpr StatusLvl MISSING = std::numeric_limits<StatusLvl>::max();
+    /// Highest infected status.
+    constexpr StatusLvl MAX_INFECTED = MISSING - 1;
 
     /// Whether individual status is infected.
     inline bool is_infected(int s) { return s >= INFECTED && s != MISSING; }

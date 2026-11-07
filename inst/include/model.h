@@ -55,11 +55,14 @@ namespace housepi
             matrices.emplace_back(std::move(name), std::move(values));
         }
 
-        std::vector<std::pair<std::string, std::vector<double>>> vectors = {}; /// Vectors, by name.
-        std::vector<std::pair<std::string, housepi::matrix>> matrices = {};    /// Matrices, by name.
+        /// Vectors, by name.
+        std::vector<std::pair<std::string, std::vector<double>>> vectors = {};
+        /// Matrices, by name.
+        std::vector<std::pair<std::string, housepi::matrix>> matrices = {};
 
     private:
-        size_t n_; /// Household size.
+        /// Household size.
+        size_t n_;
     };
 
     /// Transmission model: per-household log-likelihood and simulation hooks.
@@ -294,7 +297,8 @@ namespace housepi
         ///@}
 
     private:
-        MCMCBase *mcmc_; /// Engine the model reads.
+        /// Engine the model reads.
+        MCMCBase *mcmc_;
     };
 }
 

@@ -21,16 +21,21 @@ namespace housepi::param
     /// * `sample_standard` + `sample_cached`: `sample`.
     struct Scheme
     {
-        std::vector<size_t> order = {};    /// Definition rows, producer before consumer.
-        std::vector<size_t> constant = {}; /// Constant parameters.
-        std::vector<size_t> func = {};     /// Function parameters.
-        std::vector<size_t> sample = {};   /// Parameters to sample.
-        std::vector<size_t> adaptive = {}; /// Parameters with an adaptive proposal, a subset of `sample`.
+        /// Definition rows, producer before consumer.
+        std::vector<size_t> order = {};
+        std::vector<size_t> constant = {};
+        std::vector<size_t> func = {};
+        std::vector<size_t> sample = {};
+        /// Parameters with an adaptive proposal, a subset of `sample`.
+        std::vector<size_t> adaptive = {};
 
-        std::vector<size_t> sample_standard = {}; /// Sampled parameters feeding no transmission cache.
-        std::vector<size_t> sample_cached = {};   /// Sampled parameters feeding the transmission cache.
+        /// Sampled parameters feeding no transmission cache.
+        std::vector<size_t> sample_standard = {};
+        /// Sampled parameters feeding the transmission cache.
+        std::vector<size_t> sample_cached = {};
 
-        std::vector<std::vector<double>> simulation_values = {}; /// Pinned values per repetition, per parameter.
+        /// Pinned values per repetition, per parameter.
+        std::vector<std::vector<double>> simulation_values = {};
 
         /// Classify definitions `def`, visited in `rows` order, over `keys`.
         void build(const DefTable &def,

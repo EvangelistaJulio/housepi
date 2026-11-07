@@ -1490,7 +1490,8 @@ prepare_inference_ <- function(hh_model, steps, thin, adapt, chains,
 #' * no limit -> no check, R raises no error.
 #' @noRd
 assert_posterior_memory_ <- function(hh_model, n_sample, id_draws) {
-  max_bytes <- mem.maxVSize() * 2^20 # limit in bytes
+  # limit in bytes
+  max_bytes <- mem.maxVSize() * 2^20
   if (!is.finite(max_bytes)) return(invisible())
   pvt <- hh_model$.__enclos_env__$private
   # @todo fewer latents and parameters when functions or private

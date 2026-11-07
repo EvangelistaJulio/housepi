@@ -34,7 +34,8 @@ namespace housepi
             /// * index 0 -> empty name, NA.
             NameIdx intern(std::string_view name)
             {
-                auto it = lut_.find(name); // heterogeneous lookup: no std::string built
+                // heterogeneous lookup: no std::string built
+                auto it = lut_.find(name);
                 if (it != lut_.end())
                     return it->second;
 
@@ -48,8 +49,10 @@ namespace housepi
             std::string at(NameIdx id) const { return pool_[id]; }
 
         private:
-            std::vector<std::string> pool_ = {""}; /// Interned names.
-            dict<NameIdx> lut_ = {{"", 0}};        /// Index of each name.
+            /// Interned names.
+            std::vector<std::string> pool_ = {""};
+            /// Index of each name.
+            dict<NameIdx> lut_ = {{"", 0}};
         };
 
         /// Return the process-global name pool.
@@ -478,7 +481,8 @@ namespace housepi
         case Mode::Function:
             init_function(other.function()->clone());
             return;
-        default: // case Mode::Empty:
+        // case Mode::Empty:
+        default:
             // nothing to transfer from a pure empty
             if (other.err_type_ != ErrType::Empty)
                 init_pointer(other.pointer());
@@ -976,7 +980,8 @@ namespace housepi
                 return continuous;
             case Kind::Discrete:
                 return discrete;
-            default: // case Kind::InfecProfile
+            // case Kind::InfecProfile
+            default:
                 return infec_profile;
             }
         }
@@ -1029,7 +1034,8 @@ namespace housepi
                 case Kind::Continuous:
                 case Kind::Discrete:
                     return "browse_distributions";
-                default: // case Kind::InfecProfile
+                // case Kind::InfecProfile
+                default:
                     return "browse_infectivity_profiles";
                 }
             }

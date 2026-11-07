@@ -37,8 +37,10 @@ namespace housepi
         double ratio() const noexcept { return value_ - old_; }
 
     private:
-        double value_ = 0.; /// Current log-probability.
-        double old_ = 0.;   /// Previous log-probability.
+        /// Current log-probability.
+        double value_ = 0.;
+        /// Previous log-probability.
+        double old_ = 0.;
 
         /// Throw the error for an invalid log-probability `ll`, NaN or `+Inf`.
         [[noreturn]] static void throw_invalid_(double ll)
@@ -57,9 +59,9 @@ namespace housepi
     /// @note A parameter move recomputes transmission whatever `transm`.
     struct LogLikTerms
     {
-        bool obs = false;    /// Observation.
-        bool transm = false; /// Transmission cache, see above.
-        bool latent = false; /// Latent model.
+        bool obs = false;
+        bool transm = false;
+        bool latent = false;
 
         /// Add the terms of `other`.
         LogLikTerms &operator|=(const LogLikTerms &other) noexcept
@@ -74,9 +76,9 @@ namespace housepi
     /// Observation, transmission and latent-model log-likelihoods, or their deltas.
     struct LogLik
     {
-        double obs = 0.;    /// Observation.
-        double transm = 0.; /// Transmission.
-        double latent = 0.; /// Latent model.
+        double obs = 0.;
+        double transm = 0.;
+        double latent = 0.;
 
         LogLik &operator+=(const LogLik &other) noexcept
         {
@@ -96,9 +98,9 @@ namespace housepi
     /// * observation, latent model -> when in `terms`.
     struct LogLikTotal
     {
-        LogProba obs;    /// Observation.
-        LogProba transm; /// Transmission.
-        LogProba latent; /// Latent model.
+        LogProba obs;
+        LogProba transm;
+        LogProba latent;
 
         /// Set the totals to `ll`.
         void set(const LogLik &ll, const LogLikTerms &terms)

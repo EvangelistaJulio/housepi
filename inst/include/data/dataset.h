@@ -26,13 +26,17 @@ namespace housepi::data
     /// Dataset: one row per member, and households.
     struct Dataset : public KeyHolderWithRequests
     {
-        KeyHolder keys_member_val; /// Cache key holder, member values.
-        KeyHolder keys_member_vec; /// Cache key holder, member vectors.
-        KeyHolder keys_double_vec; /// Cache key holder, double vectors.
-        KeyHolder keys_double_mtx; /// Cache key holder, double matrices.
+        /// Cache key holder, member values.
+        KeyHolder keys_member_val;
+        /// Cache key holder, member vectors.
+        KeyHolder keys_member_vec;
+        /// Cache key holder, double vectors.
+        KeyHolder keys_double_vec;
+        /// Cache key holder, double matrices.
+        KeyHolder keys_double_mtx;
 
-        ReportIndividual report_indiv; /// Member report.
-        ReportHousehold report_house;  /// Household report.
+        ReportIndividual report_indiv;
+        ReportHousehold report_house;
 
         //////  Constructor  //////
 
@@ -115,15 +119,22 @@ namespace housepi::data
     private:
         //////  Data  //////
 
-        std::vector<size_t> request_everyone_ = {}; /// Keys requested for every member.
-        dict<size_t> hh_id_to_index_ = {};          /// Internal index per household user id.
-        std::vector<StatusLvl> indiv_status_ = {};  /// Imported status, by member index.
-        std::vector<double> indiv_values_ = {};     /// Imported values, by member index then column.
-        std::vector<std::string> indiv_ids_ = {};   /// Member user ids, by member index.
-        std::vector<std::string> hh_ids_ = {};      /// Household user ids, by household index.
-        size_t n_imported_ = 0;                     /// Number of columns known at import.
+        /// Keys requested for every member.
+        std::vector<size_t> request_everyone_ = {};
+        /// Internal index per household user id.
+        dict<size_t> hh_id_to_index_ = {};
+        /// Imported status, by member index.
+        std::vector<StatusLvl> indiv_status_ = {};
+        /// Imported values, by member index then column.
+        std::vector<double> indiv_values_ = {};
+        /// Member user ids, by member index.
+        std::vector<std::string> indiv_ids_ = {};
+        /// Household user ids, by household index.
+        std::vector<std::string> hh_ids_ = {};
+        /// Number of columns known at import.
+        size_t n_imported_ = 0;
 
-        std::vector<Household> house_vector_ = {}; /// Every household.
+        std::vector<Household> house_vector_ = {};
 
         //////  Helpers  //////
 

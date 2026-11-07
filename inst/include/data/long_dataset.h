@@ -25,7 +25,8 @@ namespace housepi::data
 
         /// Rows of one member: values per column, one per row.
         using IndivRows = std::vector<std::vector<double>>;
-        std::vector<IndivRows> indiv_datalist = {}; /// Member rows, by member index.
+        /// Member rows, by member index.
+        std::vector<IndivRows> indiv_datalist = {};
 
         /// Build member rows from table `input`, matched on `id` to `dataset`.
         void build(Dataset &dataset, const str_table &input);

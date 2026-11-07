@@ -46,9 +46,11 @@ namespace housepi::augm
     /// Definition parsed once: every source column as an AST, flags typed.
     struct DefRow
     {
-        std::string name;                   /// Latent or observation name.
-        Kind kind = Kind::Latent;           /// Row level.
-        StatusLvl status = status::MISSING; /// Declared status, MISSING for a generic definition.
+        std::string name;
+        /// Row level.
+        Kind kind = Kind::Latent;
+        /// Declared status, MISSING for a generic definition.
+        StatusLvl status = status::MISSING;
 
         parse::Definition value, func, model, min, max, proposal;
 

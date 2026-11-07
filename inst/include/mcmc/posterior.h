@@ -34,9 +34,12 @@ namespace housepi
         /// * table column `k` reads stored column `source[k]`, or `k` when `source` is empty.
         struct Draws
         {
-            matrix cols;                /// Draws per stored column.
-            headers names;              /// Name of each table column.
-            std::vector<size_t> source; /// Stored column of each table column.
+            /// Draws per stored column.
+            matrix cols;
+            /// Name of each table column.
+            headers names;
+            /// Stored column of each table column.
+            std::vector<size_t> source;
 
             /// Append stored column `name` of `n_draws` NA draws.
             void add(std::string name, size_t n_draws)
@@ -46,13 +49,15 @@ namespace housepi
             }
         };
 
-        Draws param_values;  /// Parameter values.
-        Draws param_priors;  /// Log-prior of each sampled parameter.
-        Draws latent_values; /// Latent values of tracked members, member by member.
+        Draws param_values;
+        /// Log-prior of each sampled parameter.
+        Draws param_priors;
+        /// Latent values of tracked members, member by member.
+        Draws latent_values;
         /// Pointwise log-likelihood: observation + transmission + latent model.
         /// * one stored column per equivalence class, `source` giving the class of each household.
         Draws house_log_lik;
-        std::vector<const Individual *> tracked_indivs; /// Members to track.
+        std::vector<const Individual *> tracked_indivs;
 
         /// Initialize posterior sample.
         void init(MCMCBase &mcmc);

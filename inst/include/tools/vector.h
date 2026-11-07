@@ -10,7 +10,8 @@
 
 namespace housepi
 {
-    using matrix = std::vector<std::vector<double>>; /// Dense table of doubles, as equal-length vectors.
+    /// Dense table of doubles, as equal-length vectors.
+    using matrix = std::vector<std::vector<double>>;
 }
 
 namespace housepi::vect

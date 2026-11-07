@@ -209,7 +209,8 @@ namespace housepi
         size_t cold = status::category(indiv.status());
         size_t cnew = status::category(snew);
 
-        indiv.status_ = snew; // may stay within the infected category
+        // may stay within the infected category
+        indiv.status_ = snew;
         if (cold == cnew)
             return;
 
@@ -254,7 +255,8 @@ namespace housepi
                 segment_swap(ninf_ - 1, ninf_ + nsus_ - 1);
             --ninf_;
         }
-        else // if (cold == 2 && cnew == 0)
+        // cold == 2 && cnew == 0
+        else
         {
             segment_swap(pos, ninf_ + nsus_);
             if (nsus_ > 0)
@@ -273,8 +275,8 @@ namespace housepi::data
     {
         clear_optional_();
 
-        helper_build_clear_data_();        // drop previous data and lists
-        helper_build_data_headers_(input); // extract headers
+        helper_build_clear_data_();
+        helper_build_data_headers_(input);
         report_indiv.total = count_rows(input);
         if (report_indiv.total > std::numeric_limits<IndivIdx>::max())
             msg::stop(
@@ -290,22 +292,22 @@ namespace housepi::data
         // store households
         for (size_t i = 0; i < report_indiv.total; ++i)
         {
-            std::string id = std::to_string(i + 1);                       // default id
-            std::string hh_id = std::to_string(house_vector_.size() + 1); // default hh_id
-            StatusLvl status = status::MISSING;                           // default status
+            std::string id = std::to_string(i + 1);
+            std::string hh_id = std::to_string(house_vector_.size() + 1);
+            StatusLvl status = status::MISSING;
             // individual context for reading errors
             std::string err_ctx = " for individual in row n." + std::to_string(i + 1);
 
             if (input.count("id"))
             {
-                id = input.at("id")[i]; // user id
+                id = input.at("id")[i];
                 if (na::is(id))
                     msg::stop("Missing identifier " + msg::field("id") + err_ctx + ".");
                 err_ctx = " for individual " + msg::val(id);
             }
             if (input.count("hh_id"))
             {
-                hh_id = input.at("hh_id")[i]; // user hh_id
+                hh_id = input.at("hh_id")[i];
                 if (na::is(hh_id))
                     msg::stop("Missing household identifier " + msg::field("hh_id") + err_ctx + ".");
             }

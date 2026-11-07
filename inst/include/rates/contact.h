@@ -103,6 +103,7 @@ namespace housepi::rates
         }
 
     private:
-        std::vector<ScaleAnchor> scale_anchors_ = {}; /// Rule groups scaling the contacts.
+        /// Rule groups scaling the contacts.
+        std::vector<ScaleAnchor> scale_anchors_ = {};
     };
 }

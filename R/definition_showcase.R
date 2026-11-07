@@ -42,7 +42,8 @@ showcaser_extract_func <- function(x) {
 helper_split_external_semicol <- function(x) {
   chars <- strsplit(x, "")[[1]]
   depth <- 0
-  split_pos <- c(0)  # start of string
+  # start of string
+  split_pos <- c(0)
   for (i in seq_along(chars)) {
     if (chars[i] == "[") depth <- depth + 1
     else if (chars[i] == "]") depth <- depth - 1

@@ -225,7 +225,8 @@ public:
 
         // the reverse direction is set to 0: the rate of infection sums over every pair
         if (gentime > 0)
-        { // i : infector, j : infectee
+        {
+            // i : infector, j : infectee
             inst_mtx[i][j] = infec_profile_inst(indiv_i, gentime);
 #ifdef _HOUSEPI_DISCRETE_TIME
             cumul_mtx[i][j] = infec_profile_cumul(indiv_i, gentime - 1);
@@ -236,7 +237,8 @@ public:
             cumul_mtx[j][i] = 0.0;
         }
         else if (gentime < 0)
-        { // j : infector, i : infectee
+        {
+            // j : infector, i : infectee
             inst_mtx[i][j] = 0.0;
             cumul_mtx[i][j] = 0.0;
             inst_mtx[j][i] = infec_profile_inst(indiv_j, -gentime);
@@ -411,7 +413,8 @@ public:
         double beta) const
     {
         MemberIdx i = Index::member(indiv_i);
-        double roi = 0.; // instantaneous rate of infection
+        // instantaneous rate of infection
+        double roi = 0.;
 
         // j : infector, i : infectee
         for (MemberIdx j : house.infected_members())

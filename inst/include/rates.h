@@ -96,8 +96,11 @@ namespace housepi
         void assert_identifiability(const Parameter &param) const;
 
     private:
-        rates::Group group_;                 /// Group rates, per member and status slot.
-        rates::Contact contact_;             /// Contact rates, per ordered member pair.
-        std::vector<rates::Anchor> anchors_; /// Baselines the model anchors to rates.
+        /// Group rates, per member and status slot.
+        rates::Group group_;
+        /// Contact rates, per ordered member pair.
+        rates::Contact contact_;
+        /// Baselines the model anchors to rates.
+        std::vector<rates::Anchor> anchors_;
     };
 }

@@ -6,7 +6,9 @@ expect_read_only_field <- function(obj, ...) {
 }
 
 # Mask the durations a print reports, which vary from run to run.
-helper_scrub_secs <- function(lines) sub("(time[^:]*: ).*$", "\\1<secs>", lines)
+helper_scrub_secs <- function(lines) {
+  sub("(time[^:]*: ).*$", "\\1<secs>", lines)
+}
 
 # Lines a print emits as messages, stripped of their indentation.
 helper_print_lines <- function(expr) {
@@ -20,6 +22,11 @@ helper_print_lines <- function(expr) {
 helper_flat_sink <- function(hh_model, ..., column = "obs") {
   hh_model |>
     add_observation(column, model = "uniform", min = -1e6, max = 1e6, ...)
+}
+
+# convert draws to data.frame
+helper_draws_to_frame <- function(x) {
+  as.data.frame(posterior::as_draws_matrix(x))
 }
 
 # Case-ascertained household of three cases and four escapees followed for 21
@@ -66,9 +73,4 @@ expect_nrow <- function(object, n) {
 # Expect dimensions of `object` identical to `d`.
 expect_dim <- function(object, d) {
   testthat::expect_identical(dim(object), d)
-}
-
-# convert draws to data.frame
-draws_to_frame <- function(x) {
-  as.data.frame(posterior::as_draws_matrix(x))
 }

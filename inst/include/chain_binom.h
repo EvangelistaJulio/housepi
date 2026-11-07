@@ -16,9 +16,12 @@
 
 namespace housepi::chain_binom
 {
-    using gentype = std::vector<MemberIdx>; /// Count vector, one entry per part.
-    using ShapeIdx = std::uint32_t;         /// Index of a shape (part-count vector) in LookUpTables.
-    using SubVecIdx = std::uint32_t;        /// Index of a sub-vector in PartitionTree.
+    /// Count vector, one entry per part.
+    using gentype = std::vector<MemberIdx>;
+    /// Index of a shape (part-count vector) in LookUpTables.
+    using ShapeIdx = std::uint32_t;
+    /// Index of a sub-vector in PartitionTree.
+    using SubVecIdx = std::uint32_t;
 
     /// Most terms the recurrence may sum in one household evaluation, 3^15.
     ///
@@ -53,13 +56,20 @@ namespace housepi::chain_binom
     /// @note Concurrent callers each need their own Scratch.
     struct Scratch
     {
-        std::vector<double> p2p_infec_proba; /// Infection probability per generation size.
-        std::vector<double> commu_esc_pow;   /// Community escape probability per member count.
-        std::vector<double> state_proba;     /// Probability per generation state.
-        std::vector<double> log_q;           /// Log-escape probabilities, per subset or tree node.
-        std::vector<double> log_pi;          /// Log-probability, per subset or tree node.
-        std::vector<double> log_commu_esc;   /// Community log-escape probability per part.
-        matrix log_p2p_esc;                  /// Person-to-person log-escape probability per part pair.
+        /// Infection probability per generation size.
+        std::vector<double> p2p_infec_proba;
+        /// Community escape probability per member count.
+        std::vector<double> commu_esc_pow;
+        /// Probability per generation state.
+        std::vector<double> state_proba;
+        /// Log-escape probabilities, per subset or tree node.
+        std::vector<double> log_q;
+        /// Log-probability, per subset or tree node.
+        std::vector<double> log_pi;
+        /// Community log-escape probability per part.
+        std::vector<double> log_commu_esc;
+        /// Person-to-person log-escape probability per part pair.
+        matrix log_p2p_esc;
     };
 
     //////////////////////////////  chain_binom::LookUpTables  //////////////////////////////
@@ -81,8 +91,10 @@ namespace housepi::chain_binom
     private:
         //////  Cached partition trees  //////
 
-        std::vector<PartitionTree> partition_trees_; /// Partition trees, one per shape.
-        std::map<gentype, ShapeIdx> shapes_;         /// Shape index, per part-count vector.
+        /// Partition trees, one per shape.
+        std::vector<PartitionTree> partition_trees_;
+        /// Shape index, per part-count vector.
+        std::map<gentype, ShapeIdx> shapes_;
 
         /// Read the tables.
         friend double log_likelihood(const LookUpTables &lut,

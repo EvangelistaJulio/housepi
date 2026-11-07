@@ -66,8 +66,10 @@ namespace housepi
         void add_(std::string_view name);
 
     private:
-        std::vector<std::string> keys_ = {}; /// Model-declared definitions, then optional ones.
-        size_t n_declared_ = 0;              /// Number of model-declared definitions.
+        /// Model-declared definitions, then optional ones.
+        std::vector<std::string> keys_ = {};
+        /// Number of model-declared definitions.
+        size_t n_declared_ = 0;
     };
 
     /// Key holder recording discrete and positive requests per key.
@@ -99,7 +101,9 @@ namespace housepi
         void assert_requests(size_t p, const Def &def) const;
 
     private:
-        std::vector<size_t> discr_ = {}; /// Keys requested discrete.
-        std::vector<size_t> posit_ = {}; /// Keys requested positive.
+        /// Keys requested discrete.
+        std::vector<size_t> discr_ = {};
+        /// Keys requested positive.
+        std::vector<size_t> posit_ = {};
     };
 }

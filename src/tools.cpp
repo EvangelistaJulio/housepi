@@ -294,7 +294,8 @@ namespace housepi::str
             return "infectivity profile";
         case ErrType::Proposal:
             return "proposal";
-        default: // case ErrType::Empty:
+        // case ErrType::Empty:
+        default:
             return "empty";
         }
     }
@@ -662,7 +663,8 @@ namespace housepi::parse
                 str_type = "group_rate";
             else if (is_parameter(type))
                 str_type = "parameter";
-            else // is_numeric
+            // is_numeric(type)
+            else
                 str_type = "numeric";
             return str_type + " " + msg::val(value);
         }

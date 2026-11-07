@@ -90,33 +90,54 @@ HousepiModel <- R6::R6Class(
 
     # Latent variables required by the model and by other definitions.
     get_required_latent_ = function() {
-      c(private$required_of_model_(.engine$latent_keys), # by the model
-        private$required_of_declaration_("A"))   # by the latent declaration
+      c(
+        # by the model
+        private$required_of_model_(.engine$latent_keys),
+        # by the latent declaration
+        private$required_of_declaration_("A")
+      )
     },
 
     # Data columns required by the model and by other definitions.
     get_required_dataset_ = function() {
-      c(private$required_of_model_(.engine$data_keys), # by the model
-        private$group_rates_$data_required,      # by group rates
-        private$contact_rates_$data_required,    # by contact rates
-        private$required_of_declaration_("D"))   # by the latent declaration
+      c(
+        # by the model
+        private$required_of_model_(.engine$data_keys),
+        # by group rates
+        private$group_rates_$data_required,
+        # by contact rates
+        private$contact_rates_$data_required,
+        # by the latent declaration
+        private$required_of_declaration_("D")
+      )
     },
 
     # Group rates required by the model and by other definitions.
     get_required_group_rates_ = function() {
-      c(private$required_of_model_(.engine$group_rate_keys), # by the model
-        private$required_of_declaration_("G"))   # by the latent declaration
+      c(
+        # by the model
+        private$required_of_model_(.engine$group_rate_keys),
+        # by the latent declaration
+        private$required_of_declaration_("G")
+      )
     },
 
     # Parameters required by the model and by other definitions.
     get_required_parameters_ = function() {
-      c(private$required_of_model_(.engine$param_keys), # by the model
+      c(
+        # by the model
+        private$required_of_model_(.engine$param_keys),
+        # by param functions
         find_required_definitions(private$resolved_param_(), "P",
                                   c("const", "func", "min", "max"),
-                                  private$param_$family), # by param functions
-        private$group_rates_$param_required,     # by group rates
-        private$contact_rates_$param_required,   # by contact rates
-        private$required_of_declaration_("P"))   # by the latent declaration
+                                  private$param_$family),
+        # by group rates
+        private$group_rates_$param_required,
+        # by contact rates
+        private$contact_rates_$param_required,
+        # by the latent declaration
+        private$required_of_declaration_("P")
+      )
     },
 
     ####  Assertions  ####

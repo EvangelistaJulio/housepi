@@ -48,9 +48,12 @@ namespace housepi::rates
         const std::vector<std::vector<HouseIdx>> &houses_of_param() const noexcept { return houses_of_param_; }
 
     protected:
-        std::vector<Attribute> flat_ = {};                        /// Rate attributes, one block per unique definition.
-        std::vector<RateOffset> base_ = {};                       /// Offset each owner's block starts at.
-        std::vector<std::vector<HouseIdx>> houses_of_param_ = {}; /// Households reading each parameter.
+        /// Rate attributes, one block per unique definition.
+        std::vector<Attribute> flat_ = {};
+        /// Offset each owner's block starts at.
+        std::vector<RateOffset> base_ = {};
+        /// Households reading each parameter.
+        std::vector<std::vector<HouseIdx>> houses_of_param_ = {};
 
         /// Record that household `H` reads parameter `p`.
         /// @note Households are visited in increasing order.

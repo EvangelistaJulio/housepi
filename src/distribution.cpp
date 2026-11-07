@@ -112,7 +112,8 @@ namespace housepi
         /// * NA -> computed per evaluation.
         struct ArgCache
         {
-            double value = na::DOUBLE; /// Stored value, NA when not stored.
+            /// Stored value, NA when not stored.
+            double value = na::DOUBLE;
 
             /// Whether the value is stored.
             bool is_stored() const noexcept { return !na::is(value); }
@@ -363,8 +364,10 @@ namespace housepi
             }
 
         private:
-            ArgCache meanlog_; /// Effective meanlog of "mean-sd", stored by finalize().
-            ArgCache sdlog_;   /// Effective sdlog of "mean-sd", stored by finalize().
+            /// Effective meanlog of "mean-sd", stored by finalize().
+            ArgCache meanlog_;
+            /// Effective sdlog of "mean-sd", stored by finalize().
+            ArgCache sdlog_;
 
         protected:
             /// * meanlog-sdlog -> `sdlog` positive;
@@ -383,7 +386,8 @@ namespace housepi
             {
                 switch (alt_idx_)
                 {
-                case 1: // "mean-sd": both read mean and sd, stored together
+                // "mean-sd": both read mean and sd, stored together
+                case 1:
                 {
                     if (sdlog_.is_stored())
                         return {meanlog_.value, sdlog_.value};
@@ -391,7 +395,8 @@ namespace housepi
                     const double v = log1p(r * r);
                     return {log(m) - 0.5 * v, sqrt(v)};
                 }
-                default: // case 0: "meanlog-sdlog"
+                // case 0: "meanlog-sdlog"
+                default:
                     return {arg(0), arg(1)};
                 }
             }
@@ -555,10 +560,14 @@ namespace housepi
             }
 
         private:
-            ArgCache shape_;        /// Effective shape of "mean-sd", stored by finalize().
-            ArgCache scale_;        /// Effective scale of "mean-sd", stored by finalize().
-            ArgCache lgamma_shape_; /// Log-gamma of the effective shape, stored by finalize().
-            ArgCache log_scale_;    /// Log of the effective scale, stored by finalize().
+            /// Effective shape of "mean-sd", stored by finalize().
+            ArgCache shape_;
+            /// Effective scale of "mean-sd", stored by finalize().
+            ArgCache scale_;
+            /// Log-gamma of the effective shape, stored by finalize().
+            ArgCache lgamma_shape_;
+            /// Log of the effective scale, stored by finalize().
+            ArgCache log_scale_;
 
         protected:
             /// Both arguments positive, in either parametrization.
@@ -571,14 +580,16 @@ namespace housepi
             {
                 switch (alt_idx_)
                 {
-                case 1: // "mean-sd": both read mean and sd, stored together
+                // "mean-sd": both read mean and sd, stored together
+                case 1:
                 {
                     if (scale_.is_stored())
                         return {shape_.value, scale_.value};
                     const double sd = arg(1), r = arg(0) / sd;
                     return {r * r, sd / r};
                 }
-                default: // case 0: "shape-scale"
+                // case 0: "shape-scale"
+                default:
                     return {arg(0), arg(1)};
                 }
             }
@@ -1154,8 +1165,10 @@ namespace housepi
             }
 
         private:
-            ArgCache pema_;   /// Onset term at `c_loc`, stored by finalize().
-            ArgCache pemTSa_; /// Onset term at `c_loc + mean_incub`, stored by finalize().
+            /// Onset term at `c_loc`, stored by finalize().
+            ArgCache pema_;
+            /// Onset term at `c_loc + mean_incub`, stored by finalize().
+            ArgCache pemTSa_;
 
             /// Onset term (1 + exp(`m` / `s`))^-`a`.
             static double onset_term_(double a, double s, double m) { return pow(1. + exp(m / s), -a); }
@@ -1182,8 +1195,10 @@ namespace housepi
             double raw_function_(double x) const override final
             {
                 const double a = arg(0), s = arg(1), m = arg(2), T = arg(3), i = arg(4);
-                const double tOST = x - i; // time from onset to transmission
-                const double iT = i / T;   // re-scaled incubation period
+                // time from onset to transmission
+                const double tOST = x - i;
+                // re-scaled incubation period
+                const double iT = i / T;
                 const auto [pema, pemTSa] = onset_terms_(a, s, m, T);
 
                 const double norm_pdf = (s / a) * (1. + (iT - 1.) * pema - iT * pemTSa);
@@ -1193,12 +1208,15 @@ namespace housepi
             double raw_primitive_(double x) const override final
             {
                 const double a = arg(0), s = arg(1), m = arg(2), T = arg(3), i = arg(4);
-                const double tOST = x - i; // time from onset to transmission
-                const double iT = i / T;   // re-scaled incubation period
+                // time from onset to transmission
+                const double tOST = x - i;
+                // re-scaled incubation period
+                const double iT = i / T;
                 const auto [pema, pemTSa] = onset_terms_(a, s, m, T);
                 const double norm_cdf = 1. + (iT - 1.) * pema - iT * pemTSa;
 
-                if (tOST < 0) // integrate from -incub_period to tOST
+                // integrate from -incub_period to tOST
+                if (tOST < 0)
                     return iT * (pow(1. + exp((m - tOST / iT) / s), -a) - pemTSa) / norm_cdf;
 
                 // integrate from -incub_period to 0
@@ -1209,12 +1227,15 @@ namespace housepi
             double raw_ccdf_(double x) const override final
             {
                 const double a = arg(0), s = arg(1), m = arg(2), T = arg(3), i = arg(4);
-                const double tOST = x - i; // time from onset to transmission
-                const double iT = i / T;   // re-scaled incubation period
+                // time from onset to transmission
+                const double tOST = x - i;
+                // re-scaled incubation period
+                const double iT = i / T;
                 const auto [pema, pemTSa] = onset_terms_(a, s, m, T);
                 const double norm_cdf = 1. + (iT - 1.) * pema - iT * pemTSa;
 
-                if (tOST < 0) // integrate from tOST to infinity
+                // integrate from tOST to infinity
+                if (tOST < 0)
                     return (1. + (iT - 1.) * pema - iT * pow(1. + exp((m - tOST / iT) / s), -a)) / norm_cdf;
 
                 // integrate from tOST to infinity, 1 - (1 + exp((m - tOST) / s))^-a without cancellation

@@ -45,7 +45,7 @@ namespace housepi
         static constexpr result_type max() noexcept { return boost::random::xoshiro256mm::max(); }
 
     private:
-        boost::random::xoshiro256mm engine_; /// Generator engine.
+        boost::random::xoshiro256mm engine_;
     };
 
     //////  Standard samplers  //////

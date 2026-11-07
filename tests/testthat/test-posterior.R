@@ -253,8 +253,8 @@ test_that("Pointwise log-lik is carried into the complete-draws bundle", {
   # get_complete_draws() renames the pointwise columns to the loo / priorsense
   # convention; their values must be the same pointwise log-likelihood
   expect_same_pointwise <- function(hh_fit) {
-    pointwise <- draws_to_frame(get_log_lik_draws(hh_fit))
-    bundle <- draws_to_frame(get_complete_draws(hh_fit))
+    pointwise <- helper_draws_to_frame(get_log_lik_draws(hh_fit))
+    bundle <- helper_draws_to_frame(get_complete_draws(hh_fit))
     ll_cols <- grep("^log_lik\\[", colnames(bundle))
     ll_cols |> expect_length(ncol(pointwise))
     unname(bundle[, ll_cols]) |> expect_equal(unname(pointwise))

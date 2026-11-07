@@ -22,8 +22,10 @@ namespace housepi::parallel
     /// First error of a run of units.
     struct Failure
     {
-        std::exception_ptr error; /// Exception that stopped the run, null where every unit completed.
-        std::size_t index = 0;    /// Unit that raised it.
+        /// Exception that stopped the run, null where every unit completed.
+        std::exception_ptr error;
+        /// Unit that raised it.
+        std::size_t index = 0;
     };
 
     /// Thrown by a unit that stops because another unit failed.

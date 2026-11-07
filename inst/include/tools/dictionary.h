@@ -16,8 +16,10 @@ namespace housepi
     /// Map keyed by name, with lookup by string view.
     template <typename T>
     using dict = std::map<std::string, T, std::less<>>;
-    using str_table = dict<std::vector<std::string>>; /// String columns, by name.
-    using dbl_table = dict<std::vector<double>>;      /// Double columns, by name.
+    /// String columns, by name.
+    using str_table = dict<std::vector<std::string>>;
+    /// Double columns, by name.
+    using dbl_table = dict<std::vector<double>>;
 
     /// Count rows of `table`, read from its first column.
     template <typename T>

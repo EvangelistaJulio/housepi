@@ -19,7 +19,8 @@ namespace housepi::param
     /// Mutable per-run storage of parameters, moved by inference and simulation.
     struct State
     {
-        std::vector<Variable> vec = {}; /// Parameters, by key.
+        /// Parameters, by key.
+        std::vector<Variable> vec = {};
 
         /// Allocate one Variable per key of `keys`, named after it.
         void allocate(const KeyHolder &keys);

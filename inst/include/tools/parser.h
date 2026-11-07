@@ -40,11 +40,16 @@ namespace housepi::parse
     /// Definition entry as an AST node.
     struct Entry
     {
-        std::string func;            /// Function name, empty for a terminal.
-        std::string key;             /// Argument name in the parent.
-        std::string type;            /// Terminal type.
-        std::string value;           /// Terminal value.
-        std::vector<Entry> children; /// Arguments of a function node.
+        /// Function name, empty for a terminal.
+        std::string func;
+        /// Argument name in the parent.
+        std::string key;
+        /// Terminal type.
+        std::string type;
+        /// Terminal value.
+        std::string value;
+        /// Arguments of a function node.
+        std::vector<Entry> children;
 
         Entry() = default;
         explicit Entry(const std::string &value, const std::string &type);
@@ -73,7 +78,7 @@ namespace housepi::parse
     /// Abstract syntax tree of a definition.
     struct Definition
     {
-        Entry root; /// Root node.
+        Entry root;
 
         /// Parse expression `expr` into a flattened tree.
         Definition(std::string_view expr);

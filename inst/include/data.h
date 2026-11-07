@@ -28,7 +28,8 @@ namespace housepi
     /// * run state and equivalence classes, owned by one engine.
     struct Data
     {
-        data::State state; /// Values written by inference and simulation.
+        /// Values written by inference and simulation.
+        data::State state;
 
         /// Definitions reading data columns that tell equivalence classes apart.
         enum class Source : std::uint8_t
@@ -117,10 +118,13 @@ namespace housepi
             /// Register the data keys declared by `model`.
             explicit Store_(const ModelBase &model);
 
-            data::Dataset dataset;          /// Dataset: one row per member.
-            data::LongDataset long_dataset; /// Long dataset: any number of rows per member.
+            /// Dataset: one row per member.
+            data::Dataset dataset;
+            /// Long dataset: any number of rows per member.
+            data::LongDataset long_dataset;
         };
-        std::shared_ptr<Store_> store_; /// Imported tables, shared copy-on-write.
+        /// Imported tables, shared copy-on-write.
+        std::shared_ptr<Store_> store_;
 
         /// Data columns telling equivalence classes apart, by source.
         std::array<std::vector<std::string>, 4> eq_class_keys_ = {};

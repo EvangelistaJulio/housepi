@@ -31,11 +31,13 @@ namespace housepi
     public:
         Settings settings;
         Posterior posterior;
-        LogLikTotal tot_log_lik; /// Log-likelihood totals over households.
+        /// Log-likelihood totals over households.
+        LogLikTotal tot_log_lik;
 
         //////  Key holders  //////
 
-        Data data; /// Imported tables.
+        /// Imported tables.
+        Data data;
         Parameter param;
         Rates rates;
         InfecProfile infec_profile;

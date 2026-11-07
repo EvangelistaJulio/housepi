@@ -13,18 +13,24 @@
 
 namespace housepi
 {
-    using IndivIdx = std::uint32_t;   /// Global individual index.
-    using HouseIdx = std::uint32_t;   /// Global household index.
-    using EqClassIdx = std::uint32_t; /// Household equivalence class index.
-    using MemberIdx = std::uint8_t;   /// Member index within its household.
+    /// Global individual index.
+    using IndivIdx = std::uint32_t;
+    /// Global household index.
+    using HouseIdx = std::uint32_t;
+    /// Household equivalence class index.
+    using EqClassIdx = std::uint32_t;
+    /// Member index within its household.
+    using MemberIdx = std::uint8_t;
 
     /// Member of one household.
     ///
     /// The user id lives in data::Dataset, keyed by individual index, see Index::of().
     class Individual final
     {
-        friend class Household; /// Owns and mutates its members.
-        friend struct Index;    /// Reads the opaque storage indexes.
+        /// Owns and mutates its members.
+        friend class Household;
+        /// Reads the opaque storage indexes.
+        friend struct Index;
 
     public:
         //////  Operator  //////
@@ -43,9 +49,11 @@ namespace housepi
         bool is_missing_status() const noexcept { return status::is_missing(status_); }
 
     private:
-        IndivIdx indiv_index_ = 0;           /// Global individual index.
-        MemberIdx member_index_ = 0;         /// Index within its household.
-        StatusLvl status_ = status::MISSING; /// Status.
+        /// Global individual index.
+        IndivIdx indiv_index_ = 0;
+        /// Index within its household.
+        MemberIdx member_index_ = 0;
+        StatusLvl status_ = status::MISSING;
     };
 
     //////////////////////////////  Index  //////////////////////////////

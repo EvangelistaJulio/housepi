@@ -76,10 +76,14 @@ namespace housepi::augm
                                     bool for_evaluation) const;
 
     private:
-        const DefTable &def_;               /// Definitions, one row per latent or observation.
-        const KeyHolderWithRequests &keys_; /// Latent keys and their model requests.
-        const Translator &translator_;      /// Resolves definition entries into Attributes.
-        Data &data_;                        /// Data columns, whose read-cells deterministic observations fill.
+        /// Definitions, one row per latent or observation.
+        const DefTable &def_;
+        /// Latent keys and their model requests.
+        const KeyHolderWithRequests &keys_;
+        /// Resolves definition entries into Attributes.
+        const Translator &translator_;
+        /// Data columns, whose read-cells deterministic observations fill.
+        Data &data_;
 
         /// Assign model, arguments and domain to definition row `k`.
         void bind_distr_(Variable &var, size_t k,

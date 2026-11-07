@@ -38,7 +38,8 @@ namespace housepi
     class MCMC : public MCMCBase
     {
     public:
-        std::unique_ptr<ModelBase> model; /// Transmission model.
+        /// Transmission model.
+        std::unique_ptr<ModelBase> model;
 
         //////  Constructor  //////
 
@@ -80,7 +81,8 @@ namespace housepi
         /// Log-likelihood terms a parameter move recomputes.
         struct ParamRoute
         {
-            LogLikTerms terms = {}; /// Terms the move shifts.
+            /// Terms the move shifts.
+            LogLikTerms terms = {};
             /// Equivalence classes reading the parameter.
             /// * read by more than rates, or by every class -> empty, every class recomputed.
             std::vector<size_t> classes = {};
@@ -88,9 +90,12 @@ namespace housepi
         /// Parameters moving together, one block per baseline and the rates coupled to it.
         struct ParamBlock
         {
-            std::vector<size_t> keys = {}; /// Parameters, baseline first.
-            ParamRoute route = {};         /// Union of the routes of the members.
-            block_rw::Factor factor = {};  /// Jump factor and running moments of the coordinates.
+            /// Parameters, baseline first.
+            std::vector<size_t> keys = {};
+            /// Union of the routes of the members.
+            ParamRoute route = {};
+            /// Jump factor and running moments of the coordinates.
+            block_rw::Factor factor = {};
         };
 
         /// Create the engine of model `model_ptr`.
@@ -282,19 +287,27 @@ namespace housepi
                 recover_latent_log_lik_(indiv);
         }
 
-        std::vector<ParamRoute> routes_ = {};  /// Route of each sampled parameter, by key.
-        std::vector<ParamBlock> pblocks_ = {}; /// Blocks of the run, see Rates::list_param_rw_blocks().
-        std::vector<char> in_pblock_ = {};     /// Whether each parameter belongs to a block.
-        bool is_warm_ = false;                 /// Whether the adaptation warm-up runs, block members moving one at a time.
-        double gain_ = 0.;                     /// Robbins-Monro gain of the scalar proposals at this step.
-        double block_gain_ = 0.;               /// Robbins-Monro gain of the block factors at this step.
+        /// Route of each sampled parameter, by key.
+        std::vector<ParamRoute> routes_ = {};
+        /// Blocks of the run, see Rates::list_param_rw_blocks().
+        std::vector<ParamBlock> pblocks_ = {};
+        /// Whether each parameter belongs to a block.
+        std::vector<char> in_pblock_ = {};
+        /// Whether the adaptation warm-up runs, block members moving one at a time.
+        bool is_warm_ = false;
+        /// Robbins-Monro gain of the scalar proposals at this step.
+        double gain_ = 0.;
+        /// Robbins-Monro gain of the block factors at this step.
+        double block_gain_ = 0.;
     };
 
     /// Outcome of run_inference().
     struct InferenceRun
     {
-        std::vector<double> seconds; /// Seconds spent sampling, NA where the engine did not complete.
-        parallel::Failure failure;   /// Error that stopped the run, with the index of its engine.
+        /// Seconds spent sampling, NA where the engine did not complete.
+        std::vector<double> seconds;
+        /// Error that stopped the run, with the index of its engine.
+        parallel::Failure failure;
     };
 
     /// Run inference on every engine, `workers` of them at once.

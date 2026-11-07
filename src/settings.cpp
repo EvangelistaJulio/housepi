@@ -40,10 +40,10 @@ namespace housepi
 
     void Settings::build(const str_table &input)
     {
-        reset_defaults();                 // defaults
-        helper_non_default_build_(input); // user input
-        set_n_threads();                  // number of threads
-        set_prng_seed();                  // generator seeds
+        reset_defaults();
+        helper_non_default_build_(input);
+        set_n_threads();
+        set_prng_seed();
     }
 
     void Settings::helper_non_default_build_(const housepi::str_table &input)
@@ -107,7 +107,7 @@ namespace housepi
 
     void Settings::set_prng_seed()
     {
-        seed = std::max(1, seed); // seeds below 1 fall back to 1
+        seed = std::max(1, seed);
         prng_parallel_.resize(n_threads);
         prng_parallel_[0].seed(seed);
         for (size_t t = 1; t < n_threads; ++t)

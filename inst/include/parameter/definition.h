@@ -18,7 +18,7 @@ namespace housepi::param
     /// Parameter definition parsed once: every source column as an AST, flags typed.
     struct DefRow
     {
-        std::string name; /// Parameter name.
+        std::string name;
 
         parse::Definition value, prior, func, min, max, proposal;
 

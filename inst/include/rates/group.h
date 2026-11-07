@@ -88,12 +88,15 @@ namespace housepi::rates
         }
 
     private:
-        std::vector<size_t> status_stratified_ = {}; /// Keys stratifiable by status.
-        size_t n_slots_ = 1;                         /// Status slots stored per group rate.
+        /// Keys stratifiable by status.
+        std::vector<size_t> status_stratified_ = {};
+        /// Status slots stored per group rate.
+        size_t n_slots_ = 1;
         /// Offset each status level's slot starts at, pre-multiplied: a read costs one load and an add.
         /// * levels no rule distinguishes -> 0.
         StatusTable<SlotOffset> slot_base_ = {};
-        std::vector<std::vector<ScaleAnchor>> scale_anchors_ = {}; /// Rule groups per group-rate key.
+        /// Rule groups per group-rate key.
+        std::vector<std::vector<ScaleAnchor>> scale_anchors_ = {};
 
         /// Throw if a rule keys by status a rate the model does not allow.
         void assert_status_stratified_(const str_table &input,

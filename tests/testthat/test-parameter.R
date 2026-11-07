@@ -355,7 +355,7 @@ test_that("Discretization is enabled as expected", {
     run_inference(steps = 200L, thin = 1L, adapt = 50L, chains = 1L) |>
     suppressWarnings() |>
     get_parameter_draws() |>
-    draws_to_frame()
+    helper_draws_to_frame()
   (draws == floor(draws)) |> as.vector() |> expect_all_true()
   (draws >= val$min) |> as.vector() |> expect_all_true()
   (draws <= val$max) |> as.vector() |> expect_all_true()
@@ -454,7 +454,7 @@ test_that("A fixed random-walk scale must be positive and finite", {
   for (def in list(
     list(prior = "normal", proposal = "rw", proposal_scale = 0),
     list(prior = "uniform", max = 5, proposal = "rw_unif", proposal_scale = -1),
-    list(prior = "gamma", shape = 2, scale = 1, proposal = "rw_log", proposal_scale = Inf)
+    list(prior = "gamma", shape = 2, proposal = "rw_log", proposal_scale = Inf)
   )) {
     mk_param$model |>
       add_parameter(rho = def) |>
@@ -730,8 +730,10 @@ test_that("An unpinned parameter is drawn from its prior in simulation", {
 
   unique(drawn) |> expect_length(40L)
   (drawn >= 0.1 & drawn <= 0.9) |> expect_all_true()
-  stats::sd(drawn) |> expect_gt(0.15) # uniform spread, not the proposal's 0.005
-  mean(drawn) |> expect_lt(0.7)            # centred on the prior, not on 0.88
+  # uniform spread, not the proposal's 0.005
+  stats::sd(drawn) |> expect_gt(0.15)
+  # centred on the prior, not on 0.88
+  mean(drawn) |> expect_lt(0.7)
 })
 
 test_that("A parameter without a draws column is drawn from its prior", {

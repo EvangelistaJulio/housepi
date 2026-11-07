@@ -23,9 +23,12 @@ namespace housepi
     /// The user household id lives in data::Dataset, keyed by household index, see Index::of().
     class Household
     {
-        friend struct Index;         /// Reads the opaque storage index.
-        friend struct data::Dataset; /// Owns and mutates its households.
-        friend class ModelBase;      /// Changes member status.
+        /// Reads the opaque storage index.
+        friend struct Index;
+        /// Owns and mutates its households.
+        friend struct data::Dataset;
+        /// Changes member status.
+        friend class ModelBase;
 
         /// Range of member indexes sharing a status.
         struct MemberRange_
@@ -101,12 +104,16 @@ namespace housepi
         MemberIdx size() const noexcept { return hh_size_; }
 
     private:
-        HouseIdx house_index_ = 0;               /// Internal household index.
-        MemberIdx hh_size_ = 0;                  /// Number of household members.
-        MemberIdx ninf_ = 0;                     /// Number of infected members.
-        MemberIdx nsus_ = 0;                     /// Number of escaped members.
-        std::vector<Individual> indivs_ = {};    /// Household members.
-        std::vector<MemberIdx> status_vec_ = {}; /// Partitioned: [infected | escaped | missing].
+        /// Internal household index.
+        HouseIdx house_index_ = 0;
+        MemberIdx hh_size_ = 0;
+        /// Number of infected members.
+        MemberIdx ninf_ = 0;
+        /// Number of escaped members.
+        MemberIdx nsus_ = 0;
+        std::vector<Individual> indivs_ = {};
+        /// Partitioned: [infected | escaped | missing].
+        std::vector<MemberIdx> status_vec_ = {};
 
         /// Move `indiv` to status `new_status`.
         ///

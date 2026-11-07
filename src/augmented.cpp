@@ -467,7 +467,8 @@ namespace housepi
             const dag::prod_graph pgraph = producers(def, order, false);
             std::vector<std::string> output;
             for (const std::string &node : transm)
-                if (pgraph.count(node)) // a root needs no definition in every block
+                // a root needs no definition in every block
+                if (pgraph.count(node))
                     vect::append(output, dag::transitive_producers(node, pgraph, ErrType::Latent));
             return output;
         }
@@ -608,8 +609,10 @@ namespace housepi
                 for (const parse::Definition *col : {&def[k].value, &def[k].func})
                     for (const std::string &dstr : referred_data(*col, obs_names))
                     {
+                        // observation node reading its own entry column
                         if (dstr == name)
-                            continue; // observation node reading its own entry column
+                            continue;
+
                         // loop iff observation `d` transitively consumes `name`
                         const auto consumers = dag::transitive_consumers(name, pgraph, ErrType::Latent);
                         if (vect::contains(consumers, dstr))
@@ -820,7 +823,7 @@ namespace housepi
                 msg::stop(check::undeclared_status_message(err_status));
 
             const std::vector<size_t> rows = unsorted_rows_(s);
-            dict<size_t> name_to_row; // reverse dictionary name-to-row-index
+            dict<size_t> name_to_row;
             std::vector<std::string> member_obs;
             for (size_t k : rows)
             {
@@ -950,7 +953,7 @@ namespace housepi
         {
             const parse::Definition &parser = def_[k].func;
 
-            bool all_consts = true; // start assuming all constants
+            bool all_consts = true;
             for (const std::string &pstr : parser.list_parameter_producers())
                 all_consts &= src.param.is_constant(pstr);
 
@@ -1061,7 +1064,8 @@ namespace housepi
 
                     // list the observation under each of its producers, so moving any of them recomputes it
                     for (const std::string &astr : dag::transitive_producers(def_[k].name, pgraph, ErrType::Latent))
-                        if (astr != def_[k].name) // transitive_producers returns 'start' last
+                        // transitive_producers returns 'start' last
+                        if (astr != def_[k].name)
                             ss.obs_consumers[keys_.consult(astr)].push_back(obs_key);
                 }
             }
@@ -1109,7 +1113,8 @@ namespace housepi
                                            const std::vector<size_t> &absent,
                                            const std::vector<std::string> &transm)
         {
-            StatusScheme ss = scheme_.status_schemes_[base]; // copy: the store reallocates below
+            // copy: the store reallocates below
+            StatusScheme ss = scheme_.status_schemes_[base];
             const std::vector<size_t> dead = keys_.consult(
                 graph::dead_names(def_, ss.order, transm, keys_.consult(absent)));
 
@@ -1155,7 +1160,8 @@ namespace housepi
                     row.kind == Kind::House)
                     continue;
 
-                const bool is_obs = row.kind == Kind::Member; // else Kind::Latent
+                // Kind::Member or Kind::Latent
+                const bool is_obs = row.kind == Kind::Member;
                 // a deterministic latent forwards its parameters to the observation it produces
                 const bool to_obs = is_obs ||
                                     (!row.is_sampled() &&
@@ -1431,7 +1437,7 @@ namespace housepi
                 if (for_evaluation)
                 {
                     assert_datum_requests_(d, hvar, data_.dataset().str(house));
-                    hvar.finalize(); // enforce inference-finalization
+                    hvar.finalize();
                 }
                 for (const Individual &indiv : house)
                     data_.state.wire_readcell(d, indiv, &hvar);
@@ -1447,7 +1453,7 @@ namespace housepi
                 if (for_evaluation)
                 {
                     assert_datum_requests_(d, avar, data_.dataset().str(indiv));
-                    avar.finalize(); // enforce inference-finalization
+                    avar.finalize();
                 }
                 data_.state.wire_readcell(d, indiv, &avar);
             }
@@ -1487,10 +1493,11 @@ namespace housepi
                           const StatusProcess &status_process,
                           const str_table &input)
     {
-        build_restore_internal_(); // reset internal state
-        if (!input.empty())        // DefTable::append indexes its columns
+        build_restore_internal_();
+        // DefTable::append indexes its columns
+        if (!input.empty())
             def_.append(input);
-        build_append_profile_(infec_profile); // add infectivity profile
+        build_append_profile_(infec_profile);
 
         // data columns the definitions read tell equivalence classes apart
         mcmc_->data.set_eq_class_keys(Data::Source::Latent, def_.list_eq_class_keys());
@@ -1550,7 +1557,8 @@ namespace housepi
         def_.append(infec_profile.latent_definitions);
         add_(infprof::LATENT_FUNC);
         infec_profile.latent_key = consult(infprof::LATENT_FUNC);
-        infec_profile.bind_augm(this); // for runtime per-member profile resolution
+        // for runtime per-member profile resolution
+        infec_profile.bind_augm(this);
     }
 
     //////  Augmented : export columns  //////
@@ -1967,7 +1975,8 @@ namespace housepi
                 {
                     const augm::DefRow &row = def_[k];
                     const size_t a = consult(row.name);
-                    if (st.vec[a].has_definition()) // bound for the whole run
+                    // bound for the whole run
+                    if (st.vec[a].has_definition())
                         continue;
                     if (vect::contains(user_transm_vec_, a))
                     {

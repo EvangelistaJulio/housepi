@@ -29,7 +29,7 @@
 
 namespace housepi::rates
 {
-    constexpr double VALUE_REFERENCE = 1.0; /// Rate value of the reference.
+    constexpr double VALUE_REFERENCE = 1.0;
 
     /// Read the units each rule resolves, NA when the table gives none or it is unknown.
     inline std::vector<double> read_row_units(const str_table &input)
@@ -86,7 +86,8 @@ namespace housepi::rates
     /// * status cell -> rewritten to the slot of its level.
     struct GroupDefinitions : rules::Member
     {
-        std::vector<size_t> row_param = {}; /// Parameter key per rule, NA for the reference.
+        /// Parameter key per rule, NA for the reference.
+        std::vector<size_t> row_param = {};
 
         /// Read the rules of `input`.
         /// @param spec_headers Every covariate a rule may key on.
@@ -129,10 +130,14 @@ namespace housepi::rates
     /// * `to_` columns: covariates of the member receiving, in the same order.
     struct ContactDefinitions
     {
-        std::vector<std::string> data; /// Covariates, prefix dropped.
-        std::vector<size_t> keys;      /// Dataset keys of the covariates.
-        rules::Table rules;            /// Rules over the `from_` columns, then the `to_` columns.
-        std::vector<size_t> row_param; /// Parameter key per rule, NA for the reference.
+        /// Covariates, prefix dropped.
+        std::vector<std::string> data;
+        /// Dataset keys of the covariates.
+        std::vector<size_t> keys;
+        /// Rules over the `from_` columns, then the `to_` columns.
+        rules::Table rules;
+        /// Parameter key per rule, NA for the reference.
+        std::vector<size_t> row_param;
 
         /// Read the rules of `input`.
         /// @note Expects as many `from_` as `to_` columns.
@@ -182,8 +187,10 @@ namespace housepi::rates
     /// Rates an ordered pair of covariate classes multiplies, resolved on first encounter.
     struct PairRate
     {
-        std::vector<size_t> params = {};                /// Parameter keys of the rates the pair applies.
-        std::vector<const Attribute *> param_ptrs = {}; /// Rates the pair applies.
-        bool resolved = false;                          /// Whether the pair was resolved.
+        /// Parameter keys of the rates the pair applies.
+        std::vector<size_t> params = {};
+        /// Rates the pair applies.
+        std::vector<const Attribute *> param_ptrs = {};
+        bool resolved = false;
     };
 }

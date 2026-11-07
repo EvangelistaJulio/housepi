@@ -13,9 +13,12 @@
 
 namespace housepi::na
 {
-    constexpr double DOUBLE = std::numeric_limits<double>::quiet_NaN(); /// NA double.
-    constexpr std::size_t INDEX = static_cast<std::size_t>(-1);         /// NA index.
-    constexpr std::uint32_t UINDEX = static_cast<std::uint32_t>(-1);    /// NA narrow index.
+    /// NA double.
+    constexpr double DOUBLE = std::numeric_limits<double>::quiet_NaN();
+    /// NA index.
+    constexpr std::size_t INDEX = static_cast<std::size_t>(-1);
+    /// NA narrow index.
+    constexpr std::uint32_t UINDEX = static_cast<std::uint32_t>(-1);
 
     /// Whether double `x` is NA.
     inline bool is(double x) noexcept { return std::isnan(x); }
@@ -27,5 +30,6 @@ namespace housepi::na
 
 namespace housepi::inf
 {
-    constexpr double DOUBLE = std::numeric_limits<double>::infinity(); /// Infinite double.
+    /// Infinite double.
+    constexpr double DOUBLE = std::numeric_limits<double>::infinity();
 }

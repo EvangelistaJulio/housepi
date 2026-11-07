@@ -65,9 +65,12 @@ namespace housepi::msg
         void flush();
 
     private:
-        std::vector<std::string> warnings_ = {}; /// Distinct warnings, in order of first occurrence.
-        WarningBuffer *outer_;                   /// Buffer in scope before this one.
-        bool is_open_ = true;                    /// Whether it holds the warnings of its thread.
+        /// Distinct warnings, in order of first occurrence.
+        std::vector<std::string> warnings_ = {};
+        /// Buffer in scope before this one.
+        WarningBuffer *outer_;
+        /// Whether it holds the warnings of its thread.
+        bool is_open_ = true;
     };
 
     /// Build cli inline markup.

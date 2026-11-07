@@ -42,11 +42,16 @@ namespace housepi
     /// Values a definition returns, in the absolute frame.
     struct Codomain
     {
-        double inf = -inf::DOUBLE;            /// Infimum.
-        double sup = inf::DOUBLE;             /// Supremum.
-        Interval below = Interval::Unbounded; /// Openness of the lower side.
-        Interval above = Interval::Unbounded; /// Openness of the upper side.
-        Lattice lattice = Lattice::Doubles;   /// Lattice of the values.
+        /// Infimum.
+        double inf = -inf::DOUBLE;
+        /// Supremum.
+        double sup = inf::DOUBLE;
+        /// Openness of the lower side.
+        Interval below = Interval::Unbounded;
+        /// Openness of the upper side.
+        Interval above = Interval::Unbounded;
+        /// Lattice of the values.
+        Lattice lattice = Lattice::Doubles;
 
         /// Values greater than zero.
         static Codomain positive(Lattice l = Lattice::Doubles) noexcept
@@ -152,7 +157,8 @@ namespace housepi
             case Mode::Numeric:
                 value_ = x;
                 return;
-            default: // cases Mode::Pointer, Mode::Function
+            // cases Mode::Pointer, Mode::Function
+            default:
                 msg::stop("Tried to change non numeric " + str() + ".");
             }
         }
@@ -177,7 +183,8 @@ namespace housepi
             {
             case Mode::Pointer:
                 return attr_->pointer();
-            default: // cases Mode::Empty, Mode::Numeric, Mode::Function
+            // cases Mode::Empty, Mode::Numeric, Mode::Function
+            default:
                 return this;
             }
         }
@@ -231,12 +238,15 @@ namespace housepi
             Function
         } mode_ = Mode::Empty;
 
-        ErrType err_type_ = ErrType::Empty;        /// Type name displayed in errors.
-        bool is_user_const_ = false;               /// Whether the user declared it constant.
-        NameIdx name_id_ = 0;                      /// Interned name id, 0 when empty.
-        double value_ = na::DOUBLE;                /// Numeric value.
-        const Attribute *attr_ = nullptr;          /// Pointed attribute.
-        std::unique_ptr<Function> func_ = nullptr; /// Owned function.
+        /// Type name displayed in errors.
+        ErrType err_type_ = ErrType::Empty;
+        /// Whether the user declared it constant.
+        bool is_user_const_ = false;
+        /// Interned name id, 0 when empty.
+        NameIdx name_id_ = 0;
+        double value_ = na::DOUBLE;
+        const Attribute *attr_ = nullptr;
+        std::unique_ptr<Function> func_ = nullptr;
     };
 
     //////////////////////////////  Domain  //////////////////////////////
@@ -245,11 +255,16 @@ namespace housepi
     /// Bounds are live attributes.
     struct Domain
     {
-        Attribute min = Attribute();          /// User-defined minimum.
-        Attribute max = Attribute();          /// User-defined maximum.
-        Attribute loc = Attribute();          /// Shift between the frames.
-        Interval below = Interval::Unbounded; /// Openness of the lower side.
-        Interval above = Interval::Unbounded; /// Openness of the upper side.
+        /// User-defined minimum.
+        Attribute min = Attribute();
+        /// User-defined maximum.
+        Attribute max = Attribute();
+        /// Shift between the frames.
+        Attribute loc = Attribute();
+        /// Openness of the lower side.
+        Interval below = Interval::Unbounded;
+        /// Openness of the upper side.
+        Interval above = Interval::Unbounded;
 
         /// Cast `x` into the frame the bounds and all raw math live in.
         /// @note Read per evaluation, so the guard stays a mode compare.
@@ -266,7 +281,8 @@ namespace housepi
                 return delocate(x) <= min.value();
             case Interval::Closed:
                 return delocate(x) < min.value();
-            default: // case Interval::Unbounded:
+            // case Interval::Unbounded:
+            default:
                 return false;
             }
         }
@@ -280,7 +296,8 @@ namespace housepi
                 return delocate(x) >= max.value();
             case Interval::Closed:
                 return delocate(x) > max.value();
-            default: // case Interval::Unbounded:
+            // case Interval::Unbounded:
+            default:
                 return false;
             }
         }
@@ -438,7 +455,8 @@ namespace housepi
                 return pdf(x);
             case Evaluate::Cumulative:
                 return cdf(x);
-            default: // cases Evaluate::Function, Evaluate::Fold
+            // cases Evaluate::Function, Evaluate::Fold
+            default:
                 return function_(delocate_(x));
             }
         }
@@ -519,7 +537,8 @@ namespace housepi
     protected:
         //////  Domain  //////
 
-        Domain domain_ = Domain(); /// Values `x` may take, and their frame.
+        /// Values `x` may take, and their frame.
+        Domain domain_ = Domain();
 
         /// Cast into the de-located frame.
         double delocate_(double x) const { return domain_.delocate(x); }
@@ -543,20 +562,27 @@ namespace housepi
 
         //////  Arguments  //////
 
-        Attribute x_arg_ = Attribute(); /// Argument `x`.
+        Attribute x_arg_ = Attribute();
 
         /// Arguments of one parametrization.
         struct AltArgSet
         {
-            std::string name = {};            /// Parametrization name.
-            std::vector<Attribute> args = {}; /// Arguments.
+            /// Parametrization name.
+            std::string name = {};
+            std::vector<Attribute> args = {};
         };
-        std::vector<AltArgSet> alts_;             /// Alternative parametrizations, 0 canonical.
-        std::uint8_t alt_idx_ = 0;                /// Active parametrization.
-        bool is_user_alt_ = false;                /// Whether the user picked a re-parametrization.
-        ErrType err_family_ = ErrType::Function;  /// Family word shown in errors.
-        Evaluate eval_mode_ = Evaluate::Function; /// Method an implicit evaluate() dispatches to.
-        Discrete discr_mode_ = Discrete::None;    /// Discretization scheme.
+        /// Alternative parametrizations, 0 canonical.
+        std::vector<AltArgSet> alts_;
+        /// Active parametrization.
+        std::uint8_t alt_idx_ = 0;
+        /// Whether the user picked a re-parametrization.
+        bool is_user_alt_ = false;
+        /// Family word shown in errors.
+        ErrType err_family_ = ErrType::Function;
+        /// Method an implicit evaluate() dispatches to.
+        Evaluate eval_mode_ = Evaluate::Function;
+        /// Discretization scheme.
+        Discrete discr_mode_ = Discrete::None;
 
         /// Register an alternative parametrization.
         void register_alt_(const std::string &name, const default_args &args);
@@ -616,7 +642,8 @@ namespace housepi
             case Discrete::Left:
                 y = discr_func_left_(x);
                 break;
-            default: // Discrete::Defined:
+            // Discrete::Defined:
+            default:
                 y = raw_function_(std::floor(x));
                 break;
             }
@@ -638,7 +665,8 @@ namespace housepi
             case Discrete::Left:
                 y = std::log(discr_func_left_(x));
                 break;
-            default: // Discrete::Defined:
+            // Discrete::Defined:
+            default:
                 y = raw_log_func_(std::floor(x));
                 break;
             }
@@ -655,7 +683,8 @@ namespace housepi
                 return y;
             case Trunc::Max:
                 return y / trunc_();
-            default: // cases Trunc::Min, Trunc::Both
+            // cases Trunc::Min, Trunc::Both
+            default:
             {
                 const double lo = cdf_min_();
                 if (trunc_norm_mode_ == TruncNorm::LookUp)
@@ -670,16 +699,18 @@ namespace housepi
         /// Truncated sides, set by a distribution only.
         enum class Trunc : std::uint8_t
         {
-            None, /// No truncation.
-            Min,  /// Lower-bound truncation.
-            Max,  /// Upper-bound truncation.
-            Both  /// Two-sided truncation.
+            None,
+            Min,
+            Max,
+            Both
         } trunc_mode_ = Trunc::None;
         /// Source of the normalizer.
         enum class TruncNorm : std::uint8_t
         {
-            LookUp, /// Constant normalizer, stored by finalize().
-            Compute /// Normalizer computed per evaluation.
+            /// Constant normalizer, stored by finalize().
+            LookUp,
+            /// Normalizer computed per evaluation.
+            Compute
         } trunc_norm_mode_ = TruncNorm::Compute;
         /// Log-normalizer read in TruncNorm::LookUp mode.
         double lookup_log_trunc_ = na::DOUBLE;
@@ -698,7 +729,8 @@ namespace housepi
                 return raw_primitive_(std::ceil(domain_.min.value()) - 0.5);
             case Discrete::Left:
                 return raw_primitive_(std::ceil(domain_.min.value()));
-            default: // case Discrete::None:
+            // case Discrete::None:
+            default:
                 return raw_primitive_(domain_.min.value());
             }
         }
@@ -715,7 +747,8 @@ namespace housepi
                 return raw_primitive_(std::floor(domain_.max.value()) + 0.5);
             case Discrete::Left:
                 return raw_primitive_(std::floor(domain_.max.value()) + 1.);
-            default: // case Discrete::None:
+            // case Discrete::None:
+            default:
                 return raw_primitive_(domain_.max.value());
             }
         }
@@ -732,7 +765,8 @@ namespace housepi
                 return 1. - cdf_min_();
             case Trunc::Max:
                 return cdf_max_();
-            default: // case Trunc::Both:
+            // case Trunc::Both:
+            default:
                 return cdf_max_() - cdf_min_();
             }
         }
@@ -765,7 +799,8 @@ namespace housepi
         double discr_func_left_(double x) const { return discr_bin_(std::floor(x)); }
 
     private:
-        static constexpr double TAIL_MASS = 0x1p-20; /// Upper-tail mass below which cumulatives lose precision.
+        /// Upper-tail mass below which cumulatives lose precision.
+        static constexpr double TAIL_MASS = 0x1p-20;
 
         /// Mass of the unit bin starting at `a`.
         ///
@@ -788,7 +823,8 @@ namespace housepi
             return attr_->value();
         case Mode::Function:
             return func_->evaluate();
-        default: // case Mode::Empty
+        // case Mode::Empty
+        default:
             return na::DOUBLE;
         }
     }

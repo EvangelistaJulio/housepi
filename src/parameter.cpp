@@ -160,7 +160,8 @@ namespace housepi
             prop_ = std::make_unique<RndWalkUnifProposal>(scale, prior);
         else if (proposal == RndWalkProposal::NAME)
             prop_ = std::make_unique<RndWalkProposal>(scale, prior, RndWalkProposal::Coord::Identity);
-        else // RndWalkProposal::LOG_NAME
+        // RndWalkProposal::LOG_NAME
+        else
             prop_ = std::make_unique<RndWalkProposal>(scale, prior, RndWalkProposal::Coord::Log);
 
         move_mode_ = Move::RandomWalk;

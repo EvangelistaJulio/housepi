@@ -99,7 +99,8 @@ namespace housepi
         /// Registries searched for a name, in order: the first carrying it wins.
         struct SearchOrder
         {
-            std::vector<Kind> kinds; /// Registries, in search order.
+            /// Registries, in search order.
+            std::vector<Kind> kinds;
 
             auto begin() const { return kinds.begin(); }
             auto end() const { return kinds.end(); }

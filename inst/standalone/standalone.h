@@ -18,9 +18,12 @@ namespace housepi
     /// Command-line options of the standalone build.
     struct Options
     {
-        bool is_log_lik = false;  /// Evaluate the log-likelihood.
-        bool is_infer = false;    /// Run inference.
-        bool is_simulate = false; /// Run a simulation.
+        /// Evaluate the log-likelihood.
+        bool is_log_lik = false;
+        /// Run inference.
+        bool is_infer = false;
+        /// Run a simulation.
+        bool is_simulate = false;
 
         /// Paths of the input tables and of the output file.
         struct PathToFiles

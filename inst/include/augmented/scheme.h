@@ -29,10 +29,14 @@ namespace housepi::augm
     /// Either a member or a household observation.
     struct DeterministicObs
     {
-        size_t row = 0;         /// Definition row.
-        size_t slot = 0;        /// Slot in `house_varia`, household level only.
-        bool is_house = false;  /// Whether it reduces over members, else one value per member.
-        bool is_static = false; /// Whether built from data, not drawn with the members it reads.
+        /// Definition row.
+        size_t row = 0;
+        /// Slot in `house_varia`, household level only.
+        size_t slot = 0;
+        /// Whether it reduces over members, else one value per member.
+        bool is_house = false;
+        /// Whether built from data, not drawn with the members it reads.
+        bool is_static = false;
 
         /// Whether the column is produced on its own.
         /// Otherwise it is drawn with the observations of each infected member, see `list_obs_member`.
@@ -46,27 +50,38 @@ namespace housepi::augm
     /// * densities a move recomputes.
     struct StatusScheme
     {
-        std::vector<size_t> order = {};     /// Definition rows, producer before consumer, in inference.
-        std::vector<size_t> sim_order = {}; /// Definition rows, producer before consumer, in simulation.
+        /// Definition rows, producer before consumer, in inference.
+        std::vector<size_t> order = {};
+        /// Definition rows, producer before consumer, in simulation.
+        std::vector<size_t> sim_order = {};
 
-        std::vector<size_t> latent_models = {}; /// Keys carrying a latent-model density.
-        std::vector<size_t> sample = {};        /// Keys to sample.
-        std::vector<size_t> sim_sample = {};    /// Keys of `sample`, in simulation order.
-        std::vector<size_t> adaptive = {};      /// Keys with an adaptive proposal, a subset of `sample`.
-        std::vector<size_t> draws = {};         /// Keys to draw.
+        /// Keys carrying a latent-model density.
+        std::vector<size_t> latent_models = {};
+        /// Keys to sample.
+        std::vector<size_t> sample = {};
+        /// Keys of `sample`, in simulation order.
+        std::vector<size_t> sim_sample = {};
+        /// Keys with an adaptive proposal, a subset of `sample`.
+        std::vector<size_t> adaptive = {};
+        /// Keys to draw.
+        std::vector<size_t> draws = {};
         /// Key -> itself and its transitive consumers, producer before consumer.
         std::vector<std::vector<size_t>> consumers = {};
 
-        std::vector<size_t> obs_models = {}; /// Keys carrying an observation-model density, in simulation order.
+        /// Keys carrying an observation-model density, in simulation order.
+        std::vector<size_t> obs_models = {};
         /// Key -> observation nodes transitively consuming it, itself excluded.
         std::vector<std::vector<size_t>> obs_consumers = {};
 
         /// Key -> whether transmission consumes it, directly or through intermediaries.
         std::vector<bool> produces_transm = {};
 
-        std::vector<size_t> block = {};        /// Keys of the latent block, producer before consumer.
-        std::vector<size_t> sample_alone = {}; /// Keys of `sample` outside the latent block.
-        LogLikTerms block_terms = {};          /// Terms a move of the latent block touches.
+        /// Keys of the latent block, producer before consumer.
+        std::vector<size_t> block = {};
+        /// Keys of `sample` outside the latent block.
+        std::vector<size_t> sample_alone = {};
+        /// Terms a move of the latent block touches.
+        LogLikTerms block_terms = {};
     };
 
     /// Sampling schemes of every status, and what definitions produce.
@@ -74,9 +89,12 @@ namespace housepi::augm
     /// Built by SchemeBuilder, fixed for a run.
     struct Scheme
     {
-        std::vector<size_t> list_latent_export = {}; /// Latents to export.
-        std::vector<size_t> list_obs_member = {};    /// Drawn member observations.
-        std::vector<size_t> list_obs_house = {};     /// Household observation rows, in `house_varia` slot order.
+        /// Latents to export.
+        std::vector<size_t> list_latent_export = {};
+        /// Drawn member observations.
+        std::vector<size_t> list_obs_member = {};
+        /// Household observation rows, in `house_varia` slot order.
+        std::vector<size_t> list_obs_house = {};
         /// Deterministic observations of both levels, producer before consumer.
         std::vector<DeterministicObs> list_deterministic_obs = {};
 
@@ -105,15 +123,23 @@ namespace housepi::augm
     private:
         friend struct SchemeBuilder;
 
-        size_t n_base_ = 0;                                                   /// Number of per-status schemes, before the variants.
-        std::vector<StatusScheme> status_schemes_ = {};                       /// Per-status schemes, then missing-observation variants.
-        std::unordered_map<StatusLvl, std::vector<size_t>> status_rows_ = {}; /// Status -> definition rows.
-        std::unordered_map<StatusLvl, size_t> status_index_ = {};             /// Status -> index in `status_schemes_`.
+        /// Number of per-status schemes, before the variants.
+        size_t n_base_ = 0;
+        /// Per-status schemes, then missing-observation variants.
+        std::vector<StatusScheme> status_schemes_ = {};
+        /// Status -> definition rows.
+        std::unordered_map<StatusLvl, std::vector<size_t>> status_rows_ = {};
+        /// Status -> index in `status_schemes_`.
+        std::unordered_map<StatusLvl, size_t> status_index_ = {};
 
-        bool is_any_sample_ = false;       /// Whether any latent is sampled.
-        bool is_any_adaptive_ = false;     /// Whether any latent has an adaptive proposal.
-        bool is_any_latent_model_ = false; /// Whether any latent carries a model.
-        bool is_any_obs_model_ = false;    /// Whether any observation carries a model.
+        /// Whether any latent is sampled.
+        bool is_any_sample_ = false;
+        /// Whether any latent has an adaptive proposal.
+        bool is_any_adaptive_ = false;
+        /// Whether any latent carries a model.
+        bool is_any_latent_model_ = false;
+        /// Whether any observation carries a model.
+        bool is_any_obs_model_ = false;
 
         /// Parameter -> whether a latent model consumes it, so its moves shift the density.
         std::vector<bool> param_produces_latent_ll_ = {};
@@ -167,9 +193,11 @@ namespace housepi::augm
         void init_latent_block(size_t i, std::vector<size_t> keys);
 
     private:
-        Scheme &scheme_;        /// Scheme being built.
-        const DefTable &def_;   /// Definitions.
-        const KeyHolder &keys_; /// Keys of member definitions.
+        /// Scheme being built.
+        Scheme &scheme_;
+        const DefTable &def_;
+        /// Keys of member definitions.
+        const KeyHolder &keys_;
 
         /// Sources read while ordering.
         struct Sources_

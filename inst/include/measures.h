@@ -18,34 +18,47 @@ namespace housepi::measure
         /// Count households per size and number of cases.
         struct Table
         {
-            unsigned min_size = 0;                     /// Smallest household size observed.
-            unsigned max_size = 0;                     /// Largest household size observed.
-            unsigned max_cases = 0;                    /// Most cases observed in a single household.
-            std::vector<std::vector<unsigned>> counts; /// Rows: hh_size - min_size; columns: cases 0..max_size.
+            /// Smallest household size observed.
+            unsigned min_size = 0;
+            /// Largest household size observed.
+            unsigned max_size = 0;
+            /// Most cases observed in a single household.
+            unsigned max_cases = 0;
+            /// Rows: hh_size - min_size; columns: cases 0..max_size.
+            std::vector<std::vector<unsigned>> counts;
         };
 
         /// Count households per size, with at least one case or in total.
         struct HouseCounts
         {
-            unsigned grid_min = 0;                 /// First household size on the grid, 1 or more.
-            std::vector<unsigned> total;           /// Households per size.
-            std::vector<unsigned> at_least_1_case; /// Households with at least one case, per size.
+            /// First household size on the grid, 1 or more.
+            unsigned grid_min = 0;
+            /// Households per size.
+            std::vector<unsigned> total;
+            /// Households with at least one case, per size.
+            std::vector<unsigned> at_least_1_case;
         };
 
         /// Hold mean attack rate per household size.
         struct AttackRates
         {
-            unsigned grid_min = 0;       /// First household size on the grid, 1 or more.
-            std::vector<double> ar_mean; /// Mean attack rate per size.
-            std::vector<unsigned> count; /// Contributing households per size.
+            /// First household size on the grid, 1 or more.
+            unsigned grid_min = 0;
+            /// Mean attack rate per size.
+            std::vector<double> ar_mean;
+            /// Contributing households per size.
+            std::vector<unsigned> count;
         };
 
         /// Hold mean secondary attack rate per household size.
         struct SecAttackRates
         {
-            unsigned grid_min = 0;        /// First household size on the grid, 2 or more.
-            std::vector<double> sar_mean; /// Mean secondary attack rate per size.
-            std::vector<unsigned> count;  /// Contributing households per size.
+            /// First household size on the grid, 2 or more.
+            unsigned grid_min = 0;
+            /// Mean secondary attack rate per size.
+            std::vector<double> sar_mean;
+            /// Contributing households per size.
+            std::vector<unsigned> count;
         };
     }
 

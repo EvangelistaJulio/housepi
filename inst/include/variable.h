@@ -28,14 +28,14 @@ namespace housepi
     public:
         //////  Constructor  //////
 
-        Variable();           /// Constructor.
-        ~Variable() override; /// Destructor.
+        Variable();
+        ~Variable() override;
         /// Copy constructor.
         /// * proposal -> not copied, the copy binds its own.
         /// @note Copy only before proposals are bound, as State allocation does.
         Variable(const Variable &other);
-        Variable(Variable &&) noexcept;      /// Move constructor.
-        Variable &operator=(Variable other); /// Copy assignment.
+        Variable(Variable &&) noexcept;
+        Variable &operator=(Variable other);
 
         /// Swap contents with `other`.
         void swap(Variable &other) noexcept;
@@ -117,7 +117,8 @@ namespace housepi
                 return distr_->is_valid(value_);
             case Move::ProposalChecked:
                 return proposal_log_ratio() < inf::DOUBLE;
-            default: // case Move::Forward, Move::Independence:
+            // case Move::Forward, Move::Independence:
+            default:
                 return true;
             }
         }
@@ -181,15 +182,20 @@ namespace housepi
         /// Proposal family, read by is_valid_move() and get_move_log_ratio().
         enum class Move : std::uint8_t
         {
-            Forward,        /// Never moves, or draws from its own distribution: no ratio, always valid.
-            Independence,   /// Draws inside the domain: ratio computed, always valid.
-            RandomWalk,     /// May move outside the domain: ratio computed, value checked.
-            ProposalChecked /// Default walk: ratio computed, proposal judges validity.
+            /// Never moves, or draws from its own distribution: no ratio, always valid.
+            Forward,
+            /// Draws inside the domain: ratio computed, always valid.
+            Independence,
+            /// May move outside the domain: ratio computed, value checked.
+            RandomWalk,
+            /// Default walk: ratio computed, proposal judges validity.
+            ProposalChecked
         } move_mode_ = Move::Forward;
 
-        double old_ = na::DOUBLE;             /// Previous value.
-        std::unique_ptr<Distribution> distr_; /// Distribution.
-        std::unique_ptr<Proposal> prop_;      /// Proposal.
+        /// Previous value.
+        double old_ = na::DOUBLE;
+        std::unique_ptr<Distribution> distr_;
+        std::unique_ptr<Proposal> prop_;
 
         //////  Helpers  //////
 

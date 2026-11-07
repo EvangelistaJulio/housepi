@@ -21,7 +21,8 @@
 
 namespace housepi::rules
 {
-    constexpr const char *STATUS_KEY = "status"; /// Rule column carrying the infected status.
+    /// Rule column carrying the infected status.
+    constexpr const char *STATUS_KEY = "status";
 
     /// View over a rule table, with rule group, specificity and cells precomputed per row.
     ///
@@ -30,11 +31,15 @@ namespace housepi::rules
     /// * what a row applies is read by the caller, from its own column.
     struct Table
     {
-        const str_table &input;                 /// User tidy definition table.
-        const std::size_t n_rows;               /// Rows in the table.
-        std::vector<std::size_t> row_gid;       /// Rule-group id per row.
-        std::vector<std::size_t> row_spec;      /// Specificity per row.
-        std::vector<std::vector<double>> cells; /// Cells per specificity column, NA for a catch-all.
+        /// User tidy definition table.
+        const str_table &input;
+        const std::size_t n_rows;
+        /// Rule-group id per row.
+        std::vector<std::size_t> row_gid;
+        /// Specificity per row.
+        std::vector<std::size_t> row_spec;
+        /// Cells per specificity column, NA for a catch-all.
+        std::vector<std::vector<double>> cells;
 
         /// View `input`, parsing `spec_columns` into the cells.
         Table(const str_table &input,
@@ -96,9 +101,12 @@ namespace housepi::rules
     /// * every other covariate -> carried by the data.
     struct Member
     {
-        std::vector<std::string> data; /// Covariates carried by the data.
-        std::vector<size_t> keys;      /// Dataset keys of the covariates.
-        Table rules;                   /// Rules over the covariates, then the status if keyed.
+        /// Covariates carried by the data.
+        std::vector<std::string> data;
+        /// Dataset keys of the covariates.
+        std::vector<size_t> keys;
+        /// Rules over the covariates, then the status if keyed.
+        Table rules;
 
         /// Read the rules of `input` over `covariates`.
         Member(const str_table &input,
@@ -128,8 +136,10 @@ namespace housepi::rules
     /// * a class resolves once for every member repeating it.
     struct CovariateClasses
     {
-        std::vector<size_t> of_indiv; /// Class of every member.
-        size_t count = 0;             /// Number of distinct classes.
+        /// Class of every member.
+        std::vector<size_t> of_indiv;
+        /// Number of distinct classes.
+        size_t count = 0;
 
         /// Class every member of `dataset` on covariates `keys`.
         CovariateClasses(const data::Dataset &dataset,

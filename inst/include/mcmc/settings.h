@@ -22,8 +22,10 @@ namespace housepi
     /// Split workers between the two levels of parallel dispatch.
     struct Budget
     {
-        std::size_t outer = 1; /// Workers spread across chains.
-        std::size_t inner = 1; /// Workers spread within one chain.
+        /// Workers spread across chains.
+        std::size_t outer = 1;
+        /// Workers spread within one chain.
+        std::size_t inner = 1;
     };
 
     /// Configure an MCMC run.
@@ -34,31 +36,44 @@ namespace housepi
     {
         //////  Types  //////
 
-        using Step = std::uint64_t;  /// Count or index of MCMC steps.
-        using Chain = std::uint64_t; /// Count or index of MCMC chains.
+        /// Count or index of MCMC steps.
+        using Step = std::uint64_t;
+        /// Count or index of MCMC chains.
+        using Chain = std::uint64_t;
 
         //////  User config  //////
 
-        std::int32_t seed;                    /// Seed of the pseudo-random number generators.
-        unsigned n_threads;                   /// Number of threads for parallel computations.
-        Step n_steps;                         /// Number of MCMC steps per chain after the warm-up, a multiple of n_thin.
-        Step n_thin;                          /// Thinning interval, storing every n_thin-th step.
-        Step n_adapt;                         /// Number of adaptive MCMC steps, 0 for no adaptation.
-        Chain n_chains;                       /// Number of independent MCMC chains.
-        std::vector<std::string> id_draws;    /// Individual IDs whose latent draws are traced.
-        std::vector<std::string> house_draws; /// Household IDs whose infected members are traced.
-        double time_step;                     /// Real-time integration step for simulation.
+        std::int32_t seed;
+        unsigned n_threads;
+        /// Number of MCMC steps per chain after the warm-up, a multiple of n_thin.
+        Step n_steps;
+        /// Thinning interval, storing every n_thin-th step.
+        Step n_thin;
+        /// Number of adaptive MCMC steps, 0 for no adaptation.
+        Step n_adapt;
+        Chain n_chains;
+        /// Individual IDs whose latent draws are traced.
+        std::vector<std::string> id_draws;
+        /// Household IDs whose infected members are traced.
+        std::vector<std::string> house_draws;
+        /// Real-time integration step for simulation.
+        double time_step;
 
         //////  Derived config  //////
 
-        Budget budget;      /// Workers allotted to the chain and the per-chain dispatch level.
-        Step c_sample_size; /// Sample size for a single chain after thinning.
-        Step n_burn;        /// Number of burn-in steps, the adaptation budget when nothing adapts.
+        /// Workers allotted to the chain and the per-chain dispatch level.
+        Budget budget;
+        /// Sample size for a single chain after thinning.
+        Step c_sample_size;
+        /// Number of burn-in steps, the adaptation budget when nothing adapts.
+        Step n_burn;
 
         //////  Run config  //////
 
-        const std::atomic<bool> *stop_flag = nullptr; /// Flag shared by the engines of one run, null outside it.
-        std::atomic<Step> n_done{0};                  /// Steps counted in the run, written by one thread.
+        /// Flag shared by the engines of one run, null outside it.
+        const std::atomic<bool> *stop_flag = nullptr;
+        /// Steps counted in the run, written by one thread.
+        std::atomic<Step> n_done{0};
 
         //////  Constructor  //////
 
@@ -110,7 +125,8 @@ namespace housepi
         double fraction_done() const;
 
     private:
-        mutable std::vector<housepi::RndGen> prng_parallel_ = {}; /// One generator per thread.
+        /// One generator per thread.
+        mutable std::vector<housepi::RndGen> prng_parallel_ = {};
 
         /// Associate non-default user settings.
         void helper_non_default_build_(const housepi::str_table &input);

@@ -35,7 +35,8 @@ namespace housepi
     /// * member and household variables, bound to definitions.
     struct Augmented : public KeyHolderWithRequests
     {
-        augm::State state; /// Variables moved by inference and simulation.
+        /// Variables moved by inference and simulation.
+        augm::State state;
 
         //////  Constructor  //////
 
@@ -237,14 +238,20 @@ namespace housepi
         bool produces_obs(const Individual &m, size_t a) const { return !scheme_of_(m).obs_consumers[a].empty(); }
 
     private:
-        MCMCBase *mcmc_; /// Owning MCMCBase. @todo Drop.
+        /// Owning MCMCBase. @todo Drop.
+        MCMCBase *mcmc_;
 
-        std::vector<size_t> user_transm_vec_ = {};   /// Model-declared latent keys generated and read by transmission.
-        std::vector<bool> sim_fixed_ = {};           /// Key -> whether simulation binds it for the whole run.
-        std::vector<std::vector<double>> pins_ = {}; /// Key -> pinned value per member, empty when not pinned.
+        /// Model-declared latent keys generated and read by transmission.
+        std::vector<size_t> user_transm_vec_ = {};
+        /// Key -> whether simulation binds it for the whole run.
+        std::vector<bool> sim_fixed_ = {};
+        /// Key -> pinned value per member, empty when not pinned.
+        std::vector<std::vector<double>> pins_ = {};
 
-        augm::DefTable def_;  /// Latent and observation definitions.
-        augm::Scheme scheme_; /// Sampling schemes built from definitions.
+        /// Latent and observation definitions.
+        augm::DefTable def_;
+        /// Sampling schemes built from definitions.
+        augm::Scheme scheme_;
 
         /// Status scheme governing the definitions of member `m`.
         const augm::StatusScheme &scheme_of_(const Individual &m) const { return scheme_.at(state.of(m).idx); }

@@ -60,14 +60,18 @@ namespace housepi
             double cumul(size_t t) const { return t < size_ ? value_.cumul[t] : value_.cumul[size_ - 1]; }
 
         private:
-            size_t size_ = 0;                 /// Number of days in the table.
-            const Distribution *generic_ptr_; /// Generic profile, not owned.
+            /// Number of days in the table.
+            size_t size_ = 0;
+            /// Generic profile, not owned.
+            const Distribution *generic_ptr_;
 
             /// Profile values per day.
             struct Table_
             {
-                std::vector<double> inst = {};  /// Instantaneous.
-                std::vector<double> cumul = {}; /// Cumulative.
+                /// Instantaneous.
+                std::vector<double> inst = {};
+                /// Cumulative.
+                std::vector<double> cumul = {};
 
                 /// Clear the table.
                 void clear() noexcept;
@@ -85,12 +89,13 @@ namespace housepi
     /// Infectivity profile: generic, per-member latent, or discrete-time lookup table.
     struct InfecProfile
     {
-        friend struct Augmented; /// Processes the latent infectivity profile.
+        /// Processes the latent infectivity profile.
+        friend struct Augmented;
 
     public:
-        std::unique_ptr<Distribution> generic; /// Generic profile.
-        str_table latent_definitions = {};     /// Latent definitions.
-        size_t latent_key;                     /// Latent key.
+        std::unique_ptr<Distribution> generic;
+        str_table latent_definitions = {};
+        size_t latent_key;
 
         //////  Constructor  //////
 
@@ -123,7 +128,8 @@ namespace housepi
             case Mode::LookUp:
                 lookup_.update();
                 break;
-            default: // cases Mode::Generic, Mode::Latent
+            // cases Mode::Generic, Mode::Latent
+            default:
                 return;
             }
         }
@@ -136,7 +142,8 @@ namespace housepi
             case Mode::LookUp:
                 lookup_.recover();
                 break;
-            default: // cases Mode::Generic, Mode::Latent
+            // cases Mode::Generic, Mode::Latent
+            default:
                 return;
             }
         }
@@ -168,7 +175,8 @@ namespace housepi
                 return paugm_->at(latent_key, *indiv_ptr).function()->pdf(t);
             case Mode::LookUp:
                 return lookup_.inst(t);
-            default: // case Mode::Generic
+            // case Mode::Generic
+            default:
                 return generic->pdf(t);
             }
         }
@@ -181,7 +189,8 @@ namespace housepi
                 return paugm_->at(latent_key, *indiv_ptr).function()->cdf(t);
             case Mode::LookUp:
                 return generic->is_below(t) ? 0. : lookup_.cumul(t);
-            default: // case Mode::Generic
+            // case Mode::Generic
+            default:
                 return generic->cdf(t);
             }
         }
@@ -197,15 +206,21 @@ namespace housepi
         /// Source of the profile.
         enum class Mode : std::uint8_t
         {
-            Latent,  /// Profile read from a latent.
-            Generic, /// Profile evaluated per call.
-            LookUp   /// Discrete-time table stored by update_cache().
+            /// Profile read from a latent.
+            Latent,
+            /// Profile evaluated per call.
+            Generic,
+            /// Discrete-time table stored by update_cache().
+            LookUp
         } mode_ = Mode::Generic;
 
-        bool is_required_discrete_ = false; /// Whether a discrete profile was requested.
-        infprof::LookUpTable lookup_;       /// Discrete-time lookup table.
+        /// Whether a discrete profile was requested.
+        bool is_required_discrete_ = false;
+        /// Discrete-time lookup table.
+        infprof::LookUpTable lookup_;
 
-        const Augmented *paugm_ = nullptr; /// Latent storage for the per-member profile.
+        /// Latent storage for the per-member profile.
+        const Augmented *paugm_ = nullptr;
 
         /// Build the generic profile, independent of status.
         void build_generic_(Translator &translator, const str_table &input);

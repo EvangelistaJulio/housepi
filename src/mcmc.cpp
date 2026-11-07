@@ -75,7 +75,7 @@ namespace housepi
                                               const Individual *indiv_ptr,
                                               const Household *house_ptr) const
     {
-        storage_ = Attribute(); // reset auxiliary storage to default empty
+        storage_ = Attribute();
 
         if (!node.is_terminal())
         {
@@ -571,7 +571,8 @@ namespace housepi
         if (!data.is_shared())
             return;
         Data fresh(*model);
-        fresh.dataset().copy_requests(data.dataset()); // model requests outlive the data
+        // model requests outlive the data
+        fresh.dataset().copy_requests(data.dataset());
         data.share(fresh);
     }
 
@@ -579,7 +580,8 @@ namespace housepi
 
     std::vector<double> MCMC::evaluate_log_lik()
     {
-        settings.n_chains = 0; // using '0 chains' as a state variable
+        // using '0 chains' as a state variable
+        settings.n_chains = 0;
         init_for_evaluation_();
         param.load_sample_values(0);
         param.draw_sample(settings.prng());
@@ -788,8 +790,8 @@ namespace housepi
 
     void MCMC::init_monte_carlo_chain_()
     {
-        param.restart(settings.prng()); // reset parameters
-        augm.restart(settings.prng());  // reset latent
+        param.restart(settings.prng());
+        augm.restart(settings.prng());
 
         // re-initialize the adaptable proposal of every variable, latent block factors from default scales
         for (size_t p : param.scheme().adaptive)
@@ -871,7 +873,8 @@ namespace housepi
                     msg::stop(
                         "The latent density of " + data.dataset().str(indiv) +
                         " is numerically zero at the initial values.\n"
-                        "Check the latent models of " + data.dataset().str(indiv) + ".");
+                        "Check the latent models of " +
+                        data.dataset().str(indiv) + ".");
             }
 
         return ll;
@@ -1102,7 +1105,8 @@ namespace housepi
         // whether `a` produces transmission, or its cache
         const bool produces_transm = augm.produces_transm(indiv, a);
 
-        avar.propose(settings.prng()); // propose new value and save old
+        // propose new value and save old
+        avar.propose(settings.prng());
 
         // a null move is accepted without evaluation
         if (avar.is_null_move())
@@ -1112,7 +1116,7 @@ namespace housepi
             return {0., 0., 0.};
         }
 
-        if (avar.is_valid_move()) // proceed only if new value is valid
+        if (avar.is_valid_move())
         {
             // recompute the cached quantities consuming this member
             if (produces_transm)

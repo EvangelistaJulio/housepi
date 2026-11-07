@@ -32,7 +32,8 @@ namespace housepi
 {
     namespace str
     {
-        constexpr char DELIMITER = ','; /// Delimiter of CSV columns.
+        /// Delimiter of CSV columns.
+        constexpr char DELIMITER = ',';
 
         std::string tolow(std::string s)
         {
@@ -382,9 +383,11 @@ namespace housepi
         // no output file: simulate without serializing
         const bool is_writing = !na::is(pathtofile);
 
-        engine.augm.init_house_for_simulation();                        // build household-level observations
-        engine.model->init_model_for_simulation();                      // model-specific initialization
-        engine.augm.init_members_for_simulation(engine.status_process); // bind member definitions once per run
+        // build household-level observations
+        engine.augm.init_house_for_simulation();
+        engine.model->init_model_for_simulation();
+        // bind member definitions once per run
+        engine.augm.init_members_for_simulation(engine.status_process);
 
         // header after initialization: a produced observation registers its data column there
         // the row loop reports every column the holder carries
@@ -431,8 +434,10 @@ namespace housepi
         using str::tolow;
         using str::toup;
 
-        int carg_i = 1;   // command line iterator
-        std::string carg; // command line argument
+        // command line iterator
+        int carg_i = 1;
+        // command line argument
+        std::string carg;
 
         // check a command is supplied
         if (argc < 2)
@@ -442,7 +447,7 @@ namespace housepi
         // parse commands and options
         while (carg_i < argc)
         {
-            carg = std::string(argv[carg_i]); // update command line argument
+            carg = std::string(argv[carg_i]);
 
             // help argument
             // @todo Write a manual for the standalone.
@@ -489,7 +494,7 @@ namespace housepi
             else
                 msg::stop("Unrecognized option `" + carg + "`.");
 
-            carg_i++; // move to the next command line argument
+            carg_i++;
         }
         assert_modes();
     }
@@ -500,7 +505,7 @@ namespace housepi
         int aux = is_log_lik + is_infer + is_simulate;
 
         if (aux == 0)
-            is_log_lik = true; // default
+            is_log_lik = true;
         if (aux > 1)
             msg::stop(
                 "Incompatible commands: choose one between --log-lik, --infer or --simulate.");
@@ -520,14 +525,14 @@ namespace housepi
         //////  Options  //////
 
         Options opts(argc, argv);
-        opts.read_dataset(engine);       // 1) Load Dataset
-        opts.read_long_dataset(engine);  // ... and long dataset
-        opts.read_settings(engine);      // 2) Load Settings
-        opts.read_param(engine);         // 3) Load Parameters
-        opts.read_infec_profile(engine); // 4) Load Infectivity Profile
-        opts.read_group_rate(engine);    // 5) Load Group Rates
-        opts.read_contact_rate(engine);  // ... and Contact Rates
-        opts.read_latent(engine);        // 6) Load Latent Variables
+        opts.read_dataset(engine);
+        opts.read_long_dataset(engine);
+        opts.read_settings(engine);
+        opts.read_param(engine);
+        opts.read_infec_profile(engine);
+        opts.read_group_rate(engine);
+        opts.read_contact_rate(engine);
+        opts.read_latent(engine);
 
         //////  Execution  //////
 

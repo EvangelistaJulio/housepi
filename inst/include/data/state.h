@@ -97,7 +97,8 @@ namespace housepi::data
         MAKE_HOUSEPI_CACHE_ACCESSOR(matrix, double_matrix)
 
     private:
-        friend struct housepi::Data; /// Partitions households into equivalence classes.
+        /// Partitions households into equivalence classes.
+        friend struct housepi::Data;
 
         /// Equivalence class: representative household and number of households.
         struct EquivalenceClass_
@@ -106,27 +107,36 @@ namespace housepi::data
             EquivalenceClass_(const std::vector<size_t> &houses)
                 : rep_(houses.front()),
                   size_(houses.size()) {}
-            size_t rep_ = na::INDEX; /// Representative household.
-            size_t size_ = 1;        /// Number of households.
+            /// Representative household.
+            size_t rep_ = na::INDEX;
+            /// Number of households.
+            size_t size_ = 1;
         };
 
         /// Model cache of one equivalence class, by cache key.
         struct Cache_
         {
-            std::vector<MemberIdx> member = {};                     /// Member values.
-            std::vector<std::vector<MemberIdx>> member_vector = {}; /// Member vectors.
-            std::vector<std::vector<double>> double_vector = {};    /// Double vectors.
-            std::vector<matrix> double_matrix = {};                 /// Double matrices.
+            std::vector<MemberIdx> member = {};
+            std::vector<std::vector<MemberIdx>> member_vector = {};
+            std::vector<std::vector<double>> double_vector = {};
+            std::vector<matrix> double_matrix = {};
         };
 
-        std::vector<std::vector<Attribute>> readcell_ = {}; /// Read-cells, by member index and column.
-        std::vector<size_t> eq_class_keys_ = {};            /// Data columns telling equivalence classes apart.
-        std::vector<EquivalenceClass_> eq_classes_ = {};    /// Equivalence classes.
-        std::vector<EqClassIdx> class_of_ = {};             /// Equivalence class, by household index.
-        std::vector<LogProba> transm_log_lik_ = {};         /// Transmission log-likelihood, per equivalence class.
-        std::vector<Cache_> current_ = {};                  /// Model cache, per equivalence class.
-        std::vector<Cache_> previous_ = {};                 /// Model cache at the last save, per equivalence class.
-        bool evaluated_ = false;                            /// Whether every class is evaluated.
+        /// Read-cells, by member index and column.
+        std::vector<std::vector<Attribute>> readcell_ = {};
+        /// Data columns telling equivalence classes apart.
+        std::vector<size_t> eq_class_keys_ = {};
+        std::vector<EquivalenceClass_> eq_classes_ = {};
+        /// Equivalence class, by household index.
+        std::vector<EqClassIdx> class_of_ = {};
+        /// Transmission log-likelihood, per equivalence class.
+        std::vector<LogProba> transm_log_lik_ = {};
+        /// Model cache, per equivalence class.
+        std::vector<Cache_> current_ = {};
+        /// Model cache at the last save, per equivalence class.
+        std::vector<Cache_> previous_ = {};
+        /// Whether every class is evaluated.
+        bool evaluated_ = false;
     };
 }
 

@@ -205,9 +205,12 @@ namespace housepi
             Rcpp::DataFrame frame() { return rcpp_data_frame(cols_, names_); }
 
         private:
-            Rcpp::List cols_;             /// Column slots.
-            Rcpp::CharacterVector names_; /// Column names, one per slot.
-            size_t next_ = 0;             /// Next slot to fill.
+            /// Column slots.
+            Rcpp::List cols_;
+            /// Column names, one per slot.
+            Rcpp::CharacterVector names_;
+            /// Next slot to fill.
+            size_t next_ = 0;
         };
 
         /// Base wrapper exposing a housepi Function to R.
@@ -780,9 +783,12 @@ namespace housepi
 
             struct Row
             {
-                const char *level, *metric; /// Row labels.
-                size_t count;               /// Individuals or households counted.
-                double percent;             /// Share of the level total.
+                /// Row labels.
+                const char *level, *metric;
+                /// Individuals or households counted.
+                size_t count;
+                /// Share of the level total.
+                double percent;
             };
             const std::vector<Row> rows = {
                 {"individual", "total", indiv.total, 100.},
@@ -1086,7 +1092,8 @@ namespace housepi
 
             // parameters, shared by every household
             const Parameter &param = engine.param;
-            std::vector<int> block_ids; // table id of each parameter block, NA while its factor is unset
+            // table id of each parameter block, NA while its factor is unset
+            std::vector<int> block_ids;
             for (size_t b = 0; b < engine.n_param_blocks(); ++b)
             {
                 std::vector<std::string> names;
@@ -1213,7 +1220,8 @@ namespace housepi
                             Household &house = dataset.at(H);
                             engine.model->simulate_single_house(house);
 
-                            size_t row = row_offsets[H]; // thread-local: no shared counter
+                            // thread-local: no shared counter
+                            size_t row = row_offsets[H];
                             for (const Individual &indiv : house)
                             {
                                 status_col[row] = hsp_to_rcpp(indiv);
@@ -1280,8 +1288,10 @@ namespace housepi
                 Rcpp::DataFrame flush() { return flush_draws(draws_); }
 
             private:
-                const Parameter &param_; /// Parameters traced.
-                Posterior::Draws draws_; /// Values per parameter, one row per repetition.
+                /// Parameters traced.
+                const Parameter &param_;
+                /// Values per parameter, one row per repetition.
+                Posterior::Draws draws_;
             };
 
             /// Build the simulated data frame: shared columns, status, then exported columns.
@@ -1324,7 +1334,8 @@ namespace housepi
         /// * R `NULL` handle -> no bar to fill.
         struct Progress
         {
-            ProgressBar *bar; /// Bar filled, null for none.
+            /// Bar filled, null for none.
+            ProgressBar *bar;
 
             explicit Progress(SEXP handle)
                 : bar(Rf_isNull(handle) ? nullptr : Rcpp::XPtr<ProgressBar>(handle).get()) {}
@@ -1374,18 +1385,23 @@ namespace housepi
             Settings &settings = engine.settings;
             const Augmented &augm = engine.augm;
             const data::Dataset &dataset = engine.data.dataset();
-            engine.data.state.set_evaluated(false); // simulation overwrites the evaluated state
+            // simulation overwrites the evaluated state
+            engine.data.state.set_evaluated(false);
 
             // every exit restores the engine
             try
             {
-                engine.augm.init_house_for_simulation(); // build household-level observations
+                // build household-level observations
+                engine.augm.init_house_for_simulation();
                 dataset.assert_required_everyone(engine.data.state, augm.get_drawn_cols());
-                engine.infec_profile.finalize();           // store constant terms of the generic profile
-                engine.model->init_model_for_simulation(); // model-specific initialization
+                // store constant terms of the generic profile
+                engine.infec_profile.finalize();
+                engine.model->init_model_for_simulation();
                 engine.rates.assert_identifiability(engine.param);
-                engine.augm.init_members_for_simulation(engine.status_process); // bind member definitions once per run
-                engine.infec_profile.assert_valid();                            // a latent profile is checked as its members bind
+                // bind member definitions once per run
+                engine.augm.init_members_for_simulation(engine.status_process);
+                // a latent profile is checked as its members bind
+                engine.infec_profile.assert_valid();
 
                 //////  Reporting Process & Measures  //////
 
@@ -1401,8 +1417,9 @@ namespace housepi
 
                 //////  Initialization  //////
 
-                Rcpp::List out_dataset(settings.n_steps); // allocate memory for dataset results
-                Rcpp::List out_long_dataset;              // long dataset results are optional
+                Rcpp::List out_dataset(settings.n_steps);
+                // long dataset results are optional
+                Rcpp::List out_long_dataset;
                 if (f_long_dataset)
                     out_long_dataset = Rcpp::List(settings.n_steps);
 
@@ -1428,7 +1445,8 @@ namespace housepi
                     engine.augm.clear_all();
                     engine.data.dataset().recover_all_status();
                     engine.param.load_sample_values(r);
-                    engine.param.draw_sample(settings.prng()); // draw parameters with no pinned value
+                    // draw parameters with no pinned value
+                    engine.param.draw_sample(settings.prng());
                     param_trace.record(r);
 
                     // this repetition's own columns: status, exported latents and observations

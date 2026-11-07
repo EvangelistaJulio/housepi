@@ -94,7 +94,8 @@ namespace housepi
         double log_ratio(double xo, double xn) const override final { return distr_->log_ratio(xo, xn); }
 
     private:
-        const Distribution *distr_; /// Prior drawn from.
+        /// Prior drawn from.
+        const Distribution *distr_;
     };
 
     //////////////////////////////  IndependenceProposal  //////////////////////////////
@@ -138,8 +139,10 @@ namespace housepi
         }
 
     private:
-        std::unique_ptr<Distribution> distr_; /// Distribution drawn from.
-        const Distribution *prior_;           /// Prior, read for the domain to cover.
+        /// Distribution drawn from.
+        std::unique_ptr<Distribution> distr_;
+        /// Prior, read for the domain to cover.
+        const Distribution *prior_;
 
         /// Own bounds of the proposal, snapshot before it inherits the prior's.
         ///
@@ -173,7 +176,8 @@ namespace housepi
         /// The prior bound is read through its codomain: a live bound places every value it reaches.
         void assert_covers_side_(double intrinsic, bool below, const std::string &owner) const
         {
-            if (na::is(intrinsic)) // unbounded family: covers any domain on this side
+            // unbounded family: covers any domain on this side
+            if (na::is(intrinsic))
                 return;
 
             // an intrinsically bounded family covers only a prior bound it reaches in full
@@ -274,11 +278,13 @@ namespace housepi
         void finalize(const std::string & /*owner*/) override final { distr_->finalize(); }
 
     protected:
-        static constexpr double TARGET_ACCEPT_RATE = target_accept_rate(1); /// Target acceptance rate.
+        static constexpr double TARGET_ACCEPT_RATE = target_accept_rate(1);
 
-        std::unique_ptr<Distribution> distr_; /// Proposal distribution.
-        bool is_adaptive_ = true;             /// Whether the scale is adaptive.
-        const bool is_lattice_;               /// Whether the jumps are rounded, see is_lattice().
+        std::unique_ptr<Distribution> distr_;
+        /// Whether the scale is adaptive.
+        bool is_adaptive_ = true;
+        /// Whether the jumps are rounded, see is_lattice().
+        const bool is_lattice_;
 
         /// Initialize scale at construction.
         void init_scale_(double scale) { set_scale_(is_adaptive() ? 1. : scale); }
@@ -427,7 +433,8 @@ namespace housepi
                 return "log";
             case Coord::Logit:
                 return "logit";
-            default: // cases Coord::Identity, Coord::Lattice, Coord::CheckedLattice
+            // cases Coord::Identity, Coord::Lattice, Coord::CheckedLattice
+            default:
                 return "identity";
             }
         }
@@ -465,7 +472,8 @@ namespace housepi
                 log_ratio_ = domain_->is_valid(xn) ? 0. : inf::DOUBLE;
                 return xn;
             }
-            default: // case Coord::Identity:
+            // case Coord::Identity:
+            default:
                 log_ratio_ = 0.;
                 return xo + dz;
             }
@@ -485,7 +493,8 @@ namespace housepi
                 return std::log(side_ * (x - bound_()));
             case Coord::Logit:
                 return std::log((x - lower_()) / (upper_() - x));
-            default: // cases Coord::Identity, Coord::Lattice, Coord::CheckedLattice
+            // cases Coord::Identity, Coord::Lattice, Coord::CheckedLattice
+            default:
                 return x;
             }
         }
@@ -505,11 +514,16 @@ namespace housepi
         }
 
     protected:
-        Coord coord_ = Coord::Identity; /// Coordinate the jumps are drawn in.
-        bool is_declared_ = false;      /// Whether declared as `rw` or `rw_log`, false for the default walk.
-        const Domain *domain_;          /// Domain of the prior.
-        double side_ = 1.;              /// Side of the domain from its anchor: 1 above, -1 below.
-        double log_ratio_ = 0.;         /// Log-ratio of the last move proposed.
+        /// Coordinate the jumps are drawn in.
+        Coord coord_ = Coord::Identity;
+        /// Whether declared as `rw` or `rw_log`, false for the default walk.
+        bool is_declared_ = false;
+        /// Domain of the prior.
+        const Domain *domain_;
+        /// Side of the domain from its anchor: 1 above, -1 below.
+        double side_ = 1.;
+        /// Log-ratio of the last move proposed.
+        double log_ratio_ = 0.;
 
         /// Lower bound, in the absolute frame.
         double lower_() const { return domain_->relocate(domain_->min.value()); }
@@ -572,8 +586,10 @@ namespace housepi
     /// Based on @cite haario_adaptive_2001 and @cite andrieu_tutorial_2008
     namespace block_rw
     {
-        constexpr double WARMUP = 0.5;       /// Fraction of the adaptation moving members alone.
-        constexpr std::uint64_t WINDOW = 50; /// Steps of the first moment window after the warm-up, each next doubling.
+        /// Fraction of the adaptation moving members alone.
+        constexpr double WARMUP = 0.5;
+        /// Steps of the first moment window after the warm-up, each next doubling.
+        constexpr std::uint64_t WINDOW = 50;
 
         /// log(2.38), the log of the optimal random-walk scale 2.38 / sqrt(d) at d = 1.
         /// Based on @cite roberts_weak_1997
@@ -611,17 +627,28 @@ namespace housepi
         /// Factor of one block, its running moments and the last proposal it drew.
         struct Factor
         {
-            std::vector<double> lower = {}; /// Lower factor L, packed by rows.
-            std::vector<double> jump = {};  /// Jump e^log_scale L u of the last proposal.
-            std::vector<double> z = {};     /// Coordinates of the current state, filled before observe().
-            std::vector<double> mean = {};  /// Running mean of the coordinates.
-            std::vector<double> m2 = {};    /// Running sums of centred products of the coordinates, packed.
-            std::vector<double> work = {};  /// Scratch of the draw and of the moments.
-            std::vector<double> chol = {};  /// Scratch of the factorization.
-            std::vector<bool> lattice = {}; /// Whether each member moves on a unit lattice.
-            std::uint64_t n_obs = 0;        /// States observed.
-            double log_scale = 0.;          /// Log of the multiplier of L.
-            bool all_lattice = false;       /// Whether every member moves on a unit lattice.
+            /// Lower factor L, packed by rows.
+            std::vector<double> lower = {};
+            /// Jump e^log_scale L u of the last proposal.
+            std::vector<double> jump = {};
+            /// Coordinates of the current state, filled before observe().
+            std::vector<double> z = {};
+            /// Running mean of the coordinates.
+            std::vector<double> mean = {};
+            /// Running sums of centred products of the coordinates, packed.
+            std::vector<double> m2 = {};
+            /// Scratch of the draw and of the moments.
+            std::vector<double> work = {};
+            /// Scratch of the factorization.
+            std::vector<double> chol = {};
+            /// Whether each member moves on a unit lattice.
+            std::vector<bool> lattice = {};
+            /// States observed.
+            std::uint64_t n_obs = 0;
+            /// Log of the multiplier of L.
+            double log_scale = 0.;
+            /// Whether every member moves on a unit lattice.
+            bool all_lattice = false;
 
             /// Dimension of the block.
             size_t dim() const noexcept { return jump.size(); }

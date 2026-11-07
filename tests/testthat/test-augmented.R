@@ -60,7 +60,7 @@ on_integer_lattice <- function(x) {
 
 # draws of a run as a data frame of its latent traces
 latent_frame <- function(x) {
-  draws_to_frame(get_latent_draws(x))
+  helper_draws_to_frame(get_latent_draws(x))
 }
 
 ####  Latent definitions  ####
@@ -1159,7 +1159,7 @@ test_that("Reading only house observations casts member level to house", {
     add_observation(record = list(func = max(datum), level = "house"),
                     record_2 = record + 1,
                     record_3 = record_2 * 2,
-                    record_4 = datum + 1, # <- member level
+                    record_4 = datum + 1,
                     record_5 = record - 1,
                     record_6 = 18 / record)
 
@@ -1382,8 +1382,8 @@ test_that("Truncated latent models are normalized in log-likelihood traces", {
     suppressWarnings()
 
   draws <- latent_frame(hh_fit)
-  rho <- draws_to_frame(get_parameter_draws(hh_fit))$rho
-  log_lik <- draws_to_frame(get_log_lik_draws(hh_fit))
+  rho <- helper_draws_to_frame(get_parameter_draws(hh_fit))$rho
+  log_lik <- helper_draws_to_frame(get_log_lik_draws(hh_fit))
   log_dtrunc <- function(x, shape, scale, min, max) {
     dgamma(x, shape, scale = scale, log = TRUE) -
       log(pgamma(max, shape, scale = scale) - pgamma(min, shape, scale = scale))

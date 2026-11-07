@@ -413,7 +413,7 @@ test_that("A copy is deep", {
 
   # changes on the original do not reach the copy
   hh_model <- add_group_rate(hh_model, "susceptibility", by = "member") |>
-    suppressWarnings() # suppress baseline collapse warning
+    suppressWarnings()
   isTRUE(all.equal(get_group_rates(hh_model), get_group_rates(hh_model_2))) |>
     expect_false()
 })

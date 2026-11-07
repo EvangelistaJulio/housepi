@@ -22,10 +22,12 @@ namespace housepi::augm
     /// Latent and observation variables of one member, with their log-likelihoods.
     struct IndivState
     {
-        size_t idx = 0;                 /// Index of the status scheme governing the member.
-        std::vector<Variable> vec = {}; /// Latent and observation variables, by key.
-        LogProba latent_log_lik;        /// Log-likelihood of latent models.
-        LogProba obs_log_lik;           /// Log-likelihood of observation models.
+        /// Index of the status scheme governing the member.
+        size_t idx = 0;
+        /// Latent and observation variables, by key.
+        std::vector<Variable> vec = {};
+        LogProba latent_log_lik;
+        LogProba obs_log_lik;
     };
 
     /// Simulation storage of one member, bound once per run.
@@ -36,24 +38,31 @@ namespace housepi::augm
         /// * key left unbound -> empty, as in State::blank;
         /// * binding error -> partial, never swapped in.
         std::vector<std::vector<Variable>> blocks = {};
-        std::vector<std::exception_ptr> errors = {}; /// Binding error per status scheme, raised if reached.
-        std::vector<size_t> swapped = {};            /// Keys the member holds from its block.
+        /// Binding error per status scheme, raised if reached.
+        std::vector<std::exception_ptr> errors = {};
+        /// Keys the member holds from its block.
+        std::vector<size_t> swapped = {};
     };
 
     /// Mutable per-run storage of variables, moved by inference and simulation.
     struct State
     {
-        std::vector<IndivState> varia = {}; /// Member variables, by individual index.
+        /// Member variables, by individual index.
+        std::vector<IndivState> varia = {};
         /// Household observations, per house and slot.
         /// * inference -> bound to data;
         /// * simulation -> drawn.
         std::vector<std::vector<Variable>> house_varia = {};
 
-        std::vector<SimMember> sim = {};  /// Simulation storage, by individual index.
-        std::vector<Variable> blank = {}; /// Empty variables named by key.
+        /// Simulation storage, by individual index.
+        std::vector<SimMember> sim = {};
+        /// Empty variables named by key.
+        std::vector<Variable> blank = {};
 
-        std::vector<block_rw::Factor> block_factors = {}; /// Factors of the latent blocks, one per member with a block.
-        std::vector<size_t> block_factor_of = {};         /// Factor of each individual, NA without a latent block.
+        /// Factors of the latent blocks, one per member with a block.
+        std::vector<block_rw::Factor> block_factors = {};
+        /// Factor of each individual, NA without a latent block.
+        std::vector<size_t> block_factor_of = {};
 
         /// State of member `m`.
         IndivState &of(const Individual &m) noexcept { return varia[Index::of(m)]; }

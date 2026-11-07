@@ -46,8 +46,11 @@ namespace housepi
         std::vector<StatusLvl> drawable(const Individual &indiv) const;
 
     private:
-        std::vector<std::vector<double>> blocks_ = {}; /// Weights per covariate class, one per infected level.
-        std::vector<double> totals_ = {};              /// Sum of the weights of every block.
-        std::vector<size_t> block_of_ = {};            /// Block of every member, its covariate class.
+        /// Weights per covariate class, one per infected level.
+        std::vector<std::vector<double>> blocks_ = {};
+        /// Sum of the weights of every block.
+        std::vector<double> totals_ = {};
+        /// Block of every member, its covariate class.
+        std::vector<size_t> block_of_ = {};
     };
 }

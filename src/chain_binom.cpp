@@ -68,7 +68,8 @@ namespace housepi::chain_binom
             }
 
             // generation (i) : C(n - s - l, c) ways for c members infected by generation i - 1
-            double total = 0., p2p_esc_earlier = 1.; // escape from the s members before generation i - 1
+            // escape from the s members before generation i - 1
+            double total = 0., p2p_esc_earlier = 1.;
             for (unsigned s = 0; s < n; ++s, p2p_esc_earlier *= p2p_esc_proba)
                 for (unsigned l = 1; s + l <= n; ++l)
                 {
@@ -99,7 +100,8 @@ namespace housepi::chain_binom
                                       const std::vector<double> &commu_infec_rate,
                                       const matrix &p2p_infec_rate)
         {
-            const size_t Nsets = size_t(1) << n_infec; // number of subsets R, 2^n_infec
+            // number of subsets R, 2^n_infec
+            const size_t Nsets = size_t(1) << n_infec;
 
             // log-escape probabilities q of every subset R, built incrementally
             auto &log_q = scratch.log_q;
@@ -112,15 +114,19 @@ namespace housepi::chain_binom
             // non-empty R: O(2^n * n)
             for (size_t R = 1; R < Nsets; ++R)
             {
-                const size_t low = R & (~R + 1);                            // isolate lowest set bit of R
-                const size_t i = static_cast<size_t>(__builtin_ctzll(low)); // index of that bit (= some member of R)
-                const size_t Rprev = R ^ low;                               // R with that member removed
+                // isolate lowest set bit of R
+                const size_t low = R & (~R + 1);
+                // index of that bit (= some member of R)
+                const size_t i = static_cast<size_t>(__builtin_ctzll(low));
+                // R with that member removed
+                const size_t Rprev = R ^ low;
                 for (size_t j = 0; j < n_infec; ++j)
                     log_q[R * n_infec + j] = log_q[Rprev * n_infec + j] - p2p_infec_rate[i][j];
             }
 
             auto &log_pi = scratch.log_pi;
-            log_pi.assign(Nsets, 0.); // log pi(empty) = 0
+            // log pi(empty) = 0
+            log_pi.assign(Nsets, 0.);
 
             for (size_t S = 1; S < Nsets; ++S)
             {
@@ -128,13 +134,16 @@ namespace housepi::chain_binom
                 // enumerate all proper subsets of S in decreasing order
                 for (size_t R = (S - 1) & S;; R = (R - 1) & S)
                 {
-                    const size_t SmR = S & ~R; // bitmask for S \ R
+                    // bitmask for S \ R
+                    const size_t SmR = S & ~R;
                     double expo = 0.;
                     for (size_t j = 0; j < n_infec; ++j)
-                        if ((SmR >> j) & size_t(1)) // j in S \ R
+                        // j in S \ R
+                        if ((SmR >> j) & size_t(1))
                             expo += log_q[R * n_infec + j];
                     sum += std::exp(log_pi[R] + expo);
-                    if (R == 0) // last subset
+                    // last subset
+                    if (R == 0)
                         break;
                 }
                 log_pi[S] = (sum < 1.0) ? std::log1p(-sum) : -inf::DOUBLE;
@@ -245,7 +254,8 @@ namespace housepi::chain_binom
                                     : static_cast<MemberIdx>(dp.sub_vecs.front().size());
 
             auto &log_pi = scratch.log_pi;
-            log_pi.assign(dp.sub_vecs.size(), 0.); // log pi(0|0) = 0
+            // log pi(0|0) = 0
+            log_pi.assign(dp.sub_vecs.size(), 0.);
 
             // log q_s(w) per node w and part s, at w * K + s
             auto &log_q = scratch.log_q;

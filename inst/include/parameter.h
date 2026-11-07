@@ -32,7 +32,8 @@ namespace housepi
     {
         using KeyHolderWithRequests::KeyHolderWithRequests;
 
-        param::State state; /// Variables moved by inference and simulation.
+        /// Variables moved by inference and simulation.
+        param::State state;
 
         //////  Setter  //////
 
@@ -92,9 +93,11 @@ namespace housepi
         bool is_any_sample() const noexcept { return !scheme_.sample.empty(); }
 
     private:
-        param::DefTable def_;                             /// Parameter definitions.
-        param::Scheme scheme_;                            /// Sampling scheme built from definitions.
-        std::vector<std::vector<size_t>> rw_blocks_ = {}; /// Parameter sets the model requests in one block each.
+        param::DefTable def_;
+        /// Sampling scheme built from definitions.
+        param::Scheme scheme_;
+        /// Parameter sets the model requests in one block each.
+        std::vector<std::vector<size_t>> rw_blocks_ = {};
 
         /// Bind Variables to definitions, producer before consumer.
         /// * each Variable checked against the requests on its key.

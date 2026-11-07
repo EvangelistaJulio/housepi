@@ -355,9 +355,9 @@ test_that("Latent moves preserve log-likelihood", {
   # the bare infection time adds no density: transmission gives it
   log_lik <- unname(get_log_lik_draws(hh_fit)$h1)
   param_draws <- get_parameter_draws(hh_fit) |>
-    draws_to_frame()
+    helper_draws_to_frame()
   latent_draws <- get_latent_draws(hh_fit) |>
-    draws_to_frame()
+    helper_draws_to_frame()
   consts <- get_parameters(hh_model) |>
     subset(!is.na(const), c("name", "const")) |>
     tidyr::pivot_wider(names_from = "name", values_from = "const") |>
