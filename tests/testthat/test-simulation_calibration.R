@@ -97,17 +97,16 @@ mk_calib <- local({
     add_observation("record", model = "normal", mean = hidden, sd = 1) |>
     add_observation(record_2 = record + 1)
   prior_calibration <- hh_model |>
-    check_calibration(nrep = 3, structure_sampler = NULL, rank_levels = 10,
-                      steps = 400, thin = 1, chains = 1, progress = FALSE) |>
+    check_calibration(nrep = 3, rank_levels = 10, steps = 400,
+                      thin = 1, chains = 1, progress = FALSE) |>
     suppressWarnings()
   hh_fit <- hh_model |>
     run_inference(steps = 1000, thin = 1, chains = 1, id_draws = ".none",
                   progress = FALSE) |>
     suppressWarnings()
   post_calibration <- hh_model |>
-    check_calibration(hh_fit, nrep = 3, structure_sampler = NULL,
-                      rank_levels = 10, steps = 400, thin = 1, chains = 1,
-                      progress = FALSE) |>
+    check_calibration(hh_fit, nrep = 3, rank_levels = 10, steps = 400,
+                      thin = 1, chains = 1, progress = FALSE) |>
     suppressWarnings()
   list(model = hh_model, fit = hh_fit,
        prior_calib = prior_calibration,
@@ -127,9 +126,8 @@ mk_calib_direct <- local({
     suppressWarnings()
   sweep <- function(draws) {
     hh_model |>
-      check_calibration(draws, nrep = 3, structure_sampler = NULL,
-                        rank_levels = 10, steps = 400, thin = 1, chains = 1,
-                        progress = FALSE) |>
+      check_calibration(draws, nrep = 3, rank_levels = 10, steps = 400,
+                        thin = 1, chains = 1, progress = FALSE) |>
       suppressWarnings()
   }
   list(model = hh_model, fit = hh_fit,
@@ -138,9 +136,9 @@ mk_calib_direct <- local({
 
 test_that("Calibration calibration are read only", {
   mk_calib$prior_calib |>
-    expect_read_only_field("estimates", "replicates",
-                           "overview", "houses", "nrep", "source",
-                           "rank_levels", "warnings")
+    expect_read_only_field("estimates", "replicates", "overview",
+                           "houses", "nrep", "source", "rank_levels",
+                           "point_estimate", "cri_level", "warnings")
 })
 
 test_that("Every replicate is ranked at a value drawn from the prior", {
@@ -152,7 +150,8 @@ test_that("Every replicate is ranked at a value drawn from the prior", {
   # a fresh prior draw per replicate, not the pin
   truth <- estimates$truth[estimates$variable == "rho"]
   unique(truth) |> expect_length(3L)
-  (truth > -5 & truth < 5 & truth != 2) |> expect_all_true()
+  truth |> expect_all_gt(-5) |> expect_all_lt(5)
+  (truth != 2) |> expect_all_true()
   calibration$evaluate_ecdf() |> expect_nrow(18L)
   calibration$summarise()$nrep |> expect_identical(c(3L, 3L))
   calibration$summarize() |> expect_identical(calibration$summarise())
@@ -182,6 +181,11 @@ test_that("The log-likelihood is ranked beside the parameters", {
     estimates$variable |> expect_identical(rep(c("rho", "log_lik"), 3L))
     estimates$rank |> expect_in(0:9)
     estimates$truth |> expect_all_finite()
+    # each fit also reports its point estimate and credible interval
+    estimates$estimate |>
+      expect_all_gte(estimates$cri_lower) |>
+      expect_all_lte(estimates$cri_upper)
+    estimates$sd |> expect_all_gt(0)
     calibration$summarise()$variable |> expect_identical(c("log_lik", "rho"))
   }
 })
@@ -230,7 +234,8 @@ test_that("Calibration calibration print their settings", {
   printed |> expect_identical(calibration)
   lines[1] |> expect_match("[Pp]rior calibration check.*\"test\"")
   lines |> expect_contains(c("Households: 30", "Replicates: 3",
-                             "Rank levels: 10"))
+                             "Rank levels: 10", "Point estimate: median",
+                             "Credible interval: 90%"))
   lines |> expect_no_match("Conditioned on")
   # a posterior check names the households it is conditioned on
   lines <- helper_print_lines(print(mk_calib$post_calib))
@@ -278,7 +283,9 @@ test_that("Calibration refuses a sweep it cannot rank", {
     expect_error("[Nn]umber of rank levels.*at least 2")
   # one household count per check
   hh_model |>
-    check_calibration(houses = c(10, 20), progress = FALSE) |>
+    check_calibration(houses = c(10, 20),
+                      structure_sampler = sample_house_structure,
+                      progress = FALSE) |>
     expect_error("[Nn]umber of households")
   data.frame(hh_id = seq(30), status = 1) |>
     new_housepi_model("test") |>
@@ -312,9 +319,8 @@ test_that("Posterior calibration checks pool across runs only", {
   calibration <- mk_calib$post_calib
   rerun <- function(hh_fit) {
     hh_model |>
-      check_calibration(hh_fit, nrep = 2, structure_sampler = NULL,
-                        rank_levels = 10, steps = 400, thin = 1, chains = 1,
-                        progress = FALSE) |>
+      check_calibration(hh_fit, nrep = 2, rank_levels = 10, steps = 400,
+                        thin = 1, chains = 1, progress = FALSE) |>
       suppressWarnings()
   }
   hh_fit_2 <- hh_model |>
@@ -334,13 +340,10 @@ test_that("Posterior calibration checks pool across runs only", {
 })
 
 test_that("Calibration checks of one model pool their replicates", {
-  rerun <- function(nrep = 2, rank_levels = 10, structure_sampler = NULL,
-                    ...) {
+  rerun <- function(nrep = 2, rank_levels = 10, ...) {
     mk_calib$model |>
-      check_calibration(nrep = nrep,
-                        structure_sampler = structure_sampler,
-                        rank_levels = rank_levels, steps = 400, thin = 1,
-                        chains = 1, progress = FALSE, ...) |>
+      check_calibration(nrep = nrep, rank_levels = rank_levels, steps = 400,
+                        thin = 1, chains = 1, progress = FALSE, ...) |>
       suppressWarnings()
   }
   calibration <- mk_calib$prior_calib
@@ -386,7 +389,7 @@ test_that("Latent inference is calibrated against the prior", {
   # a test at level 0.001, so a calibrated sampler fails one run in 1000
   nrep <- calibration$summarise()$nrep[[1L]]
   threshold <- calibration_log_threshold_(nrep, 99, 0.001)
-  (calibration$summarise()$log_gamma >= threshold) |> expect_all_true()
+  calibration$summarise()$log_gamma |> expect_all_gte(threshold)
 })
 
 test_that("Latent inference is calibrated on the data", {
@@ -403,10 +406,11 @@ test_that("Latent inference is calibrated on the data", {
     run_inference(threads = 4, progress = FALSE) |>
     suppressWarnings()
   calibration <- hh_model |>
-    check_calibration(hh_fit, nrep = 100, houses = 5, threads = 4,
-                      progress = FALSE) |>
+    check_calibration(hh_fit, nrep = 100, houses = 5,
+                      structure_sampler = sample_house_structure,
+                      threads = 4, progress = FALSE) |>
     suppressWarnings()
   # a test at level 0.001, so a calibrated sampler fails one run in 1000
   threshold <- calibration_log_threshold_(100, 99, 0.001)
-  (calibration$summarise()$log_gamma >= threshold) |> expect_all_true()
+  calibration$summarise()$log_gamma |> expect_all_gte(threshold)
 })

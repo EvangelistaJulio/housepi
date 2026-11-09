@@ -148,7 +148,7 @@ test_that("With no transmission only a random household member is infected", {
   infected <- simulated$status > 0
   as.vector(table(simulated$hh_id[infected])) |> expect_all_equal(1L)
   t_intro <- simulated$infec_time[infected]
-  (t_intro >= 0 & t_intro < 1) |> expect_all_true()
+  t_intro |> expect_all_gte(0) |> expect_all_lt(1)
 
   # inference fails without definition
   get_latent(hh_model) |> expect_nrow(0L)
@@ -167,7 +167,7 @@ test_that("A saturated transmission infects every member", {
     add_parameter(alpha = 1e-12, beta = 100, gamma = 1, hh_size_ref = 4) |>
     run_simulation()
 
-  (simulated$status > 0) |> expect_all_true()
+  simulated$status |> expect_all_gt(0)
   simulated$infec_time |> expect_no_na()
 })
 
@@ -183,7 +183,7 @@ test_that("In discrete time the community infects other members on day 0", {
     run_simulation()
   day_0 <- tapply(simulated$status > 0 & simulated$infec_time == 0,
                   simulated$hh_id, sum)
-  as.vector(day_0 >= 1) |> expect_all_true()
+  day_0 |> expect_all_gte(1)
 
   # binomial z-score, within 5 sd
   p <- -expm1(-0.3)

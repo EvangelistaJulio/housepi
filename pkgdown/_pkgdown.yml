@@ -70,12 +70,12 @@ reference:
   - check_predictive
   - ends_with("PredictiveCheck")
 
-- title: "Parameter recovery and calibration"
+- title: "Performance and calibration"
   desc: >
     Simulate surveys at known or prior-drawn parameter values and fit them back.
   contents:
-  - check_recovery
-  - HousepiRecoveryCheck
+  - check_performance
+  - HousepiPerformanceCheck
   - check_calibration
   - HousepiCalibrationCheck
   - combine_checks
@@ -118,7 +118,7 @@ articles:
       - data_augmentation
       - infectivity_profiles
       - predictive_checks
-      - parameter_recovery_checks
+      - performance_checks
       - simulation_calibration_checks
       - user_functions
   - title: "Gallery"

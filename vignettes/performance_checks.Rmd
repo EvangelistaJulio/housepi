@@ -1,12 +1,12 @@
 ---
-title: "Parameter recovery"
+title: "Performance checks"
 output:
   rmarkdown::html_vignette:
     toc: true
 bibliography: ../inst/REFERENCES.bib
 link-citations: true
 vignette: >
-  %\VignetteIndexEntry{Parameter recovery}
+  %\VignetteIndexEntry{Performance checks}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 editor_options:
@@ -24,9 +24,12 @@ options(housepi.footer.warranty = TRUE)
 options(housepi.footer.sample = TRUE)
 ```
 
-Here we show how to check whether inference recovers the parameters used to simulate a dataset, at the same time checking how that changes with the sample size.
+Here we show how to measure the performance of inference at known parameter values, and how it changes with the sample size.
 A single replicate can miss the truth by chance, while many of them show whether it misses systematically.
-Recovery checks simulate many studies at known parameter values, fitting each one back with the same model, and comparing the estimates against the truth.
+Performance checks simulate many studies at the same parameter values, fit each one back with the same model, and compare the estimates against the truth.
+This is a simulation study in the sense of @morris_using_2019.
+Repeated sampling at one value measures the frequentist properties of the posterior, such as its bias and the coverage of its credible intervals.
+[Simulation-based calibration](simulation_calibration_checks.html) instead draws a new truth for every replicate, and checks the posterior as a whole.
 
 We use the same final-size example presented in [Get started](housepi.html):
 
@@ -49,15 +52,16 @@ hh_fit <- hh_model |>
 hh_fit
 ```
 
-The posterior draws above are used to estimate the model parameters.
+The fit above estimates the model parameters.
 We check whether a dataset similar to the target one, simulated at the estimated parameters, would let inference recover them.
 
-# Recover the model parameters
+# Performance at the estimates
 
-Passing the fit as `draws` simulates at its point estimates.
-A `data.frame` of values works the same way, which is how to test values of your own choosing.
+Passing the fit as `truth` simulates every study at its point estimates.
+To test values of your own choosing, pass one value per parameter, as in `c(alpha = 0.15, beta = 0.2, gamma = 1)`.
 
 Each study is generated on households drawn with replacement from the attached data by `sample_house_structure()`, so it keeps the original household-size distribution, while the model draws who gets infected.
+The results then describe a population of households shaped like those of Frederick.
 Besides the observed number of households, we ask what a quarter, half and twice as many would give:
 
 ```{r}
@@ -70,36 +74,38 @@ houses
 ```
 
 A check costs one fit per replicate and household sample size, and larger studies take longer to fit.
-We can run different replicates at each sample size using `check_recovery()`:
+We can run different replicates at each sample size using `check_performance()`:
 
 ```{r}
 #| label: sweep
-recovery <- hh_model |>
-  check_recovery(hh_fit, nrep = 15, houses = houses, threads = 2)
-recovery
+performance <- hh_model |>
+  check_performance(hh_fit, nrep = 15, houses = houses, threads = 2)
+performance
 
 # overview of the checks per sample size, averaged over replicates
-recovery$overview
+performance$overview
 ```
 
 ```{r}
 #| label: sweep-cost
 #| include: false
-sweep_minutes <- with(recovery$overview, sum(nrep * mean_inference_secs)) / 60
+sweep_minutes <- with(performance$overview, sum(nrep * mean_inference_secs)) / 60
 ```
 
-Before running longer checks, it is useful to note how much slower the fits are for the largest sample sizes.
-Here the `r sum(recovery$overview$nrep)` fits took `r round(sweep_minutes, 1)` minutes on one thread, from `r round(min(recovery$overview$mean_inference_secs), 1)` seconds each at `r min(houses)` households to `r round(max(recovery$overview$mean_inference_secs), 1)` seconds at `r max(houses)`.
+Fits slow down as the study grows, which sets the budget of a longer check.
+Here the `r sum(performance$overview$nrep)` fits took `r round(sweep_minutes, 1)` min on one thread, from `r round(min(performance$overview$mean_inference_secs), 1)` s each at `r min(houses)` households to `r round(max(performance$overview$mean_inference_secs), 1)` s at `r max(houses)`.
 
-A fit whose draws do not pass the convergence diagnostics is counted as flagged: here `r sum(recovery$overview$n_flagged)` of `r sum(recovery$overview$nrep)`.
-A few flags among many clean fits are expected from a finite sampler; flags concentrated at one household count call for more `steps` at that size.
+A fit whose draws do not pass the convergence diagnostics is counted as flagged.
+Here the diagnostics flagged `r sum(performance$overview$n_flagged)` of `r sum(performance$overview$nrep)` fits.
+A few flags among many clean fits are expected from a finite sampler.
+Flags concentrated at one household count call for more `steps` at that size.
 
 ## At the observed size
 
 Each credible interval against the value that generated its study, at the `r n_houses` households of Frederick:
 
 ```{r}
-#| label: recovery-plot
+#| label: interval-plot
 #| fig-height: 3.5
 #| fig-alt: >
 #|  Three panels, one per parameter. Each shows credible intervals,
@@ -107,7 +113,7 @@ Each credible interval against the value that generated its study, at the `r n_h
 #|  Intervals that miss the line are drawn in orange.
 library(ggplot2)
 
-recovery$estimates |>
+performance$estimates |>
   dplyr::filter(houses == n_houses) |>
   ggplot(aes(x = rep, y = estimate)) +
   geom_pointrange(aes(ymin = cri_lower, ymax = cri_upper, colour = covers)) +
@@ -121,13 +127,15 @@ recovery$estimates |>
 ```{r}
 #| label: observed-size
 #| include: false
-observed <- subset(recovery$summarise(), houses == n_houses)
+observed <- subset(performance$summarise(), houses == n_houses)
 rownames(observed) <- observed$variable
 ```
 
-A reasonable recovery check shows intervals scattered around the target line, whereas intervals stacked on one side of it would be bias.
+A reasonable performance check shows intervals scattered around the target line, whereas intervals stacked on one side of it would be bias.
 An interval that misses the truth on a flagged fit points at the sampler rather than at the model.
 At this size the 95% intervals cover the truth in `r round(100 * observed["alpha", "coverage"])`% of the replicates for `alpha`, `r round(100 * observed["beta", "coverage"])`% for `beta`, and `r round(100 * observed["gamma", "coverage"])`% for `gamma`.
+`$summarise()` reports each measure next to its Monte Carlo standard error [@morris_using_2019].
+Over `r observed["alpha", "nrep"]` replicates, a coverage of 95% is known only to about ±`r round(100 * sqrt(0.95 * 0.05 / observed["alpha", "nrep"]))` percentage points, so a coverage a few points below 95% is no evidence of intervals too narrow.
 
 ## Bias across sizes
 
@@ -139,7 +147,7 @@ The error of every estimate relative to the truth, at each household count, is d
 #| fig-alt: >
 #|  Three panels, one per parameter, on a shared vertical axis. Each shows
 #|  one box per household count over the relative error of the estimates, against a line at zero.
-recovery$estimates |>
+performance$estimates |>
   dplyr::mutate(rel_error = estimate / truth - 1) |>
   ggplot(aes(x = factor(houses), y = rel_error)) +
   geom_boxplot() +
@@ -159,12 +167,12 @@ A fit is only as usable as its worst-mixing parameter, so the effective sample s
 
 ```{r}
 #| label: design-table
-n_vars <- length(names(recovery$truth))
+n_vars <- length(names(performance$truth))
 
-cost <- recovery$overview |>
+cost <- performance$overview |>
   dplyr::summarise(cost = 1000 * secs_per_ess, .by = "houses")
 
-recovery$summarise() |>
+performance$summarise() |>
   dplyr::select(houses, variable, cri_width) |>
   tidyr::pivot_wider(names_from = variable, values_from = cri_width) |>
   dplyr::left_join(cost, by = "houses") |>
@@ -183,7 +191,7 @@ recovery$summarise() |>
 ```{r}
 #| label: doubling
 #| include: false
-width <- recovery$summarise()[c("houses", "variable", "cri_width")] |>
+width <- performance$summarise()[c("houses", "variable", "cri_width")] |>
   tidyr::pivot_wider(names_from = houses, values_from = cri_width)
 narrower <- 1 - width[[as.character(2 * n_houses)]] /
   width[[as.character(n_houses)]]
@@ -192,7 +200,7 @@ slower <- secs[[as.character(2 * n_houses)]] /
   secs[[as.character(n_houses)]] - 1
 ```
 
-Doubling the sample size narrows the intervals by `r round(100 * min(narrower))`% - `r round(100 * max(narrower))`%, but makes its `r round(100 * slower)`% slower to collect 1000 effective draws.
+Doubling the sample size narrows the intervals by `r round(100 * min(narrower))`% to `r round(100 * max(narrower))`%, but makes 1000 effective draws `r round(100 * slower)`% slower to collect.
 
 ```{r footer-child, child = "helpers/_footer.Rmd"}
 ```

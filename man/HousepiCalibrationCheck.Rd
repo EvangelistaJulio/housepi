@@ -14,7 +14,8 @@ each value ranked among the posterior draws of its fit.
 calibration <- flu_1918_frederick |>
   new_housepi_model("final-size") |>
   add_parameter(import = "template") |>
-  check_calibration(nrep = 2, houses = 30)
+  check_calibration(nrep = 2, houses = 30,
+                    structure_sampler = sample_house_structure)
 calibration
 calibration$summarise()
 }
@@ -31,6 +32,9 @@ For \code{log_lik}, the log-likelihood of the simulated households
 at that value;}
 \item{rank}{Number of ranked posterior draws below the truth,
 from 0 to \code{rank_levels - 1}, ties split at random;}
+\item{estimate}{Posterior point estimate;}
+\item{sd}{Posterior standard deviation;}
+\item{cri_lower, cri_upper}{Credible interval bounds;}
 \item{rhat, ess_bulk}{Convergence diagnostics of the fit;}
 \item{flagged}{\code{TRUE} when the diagnostics flagged the quantity:
 R-hat of 1.01 or more, or undefined; Bulk or Tail Effective Sample Size (ESS) below 100 per chain, or undefined,
@@ -72,6 +76,12 @@ Number of replicates at each household count, in the order of \code{houses}.}
 
     \item{\code{rank_levels}}{\code{integer(1)} Number of values a rank takes.}
 
+    \item{\code{point_estimate}}{\code{character(1)}
+Summary statistic taken as the posterior point estimate.}
+
+    \item{\code{cri_level}}{\code{numeric(1)}
+Credible level the intervals are computed at.}
+
     \item{\code{warnings}}{\code{data.frame} Distinct warnings raised,
 recorded whether or not they were reported, and counted by the print.
 \describe{
@@ -106,7 +116,7 @@ Use \code{\link[=check_calibration]{check_calibration()}} instead of calling \ve
   draws = NULL,
   nrep = 200L,
   houses = NA_integer_,
-  structure_sampler = sample_house_structure,
+  structure_sampler = NULL,
   rank_levels = 100L,
   steps = 2000L,
   thin = 10L,
@@ -128,7 +138,7 @@ If \code{NULL}, the parameters are drawn from their prior.}
       \item{\code{nrep}}{\code{integer(1)} Number of replicates at each household count.
 Each replicate is a household study simulated and fitted back.}
       \item{\code{houses}}{\code{integer(1)}
-Number of households in each simulated study.
+Number of households in each simulated study, drawn by \code{structure_sampler}.
 If \code{NA}, the number of households carried by the attached data.
 With posterior \code{draws}, each study is fitted alongside the attached households.}
       \item{\code{structure_sampler}}{\code{function}

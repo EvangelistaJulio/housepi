@@ -119,7 +119,7 @@ expect_head_exact <- function(name, args, ref, x) {
   distr <- do.call(browse_distributions, c(list(name), args, discr = TRUE))
   p <- stats_ref("p", ref, args)
   pmf <- p(x + 1) - p(x)
-  (pmf < .Machine$double.eps / 2) |> expect_all_true()
+  pmf |> expect_all_lt(.Machine$double.eps / 2)
   distr$log_pdf(x) |> expect_equal(log(pmf))
 }
 
@@ -888,7 +888,7 @@ test_that("rand() honours location shift and truncation", {
 
   x <- browse_distributions("normal", mean = 0, sd = 1,
                             min = -1, max = 2)$rand(5000L)
-  (x >= -1 & x <= 2) |> expect_all_true()
+  x |> expect_all_gte(-1) |> expect_all_lte(2)
 })
 
 test_that("cdf honours location shift above the upper bound", {
@@ -994,8 +994,9 @@ test_that("quantile is truncation-aware", {
   for (case in cases) {
     distr <- do.call(browse_distributions, case$args)
     distr$quantile(p) |> expect_equal(case$ref(p), tolerance = 1e-10)
-    (distr$quantile(p) >= max(-Inf, case$args$min)) |> expect_all_true()
-    (distr$quantile(p) <= min(Inf, case$args$max)) |> expect_all_true()
+    distr$quantile(p) |>
+      expect_all_gte(max(-Inf, case$args$min)) |>
+      expect_all_lte(min(Inf, case$args$max))
   }
 })
 
@@ -1049,9 +1050,9 @@ test_that("rand() is reproducible and plausible for all distributions", {
     set.seed(42L)
     d$rand(50L) |> expect_identical(x1)
     big <- d$rand(2000L)
-    (big >= 0) |> expect_all_true()
+    big |> expect_all_gte(0)
     if (cc$int) (big == floor(big)) |> expect_all_true()
-    if (!is.null(cc$max)) (big <= cc$max) |> expect_all_true()
+    if (!is.null(cc$max)) big |> expect_all_lte(cc$max)
     mean(big) |> expect_equal(cc$mean, tolerance = 0.15)
   }
 })

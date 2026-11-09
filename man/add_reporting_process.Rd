@@ -24,7 +24,7 @@ which \code{\link[=run_simulation]{run_simulation()}} returns along with it.
 \description{
 Attach the functions turning each simulated household study
 into the data reported.
-\code{\link[=run_simulation]{run_simulation()}}, \code{\link[=check_predictive]{check_predictive()}}, \code{\link[=check_recovery]{check_recovery()}} and
+\code{\link[=run_simulation]{run_simulation()}}, \code{\link[=check_predictive]{check_predictive()}}, \code{\link[=check_performance]{check_performance()}} and
 \code{\link[=check_calibration]{check_calibration()}} apply them to every replicate.
 }
 \details{

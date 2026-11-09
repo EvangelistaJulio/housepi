@@ -9,7 +9,7 @@ check_calibration(
   draws = NULL,
   nrep = 200L,
   houses = NA_integer_,
-  structure_sampler = sample_house_structure,
+  structure_sampler = NULL,
   rank_levels = 100L,
   steps = 2000L,
   thin = 10L,
@@ -31,7 +31,7 @@ If \code{NULL}, the parameters are drawn from their prior.}
 Each replicate is a household study simulated and fitted back.}
 
 \item{houses}{\code{integer(1)}
-Number of households in each simulated study.
+Number of households in each simulated study, drawn by \code{structure_sampler}.
 If \code{NA}, the number of households carried by the attached data.
 With posterior \code{draws}, each study is fitted alongside the attached households.}
 
@@ -97,6 +97,8 @@ Only transmission and observations are simulated.
 Households, members and their covariates come from the attached data,
 drawn once per household count by \code{structure_sampler},
 or reused whole without it, and shared by the replicates at that count.
+By default each study reuses the attached households,
+as calibration conditions on the design of the study.
 Every parameter carrying a prior and free to move is drawn anew
 for each replicate, from its prior or from the posterior draws,
 and its \code{value} is ignored.
@@ -139,6 +141,13 @@ Uniformity is rejected when the statistic falls below its 5th percentile
 under uniform ranks \insertCite{modrak_simulation_2025}{housepi},
 so a calibrated sampler is rejected with probability at most 0.05.
 
+Each replicate also holds the point estimate and credible interval
+of its fit.
+Plotted against the truths, they show the parameter recovery of the run
+\insertCite{sailynoja_posterior_2026}{housepi}.
+Results are summarised at the point estimate
+and credible level of the global options, see \code{\link[=set_housepi_summary]{set_housepi_summary()}}.
+
 Posterior draws are thinned to their bulk effective sample size,
 then \code{nrep} of them are picked evenly spaced, one per replicate,
 so the run must hold at least \code{nrep} independent draws.
@@ -157,7 +166,8 @@ at any \code{threads} up to \code{nrep}.
 calibration <- flu_1918_frederick |>
   new_housepi_model("final-size") |>
   add_parameter(import = "template") |>
-  check_calibration(nrep = 2, houses = 30)
+  check_calibration(nrep = 2, houses = 30,
+                    structure_sampler = sample_house_structure)
 calibration$summarise()
 calibration$overview
 
@@ -166,7 +176,8 @@ hh_model <- flu_1918_frederick |>
   new_housepi_model("final-size") |>
   add_parameter(import = "template")
 hh_fit <- run_inference(hh_model, chains = 2)
-calibration <- check_calibration(hh_model, hh_fit, nrep = 2, houses = 30)
+calibration <- check_calibration(hh_model, hh_fit, nrep = 2, houses = 30,
+                                 structure_sampler = sample_house_structure)
 calibration
 }
 \references{

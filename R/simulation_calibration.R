@@ -9,7 +9,7 @@ rd_calib_draws_ <- "`HousepiPosteriorDraws`
 Posterior draws of the model on its attached data, from [run_inference()].
 If `NULL`, the parameters are drawn from their prior."
 rd_calib_houses_ <- "`integer(1)`
-Number of households in each simulated study.
+Number of households in each simulated study, drawn by `structure_sampler`.
 If `NA`, the number of households carried by the attached data.
 With posterior `draws`, each study is fitted alongside the attached households."
 rd_calib_rank_levels_ <- "`integer(1)`
@@ -179,7 +179,8 @@ calibration_ecdf_ <- function(estimates, size, threshold) {
 #' calibration <- flu_1918_frederick |>
 #'   new_housepi_model("final-size") |>
 #'   add_parameter(import = "template") |>
-#'   check_calibration(nrep = 2, houses = 30)
+#'   check_calibration(nrep = 2, houses = 30,
+#'                     structure_sampler = sample_house_structure)
 #' calibration
 #' calibration$summarise()
 #' @docType class
@@ -196,13 +197,16 @@ HousepiCalibrationCheck <- R6::R6Class(
     # household ids of the attached data each study is fitted alongside
     observed_ids_ = character(),
     rank_levels_ = NA_integer_,
+    point_estimate_ = NA_character_,
+    cri_level_ = NA_real_,
     # estimated parameters, then `log_lik`
     variables_ = NULL,
     # `HousepiSweep` Replicates fitted.
     sweep_ = NULL,
 
     # Reduce one fit to a row per ranked quantity: rank of `truth`
-    # among the posterior draws, diagnostics.
+    # among the posterior draws, point estimate, posterior sd,
+    # credible interval, diagnostics.
     # * draws too correlated for `size` independent ones -> flagged.
     reduce_ = function(fit, truth) {
       size <- private$ranked_draws_()
@@ -222,8 +226,12 @@ HousepiCalibrationCheck <- R6::R6Class(
       }, integer(1L))
       diag[["flagged"]] <- diag[["flagged"]] |
         is.na(diag[["ess_bulk"]]) | diag[["ess_bulk"]] < size
+      summ <- sweep_point_summary_(draws[variables], private$point_estimate_,
+                                   private$cri_level_)
       data.frame(variable = variables, truth = unname(truth[variables]),
-                 rank = unname(rank), diag, row.names = NULL)
+                 rank = unname(rank),
+                 summ[c("estimate", "sd", "cri_lower", "cri_upper")],
+                 diag, row.names = NULL)
     },
 
     # Sum the pointwise log-likelihood draws over the simulated households,
@@ -270,6 +278,9 @@ HousepiCalibrationCheck <- R6::R6Class(
     #'     at that value;}
     #'   \item{rank}{Number of ranked posterior draws below the truth,
     #'     from 0 to `rank_levels - 1`, ties split at random;}
+    #'   \item{estimate}{Posterior point estimate;}
+    #'   \item{sd}{Posterior standard deviation;}
+    #'   \item{cri_lower, cri_upper}{Credible interval bounds;}
     #'   \item{rhat, ess_bulk}{Convergence diagnostics of the fit;}
     #'   \item{flagged}{`TRUE` when the diagnostics flagged the quantity:
     #'     `r paste(diagnostic_flags_, collapse = "; ")`,
@@ -335,6 +346,20 @@ HousepiCalibrationCheck <- R6::R6Class(
       private$rank_levels_
     },
 
+    #' @field point_estimate `character(1)`
+    #' Summary statistic taken as the posterior point estimate.
+    point_estimate = function(value) {
+      assert_read_only_(value, "point_estimate")
+      private$point_estimate_
+    },
+
+    #' @field cri_level `numeric(1)`
+    #' Credible level the intervals are computed at.
+    cri_level = function(value) {
+      assert_read_only_(value, "cri_level")
+      private$cri_level_
+    },
+
     #' @field warnings `r rd_warnings_`
     #' They pool the replicates of the sweep.
     warnings = function(value) {
@@ -364,7 +389,7 @@ HousepiCalibrationCheck <- R6::R6Class(
     #' @param ... `r rd_dots_config_`
     initialize = function(hh_model, draws = NULL,
                           nrep = 200L, houses = NA_integer_,
-                          structure_sampler = sample_house_structure,
+                          structure_sampler = NULL,
                           rank_levels = 100L,
                           steps = 2000L, thin = 10L, adapt = 1000L,
                           chains = 4L, threads = 1L,
@@ -376,6 +401,8 @@ HousepiCalibrationCheck <- R6::R6Class(
         "A rank is taken among {.code rank_levels - 1} posterior draws."
       )
       private$rank_levels_ <- rank_levels
+      private$point_estimate_ <- get_global_point_estimate()
+      private$cri_level_ <- get_global_cri_level()
       stored <- resolve_settings_(steps, thin, adapt, chains)$total
       # nolint next: object_usage_linter. read by the cli glue below
       ranked <- private$ranked_draws_()
@@ -463,7 +490,9 @@ HousepiCalibrationCheck <- R6::R6Class(
       private$sweep_$print_rows(
         "{kind} of model {.val {model}}.",
         c(conditioned,
-          `Rank levels` = "{private$rank_levels_}")
+          `Rank levels` = "{private$rank_levels_}",
+          `Point estimate` = "{private$point_estimate_}",
+          `Credible interval` = "{round(100 * private$cri_level_)}%")
       )
       invisible(self)
     }
@@ -490,6 +519,8 @@ HousepiCalibrationCheck <- R6::R6Class(
 #' The draws must be those of [run_inference()] on this model and its data.
 #'
 #' `r rd_sweep_structure_`
+#' By default each study reuses the attached households,
+#' as calibration conditions on the design of the study.
 #' Every parameter carrying a prior and free to move is drawn anew
 #' for each replicate, from its prior or from the posterior draws,
 #' and its `value` is ignored.
@@ -545,6 +576,12 @@ HousepiCalibrationCheck <- R6::R6Class(
 #' under uniform ranks \insertCite{modrak_simulation_2025}{housepi},
 #' so a calibrated sampler is rejected with probability at most 0.05.
 #'
+#' Each replicate also holds the point estimate and credible interval
+#' of its fit.
+#' Plotted against the truths, they show the parameter recovery of the run
+#' \insertCite{sailynoja_posterior_2026}{housepi}.
+#' `r rd_global_summary_`
+#'
 #' Posterior draws are thinned to their bulk effective sample size,
 #' then `nrep` of them are picked evenly spaced, one per replicate,
 #' so the run must hold at least `nrep` independent draws.
@@ -558,7 +595,8 @@ HousepiCalibrationCheck <- R6::R6Class(
 #' calibration <- flu_1918_frederick |>
 #'   new_housepi_model("final-size") |>
 #'   add_parameter(import = "template") |>
-#'   check_calibration(nrep = 2, houses = 30)
+#'   check_calibration(nrep = 2, houses = 30,
+#'                     structure_sampler = sample_house_structure)
 #' calibration$summarise()
 #' calibration$overview
 #'
@@ -567,14 +605,15 @@ HousepiCalibrationCheck <- R6::R6Class(
 #'   new_housepi_model("final-size") |>
 #'   add_parameter(import = "template")
 #' hh_fit <- run_inference(hh_model, chains = 2)
-#' calibration <- check_calibration(hh_model, hh_fit, nrep = 2, houses = 30)
+#' calibration <- check_calibration(hh_model, hh_fit, nrep = 2, houses = 30,
+#'                                  structure_sampler = sample_house_structure)
 #' calibration
 #' @export
 check_calibration <- function(hh_model,
                               draws = NULL,
                               nrep = 200L,
                               houses = NA_integer_,
-                              structure_sampler = sample_house_structure,
+                              structure_sampler = NULL,
                               rank_levels = 100L,
                               steps = 2000L, thin = 10L, adapt = 1000L,
                               chains = 4L, threads = 1L,

@@ -28,8 +28,9 @@ Here we show how to check that inference returns the posterior it should, using 
 Each replicate draws parameter values from the prior, simulates a study at them, fits it back with the same model, and ranks each drawn value among the posterior draws of its fit.
 When the likelihood and the sampler are correct, the drawn value behaves as one more posterior draw, so its rank is uniform over the replicates.
 
-[Parameter recovery checks](parameter_recovery_checks.html) hold the truth at one value and measure how far the estimates land from it.
-Calibration draws a new truth for every replicate and checks the posterior as a whole: its 50% intervals contain the truth in half of the replicates, its 90% intervals in nine out of ten, and so on for every level.
+[Performance checks](performance_checks.html) hold the truth at one value and measure how far the estimates land from it.
+Calibration draws a new truth for every replicate and checks the posterior as a whole.
+Its 50% intervals contain the truth in half of the replicates, its 90% intervals in nine out of ten, and so on for every level.
 
 We use the same final-size example presented in [Get started](housepi.html):
 
@@ -53,7 +54,7 @@ The data only lends its households to the simulated studies.
 
 # Rank the prior draws
 
-`check_calibration()` simulates each study on households drawn with replacement from the attached data by `sample_house_structure()`, as many as in Frederick.
+`check_calibration()` simulates each study on the households of Frederick, as calibration conditions on the design of the study.
 Each fit runs the default MCMC configuration of `run_inference()`, which returns 800 draws, here on two threads.
 The drawn value is ranked among 99 draws thinned evenly from these 800, so its rank takes one of `rank_levels = 100` values, 0 to 99:
 
@@ -69,11 +70,12 @@ calibration$overview
 
 A rank is uniform only if the 99 draws it is taken among behave like independent ones.
 A parameter is flagged when its bulk effective sample size [@vehtari_rank_normalization_2021] falls below 99,
-or when its fit fails the convergence diagnostics: here `r calibration$overview$n_flagged` of `r calibration$nrep` replicates were flagged.
+or when its fit fails the convergence diagnostics.
+Here the diagnostics flagged `r calibration$overview$n_flagged` of `r calibration$nrep` replicates.
 
 The check also ranks the log-likelihood `log_lik` of each simulated study.
 A fit that ignores data would return the prior as its posterior, keeping the parameter ranks uniform.
-Ranking also `log_lik` allows to spot the consequent mismatch on simulated draws [@modrak_simulation_2025].
+Ranking `log_lik` as well catches that mismatch [@modrak_simulation_2025].
 
 The rank of every parameter and of the log-likelihood in every replicate is stored in `calibration$estimates`.
 Uniform ranks fill each bin of ten ranks with about `r calibration$nrep / 10` replicates:
@@ -97,7 +99,8 @@ ggplot(calibration$estimates, aes(x = rank)) +
 
 Ranks piling at both ends mean the posterior is too narrow, so the truth falls in its tails too often.
 Ranks piling in the middle mean it is too wide.
-Ranks piling on one side mean it is shifted: low ranks put the truth below most posterior draws, so the posterior overestimates the parameter.
+Ranks piling on one side mean it is shifted.
+Low ranks put the truth below most posterior draws, so the posterior overestimates the parameter.
 
 # Test for uniformity
 
@@ -148,9 +151,37 @@ verdict <- calibration$summarise()
 n_uniform <- sum(verdict$uniform)
 ```
 
-Here `r n_uniform` of `r nrow(verdict)` ranked quantities pass.
+Here the test passes for `r n_uniform` of `r nrow(verdict)` ranked quantities.
 Passing says that the sampler and the likelihood agree with the prior and the model.
-It says nothing about whether the model fits Frederick: for that, compare its predictions with the data in [Predictive checks](predictive_checks.html).
+It says nothing about whether the model fits Frederick.
+For that, compare its predictions with the data in [Predictive checks](predictive_checks.html).
+
+# Parameter recovery
+
+Each replicate also stores the point estimate and the credible interval of its fit.
+Plotted against the values the studies were simulated at, they show the parameter recovery of the run [@sailynoja_posterior_2026]:
+
+```{r}
+#| label: recovery-plot
+#| fig-height: 5
+#| fig-alt: >
+#|  Four panels, one per parameter and one for the log-likelihood.
+#|  Each shows one credible interval per replicate, centred on its estimate
+#|  and placed at the drawn value, around the diagonal where the two are equal.
+recovery_plot <- function(estimates) {
+  ggplot(estimates, aes(x = truth, y = estimate)) +
+    geom_abline(colour = "coral") +
+    geom_pointrange(aes(ymin = cri_lower, ymax = cri_upper), size = 0.2) +
+    facet_wrap(~ variable, scales = "free") +
+    labs(x = "drawn value", y = "estimate")
+}
+recovery_plot(calibration$estimates)
+```
+
+Points close to the diagonal mean that a study the size of Frederick pins the parameter down.
+Points pulled toward the centre of the prior mean that the study says little about it, and the posterior falls back on the prior.
+That pull does not break calibration, which the ranks test.
+The plot shows how much each study informs each parameter, over the whole prior, where a [performance check](performance_checks.html) looks at one value only.
 
 # A sampler run too short
 
@@ -190,10 +221,10 @@ extreme <- with(short$estimates,
                 tapply(rank %in% c(0, rank_levels - 1), variable, mean))
 ```
 
-`r sum(short$replicates$flagged)` of `r short$nrep` replicates are flagged, since 100 correlated draws are worth far fewer than 99 independent ones.
+The diagnostics flag `r sum(short$replicates$flagged)` of `r short$nrep` replicates, since 100 correlated draws are worth far fewer than 99 independent ones.
 Correlated draws sit closer together than the posterior they come from, so the truth falls outside all of them too often.
 Rank 0 or 99 takes `r knitr::combine_words(paste0(round(100 * extreme), "% of the ranks of \x60", names(extreme), "\x60"))`, against 2% for uniform ranks.
-The ranks of `r code_words(failed)` fail the test: their ECDF jumps at both ends and draws the S of a posterior too narrow, an excess that the first and last bins of a histogram would dilute among ten ranks each.
+`r if (length(failed)) paste("The ranks of", code_words(failed), "fail the test.", "Their ECDF jumps at both ends and draws the S of a posterior too narrow, an excess that the first and last bins of a histogram would dilute among ten ranks each.")`
 `r if (length(passed)) paste("The ranks of", code_words(passed), "pass on flagged fits, which is no evidence of calibration.")`
 
 # Calibrate on the data
@@ -217,6 +248,8 @@ posterior_calibration
 
 The truths are 100 distinct posterior draws, picked evenly among the draws of the fit thinned to their effective sample size, so the fit must hold at least 100 independent draws.
 Each replicate fits twice as many households as Frederick has, the observed ones plus as many simulated, so it costs more than a replicate of the prior check.
+The draws must come from `run_inference()` on this model and data.
+Draws fitted to other data, or a table of values, are refused.
 We test the ranks the same way:
 
 ```{r}
@@ -241,8 +274,20 @@ posterior_calibration$summarise()
 posterior_verdict <- posterior_calibration$summarise()
 ```
 
-Here `r sum(posterior_verdict$uniform)` of `r nrow(posterior_verdict)` ranked quantities pass.
-The draws must come from `run_inference()` on this model and data: draws fitted to other data, or a table of values, are refused.
+Here the test passes for `r sum(posterior_verdict$uniform)` of `r nrow(posterior_verdict)` ranked quantities.
+
+We plot the recovery the same way:
+
+```{r}
+#| label: posterior-recovery-plot
+#| fig-height: 5
+#| fig-alt: >
+#|  Same four panels as the first recovery plot, for the posterior draws.
+recovery_plot(posterior_calibration$estimates)
+```
+
+The drawn values span only the posterior of Frederick, and each fit sees the Frederick households next to the simulated ones, so the points gather in a narrow range.
+How far they follow the diagonal shows what the simulated households add to the observed ones.
 Prior calibration tells whether inference works for any study the model could describe.
 Posterior calibration tells whether it works for Frederick.
 

@@ -187,7 +187,7 @@ test_that("Replicate credible intervals bound each other", {
                  data.frame(a = c(3, 30)))
   upper <- ppc_frame_apply_cri(frames, cri_level = 0.95, upper = TRUE)
   lower <- ppc_frame_apply_cri(frames, cri_level = 0.95, upper = FALSE)
-  (upper$a >= lower$a) |> expect_all_true()
+  upper$a |> expect_all_gte(lower$a)
 
   # named vector path: all-NA returns NA
   ppc_frame_apply_cri(list(c(x = NA_real_), c(x = NA_real_)))[["x"]] |>
@@ -300,7 +300,7 @@ test_that("Household size bounds need the standard measures", {
     check_predictive(mk_ppc$fit, overall = \(x) mean(x$status > 0),
                      max_hh_size = 3L, thin_ess = FALSE, nrep = 5) |>
     suppressWarnings()
-  (ppc$format_attack_rate()$hh_size <= 3) |> expect_all_true()
+  ppc$format_attack_rate()$hh_size |> expect_all_lte(3)
 })
 
 test_that("Custom measures are checked next to the standard ones", {
@@ -550,7 +550,7 @@ test_that("An epidemic predictive check formats counts per household size", {
     c("hh_size", "cases", "observed", "predicted", "cri_lower", "cri_upper",
       "outside")
   )
-  (cases$cases <= cases$hh_size) |> expect_all_true()
+  cases$cases |> expect_all_lte(cases$hh_size)
   as.vector(tapply(cases$observed, cases$hh_size, sum)) |>
     expect_identical(counts$total[match(unique(cases$hh_size), counts$hh_size)])
 
@@ -574,18 +574,18 @@ test_that("An epidemic predictive check formats counts per household size", {
   # a bound set to NULL or NA is removed
   hh_size <- ppc$format_sec_attack_rate()$hh_size
   ppc$set_max_hh_size(3)
-  (ppc$format_sec_attack_rate()$hh_size <= 3) |> expect_all_true()
+  ppc$format_sec_attack_rate()$hh_size |> expect_all_lte(3)
   ppc$set_max_hh_size(NULL)
   ppc$format_sec_attack_rate()$hh_size |> expect_identical(hh_size)
   ppc$set_min_hh_size(3)
-  (ppc$format_sec_attack_rate()$hh_size >= 3) |> expect_all_true()
-  (ppc$format_attack_rate()$hh_size >= 3) |> expect_all_true()
+  ppc$format_sec_attack_rate()$hh_size |> expect_all_gte(3)
+  ppc$format_attack_rate()$hh_size |> expect_all_gte(3)
   ppc$set_min_hh_size(NA)
   ppc$format_sec_attack_rate()$hh_size |> expect_identical(hh_size)
 
   # a clone formats with its own bounds
   ppc_2 <- ppc$clone()$set_max_hh_size(3)
-  (ppc_2$format_sec_attack_rate()$hh_size <= 3) |> expect_all_true()
+  ppc_2$format_sec_attack_rate()$hh_size |> expect_all_lte(3)
   ppc$format_sec_attack_rate()$hh_size |> expect_identical(hh_size)
 })
 
@@ -605,7 +605,7 @@ test_that("A case-ascertained check leaves the attack rate out", {
   ppc$format_attack_rate |> expect_null()
   ppc$format_sec_attack_rate() |> expect_s3_class("data.frame")
   # every household holds a case: no row with zero cases
-  (ppc$format_cases_distr()$cases > 0L) |> expect_all_true()
+  ppc$format_cases_distr()$cases |> expect_all_gt(0L)
 
   # the name stays reserved
   hh_model |>

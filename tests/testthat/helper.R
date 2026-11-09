@@ -65,6 +65,41 @@ expect_na_share_ <- function(act, missing) {
   invisible(act$val)
 }
 
+# Expect every element to lie beyond `bound`, a single value or one per element.
+# The failure names the offending positions and their values.
+# `object` is returned invisibly, so an interval pipes two bounds.
+expect_all_gt <- function(object, bound) {
+  expect_all_compare_(testthat::quasi_label(rlang::enquo(object)),
+                      testthat::quasi_label(rlang::enquo(bound)), ">")
+}
+expect_all_gte <- function(object, bound) {
+  expect_all_compare_(testthat::quasi_label(rlang::enquo(object)),
+                      testthat::quasi_label(rlang::enquo(bound)), ">=")
+}
+expect_all_lt <- function(object, bound) {
+  expect_all_compare_(testthat::quasi_label(rlang::enquo(object)),
+                      testthat::quasi_label(rlang::enquo(bound)), "<")
+}
+expect_all_lte <- function(object, bound) {
+  expect_all_compare_(testthat::quasi_label(rlang::enquo(object)),
+                      testthat::quasi_label(rlang::enquo(bound)), "<=")
+}
+expect_all_compare_ <- function(act, bnd, op) {
+  val <- if (is.data.frame(act$val)) as.matrix(act$val) else act$val
+  if (length(val) == 0L) stop("`object` must not be empty.", call. = FALSE)
+  if (!length(bnd$val) %in% c(1L, length(val))) {
+    stop("`bound` must hold one value or one per element of `object`.",
+         call. = FALSE)
+  }
+  off <- utils::head(which(!(match.fun(op)(val, bnd$val) %in% TRUE)), 10)
+  testthat::expect(length(off) == 0, sprintf(
+    "Expected every element of %s %s %s.\nOffending position(s): %s",
+    act$lab, op, bnd$lab,
+    paste0(off, " (", format(val[off], trim = TRUE), ")", collapse = ", ")
+  ))
+  invisible(act$val)
+}
+
 # Expect number of row of `object` equal to `n`.
 expect_nrow <- function(object, n) {
   testthat::expect_identical(nrow(object), n)

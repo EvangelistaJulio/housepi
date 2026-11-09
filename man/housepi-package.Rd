@@ -8,7 +8,7 @@
 \description{
 \if{html}{\figure{logo.svg}{options: style='float: right' alt='logo' width='120'}}
 
-Statistical analysis and modelling of infectious disease transmission within households. Household transmission models are specified declaratively, fitted to data with Bayesian MCMC. It enables data augmentation, infectivity profiles, individual group and contact rates. Validation is supported through prior and posterior predictive checks, and parameter recovery checks.
+Statistical analysis and modelling of infectious disease transmission within households. Household transmission models are specified declaratively, fitted to data with Bayesian MCMC. It enables data augmentation, infectivity profiles, individual group and contact rates. Validation is supported through prior and posterior predictive checks, performance checks at known parameter values, and simulation-based calibration.
 }
 \details{
 To create a model, call \code{\link[=new_housepi_model]{new_housepi_model()}}

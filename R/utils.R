@@ -276,8 +276,9 @@ is_named_values_ <- function(x) {
 #' * named vector or list -> one row;
 #' * value without a name, or parameter without exactly one value -> error.
 #' @param thin_ess `logical(1)` Whether to thin to the ESS.
+#' @param arg `character(1)` Argument the table came from.
 #' @noRd
-helper_read_param_table_ <- function(ptab, thin_ess = TRUE) {
+helper_read_param_table_ <- function(ptab, thin_ess = TRUE, arg = "draws") {
   # extract parameter draws from table
   if (inherits(ptab, "HousepiPosteriorDraws")) {
     ptab <- draws_block_(ptab, "param")
@@ -305,12 +306,13 @@ helper_read_param_table_ <- function(ptab, thin_ess = TRUE) {
   # named values: a single draw
   if (is_named_values_(ptab)) {
     if (!rlang::is_named(ptab)) stop_h(
-      "{.arg draws} holds a value without a parameter name."
+      "{.arg {arg}} holds a value without a parameter name."
     )
     several <- names(ptab)[lengths(ptab) != 1L]
     if (length(several)) stop_h(
-      paste("Parameter{?s} {.val {several}} {?does/do} not hold",
-            "exactly one value in {.arg draws}."),
+      # argument name pasted, as a second glue value breaks the plural
+      paste0("Parameter{?s} {.val {several}} {?does/do} not hold ",
+             "exactly one value in {.arg ", arg, "}."),
       "Pass several draws as a {.cls data.frame}, one row per draw."
     )
     return(list2DF(lapply(as.list(ptab), unname)))
@@ -318,7 +320,7 @@ helper_read_param_table_ <- function(ptab, thin_ess = TRUE) {
 
   tryCatch({
     return(as.data.frame(ptab))
-  }, error = \(e) stop_h("Type of {.arg draws} not supported.")
+  }, error = \(e) stop_h("Type of {.arg {arg}} not supported.")
   )
 }
 

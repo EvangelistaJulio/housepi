@@ -5,32 +5,44 @@
 
 # Roxygen text shared by several blocks, read at the use site as `r <name>`.
 
-rd_recov_houses_ <- "`integer()` One or more household counts to sweep.
+rd_perf_houses_ <- "`integer()` One or more household counts to sweep.
 If `NA`, the number of households carried by the attached data."
-rd_recov_draws_ <- "Values the studies are simulated at,
-one for every estimated parameter.
-Several draws are collapsed to their point estimate."
+rd_perf_truth_ <- "Parameter values every study is simulated at,
+one per estimated parameter, keyed by parameter name,
+as in `c(alpha = 0.1, beta = 0.2)` or a one-row `data.frame`.
+Posterior draws, from [run_inference()] or as `posterior::draws`,
+are collapsed to their point estimate."
 
-########  Recovery  ########
+########  Performance  ########
 
-#' Simulation values: the point estimate of `draws`, per declared parameter.
+#' Simulation values: `truth` per declared parameter.
+#' * posterior draws -> collapsed to their point estimate;
+#' * other table holding several values for a parameter -> error;
 #' * name not declared -> warning, value dropped;
 #' * `NA` value -> dropped;
 #' * estimated parameter without a value -> error,
-#'   as a recovery check simulates every replicate at the same known values.
+#'   as a performance check simulates every replicate at the same known values.
 #' @param estimated `character()` Parameters the check is about.
 #' @noRd
-recovery_values_ <- function(hh_model, draws, point_estimate, estimated) {
-  values <- if (!is.null(draws)) {
+performance_values_ <- function(hh_model, truth, point_estimate, estimated) {
+  draws <- inherits(truth, "HousepiPosteriorDraws") ||
+    posterior::is_draws(truth)
+  several <- if (!draws) names(truth)[lengths(truth) > 1L]
+  if (length(several)) stop_h(
+    "{.arg truth} holds several values for parameter{?s} {.val {several}}.",
+    "A performance check simulates every replicate at the same values.",
+    "To check inference across posterior draws, use {.fn check_calibration}."
+  )
+  values <- if (!is.null(truth)) {
     hh_model$.__enclos_env__$private$read_param_table_(
-      draws, thin_ess = FALSE
-    ) |> recovery_collapse_truth_(point_estimate)
+      truth, thin_ess = FALSE, arg = "truth"
+    ) |> performance_collapse_truth_(point_estimate)
   }
   declared <- get_parameters(hh_model)[["name"]]
   unknown <- setdiff(names(values), declared)
   if (length(unknown)) warn_h(
     "No parameter named {.val {unknown}} in the model.",
-    `!` = "Its {.arg draws} value is ignored.",
+    `!` = "Its {.arg truth} value is ignored.",
     find_closest_match(
       unknown, declared,
       otherwise = "Show the model parameters with {.fn get_parameters}."
@@ -41,34 +53,47 @@ recovery_values_ <- function(hh_model, draws, point_estimate, estimated) {
   unpinned <- setdiff(estimated, names(values))
   if (length(unpinned)) stop_h(
     "No simulation value for parameter{?s} {.val {unpinned}}.",
-    "A recovery check simulates at known values: pass them as {.arg draws}."
+    "A performance check simulates at known values: pass them as {.arg truth}."
   )
   values
 }
 
 #' Collapse a table of draws to one named vector of point estimates.
 #' @noRd
-recovery_collapse_truth_ <- function(table, point_estimate) {
+performance_collapse_truth_ <- function(table, point_estimate) {
   stat <- if (identical(point_estimate, "mean")) mean else stats::median
   vapply(table, function(x) stat(as.numeric(x)), numeric(1L))
 }
 
-#' Recovery statistics per household count and parameter.
+#' Performance measures per household count and parameter,
+#' each with its Monte Carlo standard error (Morris et al. 2019, table 6).
+#' * one replicate -> every Monte Carlo standard error `NA`;
+#' * zero truth -> relative bias `NA`.
 #' @param estimates `data.frame` One row per replicate and parameter.
 #' @noRd
-recovery_summary_ <- function(estimates) {
+performance_summary_ <- function(estimates) {
   sweep_by_(estimates, c("houses", "variable"), function(d) {
-    truth <- d[["truth"]]
+    n <- nrow(d)
+    truth <- d[["truth"]][[1L]]
+    scale <- if (truth == 0) NA_real_ else truth
     error <- d[["estimate"]] - truth
+    sq_error <- error^2
+    width <- d[["cri_upper"]] - d[["cri_lower"]]
+    coverage <- mean(d[["covers"]])
+    # standard error of a mean over the replicates
+    mcse <- \(x) stats::sd(x) / sqrt(n)
     data.frame(
-      d[1L, c("houses", "variable")], truth = truth[[1L]],
-      estimate = mean(d[["estimate"]]), bias = mean(error),
-      rel_bias = if (any(truth == 0)) NA_real_ else mean(error / truth),
-      rmse = sqrt(mean(error^2)),
-      coverage = mean(d[["covers"]]),
-      cri_width = mean(d[["cri_upper"]] - d[["cri_lower"]]),
+      d[1L, c("houses", "variable")], truth = truth,
+      estimate = mean(d[["estimate"]]),
+      bias = mean(error), bias_mcse = mcse(error),
+      rel_bias = mean(error) / scale, rel_bias_mcse = mcse(error) / abs(scale),
+      mse = mean(sq_error), mse_mcse = mcse(sq_error),
+      coverage = coverage,
+      coverage_mcse =
+        if (n > 1L) sqrt(coverage * (1 - coverage) / n) else NA_real_,
+      cri_width = mean(width), cri_width_mcse = mcse(width),
       ess_bulk = mean(d[["ess_bulk"]]),
-      nrep = nrow(d), n_flagged = sum(d[["flagged"]])
+      nrep = n, n_flagged = sum(d[["flagged"]])
     )
   })
 }
@@ -78,6 +103,8 @@ recovery_summary_ <- function(estimates) {
 #' Draw whole households with replacement, so the household-size distribution
 #' and the within-household composition of the covariates are preserved
 #' while the number of households is scaled.
+#' Results then describe a population of households
+#' shaped exactly like those of `data`.
 #' @param data `r rd_dataset_`
 #' @param houses `integer(1)` Number of households to draw.
 #' If `NA`, the number of households carried by `data`.
@@ -106,22 +133,22 @@ sample_house_structure <- function(data, houses = NA_integer_) {
   out
 }
 
-#' @title Parameter recovery check of a housepi model
+#' @title Performance check of a housepi model
 #' @description
-#' Container for the sweep run by [check_recovery()]:
+#' Container for the sweep run by [check_performance()]:
 #' household studies simulated at known parameter values and fitted back,
 #' replicated at one or more household counts.
 #' @examples
-#' recovery <- flu_1918_frederick |>
+#' performance <- flu_1918_frederick |>
 #'   new_housepi_model("final-size") |>
 #'   add_parameter(import = "template") |>
-#'   check_recovery(c(alpha = 0.15, beta = 0.2, gamma = 1),
-#'                  nrep = 2, houses = 30)
-#' recovery
-#' recovery$summarise()
+#'   check_performance(c(alpha = 0.15, beta = 0.2, gamma = 1),
+#'                     nrep = 2, houses = 30)
+#' performance
+#' performance$summarise()
 #' @docType class
-HousepiRecoveryCheck <- R6::R6Class(
-  classname = "HousepiRecoveryCheck",
+HousepiPerformanceCheck <- R6::R6Class(
+  classname = "HousepiPerformanceCheck",
 
   ####  Private  ####
 
@@ -138,16 +165,11 @@ HousepiRecoveryCheck <- R6::R6Class(
     # posterior sd, credible interval, whether it covers `truth`, diagnostics.
     reduce_ = function(fit, truth) {
       variables <- private$variables_
-      stat <- switch(private$point_estimate_, mean = mean, stats::median)
-      probs <- cri_level_probs(private$cri_level_)
-      summ <- as.data.frame(posterior::summarise_draws(
-        get_parameter_draws(fit),
-        estimate = stat,
-        sd = stats::sd,
-        cri_lower = \(x) unname(stats::quantile(x, probs[["lower"]])),
-        cri_upper = \(x) unname(stats::quantile(x, probs[["upper"]]))
-      ))
-      summ <- summ[match(variables, summ[["variable"]]), ]
+      pdraws <- get_parameter_draws(fit)
+      summ <- sweep_point_summary_(
+        lapply(stats::setNames(nm = variables), \(v) as.numeric(pdraws[[v]])),
+        private$point_estimate_, private$cri_level_
+      )
       truth <- unname(truth[variables])
       covers <- summ[["cri_lower"]] <= truth & truth <= summ[["cri_upper"]]
       cbind(summ["variable"], truth = truth,
@@ -252,13 +274,12 @@ HousepiRecoveryCheck <- R6::R6Class(
 
   public = list(
     #' @description
-    #' Create the recovery check object.
-    #' Use [check_recovery()] instead of calling `$new()`.
+    #' Create the performance check object.
+    #' Use [check_performance()] instead of calling `$new()`.
     #' @param hh_model `r rd_model_in_`
-    #' @param draws `r rd_draws_`
-    #' `r rd_recov_draws_`
+    #' @param truth `r rd_perf_truth_`
     #' @param nrep `r rd_sweep_nrep_`
-    #' @param houses `r rd_recov_houses_`
+    #' @param houses `r rd_perf_houses_`
     #' @param structure_sampler `r rd_sweep_sampler_`
     #' @param steps `r rd_smpl_steps_`
     #' @param thin `r rd_smpl_thin_`
@@ -267,7 +288,7 @@ HousepiRecoveryCheck <- R6::R6Class(
     #' @param threads `r rd_sweep_threads_`
     #' @param progress `r rd_progress_`
     #' @param ... `r rd_dots_config_`
-    initialize = function(hh_model, draws = NULL,
+    initialize = function(hh_model, truth = NULL,
                           nrep = 50L, houses = NA_integer_,
                           structure_sampler = sample_house_structure,
                           steps = 2000L, thin = 10L, adapt = 1000L,
@@ -279,8 +300,8 @@ HousepiRecoveryCheck <- R6::R6Class(
       private$name_ <- hh_model$.__enclos_env__$private$compiled_$name
 
       private$variables_ <- sweep_estimated_(hh_model)
-      values <- recovery_values_(hh_model, draws, private$point_estimate_,
-                                 private$variables_)
+      values <- performance_values_(hh_model, truth, private$point_estimate_,
+                                    private$variables_)
       private$truth_ <- values[private$variables_]
       private$sweep_ <- HousepiSweep$new(
         hh_model, sampler = structure_sampler, houses = houses, nrep = nrep,
@@ -288,24 +309,27 @@ HousepiRecoveryCheck <- R6::R6Class(
         fit_args = list(steps = steps, thin = thin, adapt = adapt,
                         chains = chains),
         threads = threads, dots = list(...), reducer = private$reduce_,
-        progress = progress, label = "Recovery replicates",
-        what = "Parameter recovery"
+        progress = progress, label = "Performance replicates",
+        what = "Performance check"
       )
       invisible(self)
     },
 
-    #' @description Compute the recovery statistics
+    #' @description Compute the performance measures
     #' per household count and parameter.
     #' @return `data.frame`
     #' \describe{
     #'   \item{bias, rel_bias}{Mean error, absolute and relative to the truth;}
-    #'   \item{rmse}{Root mean squared error;}
+    #'   \item{mse}{Mean squared error;}
     #'   \item{coverage}{Share of replicates whose interval covers the truth;}
     #'   \item{cri_width}{Mean width of the credible interval;}
+    #'   \item{bias_mcse, rel_bias_mcse, mse_mcse, coverage_mcse,
+    #'     cri_width_mcse}{Monte Carlo standard error of each measure,
+    #'     `NA` for a single replicate;}
     #'   \item{nrep, n_flagged}{Number of replicates aggregated,
     #'     and of those flagged.}
     #' }
-    summarise = function() recovery_summary_(private$sweep_$estimates),
+    summarise = function() performance_summary_(private$sweep_$estimates),
 
     #' @description Same as `$summarise()`.
     #' @return See `$summarise()`.
@@ -315,7 +339,7 @@ HousepiRecoveryCheck <- R6::R6Class(
     print = function() {
       model <- spaced_choice(private$name_)
       private$sweep_$print_rows(
-        "Parameter recovery check of model {.val {model}}.",
+        "Performance check of model {.val {model}}.",
         c(`Point estimate` = "{private$point_estimate_}",
           `Credible interval` = "{round(100 * private$cri_level_)}%")
       )
@@ -324,24 +348,28 @@ HousepiRecoveryCheck <- R6::R6Class(
   )
 )
 
-#' @title Check that inference recovers known parameters
+#' @title Check the performance of inference at known parameter values
 #' @description
 #' Simulate outbreaks in the households of the attached data
 #' at known parameter values, fit each resulting household study back
-#' with the same model, and report how well the posterior recovers
-#' the values that generated it.
+#' with the same model, and measure the performance of the posterior
+#' against the values that generated it
+#' \insertCite{morris_using_2019}{housepi}.
 #' `r rd_sweep_structure_`
 #' The sweep is repeated at one or more household counts,
 #' which shows whether a bias shrinks with the size of the study.
 #'
-#' The studies are simulated at `draws`,
+#' Every study is simulated at `truth`,
 #' and the priors of the same model drive inference,
 #' so no separate simulation model is needed.
+#' Repeated sampling at one value measures frequentist properties
+#' of the posterior.
+#' To check inference at values drawn anew for each replicate,
+#' see [check_calibration()].
 #' @param hh_model `r rd_model_in_`
-#' @param draws `r rd_draws_`
-#' `r rd_recov_draws_`
+#' @param truth `r rd_perf_truth_`
 #' @param nrep `r rd_sweep_nrep_`
-#' @param houses `r rd_recov_houses_`
+#' @param houses `r rd_perf_houses_`
 #' @param structure_sampler `r rd_sweep_sampler_`
 #' @param steps `r rd_smpl_steps_`
 #' @param thin `r rd_smpl_thin_`
@@ -350,34 +378,36 @@ HousepiRecoveryCheck <- R6::R6Class(
 #' @param threads `r rd_sweep_threads_`
 #' @param progress `r rd_progress_`
 #' @param ... `r rd_dots_config_`
-#' @return An object of class [HousepiRecoveryCheck].
+#' @return An object of class [HousepiPerformanceCheck].
 #' @details
 #' The first replicate that fails stops the check,
 #' with an error naming its household count and replicate.
 #' `r rd_sweep_reporting_`
 #' `r rd_global_summary_` `r rd_sweep_seed_`
 #' @examples
-#' recovery <- flu_1918_frederick |>
+#' performance <- flu_1918_frederick |>
 #'   new_housepi_model("final-size") |>
 #'   add_parameter(import = "template") |>
-#'   check_recovery(c(alpha = 0.15, beta = 0.2, gamma = 1),
-#'                  nrep = 2, houses = 30)
-#' recovery$summarise()
-#' recovery$overview
+#'   check_performance(c(alpha = 0.15, beta = 0.2, gamma = 1),
+#'                     nrep = 2, houses = 30)
+#' performance$summarise()
+#' performance$overview
+#' @references
+#' \insertAllCited{}
 #' @export
-check_recovery <- function(hh_model,
-                           draws = NULL,
-                           nrep = 50L,
-                           houses = NA_integer_,
-                           structure_sampler = sample_house_structure,
-                           steps = 2000L, thin = 10L, adapt = 1000L,
-                           chains = 4L, threads = 1L,
-                           progress = TRUE,
-                           ...) {
+check_performance <- function(hh_model,
+                              truth = NULL,
+                              nrep = 50L,
+                              houses = NA_integer_,
+                              structure_sampler = sample_house_structure,
+                              steps = 2000L, thin = 10L, adapt = 1000L,
+                              chains = 4L, threads = 1L,
+                              progress = TRUE,
+                              ...) {
   stopifnothousepi(hh_model)
   assert_advanced_settings_("time_step", ...)
-  HousepiRecoveryCheck$new(
-    hh_model$copy(), draws = draws, nrep = nrep, houses = houses,
+  HousepiPerformanceCheck$new(
+    hh_model$copy(), truth = truth, nrep = nrep, houses = houses,
     structure_sampler = structure_sampler,
     steps = steps, thin = thin, adapt = adapt,
     chains = chains, threads = threads, progress = progress, ...

@@ -807,8 +807,8 @@ test_that("A baseline moves with the contact rates coupled to it", {
      sqrt(summ_prod$mcse_mean^2 + summ_prod_2$mcse_mean^2)) |>
     expect_lt(4)
   # every draw stays inside the support
-  (draws$beta > 0 & draws$beta < 1) |> expect_all_true()
-  (draws$ctr_rest > 0) |> expect_all_true()
+  draws$beta |> expect_all_gt(0) |> expect_all_lt(1)
+  draws$ctr_rest |> expect_all_gt(0)
 
   # the baseline and the rate form one block, learnt along the ridge
   sampler <- inspect_state(hh_model_2)$.sampler

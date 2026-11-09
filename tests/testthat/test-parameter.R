@@ -331,8 +331,7 @@ test_that("Lognormal proposal rejects unsupported domains", {
     run_inference(steps = 20L, chains = 1L, adapt = 20L, thin = 1L) |>
     suppressWarnings() |>
     get_parameter_draws()
-  (draws[["rho"]] > -1) |> expect_all_true()
-  (draws[["rho"]] < 4) |> expect_all_true()
+  draws[["rho"]] |> expect_all_gt(-1) |> expect_all_lt(4)
 })
 
 test_that("Discretization is enabled as expected", {
@@ -357,8 +356,7 @@ test_that("Discretization is enabled as expected", {
     get_parameter_draws() |>
     helper_draws_to_frame()
   (draws == floor(draws)) |> as.vector() |> expect_all_true()
-  (draws >= val$min) |> as.vector() |> expect_all_true()
-  (draws <= val$max) |> as.vector() |> expect_all_true()
+  draws |> expect_all_gte(val$min) |> expect_all_lte(val$max)
 
   # a lattice kernel tuned narrower than one integer value stays pinned to its
   # starting point, every move proposing the value it already holds
@@ -428,7 +426,7 @@ test_that("Default random walks sample their target", {
   log_rho_4 <- log(draws[["rho_4"]])
   mean(log_rho_4) |> expect_equal(log(1e-6) / 2, tolerance = 0.06)
   quartiles <- quantile(log_rho_4, c(0.25, 0.5, 0.75), names = FALSE)
-  (abs(quartiles - log(1e-6) * c(0.75, 0.5, 0.25)) < 0.7) |> expect_all_true()
+  abs(quartiles - log(1e-6) * c(0.75, 0.5, 0.25)) |> expect_all_lt(0.7)
 })
 
 test_that("A random walk adapts its scale unless the scale is a number", {
@@ -729,7 +727,7 @@ test_that("An unpinned parameter is drawn from its prior in simulation", {
     vapply(\(x) x$hidden[1], numeric(1))
 
   unique(drawn) |> expect_length(40L)
-  (drawn >= 0.1 & drawn <= 0.9) |> expect_all_true()
+  drawn |> expect_all_gte(0.1) |> expect_all_lte(0.9)
   # uniform spread, not the proposal's 0.005
   stats::sd(drawn) |> expect_gt(0.15)
   # centred on the prior, not on 0.88

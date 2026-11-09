@@ -1196,7 +1196,7 @@ add_infectivity_profile <- function(hh_model,
 #' @description
 #' Attach the functions turning each simulated household study
 #' into the data reported.
-#' [run_simulation()], [check_predictive()], [check_recovery()] and
+#' [run_simulation()], [check_predictive()], [check_performance()] and
 #' [check_calibration()] apply them to every replicate.
 #' @details
 #' Inference does not model the reporting process,

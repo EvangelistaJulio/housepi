@@ -2,30 +2,30 @@
 % Please edit documentation in R/replicate_sweep.R
 \name{combine_checks}
 \alias{combine_checks}
-\alias{c.HousepiRecoveryCheck}
+\alias{c.HousepiPerformanceCheck}
 \alias{c.HousepiCalibrationCheck}
 \title{Combine checks of one model}
 \usage{
-\method{c}{HousepiRecoveryCheck}(...)
+\method{c}{HousepiPerformanceCheck}(...)
 
 \method{c}{HousepiCalibrationCheck}(...)
 }
 \arguments{
-\item{...}{Objects of class \link{HousepiRecoveryCheck},
+\item{...}{Objects of class \link{HousepiPerformanceCheck},
 or of class \link{HousepiCalibrationCheck}.}
 }
 \value{
 A check of the same class, holding the replicates of all checks.
 }
 \description{
-Pool the replicates of several recovery checks,
+Pool the replicates of several performance checks,
 or of several calibration checks,
 so a check grows without running its replicates again.
 }
 \details{
 The checks must share the model, its definitions, the attached data,
 the structure sampler, the reporting process and the sampler settings.
-Recovery checks must also share the values the studies are simulated at.
+Performance checks must also share the values the studies are simulated at.
 Calibration checks must share their source, prior or posterior,
 and posterior checks rank the draws of distinct runs of \code{\link[=run_inference]{run_inference()}}.
 A sampler or a reporting process created inside another function
@@ -39,8 +39,8 @@ and do not combine.
 hh_model <- flu_1918_frederick |>
   new_housepi_model("final-size") |>
   add_parameter(import = "template")
-draws <- c(alpha = 0.15, beta = 0.2, gamma = 1)
-recovery <- check_recovery(hh_model, draws, nrep = 2, houses = 30)
-recovery_2 <- check_recovery(hh_model, draws, nrep = 2, houses = 30)
-c(recovery, recovery_2)$nrep
+truth <- c(alpha = 0.15, beta = 0.2, gamma = 1)
+performance <- check_performance(hh_model, truth, nrep = 2, houses = 30)
+performance_2 <- check_performance(hh_model, truth, nrep = 2, houses = 30)
+c(performance, performance_2)$nrep
 }

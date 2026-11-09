@@ -1326,8 +1326,8 @@ test_that("Independence proposal inherits the model location shift", {
     suppressWarnings()
 
   draws <- as.data.frame(get_latent_draws(hh_fit))
-  (draws$m1_hidden >= 4 & draws$m1_hidden <= 5) |> expect_all_true()
-  (draws$m2_hidden >= 8 & draws$m2_hidden <= 9) |> expect_all_true()
+  draws$m1_hidden |> expect_all_gte(4) |> expect_all_lte(5)
+  draws$m2_hidden |> expect_all_gte(8) |> expect_all_lte(9)
 })
 
 test_that("Latent variables moving together sample their models", {
@@ -1415,7 +1415,7 @@ test_that("Latent draws stay inside their live support", {
     run_short() |>
     latent_frame()
   gap <- draws[["1_hidden"]] - draws[["1_layer_1"]]
-  (gap >= 0 & gap <= 1) |> expect_all_true()
+  gap |> expect_all_gte(0) |> expect_all_lte(1)
 
   # transitive deterministic latent variable
   draws <- hh_data |>
@@ -1427,7 +1427,7 @@ test_that("Latent draws stay inside their live support", {
     run_short() |>
     latent_frame()
   gap <- draws[["1_hidden"]] - draws[["1_layer_2"]]
-  (gap >= 0 & gap <= 1) |> expect_all_true()
+  gap |> expect_all_gte(0) |> expect_all_lte(1)
 
   # parameter
   hh_fit <- hh_data |>
@@ -1438,7 +1438,7 @@ test_that("Latent draws stay inside their live support", {
     run_short()
   hidden <- latent_frame(hh_fit)[["1_hidden"]]
   rho <- as.data.frame(get_parameter_draws(hh_fit))[["rho"]]
-  (hidden >= rho) |> expect_all_true()
+  hidden |> expect_all_gte(rho)
 })
 
 test_that("Draws requested where no latent is sampled are ignored", {
@@ -1471,9 +1471,9 @@ test_that("Latent definitions are integrated in simulations", {
                              min = layer_1, max = layer_1 + 1),
                layer_1 = list(model = "gamma", shape = 2, scale = 1)) |>
     run_simulation()
-  (simulated$layer_1 <= simulated$hidden &
-     simulated$hidden <= simulated$layer_1 + 1) |>
-    expect_all_true()
+  simulated$hidden |>
+    expect_all_gte(simulated$layer_1) |>
+    expect_all_lte(simulated$layer_1 + 1)
 })
 
 test_that("A latent reading a parameter follows each draw in simulation", {
@@ -1485,8 +1485,8 @@ test_that("A latent reading a parameter follows each draw in simulation", {
 
   # each replicate draws around its own value
   simulated <- run_simulation(hh_model, draws = data.frame(rho = c(1, 10)))
-  (abs(simulated[[1]]$hidden - 1) < 1) |> expect_all_true()
-  (abs(simulated[[2]]$hidden - 10) < 1) |> expect_all_true()
+  abs(simulated[[1]]$hidden - 1) |> expect_all_lt(1)
+  abs(simulated[[2]]$hidden - 10) |> expect_all_lt(1)
 })
 
 test_that("A constant with a model is pinned, its density kept", {
@@ -1637,7 +1637,7 @@ test_that("A latent degenerate domain warns and collapses", {
   draws <- as.data.frame(get_latent_draws(hh_fit))
   draws$m1_hidden |> expect_all_equal(3)
   length(unique(draws$m2_hidden)) |> expect_gt(1L)
-  (draws$m2_hidden >= 3 & draws$m2_hidden <= 5) |> expect_all_true()
+  draws$m2_hidden |> expect_all_gte(3) |> expect_all_lte(5)
 
   # simulation draws the pinned member at its point too
   expect_warning(
@@ -1744,7 +1744,7 @@ test_that("Status-specific latent variables draw from per-status ranges", {
   simulated <- do.call(rbind, run_simulation(hh_model, nrep = 50))
   for (s in seq(4)) {
     draws <- simulated$hidden[simulated$status == s]
-    (draws >= s - 1 & draws <= s) |> expect_all_true()
+    draws |> expect_all_gte(s - 1) |> expect_all_lte(s)
   }
 
   # inference traces every member within its status support
@@ -1756,7 +1756,7 @@ test_that("Status-specific latent variables draw from per-status ranges", {
   for (s in seq(4)) {
     trace <- draws[[paste0(s, "_hidden")]]
     trace |> expect_length(5L)
-    (trace >= s - 1 & trace <= s) |> expect_all_true()
+    trace |> expect_all_gte(s - 1) |> expect_all_lte(s)
   }
 })
 
@@ -1938,7 +1938,7 @@ test_that("Observation-aware initialization", {
     suppressWarnings() |>
     get_latent_draws() |>
     as.data.frame()
-  max(abs(draws[["1_hidden"]] - 0.5)) |> expect_lte(window)
+  abs(draws[["1_hidden"]] - 0.5) |> expect_all_lte(window)
 
   # datum record = 5 is unreachable
   hh_data <- data.frame(hh_id = "h1", status = 1, record = 5)
@@ -2005,7 +2005,7 @@ test_that("Members missing different observations still initialize", {
     get_latent_draws() |>
     as.data.frame()
   # each observed member stays inside its window
-  max(abs(unlist(draws[c("m1_hidden", "m2_hidden")]) - 0.5)) |> expect_lte(0.1)
+  abs(unlist(draws[c("m1_hidden", "m2_hidden")]) - 0.5) |> expect_all_lte(0.1)
 })
 
 test_that("An observation infers discretization from the column it reads", {
@@ -2148,7 +2148,7 @@ test_that("A household-bound member observation bounds every member", {
   simulated$end_date |> expect_no_na()
   simulated$end_date |> expect_equal(simulated$start_date + 21)
   # uninfected members leave the rate set at the end of follow-up
-  mean(simulated$status > 0) |> expect_lt(1)
+  any(simulated$status == 0) |> expect_true()
   # the argument is computed for each member: an uninfected one draws no test
   # date and drops out of the fold
   as.numeric(simulated$start_date_2) |>
@@ -2166,7 +2166,7 @@ test_that("An observation model reads an observation drawn before it", {
     run_simulation()
 
   infected <- simulated[simulated$status > 0, ]
-  max(abs(infected$record - infected$test_date)) |> expect_lt(0.1)
+  abs(infected$record - infected$test_date) |> expect_all_lt(0.1)
 })
 
 test_that("Observation cyclic dependencies are captured", {
@@ -2198,7 +2198,7 @@ test_that("A deterministic observation constrains its ancestors", {
   # the sampled onset (infec_time + incub_period) tracks the observed onset_date
   recon <- unname(colMeans(onset[, grep("onset_time", names(onset))]))
   observed <- mk_onset$data$onset_date[mk_onset$data$status > 0]
-  max(abs(recon - observed)) |> expect_lt(0.5)
+  abs(recon - observed) |> expect_all_lt(0.5)
 })
 
 test_that("Discretized observation node initializes finite", {
@@ -2410,7 +2410,7 @@ test_that("A latent reads a static data-bound household observation", {
   # start_date is materialized statically (= 5) before incub_period is drawn
   simulated$start_date |> expect_all_equal(5)
   record <- simulated$record[!is.na(simulated$record)]
-  (record >= 4 & record <= 5) |> expect_all_true()
+  record |> expect_all_gte(4) |> expect_all_lte(5)
 })
 
 test_that("Data-bound household observation supplies a required data column", {

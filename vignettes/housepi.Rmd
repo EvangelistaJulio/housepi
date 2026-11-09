@@ -389,7 +389,7 @@ param_draws |>
   flextable::autofit()
 ```
 
-Due to the stochastic nature of the process, a single simulation study might not be enough to assess inference quality, and [parameter recovery checks](parameter_recovery_checks.html) should be considered.
+Due to the stochastic nature of the process, a single simulation study might not be enough to assess inference quality, and [performance checks](performance_checks.html) should be considered.
 Alongside them, [posterior predictive checks](predictive_checks.html) can be used to compare observed household measures against model posterior predicted measures.
 
 ```{r footer-child, child = "helpers/_footer.Rmd"}

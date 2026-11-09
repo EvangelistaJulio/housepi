@@ -292,7 +292,8 @@ HousepiModel <- R6::R6Class(
                                  nrep = NA_integer_,
                                  thin_ess = TRUE,
                                  arg = "draws") {
-      table <- helper_read_param_table_(table, thin_ess = thin_ess)
+      table <- helper_read_param_table_(table, thin_ess = thin_ess,
+                                        arg = arg)
       private$assert_no_baseline_value_(table, arg)
       helper_thin_even_(table, nrep)
     },

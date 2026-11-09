@@ -78,6 +78,20 @@ sweep_diagnostics_ <- function(fit, variables) {
   diag[c("rhat", "ess_bulk", "flagged")]
 }
 
+#' Point estimate, posterior sd and credible interval of each variable.
+#' @param draws `list` Draws keyed by variable name, chains pooled.
+#' @noRd
+sweep_point_summary_ <- function(draws, point_estimate, cri_level) {
+  stat <- switch(point_estimate, mean = mean, stats::median)
+  probs <- cri_level_probs(cri_level)
+  bound <- \(p) vapply(draws, \(x) unname(stats::quantile(x, p)), numeric(1L))
+  data.frame(variable = names(draws),
+             estimate = vapply(draws, stat, numeric(1L)),
+             sd = vapply(draws, stats::sd, numeric(1L)),
+             cri_lower = bound(probs[["lower"]]),
+             cri_upper = bound(probs[["upper"]]), row.names = NULL)
+}
+
 #' Sweep cost per household count, averaged over the replicates.
 #' @param replicates `data.frame` One row per replicate.
 #' @noRd
@@ -165,7 +179,7 @@ sweep_condition_ <- function(observed, simulated) {
   out
 }
 
-#' Sweep of a recovery or calibration check,
+#' Sweep of a performance or calibration check,
 #' held in the private field `sweep_` of the check.
 #' @noRd
 HousepiSweep <- R6::R6Class(
@@ -388,16 +402,16 @@ sweep_pool_ <- function(sweeps) {
 
 #' @title Combine checks of one model
 #' @description
-#' Pool the replicates of several recovery checks,
+#' Pool the replicates of several performance checks,
 #' or of several calibration checks,
 #' so a check grows without running its replicates again.
-#' @param ... Objects of class [HousepiRecoveryCheck],
+#' @param ... Objects of class [HousepiPerformanceCheck],
 #' or of class [HousepiCalibrationCheck].
 #' @return A check of the same class, holding the replicates of all checks.
 #' @details
 #' The checks must share the model, its definitions, the attached data,
 #' the structure sampler, the reporting process and the sampler settings.
-#' Recovery checks must also share the values the studies are simulated at.
+#' Performance checks must also share the values the studies are simulated at.
 #' Calibration checks must share their source, prior or posterior,
 #' and posterior checks rank the draws of distinct runs of [run_inference()].
 #' A sampler or a reporting process created inside another function
@@ -410,13 +424,13 @@ sweep_pool_ <- function(sweeps) {
 #' hh_model <- flu_1918_frederick |>
 #'   new_housepi_model("final-size") |>
 #'   add_parameter(import = "template")
-#' draws <- c(alpha = 0.15, beta = 0.2, gamma = 1)
-#' recovery <- check_recovery(hh_model, draws, nrep = 2, houses = 30)
-#' recovery_2 <- check_recovery(hh_model, draws, nrep = 2, houses = 30)
-#' c(recovery, recovery_2)$nrep
+#' truth <- c(alpha = 0.15, beta = 0.2, gamma = 1)
+#' performance <- check_performance(hh_model, truth, nrep = 2, houses = 30)
+#' performance_2 <- check_performance(hh_model, truth, nrep = 2, houses = 30)
+#' c(performance, performance_2)$nrep
 #' @name combine_checks
 #' @export
-c.HousepiRecoveryCheck <- function(...) sweep_combine_(list(...))
+c.HousepiPerformanceCheck <- function(...) sweep_combine_(list(...))
 
 #' @rdname combine_checks
 #' @export

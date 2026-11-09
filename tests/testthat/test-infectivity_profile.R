@@ -384,8 +384,8 @@ test_that("A profile reading a parameter follows each draw in simulation", {
 
   # gaps below 6 for a mean of 2, above 6 for a mean of 12
   simulated <- run_simulation(hh_model, draws = data.frame(rho = c(2, 12)))
-  (gaps(simulated[[1]]) < 6) |> expect_all_true()
-  (gaps(simulated[[2]]) > 6) |> expect_all_true()
+  gaps(simulated[[1]]) |> expect_all_lt(6)
+  gaps(simulated[[2]]) |> expect_all_gt(6)
 })
 
 test_that("The household snapshot reports the profile of each member", {
