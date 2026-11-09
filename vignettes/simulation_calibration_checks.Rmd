@@ -24,8 +24,7 @@ options(housepi.footer.warranty = TRUE)
 options(housepi.footer.sample = TRUE)
 ```
 
-Here we show how to check that inference returns the posterior it should, on average over the prior.
-This is simulation-based calibration [@talts_validating_2020; @modrak_simulation_2025].
+Here we show how to check that inference returns the posterior it should, using simulation-based calibration [@cook_validation_2006].
 Each replicate draws parameter values from the prior, simulates a study at them, fits it back with the same model, and ranks each drawn value among the posterior draws of its fit.
 When the likelihood and the sampler are correct, the drawn value behaves as one more posterior draw, so its rank is uniform over the replicates.
 

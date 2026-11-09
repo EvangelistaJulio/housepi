@@ -77,7 +77,7 @@ of class \link{HousepiPredictiveCheck} otherwise.
 \description{
 Predictive check comparing observed values of household measures
 against their values on household studies simulated from parameter values
-\insertCite{gelman_posterior_1996}{housepi}.
+\insertCite{rubin_bayesianly_1984}{housepi}.
 Without \code{draws}, the parameters are drawn from their prior,
 as in \code{\link[=run_simulation]{run_simulation()}}, for a prior predictive check.
 With posterior draws, it is a posterior predictive check.

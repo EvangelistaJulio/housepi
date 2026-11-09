@@ -749,7 +749,7 @@ HousepiEpiPredictiveCheck <- R6::R6Class(
 #' @description
 #' Predictive check comparing observed values of household measures
 #' against their values on household studies simulated from parameter values
-#' \insertCite{gelman_posterior_1996}{housepi}.
+#' \insertCite{rubin_bayesianly_1984}{housepi}.
 #' Without `draws`, the parameters are drawn from their prior,
 #' as in [run_simulation()], for a prior predictive check.
 #' With posterior draws, it is a posterior predictive check.

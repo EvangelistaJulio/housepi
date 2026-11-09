@@ -24,7 +24,7 @@ options(housepi.footer.warranty = TRUE)
 options(housepi.footer.sample = TRUE)
 ```
 
-A predictive check simulates household studies from the model and compares common household measures on them with the observed ones [@gelman_posterior_1996].
+A predictive check simulates household studies from the model and compares common household measures on them with the observed ones [@rubin_bayesianly_1984].
 Before inference, the parameters are drawn from their prior: this is a prior predictive check, and it shows what the model and its priors expect to see.
 After inference, the parameters are taken from the posterior draws: this is a posterior predictive check (PPC), and it shows whether the fitted model reproduces the data.
 Both run through `check_predictive()`.

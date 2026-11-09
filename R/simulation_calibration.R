@@ -544,8 +544,6 @@ HousepiCalibrationCheck <- R6::R6Class(
 #' Uniformity is rejected when the statistic falls below its 5th percentile
 #' under uniform ranks \insertCite{modrak_simulation_2025}{housepi},
 #' so a calibrated sampler is rejected with probability at most 0.05.
-#' The check itself goes back to
-#' \insertCite{talts_validating_2020;textual}{housepi}.
 #'
 #' Posterior draws are thinned to their bulk effective sample size,
 #' then `nrep` of them are picked evenly spaced, one per replicate,
