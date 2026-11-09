@@ -16,7 +16,7 @@
 namespace housepi
 {
     class Individual;
-    class MCMCBase;
+    struct ChainState;
     struct Data;
     struct Parameter;
     struct Augmented;
@@ -59,10 +59,11 @@ namespace housepi
         Draws house_log_lik;
         std::vector<const Individual *> tracked_indivs;
 
-        /// Initialize posterior sample.
-        void init(MCMCBase &mcmc);
-        /// Store current values as draw `local` of chain `chain_id`, in its own column block.
-        void store(MCMCBase &mcmc,
+        /// Initialize posterior sample of `chain`.
+        void init(const ChainState &chain, const Settings &settings);
+        /// Store the values of `chain` as draw `local` of chain `chain_id`, in its own column block.
+        void store(const ChainState &chain,
+                   const Settings &settings,
                    Settings::Chain chain_id,
                    Settings::Step local);
 

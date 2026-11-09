@@ -89,17 +89,15 @@ namespace housepi
     /// Infectivity profile: generic, per-member latent, or discrete-time lookup table.
     struct InfecProfile
     {
-        /// Processes the latent infectivity profile.
-        friend struct Augmented;
-
-    public:
         std::unique_ptr<Distribution> generic;
         str_table latent_definitions = {};
         size_t latent_key;
 
         //////  Constructor  //////
 
-        InfecProfile();
+        /// Bind the latents a per-member profile is read from.
+        /// @note The Augmented may be bound before it is constructed: it is first read at evaluation.
+        explicit InfecProfile(const Augmented &augm);
         ~InfecProfile();
 
         //////  Setter  //////
@@ -107,9 +105,6 @@ namespace housepi
         /// Build the infectivity profile distribution.
         /// @todo Honour the minimum of the profile.
         void build(Translator &translator, const str_table &input);
-
-        /// Bind latent storage for runtime per-member profile resolution.
-        void bind_augm(const Augmented *augm) noexcept { paugm_ = augm; }
 
         /// Finalize the generic distribution, resolving its read-surface, before use.
         /// * latent profile -> finalized with its member variable.
@@ -172,7 +167,7 @@ namespace housepi
             switch (mode_)
             {
             case Mode::Latent:
-                return paugm_->at(latent_key, *indiv_ptr).function()->pdf(t);
+                return augm_.at(latent_key, *indiv_ptr).function()->pdf(t);
             case Mode::LookUp:
                 return lookup_.inst(t);
             // case Mode::Generic
@@ -186,7 +181,7 @@ namespace housepi
             switch (mode_)
             {
             case Mode::Latent:
-                return paugm_->at(latent_key, *indiv_ptr).function()->cdf(t);
+                return augm_.at(latent_key, *indiv_ptr).function()->cdf(t);
             case Mode::LookUp:
                 return generic->is_below(t) ? 0. : lookup_.cumul(t);
             // case Mode::Generic
@@ -219,8 +214,8 @@ namespace housepi
         /// Discrete-time lookup table.
         infprof::LookUpTable lookup_;
 
-        /// Latent storage for the per-member profile.
-        const Augmented *paugm_ = nullptr;
+        /// Latents a per-member profile is read from.
+        const Augmented &augm_;
 
         /// Build the generic profile, independent of status.
         void build_generic_(Translator &translator, const str_table &input);

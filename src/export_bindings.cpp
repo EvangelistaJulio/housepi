@@ -491,69 +491,69 @@ namespace housepi
 
         void import_param(Rcpp::XPtr<MCMC> mcmc_ptr, SEXP input)
         {
-            mcmc_ptr->param.build(rdataframe_to<str_table>(input), mcmc_ptr->translator);
-            mcmc_ptr->data.state.set_evaluated(false);
+            mcmc_ptr->chain().param.build(rdataframe_to<str_table>(input), mcmc_ptr->chain().translator);
+            mcmc_ptr->chain().data.state.set_evaluated(false);
         }
 
         void import_dataset(Rcpp::XPtr<MCMC> mcmc_ptr, SEXP input)
         {
             mcmc_ptr->detach_data_store();
-            mcmc_ptr->data.build_dataset(rdataframe_to<str_table>(input));
-            mcmc_ptr->init_equivalence_class_compression();
+            mcmc_ptr->chain().data.build_dataset(rdataframe_to<str_table>(input));
+            mcmc_ptr->chain().init_equivalence_class_compression();
         }
 
         void import_long_dataset(Rcpp::XPtr<MCMC> mcmc_ptr, SEXP input)
         {
             // @todo Decide whether the long dataset should be copy-on-write too.
-            mcmc_ptr->data.build_long_dataset(rdataframe_to<str_table>(input));
-            mcmc_ptr->data.state.set_evaluated(false);
+            mcmc_ptr->chain().data.build_long_dataset(rdataframe_to<str_table>(input));
+            mcmc_ptr->chain().data.state.set_evaluated(false);
         }
 
         void import_group_rate(Rcpp::XPtr<MCMC> mcmc_ptr, SEXP input)
         {
-            mcmc_ptr->data.set_eq_class_keys(
+            mcmc_ptr->chain().data.set_eq_class_keys(
                 Data::Source::GroupRate,
-                mcmc_ptr->rates.build_group(mcmc_ptr->data.dataset(), mcmc_ptr->param, rdataframe_to<str_table>(input)));
-            mcmc_ptr->init_equivalence_class_compression();
+                mcmc_ptr->chain().rates.build_group(mcmc_ptr->chain().data.dataset(), mcmc_ptr->chain().param, rdataframe_to<str_table>(input)));
+            mcmc_ptr->chain().init_equivalence_class_compression();
         }
 
         void import_contact_rate(Rcpp::XPtr<MCMC> mcmc_ptr, SEXP input)
         {
-            mcmc_ptr->data.set_eq_class_keys(
+            mcmc_ptr->chain().data.set_eq_class_keys(
                 Data::Source::ContactRate,
-                mcmc_ptr->rates.build_contact(mcmc_ptr->data.dataset(), mcmc_ptr->param, rdataframe_to<str_table>(input)));
-            mcmc_ptr->init_equivalence_class_compression();
+                mcmc_ptr->chain().rates.build_contact(mcmc_ptr->chain().data.dataset(), mcmc_ptr->chain().param, rdataframe_to<str_table>(input)));
+            mcmc_ptr->chain().init_equivalence_class_compression();
         }
 
         void import_infec_profile(Rcpp::XPtr<MCMC> mcmc_ptr, SEXP input)
         {
-            mcmc_ptr->infec_profile.build(mcmc_ptr->translator, rdataframe_to<str_table>(input));
-            mcmc_ptr->data.state.set_evaluated(false);
+            mcmc_ptr->chain().infec_profile.build(mcmc_ptr->chain().translator, rdataframe_to<str_table>(input));
+            mcmc_ptr->chain().data.state.set_evaluated(false);
         }
 
         void import_latent(Rcpp::XPtr<MCMC> mcmc_ptr, SEXP input)
         {
-            mcmc_ptr->augm.build(mcmc_ptr->infec_profile, mcmc_ptr->status_process, rdataframe_to<str_table>(input));
-            mcmc_ptr->init_equivalence_class_compression();
+            mcmc_ptr->chain().augm.build(rdataframe_to<str_table>(input));
+            mcmc_ptr->chain().init_equivalence_class_compression();
         }
 
         void import_status_process(Rcpp::XPtr<MCMC> mcmc_ptr, SEXP input, size_t n_levels)
         {
-            mcmc_ptr->status_process.build(mcmc_ptr->data.dataset(), rdataframe_to<str_table>(input), n_levels);
-            mcmc_ptr->data.state.set_evaluated(false);
+            mcmc_ptr->chain().status_process.build(mcmc_ptr->chain().data.dataset(), rdataframe_to<str_table>(input), n_levels);
+            mcmc_ptr->chain().data.state.set_evaluated(false);
         }
 
         void import_param_table(Rcpp::XPtr<MCMC> mcmc_ptr, SEXP input)
         {
-            mcmc_ptr->param.build_for_predic(rdataframe_to<dbl_table>(input));
-            mcmc_ptr->data.state.set_evaluated(false);
+            mcmc_ptr->chain().param.build_for_predic(rdataframe_to<dbl_table>(input));
+            mcmc_ptr->chain().data.state.set_evaluated(false);
         }
 
         /// Pin latents to the columns of `input`, see Augmented::pin_values().
         void import_latent_table(Rcpp::XPtr<MCMC> mcmc_ptr, SEXP input)
         {
-            mcmc_ptr->augm.pin_values(rdataframe_to<dbl_table>(input));
-            mcmc_ptr->data.state.set_evaluated(false);
+            mcmc_ptr->chain().augm.pin_values(rdataframe_to<dbl_table>(input));
+            mcmc_ptr->chain().data.state.set_evaluated(false);
         }
 
         //////////////////////////////  MCMC : exports to Rcpp  //////////////////////////////
@@ -677,37 +677,37 @@ namespace housepi
             // finalizing collapses each wired cell to a constant: no read-cell outlives its Variable
             // the next definition import clears the Variables
             // a failed build rewinds the read-surface before rethrowing
-            if (!engine.augm.scheme().list_deterministic_obs.empty())
+            if (!engine.chain().augm.scheme().list_deterministic_obs.empty())
             {
-                engine.data.reset_readcells(engine.augm.get_produced_cols());
+                engine.chain().data.reset_readcells(engine.chain().augm.get_produced_cols());
                 try
                 {
-                    engine.augm.materialize_deterministic_obs(true);
-                    engine.data.finalize();
+                    engine.chain().augm.materialize_deterministic_obs(true);
+                    engine.chain().data.finalize();
                 }
                 catch (const std::exception &)
                 {
-                    engine.data.reset_readcells();
+                    engine.chain().data.reset_readcells();
                     throw;
                 }
             }
 
-            const std::vector<std::string> columns = engine.data.dataset().imported_cols();
+            const std::vector<std::string> columns = engine.chain().data.dataset().imported_cols();
             RcppFrame frame(n_dataset_cols(columns.size(), true));
-            add_dataset_columns(frame, engine.data, engine.data.dataset(), columns, true);
+            add_dataset_columns(frame, engine.chain().data, engine.chain().data.dataset(), columns, true);
             return frame.frame();
         }
 
         /// Export data and latents at the current state to an R data frame.
         Rcpp::DataFrame export_augmented_dataset(Rcpp::XPtr<MCMC> mcmc_ptr)
         {
-            const data::Dataset &dataset = mcmc_ptr->data.dataset();
-            const Augmented &augm = mcmc_ptr->augm;
+            const data::Dataset &dataset = mcmc_ptr->chain().data.dataset();
+            const Augmented &augm = mcmc_ptr->chain().augm;
 
             const std::vector<size_t> &list = augm.scheme().list_latent_export;
             const std::vector<std::string> columns = vect::difference(dataset.all(), augm.consult(list));
             RcppFrame frame(n_dataset_cols(columns.size(), true) + list.size());
-            add_dataset_columns(frame, mcmc_ptr->data, dataset, columns, true);
+            add_dataset_columns(frame, mcmc_ptr->chain().data, dataset, columns, true);
             add_latent_columns(frame, augm, dataset);
             return frame.frame();
         }
@@ -759,7 +759,7 @@ namespace housepi
         /// Export the long dataset to an R data frame.
         Rcpp::DataFrame export_long_dataset(Rcpp::XPtr<MCMC> mcmc_ptr)
         {
-            return rcpp_long_dataset(mcmc_ptr->data, mcmc_ptr->data.dataset());
+            return rcpp_long_dataset(mcmc_ptr->chain().data, mcmc_ptr->chain().data.dataset());
         }
 
         //////  MCMCBase : report exports  //////
@@ -773,8 +773,8 @@ namespace housepi
         /// Summarise household cases to an R data frame.
         Rcpp::DataFrame summarise_house_cases(Rcpp::XPtr<MCMC> mcmc_ptr)
         {
-            const data::ReportIndividual &indiv = mcmc_ptr->data.dataset().report_indiv;
-            const data::ReportHousehold &house = mcmc_ptr->data.dataset().report_house;
+            const data::ReportIndividual &indiv = mcmc_ptr->chain().data.dataset().report_indiv;
+            const data::ReportHousehold &house = mcmc_ptr->chain().data.dataset().report_house;
 
             auto pct_indiv = [&](size_t n)
             { return format_percentage(n, indiv.total); };
@@ -799,7 +799,7 @@ namespace housepi
                 {"household", "no cases", house.no_cases, pct_house(house.no_cases)},
                 {"household", "at least 1 case", house.at_least_1_case, pct_house(house.at_least_1_case)},
                 {"household", "at least 2 cases", house.at_least_2_cases, pct_house(house.at_least_2_cases)},
-                {"household", "classes", mcmc_ptr->data.n_eq_classes(), NA_REAL}};
+                {"household", "classes", mcmc_ptr->chain().data.n_eq_classes(), NA_REAL}};
 
             Rcpp::CharacterVector level(rows.size()), metric(rows.size());
             Rcpp::IntegerVector count(rows.size());
@@ -858,7 +858,7 @@ namespace housepi
         /// Snapshot the current parameter values, shared by every household.
         Rcpp::NumericVector rcpp_snapshot_param(Rcpp::XPtr<MCMC> mcmc_ptr)
         {
-            const Parameter &param = mcmc_ptr->param;
+            const Parameter &param = mcmc_ptr->chain().param;
 
             if (!param.is_allocated())
                 return Rcpp::NumericVector::create();
@@ -875,9 +875,9 @@ namespace housepi
         Rcpp::DataFrame rcpp_snapshot_dataset(Rcpp::XPtr<MCMC> mcmc_ptr,
                                               const Household &house)
         {
-            const std::vector<std::string> &columns = mcmc_ptr->data.dataset().all();
+            const std::vector<std::string> &columns = mcmc_ptr->chain().data.dataset().all();
             RcppFrame frame(n_dataset_cols(columns.size(), true));
-            add_dataset_columns(frame, mcmc_ptr->data, house, columns, true);
+            add_dataset_columns(frame, mcmc_ptr->chain().data, house, columns, true);
             return frame.frame();
         }
 
@@ -885,14 +885,14 @@ namespace housepi
         Rcpp::DataFrame rcpp_snapshot_group_rates(Rcpp::XPtr<MCMC> mcmc_ptr,
                                                   const Household &house)
         {
-            const rates::Group &group_rate = mcmc_ptr->rates.group();
+            const rates::Group &group_rate = mcmc_ptr->chain().rates.group();
             const std::vector<std::string> &headers = group_rate.all();
 
             if (headers.empty() || group_rate.is_empty())
                 return Rcpp::DataFrame::create();
 
             RcppFrame frame(1 + headers.size());
-            frame.add("id", rcpp_ids(mcmc_ptr->data.dataset(), house));
+            frame.add("id", rcpp_ids(mcmc_ptr->chain().data.dataset(), house));
             for (size_t c = 0; c < headers.size(); ++c)
             {
                 Rcpp::NumericVector col = frame.add_na(headers[c], house.size());
@@ -907,7 +907,7 @@ namespace housepi
         Rcpp::NumericMatrix rcpp_snapshot_contact_rates(Rcpp::XPtr<MCMC> mcmc_ptr,
                                                         const Household &house)
         {
-            const rates::Contact &contact_rate = mcmc_ptr->rates.contact();
+            const rates::Contact &contact_rate = mcmc_ptr->chain().rates.contact();
 
             if (contact_rate.is_empty())
                 return Rcpp::NumericMatrix(0, 0);
@@ -918,7 +918,7 @@ namespace housepi
                 for (size_t j = 0; j < n; ++j)
                     mtx(i, j) = hsp_to_rcpp(contact_rate.value(house, i, j));
 
-            const Rcpp::CharacterVector ids = rcpp_ids(mcmc_ptr->data.dataset(), house);
+            const Rcpp::CharacterVector ids = rcpp_ids(mcmc_ptr->chain().data.dataset(), house);
             mtx.attr("dimnames") = Rcpp::List::create(ids, ids);
             return mtx;
         }
@@ -927,7 +927,7 @@ namespace housepi
         Rcpp::List rcpp_snapshot_infec_profile(Rcpp::XPtr<MCMC> mcmc_ptr,
                                                const Household &house)
         {
-            const InfecProfile &infec_profile = mcmc_ptr->infec_profile;
+            const InfecProfile &infec_profile = mcmc_ptr->chain().infec_profile;
             const bool is_latent = infec_profile.is_latent();
 
             if (!infec_profile.generic && !is_latent)
@@ -941,11 +941,11 @@ namespace housepi
             Rcpp::NumericVector infprof_max(n_rows, NA_REAL);
 
             // a latent profile reads NA until its storage is allocated
-            if (!is_latent || mcmc_ptr->augm.is_allocated())
+            if (!is_latent || mcmc_ptr->chain().augm.is_allocated())
                 for (MemberIdx i : house.infected_members())
                 {
                     const Function *f =
-                        is_latent ? mcmc_ptr->augm.at(infec_profile.latent_key, house.at(i)).function()
+                        is_latent ? mcmc_ptr->chain().augm.at(infec_profile.latent_key, house.at(i)).function()
                                   : infec_profile.generic.get();
                     if (!f)
                         continue;
@@ -957,7 +957,7 @@ namespace housepi
                 }
 
             return Rcpp::List::create(
-                Rcpp::_["id"] = rcpp_ids(mcmc_ptr->data.dataset(), house),
+                Rcpp::_["id"] = rcpp_ids(mcmc_ptr->chain().data.dataset(), house),
                 Rcpp::_["discr"] = infprof_discr,
                 Rcpp::_["func"] = infprof_name,
                 Rcpp::_["func_args"] = infprof_args,
@@ -971,13 +971,13 @@ namespace housepi
                                               const Household &house,
                                               const std::vector<size_t> &list)
         {
-            const Augmented &augm = mcmc_ptr->augm;
+            const Augmented &augm = mcmc_ptr->chain().augm;
 
             if (list.empty() || !augm.is_allocated())
                 return Rcpp::DataFrame::create();
 
             RcppFrame frame(1 + list.size());
-            frame.add("id", rcpp_ids(mcmc_ptr->data.dataset(), house));
+            frame.add("id", rcpp_ids(mcmc_ptr->chain().data.dataset(), house));
             for (size_t c = 0; c < list.size(); ++c)
             {
                 Rcpp::NumericVector col = frame.add_na(augm.consult(list[c]), house.size());
@@ -995,13 +995,13 @@ namespace housepi
         Rcpp::DataFrame rcpp_snapshot_latent(Rcpp::XPtr<MCMC> mcmc_ptr,
                                              const Household &house)
         {
-            const Augmented &augm = mcmc_ptr->augm;
+            const Augmented &augm = mcmc_ptr->chain().augm;
 
             if (augm.scheme().list_latent_export.empty() || !augm.is_allocated())
                 return Rcpp::DataFrame::create();
 
             RcppFrame frame(1 + augm.scheme().list_latent_export.size());
-            frame.add("id", rcpp_ids(mcmc_ptr->data.dataset(), house));
+            frame.add("id", rcpp_ids(mcmc_ptr->chain().data.dataset(), house));
             add_latent_columns(frame, augm, house);
             return frame.frame();
         }
@@ -1012,15 +1012,15 @@ namespace housepi
         Rcpp::List rcpp_snapshot_model_quantities(Rcpp::XPtr<MCMC> mcmc_ptr,
                                                   const Household &house)
         {
-            if (!mcmc_ptr->data.state.is_evaluated())
+            if (!mcmc_ptr->chain().data.state.is_evaluated())
                 return Rcpp::List::create();
 
-            const data::Dataset &dataset = mcmc_ptr->data.dataset();
-            const Household &rep = mcmc_ptr->data.eq_class_rep(house);
+            const data::Dataset &dataset = mcmc_ptr->chain().data.dataset();
+            const Household &rep = mcmc_ptr->chain().data.eq_class_rep(house);
             HouseQuantities out(rep.size());
             mcmc_ptr->model->export_house_quantities(rep, out);
 
-            const std::vector<MemberIdx> member = mcmc_ptr->data.map_rep_members(house);
+            const std::vector<MemberIdx> member = mcmc_ptr->chain().data.map_rep_members(house);
             const Rcpp::CharacterVector ids = rcpp_ids(dataset, house);
             const size_t n = house.size();
             Rcpp::List output;
@@ -1091,7 +1091,7 @@ namespace housepi
             };
 
             // parameters, shared by every household
-            const Parameter &param = engine.param;
+            const Parameter &param = engine.chain().param;
             // table id of each parameter block, NA while its factor is unset
             std::vector<int> block_ids;
             for (size_t b = 0; b < engine.n_param_blocks(); ++b)
@@ -1121,11 +1121,11 @@ namespace housepi
             }
 
             // latents of the infected members of `house`
-            Augmented &augm = engine.augm;
+            Augmented &augm = engine.chain().augm;
             if (house && augm.is_allocated() && augm.scheme().is_any_sample())
                 for (const Individual &indiv : house->infected_indivs())
                 {
-                    const std::string owner = std::string(engine.data.dataset().id(indiv));
+                    const std::string owner = std::string(engine.chain().data.dataset().id(indiv));
                     const std::vector<size_t> &keys = augm.list_block(indiv);
                     const block_rw::Factor *f = augm.block_factor(indiv);
                     int block_id = NA_INTEGER;
@@ -1171,16 +1171,16 @@ namespace housepi
                         Rcpp::_["parameters"] = rcpp_snapshot_param(mcmc_ptr),
                         Rcpp::_[".sampler"] = rcpp_snapshot_sampler(mcmc_ptr, nullptr));
 
-                if (mcmc_ptr->data.dataset().is_empty())
+                if (mcmc_ptr->chain().data.dataset().is_empty())
                     return Rcpp::List::create();
 
-                const Household &house = mcmc_ptr->data.dataset().at(hh_id);
-                const Augmented &augm = mcmc_ptr->augm;
-                data::State &state = mcmc_ptr->data.state;
+                const Household &house = mcmc_ptr->chain().data.dataset().at(hh_id);
+                const Augmented &augm = mcmc_ptr->chain().augm;
+                data::State &state = mcmc_ptr->chain().data.state;
 
                 return Rcpp::List::create(
                     Rcpp::_["dataset"] = rcpp_snapshot_dataset(mcmc_ptr, house),
-                    Rcpp::_["long_dataset"] = rcpp_long_dataset(mcmc_ptr->data, house),
+                    Rcpp::_["long_dataset"] = rcpp_long_dataset(mcmc_ptr->chain().data, house),
                     Rcpp::_["parameters"] = rcpp_snapshot_param(mcmc_ptr),
                     Rcpp::_["group_rates"] = rcpp_snapshot_group_rates(mcmc_ptr, house),
                     Rcpp::_["contact_rates"] = rcpp_snapshot_contact_rates(mcmc_ptr, house),
@@ -1208,8 +1208,8 @@ namespace housepi
                                    std::vector<Rcpp::NumericVector> &latent_cols,
                                    const std::vector<size_t> &row_offsets)
             {
-                data::Dataset &dataset = engine.data.dataset();
-                const Augmented &augm = engine.augm;
+                data::Dataset &dataset = engine.chain().data.dataset();
+                const Augmented &augm = engine.chain().augm;
 
                 parallel::for_each(
                     dataset.report_house.total,
@@ -1320,9 +1320,9 @@ namespace housepi
             /// * wired cells refer to Variables the next run clears.
             void restore(MCMC &engine)
             {
-                engine.augm.release_simulation();
-                engine.data.dataset().recover_all_status();
-                engine.data.reset_readcells();
+                engine.chain().augm.release_simulation();
+                engine.chain().data.dataset().recover_all_status();
+                engine.chain().data.reset_readcells();
             }
         }
 
@@ -1383,26 +1383,25 @@ namespace housepi
             const Progress report(progress);
             MCMC &engine = *mcmc_ptr;
             Settings &settings = engine.settings;
-            const Augmented &augm = engine.augm;
-            const data::Dataset &dataset = engine.data.dataset();
+            const Augmented &augm = engine.chain().augm;
+            const data::Dataset &dataset = engine.chain().data.dataset();
             // simulation overwrites the evaluated state
-            engine.data.state.set_evaluated(false);
+            engine.chain().data.state.set_evaluated(false);
 
             // every exit restores the engine
             try
             {
                 // build household-level observations
-                engine.augm.init_house_for_simulation();
-                dataset.assert_required_everyone(engine.data.state, augm.get_drawn_cols());
+                engine.chain().augm.init_house_for_simulation();
+                dataset.assert_required_everyone(engine.chain().data.state, augm.get_drawn_cols());
                 // store constant terms of the generic profile
-                engine.infec_profile.finalize();
+                engine.chain().infec_profile.finalize();
                 engine.model->init_model_for_simulation();
-                engine.rates.assert_identifiability(engine.param);
+                engine.chain().rates.assert_identifiability(engine.chain().param);
                 // bind member definitions once per run
-                engine.augm.init_members_for_simulation(engine.status_process,
-                                                        engine.infec_profile);
+                engine.chain().augm.init_members_for_simulation();
                 // a latent profile is checked as its members bind
-                engine.infec_profile.assert_valid();
+                engine.chain().infec_profile.assert_valid();
 
                 //////  Reporting Process & Measures  //////
 
@@ -1424,30 +1423,30 @@ namespace housepi
                 if (f_long_dataset)
                     out_long_dataset = Rcpp::List(settings.n_steps);
 
-                const std::vector<std::string> static_cols = engine.get_static_data_names();
+                const std::vector<std::string> static_cols = engine.chain().get_static_data_names();
                 RcppFrame shared_frame(n_dataset_cols(static_cols.size(), false));
-                add_dataset_columns(shared_frame, engine.data, dataset, static_cols, false);
+                add_dataset_columns(shared_frame, engine.chain().data, dataset, static_cols, false);
                 const Rcpp::List shared_df = shared_frame.frame();
 
                 // simulated data column names
-                Rcpp::CharacterVector sim_names = Rcpp::wrap(engine.get_col_names());
+                Rcpp::CharacterVector sim_names = Rcpp::wrap(engine.chain().get_col_names());
                 // row offsets for house parallelization
-                const std::vector<size_t> row_offsets = engine.get_row_offsets();
+                const std::vector<size_t> row_offsets = engine.chain().get_row_offsets();
 
                 // flags for discrete columns, set once variables are bound after the first repetition
                 std::vector<bool> discr_cols(augm.n_export_cols(), false);
 
-                simulate::ParamTrace param_trace(engine.param, settings.n_steps);
+                simulate::ParamTrace param_trace(engine.chain().param, settings.n_steps);
 
                 //////  Simulations  //////
 
                 for (Settings::Step r = 0; r < settings.n_steps; ++r)
                 {
-                    engine.augm.clear_all();
-                    engine.data.dataset().recover_all_status();
-                    engine.param.load_sample_values(r);
+                    engine.chain().augm.clear_all();
+                    engine.chain().data.dataset().recover_all_status();
+                    engine.chain().param.load_sample_values(r);
                     // draw parameters with no pinned value
-                    engine.param.draw_sample(settings.prng());
+                    engine.chain().param.draw_sample(settings.prng());
                     param_trace.record(r);
 
                     // this repetition's own columns: status, exported latents and observations
@@ -1510,24 +1509,24 @@ namespace housepi
         MAKE_EXPORT_KEYS(group_rate_keys, model->group_rate_keys())
         MAKE_EXPORT_KEYS(latent_keys, model->latent_keys())
         // keys the model requests as discrete
-        MAKE_EXPORT_KEYS(discrete_param_keys, param.discrete_keys())
-        MAKE_EXPORT_KEYS(discrete_latent_keys, augm.discrete_keys())
-        MAKE_EXPORT_KEYS(discrete_data_keys, data.dataset().discrete_keys())
+        MAKE_EXPORT_KEYS(discrete_param_keys, chain().param.discrete_keys())
+        MAKE_EXPORT_KEYS(discrete_latent_keys, chain().augm.discrete_keys())
+        MAKE_EXPORT_KEYS(discrete_data_keys, chain().data.dataset().discrete_keys())
         // latents the model generates through transmission
-        MAKE_EXPORT_KEYS(transmission_latent_keys, augm.transmission_keys())
+        MAKE_EXPORT_KEYS(transmission_latent_keys, chain().augm.transmission_keys())
 
         /// Baselines the model anchors to rates, keyed by parameter name.
         Rcpp::List rate_anchors(Rcpp::XPtr<MCMC> mcmc_ptr)
         {
-            const std::vector<rates::Anchor> &anchors = mcmc_ptr->rates.anchors();
+            const std::vector<rates::Anchor> &anchors = mcmc_ptr->chain().rates.anchors();
 
             Rcpp::List out(anchors.size());
             Rcpp::CharacterVector names(anchors.size());
             for (size_t a = 0; a < anchors.size(); ++a)
             {
-                names[a] = mcmc_ptr->param.consult(anchors[a].baseline);
+                names[a] = mcmc_ptr->chain().param.consult(anchors[a].baseline);
                 out[a] = Rcpp::List::create(
-                    Rcpp::_["rates"] = Rcpp::wrap(mcmc_ptr->rates.group().consult(anchors[a].rates)),
+                    Rcpp::_["rates"] = Rcpp::wrap(mcmc_ptr->chain().rates.group().consult(anchors[a].rates)),
                     Rcpp::_["contacts"] = anchors[a].contacts);
             }
             out.names() = names;
@@ -1537,7 +1536,7 @@ namespace housepi
         /// Group rates the model reads on members with infected status only.
         Rcpp::CharacterVector rate_status_stratified(Rcpp::XPtr<MCMC> mcmc_ptr)
         {
-            const rates::Group &group = mcmc_ptr->rates.group();
+            const rates::Group &group = mcmc_ptr->chain().rates.group();
             return Rcpp::wrap(group.consult(group.status_stratified()));
         }
 
@@ -1549,7 +1548,7 @@ namespace housepi
         /// Share the imported tables of `src` with `dest`, copy-on-write.
         void share_data_store(Rcpp::XPtr<MCMC> dest, Rcpp::XPtr<MCMC> src)
         {
-            dest->data.share(src->data);
+            dest->chain().data.share(src->chain().data);
         }
 
         bool has_contact_rate(Rcpp::XPtr<MCMC> mcmc_ptr)
@@ -1571,7 +1570,7 @@ namespace housepi
         Rcpp::NumericVector evaluate_log_lik(Rcpp::XPtr<MCMC> mcmc_ptr)
         {
             Rcpp::NumericVector output = Rcpp::wrap(mcmc_ptr->evaluate_log_lik());
-            const data::Dataset &dataset = mcmc_ptr->data.dataset();
+            const data::Dataset &dataset = mcmc_ptr->chain().data.dataset();
             Rcpp::CharacterVector names(output.size());
             size_t i = 0;
             for (const Household &house : dataset)

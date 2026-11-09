@@ -81,7 +81,7 @@ namespace housepi
 
     //////////////////////////////  InfecProfile  //////////////////////////////
 
-    InfecProfile::InfecProfile() = default;
+    InfecProfile::InfecProfile(const Augmented &augm) : augm_(augm) {}
     InfecProfile::~InfecProfile() = default;
 
     void InfecProfile::build(Translator &translator,
@@ -1482,10 +1482,14 @@ namespace housepi
     Augmented::Augmented(std::vector<std::string> keys,
                          Data &data,
                          const Parameter &param,
+                         InfecProfile &infec_profile,
+                         const StatusProcess &status_process,
                          const Translator &translator)
         : KeyHolderWithRequests(std::move(keys)),
           data_(data),
           param_(param),
+          infec_profile_(infec_profile),
+          status_process_(status_process),
           translator_(translator) {}
     Augmented::~Augmented() = default;
 
@@ -1494,15 +1498,13 @@ namespace housepi
         vect::append_unique(user_transm_vec_, vec);
     }
 
-    void Augmented::build(InfecProfile &infec_profile,
-                          const StatusProcess &status_process,
-                          const str_table &input)
+    void Augmented::build(const str_table &input)
     {
         build_restore_internal_();
         // DefTable::append indexes its columns
         if (!input.empty())
             def_.append(input);
-        build_append_profile_(infec_profile);
+        build_append_profile_();
 
         // data columns the definitions read tell equivalence classes apart
         data_.set_eq_class_keys(Data::Source::Latent, def_.list_eq_class_keys());
@@ -1529,7 +1531,7 @@ namespace housepi
                     infected.emplace(indiv.status());
 
         // definition order per status
-        builder.order({infected.begin(), infected.end()}, param_, status_process.is_defined());
+        builder.order({infected.begin(), infected.end()}, param_, status_process_.is_defined());
 
         // deterministic observations
         builder.init_deterministic_obs();
@@ -1554,16 +1556,14 @@ namespace housepi
         pins_.clear();
     }
 
-    void Augmented::build_append_profile_(InfecProfile &infec_profile)
+    void Augmented::build_append_profile_()
     {
-        if (!infec_profile.is_latent())
+        if (!infec_profile_.is_latent())
             return;
 
-        def_.append(infec_profile.latent_definitions);
+        def_.append(infec_profile_.latent_definitions);
         add_(infprof::LATENT_FUNC);
-        infec_profile.latent_key = consult(infprof::LATENT_FUNC);
-        // for runtime per-member profile resolution
-        infec_profile.bind_augm(this);
+        infec_profile_.latent_key = consult(infprof::LATENT_FUNC);
     }
 
     //////  Augmented : export columns  //////
@@ -1822,7 +1822,7 @@ namespace housepi
         }
     }
 
-    void Augmented::init_members_for_simulation(const StatusProcess &status_process, const InfecProfile &infec_profile)
+    void Augmented::init_members_for_simulation()
     {
         if (empty() || !is_allocated())
             return;
@@ -1839,7 +1839,7 @@ namespace housepi
         msg::WarningBuffer warnings;
         for (const Household &house : data_.dataset())
             for (const Individual &indiv : house)
-                bind_simulation_blocks_(binder, status_process, infec_profile, indiv);
+                bind_simulation_blocks_(binder, indiv);
         warnings.flush();
     }
 
@@ -1934,10 +1934,7 @@ namespace housepi
         }
     }
 
-    void Augmented::bind_simulation_blocks_(const augm::Binder &binder,
-                                            const StatusProcess &status_process,
-                                            const InfecProfile &infec_profile,
-                                            const Individual &indiv)
+    void Augmented::bind_simulation_blocks_(const augm::Binder &binder, const Individual &indiv)
     {
         augm::IndivState &st = state.of(indiv);
         augm::SimMember &sm = state.sim[Index::of(indiv)];
@@ -1956,7 +1953,7 @@ namespace housepi
         // * every status the status process can draw.
         if (indiv.is_infected_status())
             reach(indiv.status());
-        for (StatusLvl s : status_process.drawable(indiv))
+        for (StatusLvl s : status_process_.drawable(indiv))
             reach(s);
 
         for (size_t i : reached)
@@ -1998,9 +1995,9 @@ namespace housepi
                 }
 
                 // the profile reads undrawn values: judged on the intervals they reach
-                if (infec_profile.is_latent())
-                    if (const Function *f = st.vec[infec_profile.latent_key].function())
-                        infec_profile.assert_zero_at_origin(*f);
+                if (infec_profile_.is_latent())
+                    if (const Function *f = st.vec[infec_profile_.latent_key].function())
+                        infec_profile_.assert_zero_at_origin(*f);
 
                 // finalize while the member's variables hold this scheme's definitions
                 for (size_t a : bound)

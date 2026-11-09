@@ -42,11 +42,13 @@ namespace housepi
 
         //////  Constructor  //////
 
-        /// Register model-declared latent `keys`, and bind the modules definitions are read from.
+        /// Register model-declared latent `keys`, and bind the modules of its chain.
         /// @note The Translator may be bound before it is constructed: it is first read at build.
         Augmented(std::vector<std::string> keys,
                   Data &data,
                   const Parameter &param,
+                  InfecProfile &infec_profile,
+                  const StatusProcess &status_process,
                   const Translator &translator);
         ~Augmented();
 
@@ -57,9 +59,7 @@ namespace housepi
 
         /// Build definitions from `input` and the infectivity profile, then their sampling schemes.
         /// * status process defined -> every status it draws needs a scheme.
-        void build(InfecProfile &infec_profile,
-                   const StatusProcess &status_process,
-                   const str_table &input);
+        void build(const str_table &input);
 
         /// Empty the variables of every infected member, between simulated repetitions.
         /// * variable from a block -> returned to it;
@@ -80,14 +80,13 @@ namespace housepi
         /// Bind the member variables a simulation reads, once per run.
         ///
         /// * one block per status scheme the member can reach, handed out by init_definitions_for_simulation();
-        /// * reachable status: the observed one, and every one `status_process` can draw;
+        /// * reachable status: the observed one, and every one the status process can draw;
         /// * each block finalized while bound -> constants folded per status scheme.
         ///
         /// A binding error is kept, and raised only if the member reaches what failed.
         /// Distinct warnings are raised once each.
         /// @note Call after init_house_for_simulation(), and release_simulation() when the run ends.
-        void init_members_for_simulation(const StatusProcess &status_process,
-                                         const InfecProfile &infec_profile);
+        void init_members_for_simulation();
         /// Empty every member variable and drop the blocks, at the end of a simulation run.
         void release_simulation();
         /// Draw the observations of `indiv` from their models, for simulation.
@@ -245,10 +244,17 @@ namespace housepi
         bool produces_obs(const Individual &m, size_t a) const { return !scheme_of_(m).obs_consumers[a].empty(); }
 
     private:
-        /// Data tables, read-cells and equivalence-class keys, written by the build.
+        /// Data tables, read-cells and equivalence-class keys.
+        /// * build -> writes equivalence-class keys;
+        /// * deterministic observations, simulation init -> wire read-cells.
         Data &data_;
         /// Parameters read by definitions.
         const Parameter &param_;
+        /// Infectivity profile.
+        /// * latent -> definitions appended, latent key set at build.
+        InfecProfile &infec_profile_;
+        /// Status process, whether defined at build, statuses a member can draw in simulation.
+        const StatusProcess &status_process_;
         /// Translator of definition sources.
         const Translator &translator_;
 
@@ -272,7 +278,7 @@ namespace housepi
         /// Reset the internal lists and flags of definitions.
         void build_restore_internal_();
         /// Append infectivity-profile definitions, if any.
-        void build_append_profile_(InfecProfile &infec_profile);
+        void build_append_profile_();
 
         /// Point every individual at a status scheme holding what its run reads.
         /// * observations whose datum is present;
@@ -300,10 +306,7 @@ namespace housepi
         void assert_every_member_cols_() const;
 
         /// Bind the blocks of member `m`, one per status scheme it can reach.
-        void bind_simulation_blocks_(const augm::Binder &binder,
-                                     const StatusProcess &status_process,
-                                     const InfecProfile &infec_profile,
-                                     const Individual &m);
+        void bind_simulation_blocks_(const augm::Binder &binder, const Individual &m);
 
         /// Point member `m` at the scheme of its status, and return its definition order for the run.
         /// * status the data does not carry -> generic scheme.

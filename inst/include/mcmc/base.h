@@ -5,6 +5,7 @@
 
 #pragma once
 
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -16,27 +17,50 @@
 #include "mcmc/posterior.h"
 #include "mcmc/settings.h"
 #include "parameter.h"
+#include "proposal.h"
 #include "rates.h"
 #include "status_process.h"
 #include "translator.h"
 
-//////////////////////////////  MCMCBase  //////////////////////////////
+//////////////////////////////  ChainState  //////////////////////////////
 
 namespace housepi
 {
     class ModelBase;
 
-    class MCMCBase
+    /// Log-likelihood terms a parameter move recomputes.
+    struct ParamRoute
     {
-    public:
-        Settings settings;
-        Posterior posterior;
-        /// Log-likelihood totals over households.
-        LogLikTotal tot_log_lik;
+        /// Terms the move shifts.
+        LogLikTerms terms = {};
+        /// Equivalence classes reading the parameter.
+        /// * read by more than rates, or by every class -> empty, every class recomputed.
+        std::vector<size_t> classes = {};
+    };
 
-        //////  Key holders  //////
+    /// Parameters moving together, one block per baseline and the rates coupled to it.
+    struct ParamBlock
+    {
+        /// Parameters, baseline first.
+        std::vector<size_t> keys = {};
+        /// Union of the routes of the members.
+        ParamRoute route = {};
+        /// Jump factor and running moments of the coordinates.
+        block_rw::Factor factor = {};
+    };
 
-        /// Imported tables.
+    /// State of one Markov chain: modules built from definitions, log-likelihood totals, adaptation.
+    /// * modules point into each other -> never copied, rebuilt.
+    struct ChainState
+    {
+        /// Register the keys declared by `model` in every key holder.
+        explicit ChainState(const ModelBase &model);
+        ChainState(const ChainState &) = delete;
+        ChainState &operator=(const ChainState &) = delete;
+
+        //////  Modules  //////
+
+        /// Imported tables, shared across engines, and run state.
         Data data;
         Parameter param;
         Rates rates;
@@ -45,13 +69,24 @@ namespace housepi
         Augmented augm;
         Translator translator;
 
-        //////  Constructor  //////
+        //////  Totals and adaptation  //////
 
-        /// Register the keys declared by `model` in every key holder.
-        explicit MCMCBase(const ModelBase &model);
-        virtual ~MCMCBase();
+        /// Log-likelihood totals over households.
+        LogLikTotal tot_log_lik;
+        /// Route of each sampled parameter, by key.
+        std::vector<ParamRoute> routes = {};
+        /// Blocks of the run, see Rates::list_param_rw_blocks().
+        std::vector<ParamBlock> pblocks = {};
+        /// Whether each parameter belongs to a block.
+        std::vector<char> in_pblock = {};
+        /// Whether the adaptation warm-up runs, block members moving one at a time.
+        bool is_warm = false;
+        /// Robbins-Monro gain of the scalar proposals at this step.
+        double gain = 0.;
+        /// Robbins-Monro gain of the block factors at this step.
+        double block_gain = 0.;
 
-        //////  Data  //////
+        //////  Setter  //////
 
         /// Initialize equivalence-class compression.
         /// * latent definitions required, not imported yet -> one class per household.
@@ -72,12 +107,19 @@ namespace housepi
         std::vector<std::string> get_col_names() const;
         /// Per-household row offsets, so parallel simulations write disjoint rows.
         std::vector<size_t> get_row_offsets() const;
+
+        //////  Log-likelihood  //////
+
+        /// Observation-model log-likelihood of member `m`.
+        const LogProba &obs_log_lik(const Individual &m) const noexcept { return augm.state.of(m).obs_log_lik; }
+        /// Latent-model log-likelihood of member `m`.
+        const LogProba &latent_log_lik(const Individual &m) const noexcept { return augm.state.of(m).latent_log_lik; }
         /// Sum the observation log-likelihood over infected members of `house`.
         double house_obs_log_lik(const Household &house) const
         {
             double obs = 0.;
             for (const Individual &indiv : house.infected_indivs())
-                obs += obs_log_lik_(indiv).value();
+                obs += obs_log_lik(indiv).value();
             return obs;
         }
         /// Sum the latent log-likelihood over infected members of `house`.
@@ -85,7 +127,7 @@ namespace housepi
         {
             double model = 0.;
             for (const Individual &indiv : house.infected_indivs())
-                model += latent_log_lik_(indiv).value();
+                model += latent_log_lik(indiv).value();
             return model;
         }
         /// Sum the transmission, observation and latent log-likelihood stored for `house`.
@@ -99,19 +141,33 @@ namespace housepi
                 value += house_latent_log_lik(house);
             return value;
         }
+    };
+}
 
-    protected:
-        //////  Log-likelihood  //////
+//////////////////////////////  MCMCBase  //////////////////////////////
 
-        /// Observation-model log-likelihood of individual `m`.
-        const LogProba &obs_log_lik_(const Individual &m) const noexcept
-        {
-            return augm.state.of(m).obs_log_lik;
-        }
-        /// Latent-model log-likelihood of individual `m`.
-        const LogProba &latent_log_lik_(const Individual &m) const noexcept
-        {
-            return augm.state.of(m).latent_log_lik;
-        }
+namespace housepi
+{
+    class MCMCBase
+    {
+    public:
+        Settings settings;
+        Posterior posterior;
+
+        //////  Constructor  //////
+
+        /// Build the chain state over the keys declared by `model`.
+        explicit MCMCBase(const ModelBase &model);
+        virtual ~MCMCBase();
+
+        //////  Getter  //////
+
+        /// State of the chain.
+        ChainState &chain() noexcept { return *chain_; }
+        const ChainState &chain() const noexcept { return *chain_; }
+
+    private:
+        /// State of the chain.
+        std::unique_ptr<ChainState> chain_;
     };
 }

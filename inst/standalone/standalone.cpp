@@ -165,7 +165,7 @@ namespace housepi
     {
         try
         {
-            model.param.build(read::csv_table(file.param), model.translator);
+            model.chain().param.build(read::csv_table(file.param), model.chain().translator);
         }
         catch (const std::exception &e)
         {
@@ -177,7 +177,7 @@ namespace housepi
     {
         try
         {
-            model.data.build_dataset(read::csv_table(file.dataset));
+            model.chain().data.build_dataset(read::csv_table(file.dataset));
         }
         catch (const std::exception &e)
         {
@@ -189,7 +189,7 @@ namespace housepi
     {
         try
         {
-            model.data.build_long_dataset(read::csv_table(file.long_dataset));
+            model.chain().data.build_long_dataset(read::csv_table(file.long_dataset));
         }
         catch (const std::exception &e)
         {
@@ -201,7 +201,7 @@ namespace housepi
     {
         try
         {
-            model.rates.build_group(model.data.dataset(), model.param, read::csv_table(file.group_rate));
+            model.chain().rates.build_group(model.chain().data.dataset(), model.chain().param, read::csv_table(file.group_rate));
         }
         catch (const std::exception &e)
         {
@@ -213,7 +213,7 @@ namespace housepi
     {
         try
         {
-            model.rates.build_contact(model.data.dataset(), model.param, read::csv_table(file.contact_rate));
+            model.chain().rates.build_contact(model.chain().data.dataset(), model.chain().param, read::csv_table(file.contact_rate));
         }
         catch (const std::exception &e)
         {
@@ -225,7 +225,7 @@ namespace housepi
     {
         try
         {
-            model.infec_profile.build(model.translator, read::csv_table(file.infec_profile));
+            model.chain().infec_profile.build(model.chain().translator, read::csv_table(file.infec_profile));
         }
         catch (const std::exception &e)
         {
@@ -237,7 +237,7 @@ namespace housepi
     {
         try
         {
-            model.augm.build(model.infec_profile, model.status_process, read::csv_table(file.latent));
+            model.chain().augm.build(read::csv_table(file.latent));
         }
         catch (const std::exception &e)
         {
@@ -377,18 +377,17 @@ namespace housepi
 
     void print_simulated_dataset(MCMC &engine, const std::string &pathtofile)
     {
-        data::Dataset &dataset = engine.data.dataset();
-        const Augmented &augm = engine.augm;
+        data::Dataset &dataset = engine.chain().data.dataset();
+        const Augmented &augm = engine.chain().augm;
 
         // no output file: simulate without serializing
         const bool is_writing = !na::is(pathtofile);
 
         // build household-level observations
-        engine.augm.init_house_for_simulation();
+        engine.chain().augm.init_house_for_simulation();
         engine.model->init_model_for_simulation();
         // bind member definitions once per run
-        engine.augm.init_members_for_simulation(engine.status_process,
-                                                engine.infec_profile);
+        engine.chain().augm.init_members_for_simulation();
 
         // header after initialization: a produced observation registers its data column there
         // the row loop reports every column the holder carries
@@ -402,7 +401,7 @@ namespace housepi
         for (Settings::Step r = 0; r < engine.settings.n_steps; ++r)
         {
             // clear before recovering: clear_all() walks the infected members of the last replicate
-            engine.augm.clear_all();
+            engine.chain().augm.clear_all();
             dataset.recover_all_status();
 
             for (Household &house : dataset)
@@ -411,7 +410,7 @@ namespace housepi
                     engine.model->simulate_single_house(house);
                     if (is_writing)
                         update_ofstream_dataset(ofs, r, house,
-                                                engine.data,
+                                                engine.chain().data,
                                                 augm.scheme().list_latent_export, augm);
                 }
                 catch (const std::exception &e)

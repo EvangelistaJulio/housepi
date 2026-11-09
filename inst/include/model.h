@@ -24,11 +24,11 @@ namespace housepi
 #define MAKE_HOUSEPI_CACHE_FORWARDER(NAME)                                    \
     auto &cache_##NAME(const Household &house, size_t e) noexcept             \
     {                                                                         \
-        return mcmc_->data.state.cache_##NAME(house, e);                      \
+        return chain_->data.state.cache_##NAME(house, e);                     \
     }                                                                         \
     const auto &cache_##NAME(const Household &house, size_t e) const noexcept \
     {                                                                         \
-        return mcmc_->data.state.cache_##NAME(house, e);                      \
+        return chain_->data.state.cache_##NAME(house, e);                     \
     }
 
     /// Named quantities of one household that a model exports, indexed by member.
@@ -68,7 +68,7 @@ namespace housepi
     /// Transmission model: per-household log-likelihood and simulation hooks.
     ///
     /// * built-in and custom models derive from it through the `HOUSEPI_*` macros;
-    /// * the accessors below read the engine the model is bound to.
+    /// * the accessors below read the chain state and settings the model is bound to.
     class ModelBase
     {
     public:
@@ -76,8 +76,12 @@ namespace housepi
 
         virtual ~ModelBase() = default;
 
-        /// Bind the engine `mcmc` the model reads.
-        void bind_solver(MCMCBase *mcmc) noexcept { mcmc_ = mcmc; }
+        /// Bind the chain state `chain` and the settings `settings` the model reads.
+        void bind(ChainState &chain, const Settings &settings) noexcept
+        {
+            chain_ = &chain;
+            settings_ = &settings;
+        }
 
         //////  Model-declared keys  //////
 
@@ -134,45 +138,45 @@ namespace housepi
         /// @param contacts Whether contact rates scale the same term as `rates`.
         void request_rate_identifiability(size_t p, std::vector<size_t> rates, bool contacts = false)
         {
-            mcmc_->rates.request_identifiability(p, std::move(rates), contacts);
+            chain_->rates.request_identifiability(p, std::move(rates), contacts);
         }
 
         /// Declare the group rates `vec` a rule may stratify by infected status.
         /// @note Leave out rates read before a member's status is drawn in simulation.
         void request_rate_status_stratified(std::vector<size_t> vec)
         {
-            mcmc_->rates.request_status_stratified(std::move(vec));
+            chain_->rates.request_status_stratified(std::move(vec));
         }
 
         /// Request discrete parameters `vec`.
-        void request_param_discrete(std::vector<size_t> vec) { mcmc_->param.request_discrete(vec); }
+        void request_param_discrete(std::vector<size_t> vec) { chain_->param.request_discrete(vec); }
         /// Request positive parameters `vec`.
-        void request_param_positive(std::vector<size_t> vec) { mcmc_->param.request_positive(vec); }
+        void request_param_positive(std::vector<size_t> vec) { chain_->param.request_positive(vec); }
         /// Request parameters `vec` in one block random walk, joining any block holding one of them.
         /// * sampled with the default proposal -> moves in the block;
         /// * pinned, or a declared proposal -> left out.
-        void request_param_rw_block(std::vector<size_t> vec) { mcmc_->param.request_rw_block(std::move(vec)); }
+        void request_param_rw_block(std::vector<size_t> vec) { chain_->param.request_rw_block(std::move(vec)); }
 
         /// Request discrete latents `vec`.
-        void request_latent_discrete(std::vector<size_t> vec) { mcmc_->augm.request_discrete(vec); }
+        void request_latent_discrete(std::vector<size_t> vec) { chain_->augm.request_discrete(vec); }
         /// Request positive latents `vec`.
-        void request_latent_positive(std::vector<size_t> vec) { mcmc_->augm.request_positive(vec); }
+        void request_latent_positive(std::vector<size_t> vec) { chain_->augm.request_positive(vec); }
         /// Declare latents `vec` as generated and read by transmission, cache included.
         /// A latent listed here takes no model: transmission gives its density.
-        void request_latent_transmission(std::vector<size_t> vec) { mcmc_->augm.request_transmission(vec); }
+        void request_latent_transmission(std::vector<size_t> vec) { chain_->augm.request_transmission(vec); }
 
         /// Request a discrete infectivity profile.
-        void request_infec_profile_discrete() { mcmc_->infec_profile.request_discrete(); }
+        void request_infec_profile_discrete() { chain_->infec_profile.request_discrete(); }
 
         /// Request discrete data columns `vec`.
-        void request_data_discrete(std::vector<size_t> vec) { mcmc_->data.dataset().request_discrete(vec); }
+        void request_data_discrete(std::vector<size_t> vec) { chain_->data.dataset().request_discrete(vec); }
         /// Request positive data columns `vec`.
-        void request_data_positive(std::vector<size_t> vec) { mcmc_->data.dataset().request_positive(vec); }
+        void request_data_positive(std::vector<size_t> vec) { chain_->data.dataset().request_positive(vec); }
         /// Request data columns `vec` with a value for every member, escaped ones included.
-        void request_data_every_member(std::vector<size_t> vec) { mcmc_->data.dataset().request_everyone(vec); }
+        void request_data_every_member(std::vector<size_t> vec) { chain_->data.dataset().request_everyone(vec); }
 
         /// Throw if some member has missing status.
-        void assert_no_missing_status() const { mcmc_->data.dataset().assert_no_missing_status(); }
+        void assert_no_missing_status() const { chain_->data.dataset().assert_no_missing_status(); }
 
         //////  Setter: model calls  //////
 
@@ -181,7 +185,7 @@ namespace housepi
         /// @note Call init_missing_latent() after to initialize individual status-specific variables.
         void set_infected(Household &house, Individual &indiv)
         {
-            house.set_new_status_(indiv, mcmc_->status_process.draw(indiv, mcmc_->settings.prng()));
+            house.set_new_status_(indiv, chain_->status_process.draw(indiv, settings_->prng()));
         }
         /// Set member `indiv` escaped.
         void set_escaped(Household &house, Individual &indiv)
@@ -190,7 +194,7 @@ namespace housepi
         }
 
         /// Set latent `a` of member `m` to `x`; throw if not allowed.
-        void set_latent_value(size_t a, const Individual &m, double x) { mcmc_->augm.at(a, m).set(x); }
+        void set_latent_value(size_t a, const Individual &m, double x) { chain_->augm.at(a, m).set(x); }
 
         /// Introduce infection in `house` through latent `a`.
         /// Set every other member to escaped.
@@ -218,64 +222,64 @@ namespace housepi
         /// @todo Allow order-dependent assignments in simulation.
         void init_missing_latent(Individual &indiv)
         {
-            mcmc_->augm.init_definitions_for_simulation(indiv);
-            mcmc_->augm.draw_sample_for_simulation(indiv, mcmc_->settings.prng());
-            mcmc_->augm.sample_obs(indiv, mcmc_->settings.prng());
+            chain_->augm.init_definitions_for_simulation(indiv);
+            chain_->augm.draw_sample_for_simulation(indiv, settings_->prng());
+            chain_->augm.sample_obs(indiv, settings_->prng());
         }
 
         //////  Getter  //////
 
         /// Draw a uniform variate on [0, 1].
-        double uniform() const { return mcmc_->settings.uniform(); }
+        double uniform() const { return settings_->uniform(); }
         /// Draw a unit-rate exponential variate.
-        double exponential() const { return mcmc_->settings.exponential(); }
+        double exponential() const { return settings_->exponential(); }
 
         /// User-configured time step of the simulation.
-        double real_time_step() const { return mcmc_->settings.time_step; }
+        double real_time_step() const { return settings_->time_step; }
         /// Number of thread slots, the size of a per-thread pool.
-        size_t n_threads() const { return mcmc_->settings.n_threads; }
+        size_t n_threads() const { return settings_->n_threads; }
         /// Slot of the calling thread in a per-thread pool.
-        size_t thread_slot() const { return mcmc_->settings.thread_slot(); }
+        size_t thread_slot() const { return settings_->thread_slot(); }
 
         /// Value of parameter `p`.
-        double par(size_t p) const { return mcmc_->param.at(p).value(); }
+        double par(size_t p) const { return chain_->param.at(p).value(); }
         /// Latent `a` of member `m`.
-        double aug(size_t a, const Individual &m) const { return mcmc_->aug(a, m); }
+        double aug(size_t a, const Individual &m) const { return chain_->aug(a, m); }
         /// Datum `d` of member `m`.
-        double data(size_t d, const Individual &m) const { return mcmc_->data.at(d, m).value(); }
+        double data(size_t d, const Individual &m) const { return chain_->data.at(d, m).value(); }
         /// Group rate `g` of member `m`.
-        double group_rate(size_t g, const Individual &m) const { return mcmc_->rates.group().value(g, m); }
+        double group_rate(size_t g, const Individual &m) const { return chain_->rates.group().value(g, m); }
 
         /// Name of member `m`, for error messages.
-        std::string str(const Individual &m) const { return mcmc_->data.dataset().str(m); }
+        std::string str(const Individual &m) const { return chain_->data.dataset().str(m); }
         /// Name of household `h`, for error messages.
-        std::string str(const Household &h) const { return mcmc_->data.dataset().str(h); }
+        std::string str(const Household &h) const { return chain_->data.dataset().str(h); }
 
         /// Contact rate from member `from` to member `to` of `house`.
         double contact_rate(const Household &house, MemberIdx from, MemberIdx to) const
         {
-            return mcmc_->rates.contact().value(house, from, to);
+            return chain_->rates.contact().value(house, from, to);
         }
         /// Whether members `i` and `j` of `house` are equivalent according to rates.
         bool is_same_rate_partition(const Household &house, MemberIdx i, MemberIdx j) const
         {
-            return mcmc_->rates.same_partition(house, i, j);
+            return chain_->rates.same_partition(house, i, j);
         }
         /// Contact rate within the partition of member `i` (self-contact).
         double intra_partition_contact_rate(const Household &house, MemberIdx i) const
         {
-            return mcmc_->rates.contact().intra_value(house, i);
+            return chain_->rates.contact().intra_value(house, i);
         }
 
         /// Instantaneous infectivity profile of member `m` at time `t`.
         double infec_profile_inst(const Individual &m, double t) const
         {
-            return mcmc_->infec_profile.inst(&m, t);
+            return chain_->infec_profile.inst(&m, t);
         }
         /// Cumulative infectivity profile of member `m` at time `t`.
         double infec_profile_cumul(const Individual &m, double t) const
         {
-            return mcmc_->infec_profile.cumul(&m, t);
+            return chain_->infec_profile.cumul(&m, t);
         }
 
         //////  Cache  //////
@@ -297,8 +301,10 @@ namespace housepi
         ///@}
 
     private:
-        /// Engine the model reads.
-        MCMCBase *mcmc_;
+        /// Chain state the model reads and writes.
+        ChainState *chain_ = nullptr;
+        /// Settings: random streams, time step, thread slots.
+        const Settings *settings_ = nullptr;
     };
 }
 
