@@ -829,7 +829,7 @@ test_that("An unpinned parameter is drawn from its prior at evaluation", {
   stats::sd(log_lik) |> expect_gt(0.05 * span)
 })
 
-test_that("A fixed seed reproduces parameter draws on a single thread", {
+test_that("A fixed seed reproduces parameter draws at any thread count", {
   # the normal prior and the default proposal both draw standard_normal:
   # sampler state surviving a re-seed desynchronises one run from the next
   draws_at <- function(seed) {
@@ -845,4 +845,14 @@ test_that("A fixed seed reproduces parameter draws on a single thread", {
   draws |> expect_identical(draws_at(1105L))
   # a seed that moves the draws, so the equality above is not vacuous
   identical(draws, draws_at(2705L)) |> expect_false()
+
+  # household terms summed in one order at any number of threads
+  fit_draws_at <- function(threads) {
+    set.seed(1105L)
+    mk_final_size$template |>
+      run_inference(steps = 50L, chains = 1L, thin = 1L, threads = threads) |>
+      suppressWarnings() |>
+      get_parameter_draws()
+  }
+  fit_draws_at(2L) |> expect_identical(fit_draws_at(1L))
 })

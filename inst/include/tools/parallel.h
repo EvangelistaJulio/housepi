@@ -5,6 +5,8 @@
 
 #pragma once
 
+#include <algorithm>
+#include <array>
 #include <atomic>
 #include <chrono>
 #include <cstddef>
@@ -14,7 +16,6 @@
 
 #include <tbb/blocked_range.h>
 #include <tbb/parallel_for.h>
-#include <tbb/parallel_reduce.h>
 #include <tbb/task_arena.h>
 
 namespace housepi::parallel
@@ -77,6 +78,16 @@ namespace housepi::parallel
                 return f();
             return in_arena(n_slots, f);
         }
+
+        /// Sum `body(i)` for i in [begin, end), left to right.
+        template <class T, class F>
+        inline T sum_range(F &body, std::size_t begin, std::size_t end)
+        {
+            T acc{};
+            for (std::size_t i = begin; i < end; ++i)
+                acc += body(i);
+            return acc;
+        }
     }
 
     /// Return maximum number of available threads.
@@ -114,31 +125,40 @@ namespace housepi::parallel
                             { tbb::parallel_for(detail::Range(0, n), chunk); });
     }
 
+    /// Maximum number of blocks a reduction cuts its range into.
+    constexpr std::size_t REDUCE_BLOCKS = 128;
+
     /// Run `body(i)` for i in [0, n) across `workers` TBB workers, reducing into `T` via `operator+=`.
-    /// * at most one worker -> serial loop on the calling thread;
+    ///
+    /// Same result at any `workers`, 1 included:
+    /// * range -> `min(n, REDUCE_BLOCKS)` contiguous blocks, each summed left to right;
+    /// * block sums -> added in block order on the calling thread;
+    /// * at most one worker -> blocks in order on the calling thread;
     /// * any chunk -> 64-bit x87 precision on the thread running it.
     /// @note `T` value-initializes to the identity.
     template <class T, class F>
     inline T for_reduce(std::size_t n, F &&body, std::size_t workers)
     {
-        // accumulate body over one sub-range into acc
-        auto chunk = [&](const detail::Range &r, T acc)
+        const std::size_t n_blocks = std::min(n, REDUCE_BLOCKS);
+        // first index of block b, the first n % n_blocks blocks one term longer
+        const std::size_t q = n / n_blocks, r = n % n_blocks;
+        auto start = [&](std::size_t b)
+        { return b * q + std::min(b, r); };
+        T total{};
+        // single worker: blocks in order on the calling thread
+        if (workers <= 1)
         {
             detail::x87_extended_precision();
-            for (std::size_t i = r.begin(); i < r.end(); ++i)
-                acc += body(i);
-            return acc;
-        };
-        // single worker: whole range on the calling thread
-        if (workers <= 1)
-            return chunk(detail::Range(0, n), T{});
-        // merge two partial sums
-        auto join = [](T a, const T &b)
-        { return a += b; };
-
-        return detail::in_arena_of(
-            workers, [&]
-            { return tbb::parallel_reduce(detail::Range(0, n), T{}, chunk, join); });
+            for (std::size_t b = 0; b < n_blocks; ++b)
+                total += detail::sum_range<T>(body, start(b), start(b + 1));
+            return total;
+        }
+        std::array<T, REDUCE_BLOCKS> sums;
+        for_each(n_blocks, [&](std::size_t b)
+                 { sums[b] = detail::sum_range<T>(body, start(b), start(b + 1)); }, workers);
+        for (std::size_t b = 0; b < n_blocks; ++b)
+            total += sums[b];
+        return total;
     }
 
     /// Run `body(i)` for i in [0, n) across `workers`, each unit in its own arena of `inner` slots.

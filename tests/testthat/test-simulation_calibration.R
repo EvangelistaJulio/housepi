@@ -245,7 +245,7 @@ test_that("Calibration calibration print their settings", {
   lines |> expect_match("^Inference time per fit: [0-9]+s$", all = FALSE)
 })
 
-test_that("A sweep reproduces from a seed at any thread count", {
+test_that("A sweep reproduces from a seed at any thread count up to nrep", {
   sweep_at <- function(threads) {
     withr::with_seed(1L, check_calibration(
       mk_calib$model, nrep = 3, rank_levels = 10, steps = 400, thin = 1,
