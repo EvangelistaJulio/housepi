@@ -35,7 +35,7 @@ namespace housepi
         /// Bind the modules sources are read from.
         /// * `data`, `group_rate`: read by member-specific sources.
         Translator(Parameter &param,
-                   Augmented &augm,
+                   const Augmented &augm,
                    const Data &data,
                    const rates::Group &group_rate)
             : param_(param),
@@ -90,7 +90,7 @@ namespace housepi
         /// Parameter key module.
         Parameter &param_;
         /// Latent key module.
-        Augmented &augm_;
+        const Augmented &augm_;
         /// Data tables and key holder.
         const Data &data_;
         /// Group-rate storage and key holder.

@@ -22,10 +22,12 @@
 
 namespace housepi
 {
+    struct Data;
     struct InfecProfile;
+    struct Parameter;
     struct StatusProcess;
+    struct Translator;
     class Household;
-    class MCMCBase;
 
     /// Latent variables and observations of a run.
     /// Based on @cite tanner_calculation_1987
@@ -40,8 +42,12 @@ namespace housepi
 
         //////  Constructor  //////
 
-        /// Register model-declared latent keys `keys`, within engine `mcmc`.
-        Augmented(MCMCBase *mcmc, std::vector<std::string> keys);
+        /// Register model-declared latent `keys`, and bind the modules definitions are read from.
+        /// @note The Translator may be bound before it is constructed: it is first read at build.
+        Augmented(std::vector<std::string> keys,
+                  Data &data,
+                  const Parameter &param,
+                  const Translator &translator);
         ~Augmented();
 
         //////  Setter  //////
@@ -80,7 +86,8 @@ namespace housepi
         /// A binding error is kept, and raised only if the member reaches what failed.
         /// Distinct warnings are raised once each.
         /// @note Call after init_house_for_simulation(), and release_simulation() when the run ends.
-        void init_members_for_simulation(const StatusProcess &status_process);
+        void init_members_for_simulation(const StatusProcess &status_process,
+                                         const InfecProfile &infec_profile);
         /// Empty every member variable and drop the blocks, at the end of a simulation run.
         void release_simulation();
         /// Draw the observations of `indiv` from their models, for simulation.
@@ -238,8 +245,12 @@ namespace housepi
         bool produces_obs(const Individual &m, size_t a) const { return !scheme_of_(m).obs_consumers[a].empty(); }
 
     private:
-        /// Owning MCMCBase. @todo Drop.
-        MCMCBase *mcmc_;
+        /// Data tables, read-cells and equivalence-class keys, written by the build.
+        Data &data_;
+        /// Parameters read by definitions.
+        const Parameter &param_;
+        /// Translator of definition sources.
+        const Translator &translator_;
 
         /// Model-declared latent keys generated and read by transmission.
         std::vector<size_t> user_transm_vec_ = {};
@@ -291,6 +302,7 @@ namespace housepi
         /// Bind the blocks of member `m`, one per status scheme it can reach.
         void bind_simulation_blocks_(const augm::Binder &binder,
                                      const StatusProcess &status_process,
+                                     const InfecProfile &infec_profile,
                                      const Individual &m);
 
         /// Point member `m` at the scheme of its status, and return its definition order for the run.

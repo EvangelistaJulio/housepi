@@ -476,7 +476,7 @@ namespace housepi
         : data(model),
           param(model.param_keys()),
           rates(model.group_rate_keys()),
-          augm(this, model.latent_keys()),
+          augm(model.latent_keys(), data, param, translator),
           translator(param, augm, data, rates.group()) {}
     MCMCBase::~MCMCBase() = default;
 

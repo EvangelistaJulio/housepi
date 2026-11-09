@@ -1399,7 +1399,8 @@ namespace housepi
                 engine.model->init_model_for_simulation();
                 engine.rates.assert_identifiability(engine.param);
                 // bind member definitions once per run
-                engine.augm.init_members_for_simulation(engine.status_process);
+                engine.augm.init_members_for_simulation(engine.status_process,
+                                                        engine.infec_profile);
                 // a latent profile is checked as its members bind
                 engine.infec_profile.assert_valid();
 
