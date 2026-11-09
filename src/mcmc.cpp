@@ -474,13 +474,56 @@ namespace housepi
 
     //////////////////////////////  ChainState  //////////////////////////////
 
-    ChainState::ChainState(const ModelBase &model)
-        : data(model),
-          param(model.param_keys()),
+    ChainState::ChainState(const ModelBase &model,
+                           const Definitions &defs,
+                           const Data *shared)
+        : defs(defs),
+          data(model, shared),
+          param(model.param_keys(), defs.param),
           rates(model.group_rate_keys()),
           infec_profile(augm),
-          augm(model.latent_keys(), data, param, infec_profile, status_process, translator),
+          augm(model.latent_keys(),
+               defs.latent,
+               data,
+               param,
+               infec_profile,
+               defs.status_process, translator),
           translator(param, augm, data, rates.group()) {}
+
+    void ChainState::build(Definitions::Slot slot)
+    {
+        using Slot = Definitions::Slot;
+        switch (slot)
+        {
+        case Slot::Param:
+            param.build(translator);
+            data.state.set_evaluated(false);
+            break;
+        case Slot::GroupRate:
+            data.set_eq_class_keys(Data::Source::GroupRate,
+                                   rates.build_group(data.dataset(), param, defs.group_rate));
+            break;
+        case Slot::ContactRate:
+            data.set_eq_class_keys(Data::Source::ContactRate,
+                                   rates.build_contact(data.dataset(), param, defs.contact_rate));
+            break;
+        case Slot::InfecProfile:
+            infec_profile.build(translator, defs.infec_profile);
+            data.state.set_evaluated(false);
+            break;
+        case Slot::Latent:
+            augm.build();
+            break;
+        case Slot::ParamPins:
+            param.build_for_predic(defs.param_pins);
+            data.state.set_evaluated(false);
+            break;
+        case Slot::LatentPins:
+            augm.pin_values(defs.latent_pins);
+            data.state.set_evaluated(false);
+            break;
+        }
+    }
 
     void ChainState::init_equivalence_class_compression()
     {
@@ -558,7 +601,9 @@ namespace housepi
     //////////////////////////////  MCMCBase  //////////////////////////////
 
     MCMCBase::MCMCBase(const ModelBase &model)
-        : chain_(std::make_unique<ChainState>(model)) {}
+    {
+        chains_.push_back(std::make_unique<ChainState>(model, defs));
+    }
     MCMCBase::~MCMCBase() = default;
 
     //////////////////////////////  MCMC  //////////////////////////////
@@ -617,22 +662,75 @@ namespace housepi
         init_param_routes_(chain);
         posterior.init(chain, settings);
         settings.n_done = 0;
+        build_chains_();
     }
 
     double MCMC::sample()
     {
         const auto start = std::chrono::steady_clock::now();
-        ChainState &chain = this->chain();
+        // last chain started kept as the state of the engine, on every exit
+        // @todo this requires a decision on parallel chains
+        struct KeepStarted
+        {
+            MCMC &engine;
+            Settings::Chain chain_id = 0;
+            ~KeepStarted()
+            {
+                std::swap(engine.chains_.front(), engine.chains_[chain_id]);
+                engine.chains_.resize(1);
+                engine.model->bind(engine.chain(), engine.settings);
+            }
+        } keep{*this};
 
         // run multiple MCMC chains
         for (Settings::Chain chain_id = 0; chain_id < settings.n_chains; ++chain_id)
         {
+            keep.chain_id = chain_id;
+            ChainState &chain = *chains_[chain_id];
+            model->bind(chain, settings);
             init_monte_carlo_chain_(chain);
             init_guarded_commit_total_(chain);
             run_chain_(chain, chain_id);
         }
-        chain.data.state.set_evaluated(true);
+        chains_.back()->data.state.set_evaluated(true);
         return std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count();
+    }
+
+    //////  Chains  //////
+
+    void MCMC::build_chains_()
+    {
+        chains_.resize(1);
+        // the first chain raised every warning a build raises
+        msg::WarningBuffer muted;
+        try
+        {
+            while (chains_.size() < settings.n_chains)
+                chains_.push_back(rebuild_chain_state_());
+        }
+        catch (...)
+        {
+            chains_.resize(1);
+            model->bind(chain(), settings);
+            throw;
+        }
+        model->bind(chain(), settings);
+    }
+
+    std::unique_ptr<ChainState> MCMC::rebuild_chain_state_()
+    {
+        using Slot = Definitions::Slot;
+        auto output = std::make_unique<ChainState>(*model, defs, &chain().data);
+        model->bind(*output, settings);
+        model->init_model_requirements();
+        auto slot_order = {Slot::Param, Slot::GroupRate, Slot::ContactRate,
+                           Slot::InfecProfile, Slot::Latent,
+                           Slot::ParamPins, Slot::LatentPins};
+        for (Slot slot : slot_order)
+            output->build(slot);
+        init_for_evaluation_(*output);
+        init_param_routes_(*output);
+        return output;
     }
 
     //////  Setup  //////
@@ -645,7 +743,8 @@ namespace housepi
                 "Nothing to sample.\nCheck your parameter and latent definitions.");
 
         // whether adaptation is required
-        bool is_adaptive = !chain.param.scheme().adaptive.empty() || chain.augm.scheme().is_any_adaptive();
+        bool is_adaptive = !chain.param.scheme().adaptive.empty() ||
+                           chain.augm.scheme().is_any_adaptive();
         // initialize settings for mcmc
         settings.init_mcmc_configuration(is_adaptive);
     }

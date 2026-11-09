@@ -491,8 +491,10 @@ namespace housepi
 
         void import_param(Rcpp::XPtr<MCMC> mcmc_ptr, SEXP input)
         {
-            mcmc_ptr->chain().param.build(rdataframe_to<str_table>(input), mcmc_ptr->chain().translator);
-            mcmc_ptr->chain().data.state.set_evaluated(false);
+            mcmc_ptr->defs.param.build(rdataframe_to<str_table>(input));
+            mcmc_ptr->chain().build(Definitions::Slot::Param);
+            // the build unpinned every parameter
+            mcmc_ptr->defs.param_pins.clear();
         }
 
         void import_dataset(Rcpp::XPtr<MCMC> mcmc_ptr, SEXP input)
@@ -511,49 +513,51 @@ namespace housepi
 
         void import_group_rate(Rcpp::XPtr<MCMC> mcmc_ptr, SEXP input)
         {
-            mcmc_ptr->chain().data.set_eq_class_keys(
-                Data::Source::GroupRate,
-                mcmc_ptr->chain().rates.build_group(mcmc_ptr->chain().data.dataset(), mcmc_ptr->chain().param, rdataframe_to<str_table>(input)));
+            mcmc_ptr->defs.group_rate = rdataframe_to<str_table>(input);
+            mcmc_ptr->chain().build(Definitions::Slot::GroupRate);
             mcmc_ptr->chain().init_equivalence_class_compression();
         }
 
         void import_contact_rate(Rcpp::XPtr<MCMC> mcmc_ptr, SEXP input)
         {
-            mcmc_ptr->chain().data.set_eq_class_keys(
-                Data::Source::ContactRate,
-                mcmc_ptr->chain().rates.build_contact(mcmc_ptr->chain().data.dataset(), mcmc_ptr->chain().param, rdataframe_to<str_table>(input)));
+            mcmc_ptr->defs.contact_rate = rdataframe_to<str_table>(input);
+            mcmc_ptr->chain().build(Definitions::Slot::ContactRate);
             mcmc_ptr->chain().init_equivalence_class_compression();
         }
 
         void import_infec_profile(Rcpp::XPtr<MCMC> mcmc_ptr, SEXP input)
         {
-            mcmc_ptr->chain().infec_profile.build(mcmc_ptr->chain().translator, rdataframe_to<str_table>(input));
-            mcmc_ptr->chain().data.state.set_evaluated(false);
+            mcmc_ptr->defs.infec_profile = rdataframe_to<str_table>(input);
+            mcmc_ptr->chain().build(Definitions::Slot::InfecProfile);
         }
 
+        /// Import latent definitions `input`, then the rows of a latent infectivity profile.
         void import_latent(Rcpp::XPtr<MCMC> mcmc_ptr, SEXP input)
         {
-            mcmc_ptr->chain().augm.build(rdataframe_to<str_table>(input));
+            mcmc_ptr->defs.build_latent(rdataframe_to<str_table>(input), mcmc_ptr->chain().infec_profile);
+            mcmc_ptr->chain().build(Definitions::Slot::Latent);
             mcmc_ptr->chain().init_equivalence_class_compression();
+            // the build unpinned every latent
+            mcmc_ptr->defs.latent_pins.clear();
         }
 
         void import_status_process(Rcpp::XPtr<MCMC> mcmc_ptr, SEXP input, size_t n_levels)
         {
-            mcmc_ptr->chain().status_process.build(mcmc_ptr->chain().data.dataset(), rdataframe_to<str_table>(input), n_levels);
+            mcmc_ptr->defs.status_process.build(mcmc_ptr->chain().data.dataset(), rdataframe_to<str_table>(input), n_levels);
             mcmc_ptr->chain().data.state.set_evaluated(false);
         }
 
         void import_param_table(Rcpp::XPtr<MCMC> mcmc_ptr, SEXP input)
         {
-            mcmc_ptr->chain().param.build_for_predic(rdataframe_to<dbl_table>(input));
-            mcmc_ptr->chain().data.state.set_evaluated(false);
+            mcmc_ptr->defs.param_pins = rdataframe_to<dbl_table>(input);
+            mcmc_ptr->chain().build(Definitions::Slot::ParamPins);
         }
 
         /// Pin latents to the columns of `input`, see Augmented::pin_values().
         void import_latent_table(Rcpp::XPtr<MCMC> mcmc_ptr, SEXP input)
         {
-            mcmc_ptr->chain().augm.pin_values(rdataframe_to<dbl_table>(input));
-            mcmc_ptr->chain().data.state.set_evaluated(false);
+            mcmc_ptr->defs.latent_pins = rdataframe_to<dbl_table>(input);
+            mcmc_ptr->chain().build(Definitions::Slot::LatentPins);
         }
 
         //////////////////////////////  MCMC : exports to Rcpp  //////////////////////////////

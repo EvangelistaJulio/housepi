@@ -165,7 +165,8 @@ namespace housepi
     {
         try
         {
-            model.chain().param.build(read::csv_table(file.param), model.chain().translator);
+            model.defs.param.build(read::csv_table(file.param));
+            model.chain().build(Definitions::Slot::Param);
         }
         catch (const std::exception &e)
         {
@@ -201,7 +202,8 @@ namespace housepi
     {
         try
         {
-            model.chain().rates.build_group(model.chain().data.dataset(), model.chain().param, read::csv_table(file.group_rate));
+            model.defs.group_rate = read::csv_table(file.group_rate);
+            model.chain().build(Definitions::Slot::GroupRate);
         }
         catch (const std::exception &e)
         {
@@ -213,7 +215,8 @@ namespace housepi
     {
         try
         {
-            model.chain().rates.build_contact(model.chain().data.dataset(), model.chain().param, read::csv_table(file.contact_rate));
+            model.defs.contact_rate = read::csv_table(file.contact_rate);
+            model.chain().build(Definitions::Slot::ContactRate);
         }
         catch (const std::exception &e)
         {
@@ -225,7 +228,8 @@ namespace housepi
     {
         try
         {
-            model.chain().infec_profile.build(model.chain().translator, read::csv_table(file.infec_profile));
+            model.defs.infec_profile = read::csv_table(file.infec_profile);
+            model.chain().build(Definitions::Slot::InfecProfile);
         }
         catch (const std::exception &e)
         {
@@ -237,7 +241,8 @@ namespace housepi
     {
         try
         {
-            model.chain().augm.build(read::csv_table(file.latent));
+            model.defs.build_latent(read::csv_table(file.latent), model.chain().infec_profile);
+            model.chain().build(Definitions::Slot::Latent);
         }
         catch (const std::exception &e)
         {

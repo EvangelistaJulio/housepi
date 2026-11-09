@@ -35,14 +35,16 @@ namespace housepi::param
         std::vector<size_t> sample_cached = {};
 
         /// Pinned values per repetition, per parameter.
-        std::vector<std::vector<double>> simulation_values = {};
+        /// * not pinned -> null.
+        std::vector<const std::vector<double> *> simulation_values = {};
 
         /// Classify definitions `def`, visited in `rows` order, over `keys`.
         void build(const DefTable &def,
                    const KeyHolder &keys,
                    std::vector<size_t> rows);
         /// Pin parameter `p` to `values`, one per simulation repetition, and drop it from sampling.
-        void pin(size_t p, std::vector<double> values);
+        /// @note The pin points into `values`, which outlives it.
+        void pin(size_t p, const std::vector<double> &values);
         /// Mark parameter `p` as a producer of the transmission cache.
         void mark_produces_transm_cache(size_t p);
     };

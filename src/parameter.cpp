@@ -327,10 +327,10 @@ namespace housepi
             // no parameter feeds the transmission cache until marked
             sample_standard = sample;
             // one slot per parameter
-            simulation_values.assign(keys.size(), {});
+            simulation_values.assign(keys.size(), nullptr);
         }
 
-        void Scheme::pin(size_t p, std::vector<double> values)
+        void Scheme::pin(size_t p, const std::vector<double> &values)
         {
             vect::remove(sample, {p});
             vect::remove(sample_standard, {p});
@@ -338,7 +338,7 @@ namespace housepi
             vect::remove(adaptive, {p});
             if (!vect::contains(constant, p))
                 constant.push_back(p);
-            simulation_values[p] = std::move(values);
+            simulation_values[p] = &values;
         }
 
         void Scheme::mark_produces_transm_cache(size_t p)
@@ -371,8 +371,8 @@ namespace housepi
         void load_sample_values(const Scheme &scheme, State &state, size_t r)
         {
             for (size_t p = 0; p < scheme.simulation_values.size(); ++p)
-                if (const std::vector<double> &vec = scheme.simulation_values[p]; !vec.empty())
-                    state.vec[p].set(vec[r]);
+                if (const std::vector<double> *vec = scheme.simulation_values[p])
+                    state.vec[p].set((*vec)[r]);
         }
 
         void finalize(const Scheme &scheme, State &state)
@@ -386,15 +386,9 @@ namespace housepi
 
     //////////////////////////////  Parameter  //////////////////////////////
 
-    void Parameter::build(const str_table &input,
-                          const Translator &translator)
+    void Parameter::build(const Translator &translator)
     {
         clear_optional_();
-
-        if (input.empty())
-            return;
-
-        def_.build(input);
         std::vector<size_t> order = def_.order();
 
         // user parameters take keys after model-declared ones, producer first
@@ -430,7 +424,7 @@ namespace housepi
     void Parameter::build_for_predic(const dbl_table &input)
     {
         // classification from build() is kept: a parameter with no table column is drawn
-        scheme_.simulation_values.assign(size(), {});
+        scheme_.simulation_values.assign(size(), nullptr);
         for (const std::string &pstr : all())
             if (auto found = input.find(pstr); found != input.end())
             {

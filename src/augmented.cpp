@@ -87,8 +87,6 @@ namespace housepi
     void InfecProfile::build(Translator &translator,
                              const str_table &input)
     {
-        latent_definitions.clear();
-
         if (input.empty())
             return;
 
@@ -107,10 +105,9 @@ namespace housepi
                                       const str_table &input)
     {
         mode_ = Mode::Generic;
-        const bool is_discr = is_required_discrete_ || str::tobool(input.at("discr")[0]);
+        const bool is_discr = is_discr_(input, 0);
         generic = helper_build_(translator, input.at("func")[0], is_discr);
         lookup_.clear();
-        latent_definitions.clear();
 
         // domain minimum
         generic->init_attr("min", translator.to_attribute(input.at("min")[0]));
@@ -144,32 +141,43 @@ namespace housepi
         mode_ = Mode::Latent;
         generic = nullptr;
         lookup_.clear();
-        latent_definitions.clear();
 
-        // match infectivity profile and latent variable definition
+        // check profile name and discretization
         for (size_t r = 0; r < count_rows(input); ++r)
         {
-            // a discrete-time model discretizes whatever profile it is handed
-            bool discr = is_required_discrete_ || str::tobool(input.at("discr")[r]);
-
-            // check profile name and discretization
-            const std::string &func_name = parse::Definition(input.at("func")[r]).root.func;
-            auto probe = helper_build_(translator, func_name, discr);
+            const bool discr = is_discr_(input, r);
+            auto probe = helper_build_(translator, parse::Definition(input.at("func")[r]).root.func, discr);
             if (discr)
                 probe->discretize();
-
-            latent_definitions["name"].push_back(infprof::LATENT_FUNC);
-            latent_definitions["status"].push_back(input.at("status")[r]);
-            latent_definitions["func"].push_back(input.at("func")[r]);
-            latent_definitions["fcumul"].push_back("false");
-            latent_definitions["const"].push_back("");
-            latent_definitions["discr"].push_back(str::format(discr));
-            latent_definitions["model"].push_back("");
-            latent_definitions["min"].push_back(input.at("min")[r]);
-            latent_definitions["max"].push_back(input.at("max")[r]);
-            latent_definitions["proposal"].push_back("");
-            latent_definitions["kind"].push_back("latent");
         }
+    }
+
+    str_table InfecProfile::list_latent_definitions(const str_table &input) const
+    {
+        str_table output;
+        if (!is_latent())
+            return output;
+
+        for (size_t r = 0; r < count_rows(input); ++r)
+        {
+            output["name"].push_back(infprof::LATENT_FUNC);
+            output["status"].push_back(input.at("status")[r]);
+            output["func"].push_back(input.at("func")[r]);
+            output["fcumul"].push_back("false");
+            output["const"].push_back("");
+            output["discr"].push_back(str::format(is_discr_(input, r)));
+            output["model"].push_back("");
+            output["min"].push_back(input.at("min")[r]);
+            output["max"].push_back(input.at("max")[r]);
+            output["proposal"].push_back("");
+            output["kind"].push_back("latent");
+        }
+        return output;
+    }
+
+    bool InfecProfile::is_discr_(const str_table &input, size_t r) const
+    {
+        return is_required_discrete_ || str::tobool(input.at("discr")[r]);
     }
 
     std::unique_ptr<Distribution> InfecProfile::helper_build_(Translator &translator,
@@ -1480,6 +1488,7 @@ namespace housepi
     //////////////////////////////  Augmented  //////////////////////////////
 
     Augmented::Augmented(std::vector<std::string> keys,
+                         const augm::DefTable &def,
                          Data &data,
                          const Parameter &param,
                          InfecProfile &infec_profile,
@@ -1490,7 +1499,8 @@ namespace housepi
           param_(param),
           infec_profile_(infec_profile),
           status_process_(status_process),
-          translator_(translator) {}
+          translator_(translator),
+          def_(def) {}
     Augmented::~Augmented() = default;
 
     void Augmented::request_transmission(std::vector<size_t> vec)
@@ -1498,13 +1508,10 @@ namespace housepi
         vect::append_unique(user_transm_vec_, vec);
     }
 
-    void Augmented::build(const str_table &input)
+    void Augmented::build()
     {
         build_restore_internal_();
-        // DefTable::append indexes its columns
-        if (!input.empty())
-            def_.append(input);
-        build_append_profile_();
+        build_register_profile_();
 
         // data columns the definitions read tell equivalence classes apart
         data_.set_eq_class_keys(Data::Source::Latent, def_.list_eq_class_keys());
@@ -1549,19 +1556,17 @@ namespace housepi
 
     void Augmented::build_restore_internal_()
     {
-        def_.clear();
         scheme_ = augm::Scheme();
         clear_optional_();
         state.clear();
         pins_.clear();
     }
 
-    void Augmented::build_append_profile_()
+    void Augmented::build_register_profile_()
     {
         if (!infec_profile_.is_latent())
             return;
 
-        def_.append(infec_profile_.latent_definitions);
         add_(infprof::LATENT_FUNC);
         infec_profile_.latent_key = consult(infprof::LATENT_FUNC);
     }
@@ -2066,7 +2071,7 @@ namespace housepi
                 // definition order: a latent reading a pinned one follows it
                 for (size_t a : scheme_of_(indiv).sample)
                 {
-                    const double x = pins_.empty() || pins_[a].empty() ? na::DOUBLE : pins_[a][Index::of(indiv)];
+                    const double x = pins_.empty() || !pins_[a] ? na::DOUBLE : (*pins_[a])[Index::of(indiv)];
                     if (na::is(x))
                         st.vec[a].draw_value(prng);
                     else
@@ -2077,10 +2082,10 @@ namespace housepi
 
     void Augmented::pin_values(const dbl_table &table)
     {
-        pins_.assign(size(), {});
+        pins_.assign(size(), nullptr);
         for (const auto &[name, values] : table)
             if (const size_t a = find(name); !na::is(a))
-                pins_[a] = values;
+                pins_[a] = &values;
     }
 
     void Augmented::finalize()

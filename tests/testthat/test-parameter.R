@@ -683,6 +683,17 @@ test_that("Rates too small to infect anyone stop the run at its start", {
     expect_error("[Tt]ransmission probability of household.*numerically zero")
 })
 
+test_that("A failed run keeps the state of the chain that failed", {
+  hh_model <- mk_final_size$template |>
+    add_parameter(alpha = 1e-300, beta = 1e-300) |>
+    suppressWarnings()
+  # the first of two chains fails at its start, after drawing its values
+  hh_model |>
+    run_inference(steps = 10L, chains = 2L, progress = FALSE, warn = FALSE) |>
+    expect_error("numerically zero")
+  inspect_state(hh_model, "1")$parameters[["gamma"]] |> expect_no_na()
+})
+
 test_that("Every prior family and nested function samples across chains", {
   # one parameter per prior family, and functions nested as operands
   draws <- mk_param$model |>

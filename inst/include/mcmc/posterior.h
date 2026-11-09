@@ -57,6 +57,8 @@ namespace housepi
         /// Pointwise log-likelihood: observation + transmission + latent model.
         /// * one stored column per equivalence class, `source` giving the class of each household.
         Draws house_log_lik;
+        /// Members whose latents are stored, in the shared dataset.
+        /// * valid for every chain sharing the dataset.
         std::vector<const Individual *> tracked_indivs;
 
         /// Initialize posterior sample of `chain`.

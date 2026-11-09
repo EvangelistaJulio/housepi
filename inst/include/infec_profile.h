@@ -90,7 +90,6 @@ namespace housepi
     struct InfecProfile
     {
         std::unique_ptr<Distribution> generic;
-        str_table latent_definitions = {};
         size_t latent_key;
 
         //////  Constructor  //////
@@ -105,6 +104,9 @@ namespace housepi
         /// Build the infectivity profile distribution.
         /// @todo Honour the minimum of the profile.
         void build(Translator &translator, const str_table &input);
+        /// List the latent definitions profile `input` reads, one per row.
+        /// * profile not latent -> none.
+        str_table list_latent_definitions(const str_table &input) const;
 
         /// Finalize the generic distribution, resolving its read-surface, before use.
         /// * latent profile -> finalized with its member variable.
@@ -221,6 +223,9 @@ namespace housepi
         void build_generic_(Translator &translator, const str_table &input);
         /// Build the per-member profile, read from a latent function.
         void build_latent_(Translator &translator, const str_table &input);
+        /// Whether row `r` of `input` builds a discrete profile.
+        /// * discrete-time model -> discretizes whatever profile it is handed.
+        bool is_discr_(const str_table &input, size_t r) const;
         /// Compose a profile distribution `func` and bind its arguments.
         static std::unique_ptr<Distribution> helper_build_(Translator &translator,
                                                            const std::string &func,

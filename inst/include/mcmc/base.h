@@ -5,10 +5,12 @@
 
 #pragma once
 
+#include <cstdint>
 #include <memory>
 #include <string>
 #include <vector>
 
+#include "tools/dictionary.h"
 #include "tools/logproba.h"
 #include "tools/nan.h"
 #include "augmented.h"
@@ -49,23 +51,81 @@ namespace housepi
         block_rw::Factor factor = {};
     };
 
+    /// Definitions of a run, parsed from the imported tables, read by every chain.
+    /// * built once per import, never written while sampling;
+    /// * a chain builds its modules from them, slot by slot, see ChainState::build().
+    ///
+    /// @note Replaying every slot in `Slot` order rebuilds a chain only after the wall push:
+    /// before it, the latent slot may wait on incomplete definitions.
+    /// @note Chain state set outside these slots is lost by a rebuilt chain, unless the rebuild sets it too.
+    struct Definitions
+    {
+        /// Slots a chain builds from, in replay order.
+        enum class Slot : std::uint8_t
+        {
+            Param,
+            GroupRate,
+            ContactRate,
+            InfecProfile,
+            Latent,
+            ParamPins,
+            LatentPins
+        };
+
+        /// Parameter definitions.
+        param::DefTable param;
+        /// Group-rate rules, resolved per member at build.
+        str_table group_rate;
+        /// Contact-rate rules, resolved per household at build.
+        str_table contact_rate;
+        /// Infectivity-profile definitions.
+        str_table infec_profile;
+        /// Latent and observation definitions, then the latent infectivity-profile rows.
+        augm::DefTable latent;
+        /// Status drawn per member at infection, in simulation.
+        StatusProcess status_process;
+        /// Pinned parameter values, one per simulation repetition, by name.
+        dbl_table param_pins;
+        /// Pinned latent values, one per member, by name.
+        dbl_table latent_pins;
+
+        /// Set latent definitions to `input`, then the rows of latent infectivity profile `profile`.
+        void build_latent(const str_table &input, const InfecProfile &profile)
+        {
+            latent.clear();
+            latent.append(input);
+            latent.append(profile.list_latent_definitions(infec_profile));
+        }
+    };
+
     /// State of one Markov chain: modules built from definitions, log-likelihood totals, adaptation.
     /// * modules point into each other -> never copied, rebuilt.
     struct ChainState
     {
-        /// Register the keys declared by `model` in every key holder.
-        explicit ChainState(const ModelBase &model);
+        /// Register the keys declared by `model` in every key holder, bind `defs`.
+        /// * `shared` -> its imported tables shared, read-cells unset until evaluation setup.
+        ChainState(const ModelBase &model, const Definitions &defs, const Data *shared = nullptr);
         ChainState(const ChainState &) = delete;
         ChainState &operator=(const ChainState &) = delete;
 
+        //////  Build  //////
+
+        /// Build the modules that read slot `slot` of definitions.
+        /// * import -> the slot is set first, then built on the first chain;
+        /// * rebuilt chain -> every slot built again, in `Slot` order;
+        /// * equivalence classes -> left to the caller, partitioned again at evaluation setup.
+        /// @note Every other chain state a slot sets is set here, so imports and rebuilds agree.
+        void build(Definitions::Slot slot);
+
         //////  Modules  //////
 
+        /// Definitions the modules are built from.
+        const Definitions &defs;
         /// Imported tables, shared across engines, and run state.
         Data data;
         Parameter param;
         Rates rates;
         InfecProfile infec_profile;
-        StatusProcess status_process;
         Augmented augm;
         Translator translator;
 
@@ -153,21 +213,24 @@ namespace housepi
     public:
         Settings settings;
         Posterior posterior;
+        /// Definitions of the run, read by every chain.
+        Definitions defs;
 
         //////  Constructor  //////
 
-        /// Build the chain state over the keys declared by `model`.
+        /// Build the state of the first chain over the keys declared by `model`.
         explicit MCMCBase(const ModelBase &model);
         virtual ~MCMCBase();
 
         //////  Getter  //////
 
-        /// State of the chain.
-        ChainState &chain() noexcept { return *chain_; }
-        const ChainState &chain() const noexcept { return *chain_; }
+        /// State of the chain imports build, evaluation and simulation read.
+        ChainState &chain() noexcept { return *chains_.front(); }
+        const ChainState &chain() const noexcept { return *chains_.front(); }
 
-    private:
-        /// State of the chain.
-        std::unique_ptr<ChainState> chain_;
+    protected:
+        /// State of every chain, the first built by imports.
+        /// * other chains -> rebuilt from definitions for one run, see MCMC::prepare_inference().
+        std::vector<std::unique_ptr<ChainState>> chains_ = {};
     };
 }

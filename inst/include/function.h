@@ -245,6 +245,8 @@ namespace housepi
         /// Interned name id, 0 when empty.
         NameIdx name_id_ = 0;
         double value_ = na::DOUBLE;
+        /// Attribute read through, owned by a module of the same chain.
+        /// * chain rebuilt -> pointed again by its build, never copied.
         const Attribute *attr_ = nullptr;
         std::unique_ptr<Function> func_ = nullptr;
     };

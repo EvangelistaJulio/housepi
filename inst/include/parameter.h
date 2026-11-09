@@ -25,23 +25,29 @@ namespace housepi
 
     /// Model parameters of a run.
     ///
-    /// * definitions, stored;
+    /// * definitions, bound;
     /// * sampling scheme, built from definitions;
     /// * parameter variables, bound to definitions.
     struct Parameter : public KeyHolderWithRequests
     {
-        using KeyHolderWithRequests::KeyHolderWithRequests;
-
         /// Variables moved by inference and simulation.
         param::State state;
 
+        //////  Constructor  //////
+
+        /// Register model-declared parameter `keys`, and bind definitions `def`.
+        Parameter(std::vector<std::string> keys, const param::DefTable &def)
+            : KeyHolderWithRequests(std::move(keys)),
+              def_(def) {}
+
         //////  Setter  //////
 
-        /// Build definitions from `input`, then their sampling scheme and variables.
+        /// Build the sampling scheme and variables of definitions.
         /// @note Expects one definition per parameter.
-        void build(const str_table &input, const Translator &translator);
+        void build(const Translator &translator);
         /// Pin the parameters `input` holds a column for, for measures on a posterior sample.
-        /// @note Expects a non-empty table.
+        /// * no column -> nothing pinned.
+        /// @note The pins point into `input`, which outlives them.
         void build_for_predic(const dbl_table &input);
         /// Mark parameter `p` as a producer of the transmission cache.
         void mark_produces_transm_cache(size_t p) { scheme_.mark_produces_transm_cache(p); }
@@ -80,7 +86,7 @@ namespace housepi
         /// * held by the simulation table of the current run.
         bool is_pinned(size_t p) const noexcept
         {
-            return at(p).is_constant() || !scheme_.simulation_values[p].empty();
+            return at(p).is_constant() || scheme_.simulation_values[p] != nullptr;
         }
 
         /// Whether parameter `p` may be read by rates alone.
@@ -93,7 +99,8 @@ namespace housepi
         bool is_any_sample() const noexcept { return !scheme_.sample.empty(); }
 
     private:
-        param::DefTable def_;
+        /// Definitions, built before every build().
+        const param::DefTable &def_;
         /// Sampling scheme built from definitions.
         param::Scheme scheme_;
         /// Parameter sets the model requests in one block each.

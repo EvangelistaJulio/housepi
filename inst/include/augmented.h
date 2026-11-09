@@ -32,7 +32,7 @@ namespace housepi
     /// Latent variables and observations of a run.
     /// Based on @cite tanner_calculation_1987
     ///
-    /// * definitions, stored;
+    /// * definitions, bound;
     /// * sampling schemes, built from definitions;
     /// * member and household variables, bound to definitions.
     struct Augmented : public KeyHolderWithRequests
@@ -42,9 +42,10 @@ namespace housepi
 
         //////  Constructor  //////
 
-        /// Register model-declared latent `keys`, and bind the modules of its chain.
+        /// Register model-declared latent `keys`, bind definitions `def` and the modules of its chain.
         /// @note The Translator may be bound before it is constructed: it is first read at build.
         Augmented(std::vector<std::string> keys,
+                  const augm::DefTable &def,
                   Data &data,
                   const Parameter &param,
                   InfecProfile &infec_profile,
@@ -57,9 +58,10 @@ namespace housepi
         /// Declare latent keys `vec` as read by transmission.
         void request_transmission(std::vector<size_t> vec);
 
-        /// Build definitions from `input` and the infectivity profile, then their sampling schemes.
+        /// Build the sampling schemes of definitions.
+        /// * latent infectivity profile -> its key registered, its rows read from definitions;
         /// * status process defined -> every status it draws needs a scheme.
-        void build(const str_table &input);
+        void build();
 
         /// Empty the variables of every infected member, between simulated repetitions.
         /// * variable from a block -> returned to it;
@@ -128,6 +130,7 @@ namespace housepi
         /// * column -> latent of the same name, one value per member in dataset order;
         /// * `NA` cell, latent without a column -> not pinned.
         /// @note Pins set values only: sampling schemes and equivalence classes stay as built.
+        /// The pins point into `table`, which outlives them.
         void pin_values(const dbl_table &table);
 
         /// Finalize every variable, see Variable::finalize().
@@ -262,11 +265,11 @@ namespace housepi
         std::vector<size_t> user_transm_vec_ = {};
         /// Key -> whether simulation binds it for the whole run.
         std::vector<bool> sim_fixed_ = {};
-        /// Key -> pinned value per member, empty when not pinned.
-        std::vector<std::vector<double>> pins_ = {};
+        /// Key -> pinned value per member, null when not pinned.
+        std::vector<const std::vector<double> *> pins_ = {};
 
-        /// Latent and observation definitions.
-        augm::DefTable def_;
+        /// Latent and observation definitions, built before every build().
+        const augm::DefTable &def_;
         /// Sampling schemes built from definitions.
         augm::Scheme scheme_;
 
@@ -277,8 +280,8 @@ namespace housepi
 
         /// Reset the internal lists and flags of definitions.
         void build_restore_internal_();
-        /// Append infectivity-profile definitions, if any.
-        void build_append_profile_();
+        /// Register the key of a latent infectivity profile, if any.
+        void build_register_profile_();
 
         /// Point every individual at a status scheme holding what its run reads.
         /// * observations whose datum is present;

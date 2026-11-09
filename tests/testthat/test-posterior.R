@@ -383,3 +383,22 @@ test_that("Runs of different settings, data or members do not combine", {
   other <- Find(\(x) !identical(traced(x), traced(runs[[1L]])), runs)
   c(runs[[1L]], other) |> expect_error("[Dd]ifferent variables")
 })
+
+test_that("Every chain stores the log-likelihood of its own parameters", {
+  hh_model <- flu_1918_frederick |>
+    new_housepi_model("final-size") |>
+    add_parameter(import = "template")
+  hh_fit <- hh_model |>
+    run_inference(steps = 20L, chains = 2L, adapt = 0L, thin = 1L,
+                  warn = FALSE)
+  # last draw of the second chain, whose state is rebuilt for the run
+  last <- \(x) posterior::subset_draws(x, chain = 2L, iteration = 20L) |>
+    posterior::as_draws_matrix()
+  param <- as.list(as.data.frame(last(get_parameter_draws(hh_fit))))
+  # every parameter pinned to the draw, hh_size_ref to its template constant
+  hh_model |>
+    add_parameter(import = c(param, hh_size_ref = 4), append = FALSE) |>
+    evaluate_log_lik(total = FALSE) |>
+    unname() |>
+    expect_equal(as.vector(last(get_log_lik_draws(hh_fit))))
+})

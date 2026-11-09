@@ -34,8 +34,8 @@ namespace housepi
 {
     //////////////////////////////  Data  //////////////////////////////
 
-    Data::Data(const ModelBase &model)
-        : store_(std::make_shared<Store_>(model))
+    Data::Data(const ModelBase &model, const Data *shared)
+        : store_(shared ? shared->store_ : std::make_shared<Store_>(model))
     {
         // the transmission model reads its data keys per member
         set_eq_class_keys(Source::Model, model.data_keys());

@@ -185,7 +185,7 @@ namespace housepi
         /// @note Call init_missing_latent() after to initialize individual status-specific variables.
         void set_infected(Household &house, Individual &indiv)
         {
-            house.set_new_status_(indiv, chain_->status_process.draw(indiv, settings_->prng()));
+            house.set_new_status_(indiv, chain_->defs.status_process.draw(indiv, settings_->prng()));
         }
         /// Set member `indiv` escaped.
         void set_escaped(Household &house, Individual &indiv)

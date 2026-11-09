@@ -60,9 +60,12 @@ namespace housepi
         //////  Inference  //////
 
         /// Assert definitions and allocate the posterior, before sample().
+        /// * every chain after the first -> rebuilt from definitions, its warnings dropped.
         /// @note Call on the main thread: it may raise warnings.
         void prepare_inference();
-        /// Run every chain: initialization, adaptation, then posterior sampling.
+        /// Run every chain on its own state: initialization, adaptation, then posterior sampling.
+        /// * any exit -> state of the last chain started kept as the first, the others freed;
+        /// * chain failing -> its state is the one kept, as it failed;
         /// * completion -> every household flagged evaluated, at the last state.
         /// @return Seconds spent sampling.
         /// @note Call after prepare_inference(). Off the main thread, it calls no R.
@@ -80,6 +83,14 @@ namespace housepi
     private:
         /// Create the engine of model `model_ptr`.
         explicit MCMC(std::unique_ptr<ModelBase> model_ptr);
+
+        //////  Chains  //////
+
+        /// Rebuild the state of every chain after the first, the model bound back to the first.
+        void build_chains_();
+        /// Build a chain state from definitions, sharing the imported tables of the first chain.
+        /// * model requests, every slot in `Slot` order, then evaluation setup and parameter routes.
+        std::unique_ptr<ChainState> rebuild_chain_state_();
 
         //////  Setup  //////
 

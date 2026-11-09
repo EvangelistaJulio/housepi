@@ -41,7 +41,8 @@ namespace housepi
         };
 
         /// Register the data keys declared by `model`, also equivalence-class keys.
-        explicit Data(const ModelBase &model);
+        /// * `shared` -> its imported tables shared, read-cells unset until reset_readcells().
+        explicit Data(const ModelBase &model, const Data *shared = nullptr);
 
         //////  Setter  //////
 
