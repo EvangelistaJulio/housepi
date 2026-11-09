@@ -14,9 +14,9 @@
 HOUSEPI_OPEN_MODULE_NAMESPACE()
 
 /// Model case-ascertained studies with latent infection times, assuming an introduction per household.
-/// Simulation infects a member drawn uniformly at the time origin, see ModelBase::set_introduction().
-/// * discrete time -> the community also infects other members on that day @cite zhang_frequent_2026;
-/// * continuous time -> other members are infected later @cite cauchemez_bayesian_2004.
+/// Simulation infects a member drawn uniformly on day 0, see ModelBase::set_introduction().
+/// * discrete time -> at 0, the community infects other members that day @cite zhang_frequent_2026;
+/// * continuous time -> uniformly within day 0, others later @cite cauchemez_bayesian_2004.
 class Model final : public ModelBase
 {
 public:
@@ -367,17 +367,18 @@ public:
     {
         //////  Generation 0: single introduction  //////
 
-        const MemberIdx i0 = set_introduction(house, Latent::infec_time);
-        double t_first = aug(Latent::infec_time, house.at(i0));
+#ifdef _HOUSEPI_DISCRETE_TIME
+        const double Dt = 1;
+        const MemberIdx i0 = set_introduction(house, Latent::infec_time, 0.);
+        const double t_first = aug(Latent::infec_time, house.at(i0));
+#else
+        const double Dt = real_time_step();
+        const MemberIdx i0 = set_introduction(house, Latent::infec_time, uniform());
+        const double t_first = aug(Latent::infec_time, house.at(i0)) + Dt;
+#endif
 
         //////  Generation 1+: infection by the previous generation  //////
 
-#ifdef _HOUSEPI_DISCRETE_TIME
-        const double Dt = 1;
-#else
-        const double Dt = real_time_step();
-        t_first += Dt;
-#endif
         const double alpha = par(Param::alpha);
         const double beta = transmission_rate(house.size());
 

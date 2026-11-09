@@ -17,9 +17,10 @@ The household is followed from its first infection, the primary case, which ente
 
 It needs a value for every member, escaped ones included.
 An observation standing for it is defined at household level, or from data columns only.
-In simulation the primary case is drawn uniformly among the members \insertCite{cauchemez_bayesian_2004}{housepi}, and infected at time 0.
-In discrete time, the community can infect any other member on that same day.
-There \code{end_date} counts days from that infection, and calendar dates are not supported.
+In simulation, the primary case is drawn uniformly among the members \insertCite{cauchemez_bayesian_2004}{housepi}, and infected on day 0.
+Current implementation requires \code{end_date} to count days from day 0, and calendar dates are not supported.
+In discrete time, alongside the primary case, other member can be infected from the community on day 0.
+In continuous time the primary case infection time is uniform within day 0.
 }
 
 \section{Parameters}{
@@ -43,7 +44,7 @@ Transmission sets every infection time during simulations.
 Simulation needs no \code{infec_time} definition, and ignores it.
 
 The likelihood is unchanged when every time shifts by the same amount.
-The infection time of the primary case is set at 0 during simulation.
+During simulation the primary case is infected on day 0.
 Inference samples infection times between plausible \code{min} and \code{max},
 while observations inform about the timing.
 }

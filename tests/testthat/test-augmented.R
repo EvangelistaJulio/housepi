@@ -1552,19 +1552,15 @@ test_that("Bounds of a bare latent read neither draws nor free parameters", {
   get_log_lik_draws(hh_fit)$h1 |> expect_all_finite()
 })
 
-test_that("A bare latent is set by transmission, from the introduction on", {
-  # transmission sets every infection, the introduction at the time origin
+test_that("A bare latent is set by transmission", {
+  # saturated transmission sets every infection
   # a reader follows the time transmission sets
   simulated <- mk_outbreak$model |>
     add_latent("infec_time", min = -14, max = end_date, append = FALSE) |>
     add_observation(record = infec_time + 1) |>
     run_simulation()
-  tapply(simulated$infec_time, simulated$hh_id, min, na.rm = TRUE) |>
-    as.vector() |>
-    expect_all_equal(0)
-  any(simulated$infec_time > 0) |> expect_true()
-  infected <- !is.na(simulated$infec_time)
-  simulated$record[infected] |> expect_equal(simulated$infec_time[infected] + 1)
+  simulated$infec_time |> expect_no_na()
+  simulated$record |> expect_equal(simulated$infec_time + 1)
 })
 
 test_that("Latent traces export only relevant variables", {

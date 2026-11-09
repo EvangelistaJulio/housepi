@@ -140,14 +140,15 @@ get_latent_state <- function(latent_draws, index) {
 ####  Simulation  ####
 
 test_that("With no transmission only a random household member is infected", {
-  # the introduction is the only case, infected at the time origin
+  # the introduction is the only case, infected uniformly over the first day
   # transmission generates `infec_time`: simulation needs no definition
   hh_model <- mk_simulation$model |>
     add_parameter(alpha = 1e-12, beta = 0, gamma = 1, hh_size_ref = 4)
   simulated <- hh_model |> run_simulation()
   infected <- simulated$status > 0
   as.vector(table(simulated$hh_id[infected])) |> expect_all_equal(1L)
-  simulated$infec_time[infected] |> expect_all_equal(0)
+  t_intro <- simulated$infec_time[infected]
+  (t_intro >= 0 & t_intro < 1) |> expect_all_true()
 
   # inference fails without definition
   get_latent(hh_model) |> expect_nrow(0L)

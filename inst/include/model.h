@@ -195,16 +195,16 @@ namespace housepi
         /// Introduce infection in `house` through latent `a`.
         /// Set every other member to escaped.
         /// * member: drawn uniformly;
-        /// * time: the time origin, 0.
+        /// * time: `t0`.
         /// @todo Generalize to user-choices other than uniform.
         /// @note This procedure is validated by SBC on case-ascertained.
         /// @return The member introducing the infection.
-        MemberIdx set_introduction(Household &house, size_t a)
+        MemberIdx set_introduction(Household &house, size_t a, double t0)
         {
             const MemberIdx i0 = uniform() * house.size();
             Individual &indiv_0 = house.at(i0);
             set_infected(house, indiv_0);
-            set_latent_value(a, indiv_0, 0.);
+            set_latent_value(a, indiv_0, t0);
             init_missing_latent(indiv_0);
 
             for (Individual &indiv : house)
