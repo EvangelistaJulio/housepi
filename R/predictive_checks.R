@@ -264,6 +264,29 @@ measure_dots_ <- function(...) {
   list(measures = dots[!setting], settings = dots[setting])
 }
 
+#' Whether `x` holds posterior draws, from a run or as `posterior::draws`.
+#' @noRd
+is_draws_ <- function(x) {
+  inherits(x, "HousepiPosteriorDraws") || posterior::is_draws(x)
+}
+
+#' Source of the parameter values a check simulates at,
+#' `hh_model` built at the wall.
+#' * `NULL` -> `"prior"`;
+#' * run fitted to `hh_model` and its data, or `posterior::draws`
+#'   -> `"posterior"`;
+#' * run fitted to another model or data -> `"table"`;
+#' * table or named values -> `"table"`.
+#' @noRd
+draws_source_ <- function(draws, hh_model) {
+  if (is.null(draws)) return("prior")
+  if (!is_draws_(draws)) return("table")
+  if (!inherits(draws, "HousepiPosteriorDraws")) return("posterior")
+  differ <- differing_entries_(hh_model$.__enclos_env__$private$fingerprint_,
+                               draws$.__enclos_env__$private$fingerprint_)
+  if (length(differ)) "table" else "posterior"
+}
+
 #' @title Prior or posterior predictive check of user-defined measures
 #' @description
 #' Prior or posterior predictive checks of measures

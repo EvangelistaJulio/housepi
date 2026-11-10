@@ -9,6 +9,152 @@
 .housepi_env <- new.env(parent = emptyenv())
 .housepi_env$hollow <- FALSE
 
+#' Read a parameter table from draws or a data.frame, thinned to the ESS.
+#' * named vector or list -> one row;
+#' * value without a name, or parameter without exactly one value -> error.
+#' @param thin_ess `logical(1)` Whether to thin to the ESS.
+#' @param arg `character(1)` Argument the table came from.
+#' @noRd
+helper_read_param_table_ <- function(ptab, thin_ess = TRUE, arg = "draws") {
+  # extract parameter draws from table
+  if (inherits(ptab, "HousepiPosteriorDraws")) {
+    ptab <- draws_block_(ptab, "param")
+  }
+
+  if (posterior::is_draws(ptab)) {
+    ptab <- posterior::as_draws_matrix(ptab)
+    # reduce sample to effective sample size (ESS)
+    if (isTRUE(thin_ess)) {
+      # an ESS above the draw count keeps every draw, capped or not
+      # degenerate draws give NA, asserted below
+      ess_bulk <- suppressWarnings(posterior::summarise_draws(
+        ptab, ess_bulk = posterior::ess_bulk
+      )$ess_bulk)
+      # check no NA values in ESS
+      if (anyNA(ess_bulk)) stop_h(
+        "ESS values return NA.",
+        "Check your draws for degenerate parameters."
+      )
+      # keep at most ESS draws, evenly spaced over the rows
+      ptab <- helper_thin_even_(as.data.frame(ptab), floor(min(ess_bulk)))
+    }
+  }
+
+  # named values: a single draw
+  if (is_named_values_(ptab)) {
+    if (!rlang::is_named(ptab)) stop_h(
+      "{.arg {arg}} holds a value without a parameter name."
+    )
+    several <- names(ptab)[lengths(ptab) != 1L]
+    if (length(several)) stop_h(
+      # argument name pasted, as a second glue value breaks the plural
+      paste0("Parameter{?s} {.val {several}} {?does/do} not hold ",
+             "exactly one value in {.arg ", arg, "}."),
+      "Pass several draws as a {.cls data.frame}, one row per draw."
+    )
+    return(list2DF(lapply(as.list(ptab), unname)))
+  }
+
+  tryCatch({
+    return(as.data.frame(ptab))
+  }, error = \(e) stop_h("Type of {.arg {arg}} not supported.")
+  )
+}
+
+#' Resolve the character `status =` labels of latent definitions
+#' to codes 1..K against the model status dictionary.
+#' * integer code -> passes through;
+#' * integer and character declarations mixed -> error;
+#' * label absent from the dictionary -> error.
+#' @param dictionary `character()` Ordered infected-status labels.
+#' @return `data.frame` | `NULL` Definitions, `status` coded as integers.
+#' @noRd
+resolve_status_codes_ <- function(defs, dictionary) {
+  if (is.null(defs)) return(defs)
+  st <- as.character(unlist(defs[["status"]], use.names = FALSE))
+  known <- !is.na(st)
+  as_int <- suppressWarnings(as.integer(st))
+  is_int <- known & !is.na(as_int) & as.character(as_int) == st
+  is_lab <- known & !is_int
+  # guard: a model is all-integer or all-character on 'status ='
+  if (any(is_int) && any(is_lab)) stop_h(
+    "Mixed integer and character {.code status =} declarations in one model.",
+    "Use either integer codes or character labels throughout."
+  )
+  if (any(is_lab)) {
+    code <- match(st[is_lab], dictionary)
+    unknown <- unique(st[is_lab][is.na(code)])
+    if (length(unknown)) stop_h(
+      "Unknown status label{?s} {.val {unknown}}.",
+      find_closest_match(
+        unknown, dictionary,
+        otherwise = "Use a status label of the data or of the status process."
+      )
+    )
+    st[is_lab] <- as.character(code)
+    defs[["status"]] <- st
+  }
+  defs
+}
+
+#' Resolve unsettled sources against the model's own declarations.
+#' The distribution and proposal columns carry encoded arguments too,
+#' so they are rewritten alongside the value-bearing ones.
+#' @param dict `character()` Source letter, named by declared name.
+#' @noRd
+resolve_source_types_ <- function(defs, dict) {
+  if (!length(defs)) return(defs)
+  cols <- c("const", "func", "prior", "model", "min", "max", "proposal")
+  for (col in intersect(names(defs), cols)) {
+    if (is.character(defs[[col]]))
+      defs[[col]] <- housepi_resolve_definition(defs[[col]], dict)
+  }
+  defs
+}
+
+#' Resolve unspecified `discr` declarations against model and data.
+#' * definition neither carrying a model/prior nor sampled -> `discr` FALSE.
+#' @param discr_req_defs `character()` Definitions the model requires discrete.
+#' @param discr_col_types `logical()` Storage type per data column, by name.
+#' @param discr_req_cols `character()` Data columns the model requires discrete.
+#' @param is_prior `logical(1)` Whether prior, otherwise model.
+#' @return `data.frame` Definitions with a logical `discr` column.
+#' @noRd
+resolve_discr_flags_ <- function(defs, discr_req_defs,
+                                 discr_col_types = NULL,
+                                 discr_req_cols = character(),
+                                 is_prior = FALSE) {
+  if (is.null(defs)) return(defs)
+  discr <- as.logical(defs[["discr"]])
+  unresolved <- is.na(discr)
+  if (!any(unresolved)) return(defs)
+
+  # whether the transmission model requires the definition's name discrete
+  by_model <- defs[["name"]] %in% discr_req_defs
+
+  # whether the datum column the definition reads is discrete
+  by_data <- rep(FALSE, length(discr))
+  if (!is.null(discr_col_types)) {
+    # name of the data column a definition is pinned to
+    col <- as.character(defs[["const"]])
+    hit <- grepl("^[A-Za-z0-9_.]+\\|D$", col)
+    # NA if it reads none
+    col <- ifelse(hit, sub("\\|D$", "", col), NA_character_)
+    # the column storage type, or the model requiring that column discrete
+    by_data <- unname(discr_col_types[col]) | col %in% discr_req_cols
+    by_data[is.na(by_data)] <- FALSE
+  }
+
+  distr_col <- if (is_prior) "prior" else "model"
+  # sampled: a prior, a model, or bare (no constant, no function)
+  has_distr <- !is.na(defs[[distr_col]]) |
+    (is.na(defs[["const"]]) & is.na(defs[["func"]]))
+  mask <- has_distr & (by_model | by_data)
+  discr[unresolved] <- mask[unresolved]
+  defs[["discr"]] <- discr
+  defs
+}
+
 #' @title
 #' R6 class for compiling and running a household transmission model
 #' @description

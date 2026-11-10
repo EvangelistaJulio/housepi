@@ -801,6 +801,42 @@ test_that("A followed household without infected members warns", {
 
 ####  Simulation run  ####
 
+test_that("ESS thinning keeps a draw of every chain", {
+  # four chains of 100 draws stuck apart: the bulk ESS is near the chain count
+  rho <- rep(1:4, each = 100L) + stats::rnorm(400L, sd = 0.01)
+  draws <- posterior::draws_df(rho = rho, .nchains = 4L)
+  thinned <- helper_read_param_table_(draws)
+  nrow(thinned) |> expect_lt(10L)
+  round(thinned$rho) |> expect_setequal(1:4)
+})
+
+test_that("ESS thinning reads the chains apart", {
+  # four chains each drifting up one ramp: bulk ESS is near 6 over the chains,
+  # near 20 over the chains read end to end as one
+  rho <- rep(seq_len(100L), 4L) + rep(1:4 / 10, each = 100L)
+  draws <- posterior::draws_df(rho = rho, .nchains = 4L)
+  helper_read_param_table_(draws) |>
+    nrow() |>
+    expect_lt(10L)
+})
+
+test_that("Named values read as a single draw", {
+  draws <- data.frame(rho = 0.3, rho_2 = 2)
+  helper_read_param_table_(c(rho = 0.3, rho_2 = 2)) |> expect_identical(draws)
+  helper_read_param_table_(list(rho = 0.3, rho_2 = 2)) |>
+    expect_identical(draws)
+  # a matrix reads by its columns
+  cbind(rho = c(0.3, 0.4)) |>
+    helper_read_param_table_() |>
+    nrow() |>
+    expect_identical(2L)
+
+  helper_read_param_table_(c(0.3, rho_2 = 2)) |>
+    expect_error("value without a parameter name")
+  helper_read_param_table_(list(rho = c(0.3, 0.4), rho_2 = 2)) |>
+    expect_error("rho.*not hold exactly one value")
+})
+
 test_that("Simulation rejects wrong arguments", {
   hh_model <- new_housepi_model(model = "test")
   # wrong number of replicates
