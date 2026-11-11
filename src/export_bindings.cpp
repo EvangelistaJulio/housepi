@@ -1050,6 +1050,7 @@ namespace housepi
 
         /// Snapshot how the sampled variables move, one row per variable and one entry per block.
         /// * `house` -> adds the latents of its infected members and their blocks;
+        /// * `house` not evaluated at the current state -> no latent;
         /// * nothing sampled -> empty list.
         /// A scale is the jump scale of the proposal, and for a block member the marginal sd of its jump.
         /// Absent proposal and coordinate names, and the owner of a parameter, are empty strings.
@@ -1124,9 +1125,9 @@ namespace housepi
                 add_move(param.consult(p), "", param.at(p), f, pos, block_id);
             }
 
-            // latents of the infected members of `house`
+            // latents of the infected members of `house`, bound at evaluation
             Augmented &augm = engine.chain().augm;
-            if (house && augm.is_allocated() && augm.scheme().is_any_sample())
+            if (house && engine.chain().data.state.is_evaluated() && augm.scheme().is_any_sample())
                 for (const Individual &indiv : house->infected_indivs())
                 {
                     const std::string owner = std::string(engine.chain().data.dataset().id(indiv));

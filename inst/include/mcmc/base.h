@@ -118,7 +118,8 @@ namespace housepi
         /// Build the modules that read slot `slot` of definitions.
         /// * import -> the slot is set first, then built on the first workspace;
         /// * rebuilt workspace -> every slot built again, in `Slot` order;
-        /// * equivalence classes -> left to the caller, partitioned again at evaluation setup.
+        /// * equivalence classes -> left to the caller, partitioned again at evaluation setup;
+        /// * clears the evaluated flag.
         /// @note Every other workspace member a slot sets is set here, so imports and rebuilds agree.
         void build(Definitions::Slot slot);
 

@@ -489,11 +489,12 @@ namespace housepi
     void Workspace::build(Definitions::Slot slot)
     {
         using Slot = Definitions::Slot;
+        // a rebuilt definition invalidates the last evaluation
+        data.state.set_evaluated(false);
         switch (slot)
         {
         case Slot::Param:
             param.build(translator);
-            data.state.set_evaluated(false);
             break;
         case Slot::GroupRate:
             data.set_eq_class_keys(Data::Source::GroupRate,
@@ -505,18 +506,15 @@ namespace housepi
             break;
         case Slot::InfecProfile:
             infec_profile.build(translator, defs.infec_profile);
-            data.state.set_evaluated(false);
             break;
         case Slot::Latent:
             augm.build();
             break;
         case Slot::ParamPins:
             param.build_for_predic(defs.param_pins);
-            data.state.set_evaluated(false);
             break;
         case Slot::LatentPins:
             augm.pin_values(defs.latent_pins);
-            data.state.set_evaluated(false);
             break;
         }
     }

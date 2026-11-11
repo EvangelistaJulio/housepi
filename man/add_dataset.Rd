@@ -19,8 +19,6 @@ Definitions keyed on a status name it the same way.}
 \description{
 Make an internal copy of the household data, one row per member,
 (re)building any definitions that depend on it.
-A rate parameter keeps its definition if its stratum is still in the data.
-Otherwise it is dropped, with a warning if set by \code{\link[=add_parameter]{add_parameter()}}.
 An empty cell of a categorical column is missing data, not a category.
 To stratify on it, recode it to a label of your choice.
 }

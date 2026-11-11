@@ -1752,6 +1752,35 @@ test_that("Status-specific latent variables draw from per-status ranges", {
   }
 })
 
+test_that("The sampler reads the latents of a household once it is evaluated", {
+  hh_model <- data.frame(id = c("m1", "m2", "m3"), hh_id = "h1",
+                         status = c(1, 1, 0), obs = 0, obs_2 = 0) |>
+    new_housepi_model("test") |>
+    add_parameter(rho = list(prior = "uniform")) |>
+    add_latent(hidden = list(model = "uniform", min = 0, max = 5)) |>
+    helper_flat_sink(loc = hidden)
+  read_moves <- \() inspect_state(hh_model, "h1")$.sampler$moves
+
+  # parameters only, before the latents are bound
+  read_moves()$name |> expect_identical("rho")
+  hh_model |>
+    evaluate_log_lik() |>
+    expect_all_finite()
+  moves <- read_moves()
+  moves$member[moves$name == "hidden"] |> expect_setequal(c("m1", "m2"))
+
+  # a latent declared after the evaluation discards it
+  hh_model <- hh_model |>
+    add_latent(hidden_2 = list(model = "uniform", min = 0, max = 5)) |>
+    helper_flat_sink(loc = hidden_2, column = "obs_2")
+  inspect_state(hh_model, "h1")$transmission_log_lik |> expect_all_na()
+  read_moves()$name |> expect_identical("rho")
+  hh_model |>
+    evaluate_log_lik() |>
+    expect_all_finite()
+  read_moves()$name |> expect_setequal(c("rho", "hidden", "hidden_2"))
+})
+
 test_that("The latents of a member that declare no proposal move in a block", {
   hh_model <- data.frame(id = c("m1", "m2", "m3"), hh_id = c("h1", "h1", "h2"),
                          status = c(1, 1, 0), obs = 0, obs_2 = 0) |>
