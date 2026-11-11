@@ -1428,7 +1428,7 @@ inspect_state <- function(hh_model, hh_id = NULL) {
 #' see its `template_<model>` help page.
 #' They take as many joint moves per step as they have members.
 #' A parameter whose prior or bounds read another of them moves alone,
-#' as does a rate whose number of members or pairs is unknown.
+#' as does a rate matching no member or pair, or whose number is unknown.
 #' @param hh_model `r rd_model_in_`
 #' @param steps `r rd_smpl_steps_`
 #' @param thin `r rd_smpl_thin_`

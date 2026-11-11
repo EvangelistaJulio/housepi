@@ -49,14 +49,17 @@ namespace housepi::rates
         std::vector<double> n_params = {};
 
         /// List the rates holding at least a minimum share of the units of the reference.
-        /// * no reference, or unknown units -> skipped.
+        /// * no reference, or unknown units -> skipped;
+        /// * reference resolving no unit -> every rate holding a unit;
+        /// * rate resolving no unit -> skipped, no data reads it.
         std::vector<size_t> list_heavy() const
         {
             std::vector<size_t> out = {};
-            if (!anchored || na::is(n_reference) || !(n_reference > 0.))
+            if (!anchored || na::is(n_reference))
                 return out;
             for (size_t i = 0; i < scaling_params.size(); ++i)
-                if (!na::is(n_params[i]) && n_params[i] >= BLOCK_MIN_SHARE * n_reference)
+                if (!na::is(n_params[i]) && n_params[i] > 0. &&
+                    n_params[i] >= BLOCK_MIN_SHARE * n_reference)
                     out.push_back(scaling_params[i]);
             return out;
         }

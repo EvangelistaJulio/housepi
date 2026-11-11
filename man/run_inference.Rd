@@ -79,7 +79,7 @@ A model can also request parameters that move together with a baseline,
 see its \verb{template_<model>} help page.
 They take as many joint moves per step as they have members.
 A parameter whose prior or bounds read another of them moves alone,
-as does a rate whose number of members or pairs is unknown.
+as does a rate matching no member or pair, or whose number is unknown.
 }
 \details{
 With \code{threads} a multiple of \code{chains}, every chain runs at once.

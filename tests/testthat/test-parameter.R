@@ -587,6 +587,23 @@ test_that("A transmission model moves gamma in the block of beta", {
   blocks[c("ctr_rest", "beta", "gamma")] |>
     expect_identical(c(ctr_rest = 1L, beta = 1L, gamma = 1L))
 
+  # a reference no member carries: the rate holding members shares the block,
+  # a rate holding none moves alone
+  blocks <- flu_2014_matsumoto[mask, ] |>
+    dplyr::mutate(status = factor(
+      ifelse(status == 1, "mild", "escaped"),
+      levels = c("escaped", "mild", "severe", "critical")
+    )) |>
+    new_housepi_model("final-size") |>
+    add_parameter(import = "template") |>
+    add_group_rate(infectivity = list(
+      by = "status", reference = list(status = "severe")
+    )) |>
+    read_blocks()
+  blocks[c("infectivity_status_mild", "beta", "gamma")] |>
+    expect_identical(c(infectivity_status_mild = 1L, beta = 1L, gamma = 1L))
+  blocks[["infectivity_status_critical"]] |> expect_all_na()
+
   # pinned beta: gamma moves alone
   hh_model |>
     add_parameter(beta = 0.1) |>

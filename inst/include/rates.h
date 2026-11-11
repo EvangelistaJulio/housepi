@@ -86,7 +86,7 @@ namespace housepi
         std::vector<std::vector<HouseIdx>> list_houses_of_param(size_t n_params) const;
         /// List the parameter blocks, from each sampled baseline with its rates, then from the requested sets.
         /// * rate holding enough units against its reference -> joins the block of its baseline;
-        /// * unknown units -> left out;
+        /// * no unit, or unknown units -> left out;
         /// * set requested by the model (see Parameter::request_rw_block) -> one block;
         /// * not sampled, or a declared proposal -> left out;
         /// * blocks sharing a member -> merged, a block of fewer than two members dropped.
