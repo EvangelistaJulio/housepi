@@ -339,6 +339,34 @@ test_that("A collapsed baseline takes no simulation value", {
     expect_error("truth.*alpha.*other than 1")
 })
 
+test_that("Every study keeps the rate parameters of the model", {
+  # "rare" in the last 3% of households, none in a study
+  hh_data <- flu_1918_frederick
+  houses <- match(hh_data$hh_id, unique(hh_data$hh_id))
+  hh_data$datum <- ifelse(houses > 0.97 * max(houses), "rare", "common")
+  hh_model <- hh_data |>
+    new_housepi_model("final-size") |>
+    add_parameter(import = "template") |>
+    add_group_rate("susceptibility", by = "datum", reference = ".auto") |>
+    add_contact_rate(by = "datum", reference = ".auto")
+  defs <- get_parameters(hh_model)
+  estimated <- defs$name[!is.na(defs$prior)]
+  truth <- c(alpha = 0.15, beta = 0.2, gamma = 1)
+  truth[setdiff(estimated, names(truth))] <- 1.5
+  sampler <- function(data, houses) {
+    sample_house_structure(data[data$datum == "common", ], houses)
+  }
+  performance <- hh_model |>
+    check_performance(truth, nrep = 1L, houses = 20,
+                      structure_sampler = sampler,
+                      steps = 100L, chains = 1L, progress = FALSE) |>
+    suppressWarnings()
+
+  performance$estimates$variable |> expect_setequal(estimated)
+  performance$estimates$truth |> expect_no_na()
+  performance$estimates$estimate |> expect_all_finite()
+})
+
 test_that("A performance check refuses a sweep it cannot run", {
   hh_model <- flu_1918_frederick |>
     new_housepi_model("final-size") |>

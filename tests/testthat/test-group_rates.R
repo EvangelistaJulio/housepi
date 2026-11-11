@@ -399,6 +399,31 @@ test_that("An unknown covariate in a group rate points to the close one", {
     expect_error("[Uu]nknown covariate.*reference.*[Dd]id you mean .age")
 })
 
+test_that("A rate parameter keeps its definition across a dataset swap", {
+  expect_warning(
+    hh_model <- mk_flu$model |>
+      add_group_rate("susceptibility", by = "member", reference = "student") |>
+      add_parameter("susceptibility_member_mother",
+                    prior = "lognormal", meanlog = 2, sdlog = 0.1),
+    "[Oo]verwriting"
+  )
+
+  # the same data leaves every definition as declared, the override included
+  hh_model |>
+    add_dataset(mk_flu$data) |>
+    get_parameters() |>
+    expect_identical(get_parameters(hh_model))
+
+  # data without mothers and fathers generates neither parameter:
+  # the override is dropped with a warning, the default silently
+  hh_data <- subset(mk_flu$data, !member %in% c("mother", "father"))
+  expect_warning(hh_model_2 <- add_dataset(hh_model, hh_data),
+                 "susceptibility_member_mother") |>
+    conditionMessage() |>
+    expect_no_match("father")
+  get_parameters(hh_model_2)$name |> expect_no_match("mother|father")
+})
+
 ####  Custom strata definitions  ####
 
 test_that("An unknown name in params points to the strata table", {

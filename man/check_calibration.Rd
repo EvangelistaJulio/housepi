@@ -98,6 +98,10 @@ Only transmission and observations are simulated.
 Households, members and their covariates come from the attached data,
 drawn once per household count by \code{structure_sampler},
 or reused whole without it, and shared by the replicates at that count.
+Every study fits the group and contact rate parameters of the model.
+A rate whose stratum has no member in a study is fitted on its prior only.
+Without the reference stratum, the baseline and the rates are identified
+only through their products, with wide intervals.
 By default each study reuses the attached households,
 as calibration conditions on the design of the study.
 Every parameter carrying a prior and free to move is drawn anew

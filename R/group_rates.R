@@ -32,13 +32,18 @@ rate_rule_groups_ <- function(tbl) {
 # Assert rate logic tables resolve every unit of `cells` to one rule per group,
 # see assert_strata_fit_().
 # * automatic definition `def` -> the hint names its `by` covariates.
-assert_rate_fit_ <- function(tables, cells, label, unit, def) {
+# @param dead_rules `logical(1)` Whether a rule matching no unit is an error.
+assert_rate_fit_ <- function(tables, cells, label, unit, def,
+                             dead_rules = TRUE) {
   hint <- if (identical(def$mode, "auto")) cli::format_inline(
     "Some {.field {def$by}} values are missing: change them, ",
     "or pass a {.arg strata} table with a catch-all rule."
   )
-  assert_strata_fit_(lapply(tables, rate_rule_groups_), cells,
-                     rate_reserved_cols, "param_name", label, unit, hint)
+  assert_strata_fit_(
+    lapply(tables, rate_rule_groups_), cells,
+    rate_reserved_cols, "param_name", label, unit, hint,
+    dead_rules
+  )
 }
 
 # Count the units of `cells` resolved to each rule of logic table `tbl`,
@@ -627,7 +632,8 @@ HousepiGroupRate <- R6::R6Class(
 
     # Assert one rate resolves every member to one rule per group.
     # * rate read on infected members only -> checked at every level in
-    #   `status_levels`, whatever the data records.
+    #   `status_levels`, whatever the data records;
+    # * frozen -> a rule matching no member allowed.
     assert_rules_fit_ = function(rate_id, dataset,
                                  status_levels = character()) {
       tables <- self$logic_tables[[rate_id]]
@@ -635,7 +641,7 @@ HousepiGroupRate <- R6::R6Class(
       assert_rate_fit_(
         tables, member_cells_(dataset, covs, status_levels),
         cli::format_inline("Group rate {.val {rate_id}}"), "member",
-        self$defs[[rate_id]]
+        self$defs[[rate_id]], dead_rules = !self$frozen
       )
       invisible(self)
     },
@@ -643,6 +649,12 @@ HousepiGroupRate <- R6::R6Class(
     # Whether one rate stratifies on the infected status.
     keys_on_status_ = function(rate_id) {
       "status" %in% self$defs[[rate_id]][["by"]]
+    },
+
+    # Whether one rate re-derives its logic tables from each dataset:
+    # automatic mode, tables not frozen.
+    rederives_ = function(rate_id) {
+      !self$frozen && self$defs[[rate_id]][["mode"]] == "auto"
     },
 
     # Implement through automatic mode.
@@ -776,6 +788,9 @@ HousepiGroupRate <- R6::R6Class(
     # `list` Parameter table of each group rate.
     logic_tables = list(),
 
+    # `logical(1)` Whether logic tables survive a data change.
+    frozen = FALSE,
+
     # Create an empty holder.
     initialize = function() {
       self$defs <- list()
@@ -861,17 +876,17 @@ HousepiGroupRate <- R6::R6Class(
     ####  Build  ####
 
     # Build the logic tables from `dataset`, then assert every member fits.
-    # * keyed on status, none declared -> error at the `wall`, else skipped.
+    # * keyed on status, none declared -> error at the `wall`, else skipped;
+    # * frozen -> tables kept, counts recomputed.
     # @param status_codes `integer()` Engine status codes,
     # named after the labels the rates may stratify on.
     # @param stratified `character()` Rates read on infected members only.
     implement = function(dataset, status_codes = integer(),
                          wall = FALSE, stratified = character()) {
-      # preserve custom-mode entries and drop auto-mode entries
-      mask_custom <- names(which(vapply(
-        self$defs, \(d) d[["mode"]] == "custom", logical(1)
-      )))
-      self$logic_tables <- self$logic_tables[mask_custom]
+      # drop tables re-derived from the data, keep the others
+      self$logic_tables <- self$logic_tables[
+        Filter(Negate(private$rederives_), names(self$defs))
+      ]
 
       # read the status through the dictionary:
       # * levels known -> a factor of labels;
@@ -894,7 +909,7 @@ HousepiGroupRate <- R6::R6Class(
           self$logic_tables[[rate_id]] <- list()
           next
         }
-        if (self$defs[[rate_id]][["mode"]] == "auto") {
+        if (private$rederives_(rate_id)) {
           private$helper_implement_auto_(rate_id, dataset,
                                          status_levels, status_observed)
         } else {

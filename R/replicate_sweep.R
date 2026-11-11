@@ -18,7 +18,11 @@ If `NULL`, the attached structure is reused verbatim and `houses` ignored."
 rd_sweep_structure_ <- "Only transmission and observations are simulated.
 Households, members and their covariates come from the attached data,
 drawn once per household count by `structure_sampler`,
-or reused whole without it, and shared by the replicates at that count."
+or reused whole without it, and shared by the replicates at that count.
+Every study fits the group and contact rate parameters of the model.
+A rate whose stratum has no member in a study is fitted on its prior only.
+Without the reference stratum, the baseline and the rates are identified
+only through their products, with wide intervals."
 rd_sweep_seed_ <- "Replicates are independent draws.
 Call `set.seed()` before the check to replay a whole sweep,
 at any `threads` up to `nrep`."
@@ -282,6 +286,8 @@ HousepiSweep <- R6::R6Class(
       do.call(resolve_settings_, fit_args)
       # fits read the dataset only
       hh_model <- add_reporting_process(hh_model, long_dataset = NULL)
+      # rate tables fixed for every study
+      hh_model$.__enclos_env__$private$freeze_rates_()
       time_step <- dots[names(dots) == "time_step"]
       # a copy carries no settings: it reads the engine defaults
       advanced <- utils::modifyList(hh_model$settings["time_step"], time_step)

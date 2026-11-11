@@ -354,8 +354,6 @@ add_dataset <- function(hh_model, data) {
   if (is.null(data)) stop_h("Missing argument {.arg data}.")
   new_obj <- hh_model$copy()
   pvt <- new_obj$.__enclos_env__$private
-  # drop stale rate params (read pre-change tables) before re-importing data
-  pvt$drop_stale_rate_params_()
   pvt$set_dataset_(assert_household_data(data, NA_character_))
   pvt$rebuild_()
   new_obj

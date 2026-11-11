@@ -321,36 +321,39 @@ HousepiContactRate <- R6::R6Class(
     },
 
     # Assert each observed ordered pair resolves to one rule per group.
+    # * frozen -> a rule matching no pair allowed.
     assert_rules_fit_ = function(dataset) {
       covs <- unique(pair_covs_(unlist(lapply(self$logic_tables, names))))
       assert_rate_fit_(self$logic_tables, pair_cells_(dataset, covs),
-                       "Contact rate", "ordered pair", self$defs)
+                       "Contact rate", "ordered pair", self$defs,
+                       dead_rules = !self$frozen)
       invisible(self)
     },
 
     # Validate custom mode logic table against data, then add counts.
+    # * frozen -> tables kept, counts recomputed.
     helper_implement_custom_ = function(dataset, symmetric) {
       for (i in seq_along(self$logic_tables)) {
-        # optionally fill symmetric gaps
         this_table <- self$logic_tables[[i]]
         # retrieve covariates
         this_cov <- pair_covs_(names(this_table))
         # validate that covariate columns exist in data
         assert_data_covariates(this_cov, colnames(dataset))
 
-        # value the data never carries -> error, before symmetrization,
-        # as it would encode to a catch-all
-        unknown <- unknown_strata_rows(
-          this_table,
-          known = lapply(stats::setNames(nm = this_cov),
-                         \(cov) unique(dataset[[cov]])),
-          # both sides of a pair read the same data column
-          cols = stats::setNames(rep(this_cov, 2L), pair_cols_(this_cov))
-        )
-        assert_no_dead_rules(this_table, unknown, rate_cov_cols_(this_table),
-                             "param_name", "Contact rate", "ordered pair")
-
-        if (symmetric) this_table <- fill_symmetric_gaps(this_table)
+        # table not frozen -> value the data never carries is an error,
+        # then symmetric gaps filled
+        if (!self$frozen) {
+          unknown <- unknown_strata_rows(
+            this_table,
+            known = lapply(stats::setNames(nm = this_cov),
+                           \(cov) unique(dataset[[cov]])),
+            # both sides of a pair read the same data column
+            cols = stats::setNames(rep(this_cov, 2L), pair_cols_(this_cov))
+          )
+          assert_no_dead_rules(this_table, unknown, rate_cov_cols_(this_table),
+                               "param_name", "Contact rate", "ordered pair")
+          if (symmetric) this_table <- fill_symmetric_gaps(this_table)
+        }
         this_table$n <- count_rate_rules_(this_table,
                                           pair_cells_(dataset, this_cov))
         self$logic_tables[[i]] <- this_table
@@ -415,6 +418,9 @@ HousepiContactRate <- R6::R6Class(
     # `list` Per-parameter MCMC overrides.
     param_overrides = list(),
 
+    # `logical(1)` Whether logic tables survive a data change.
+    frozen = FALSE,
+
     # Whether some rule group has no reference, making the rate absolute.
     is_absolute = function() {
       rate_is_absolute_(self$defs, self$logic_tables)
@@ -460,13 +466,14 @@ HousepiContactRate <- R6::R6Class(
     ####  Build  ####
 
     # Build the logic tables from `dataset`, then assert every pair fits.
+    # * frozen -> tables kept, counts recomputed.
     implement = function(dataset) {
       symmetric <- isTRUE(self$defs[["symmetric"]])
 
-      if (self$defs[["mode"]] == "custom") {
-        private$helper_implement_custom_(dataset, symmetric)
-      } else {
+      if (!self$frozen && self$defs[["mode"]] == "auto") {
         private$helper_implement_auto_(dataset, symmetric)
+      } else {
+        private$helper_implement_custom_(dataset, symmetric)
       }
       private$assert_rules_fit_(dataset)
       invisible(self)

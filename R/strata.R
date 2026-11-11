@@ -297,10 +297,11 @@ assert_no_dead_rules <- function(tbl, dead, cov_cols, value_col, label, unit) {
 #' @param unit `character(1)` What a rule resolves: member or ordered pair.
 #' @param hint `character(1)` Rendered advice on unmatched units,
 #' `NULL` for the one to add a covering rule.
+#' @param dead_rules `logical(1)` Whether a rule winning no cell is an error.
 #' @return `list` Winner matrices from rule_winners_(), invisibly.
 #' @noRd
 assert_strata_fit_ <- function(tables, cells, reserved, value_col,
-                               label, unit, hint = NULL) {
+                               label, unit, hint = NULL, dead_rules = TRUE) {
   cov_cols <- lapply(tables, strata_cov_cols_, reserved = reserved)
   gids <- lapply(tables, `[[`, "rule_group")
   # a combination is missed when one of its levels is
@@ -318,8 +319,9 @@ assert_strata_fit_ <- function(tables, cells, reserved, value_col,
     tbl <- tables[[k]]
     win <- wins[[k]]
     gid <- gids[[k]]
-    assert_no_dead_rules(tbl, colSums(win) == 0, cov_cols[[k]], value_col,
-                         label, unit)
+    if (dead_rules)
+      assert_no_dead_rules(tbl, colSums(win) == 0, cov_cols[[k]], value_col,
+                           label, unit)
     # two rules of one group winning the same cell
     for (g in unique(gid)) {
       tied <- which(rowSums(win[, gid == g, drop = FALSE]) > 1)
@@ -339,6 +341,7 @@ assert_strata_fit_ <- function(tables, cells, reserved, value_col,
 # `key` mapping a column to its `info` entry.
 # * logical column -> FALSE to 0, TRUE to 1;
 # * column without levels -> as is;
+# * value absent from data -> coded past its levels, matches no unit;
 # * NA rule cell -> catch-all, coded NA: the engine skips that covariate,
 #   and it counts for no specificity.
 encode_strata_levels_ <- function(defs, info, cols, key = identity) {
@@ -347,7 +350,8 @@ encode_strata_levels_ <- function(defs, info, cols, key = identity) {
     if (identical(entry$class, "logical")) {
       defs[[col]] <- as.integer(as.logical(defs[[col]]))
     } else if (!is.null(entry$levels)) {
-      defs[[col]] <- as.integer(factor(defs[[col]], levels = entry$levels))
+      levels <- union(entry$levels, stats::na.omit(defs[[col]]))
+      defs[[col]] <- as.integer(factor(defs[[col]], levels = levels))
     }
   }
   defs
