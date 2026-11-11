@@ -44,7 +44,9 @@ mk_onset <- local({
 # two infected statuses under the template definitions
 mk_status <- local({
   hh_data <- data.frame(id = c("m1", "m2", "m3", "m4"), hh_id = "h1",
-                        status = c(1, 2, 0, 0), end_date = 21)
+                        status = c("symptomatic", "asymptomatic",
+                                   "escaped", "escaped"),
+                        end_date = 21)
   hh_model <- hh_data |>
     new_housepi_model("case-ascertained") |>
     add_parameter(import = "template") |>
@@ -1286,7 +1288,8 @@ test_that("Data-bound household observation rejects latent dependence", {
 ####  Status definitions  ####
 
 test_that("Escaped label colliding with an infected status is rejected", {
-  mk_status$data |>
+  # data carrying no infected code: the status process labels the statuses
+  transform(mk_status$data, status = 0) |>
     new_housepi_model("case-ascertained", escaped = "symptomatic") |>
     add_parameter(import = "template") |>
     add_latent(import = "template") |>
@@ -1294,23 +1297,12 @@ test_that("Escaped label colliding with an infected status is rejected", {
     expect_error("collides with the escaped-status label")
 })
 
-test_that("Status declarations are all integers or all declared labels", {
-  # one call carries both an integer and a character status: caught at the wall
+test_that("A latent status label is a label of the data", {
+  # a label the data does not carry points to the close one
   mk_status$model |>
-    add_latent(
-      incub_period = list(model = "gamma", shape = 2, scale = 1,
-                          status = "symptomatic"),
-      onset = list(const = 1, status = 1)
-    ) |>
-    evaluate_log_lik() |>
-    expect_error("[Mm]ix")
-  # a label the status process does not declare points to the close one
-  mk_status$model |>
-    add_status_process(symptomatic = 0.5, asymptomatic = 0.5) |>
     add_latent(incub_period = list(model = "gamma", shape = 2, scale = 1,
                                    status = "symptomatc")) |>
-    evaluate_log_lik() |>
-    expect_error("[Uu]nknown status label .symptomatc.*[Dd]id you mean")
+    expect_error("label .symptomatc. is not in the data.*[Dd]id you mean")
 })
 
 ####  Latent end-to-end  ####
@@ -2444,6 +2436,8 @@ test_that("Data-bound household observation supplies a required data column", {
 
 test_that("Status process drives status-specific latent blocks", {
   simulated <- mk_outbreak$model |>
+    # the status process draws the status, so the data carries none
+    add_dataset(subset(mk_outbreak$data, select = -status)) |>
     # status-specific block: symptomatic incubation is longer
     add_latent(status = "symptomatic",
                incub_period = list(model = "gamma", shape = 8, scale = 1)) |>
@@ -2459,7 +2453,7 @@ test_that("Status process drives status-specific latent blocks", {
 })
 
 test_that("Escaped label is configurable", {
-  simulated <- mk_outbreak$data |>
+  simulated <- subset(mk_outbreak$data, select = -status) |>
     new_housepi_model("case-ascertained", escaped = "healthy") |>
     add_infectivity_profile(import = "template") |>
     add_parameter(alpha = 1e-12, beta = 0.001, gamma = 1, hh_size_ref = 4) |>
@@ -2482,7 +2476,7 @@ test_that("Status-specific blocks alone cover every drawn status", {
       new_housepi_model("case-ascertained") |>
       add_parameter(import = "template") |>
       add_infectivity_profile(import = "template") |>
-      add_status_process(symptomatic = weights[1], asymptomatic = weights[2]) |>
+      add_status_process(weights[1], weights[2]) |>
       add_latent(...)
   }
 

@@ -56,15 +56,11 @@ HousepiAugmented <- R6::R6Class(
       self$defs[["name"]][mask]
     },
 
-    # `character()` Character `status =` labels across latent definitions,
-    # in order of first appearance.
-    status_labels = function(value) {
-      if (is.null(self$defs)) return(character())
-      labels <- unlist(self$defs[["status"]], use.names = FALSE)
-      labels <- labels[!is.na(labels)]
-      # literal character statuses only (integers are already codes)
-      labels <- labels[is.na(suppressWarnings(as.integer(labels)))]
-      unique(as.character(labels))
+    # `list` `status =` values across definitions, in order of first
+    # appearance, see split_statuses_().
+    statuses = function(value) {
+      st <- unlist(self$defs[["status"]], use.names = FALSE)
+      split_statuses_(unique(st[!is.na(st)]))
     }
   ),
 

@@ -24,7 +24,9 @@ add_infectivity_profile(
 \item{...}{Named arguments for the profile distribution.
 In mode 'multiple', the \code{func} definitions.}
 
-\item{status}{\code{integer(1)} Infected status the definition is specific to.
+\item{status}{\code{integer(1)} | \code{character(1)}
+Infected status the definition is specific to,
+an integer code or a label, as in data column \code{status}.
 If \code{NA}, the definition applies to every infected member.}
 
 \item{discr}{\code{logical(1)} Whether the profile definition is discrete, if applicable.

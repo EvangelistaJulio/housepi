@@ -9,7 +9,9 @@ add_dataset(hh_model, data)
 \arguments{
 \item{hh_model}{\code{HousepiModel} object.}
 
-\item{data}{\code{data.frame} Household data, one row per member.}
+\item{data}{\code{data.frame} Household data, one row per member.
+Column \code{status} holds integer codes (\code{0} for escaped members), or labels.
+Definitions keyed on a status name it the same way.}
 }
 \value{
 \code{HousepiModel} object. Deep clone of input with new definitions.

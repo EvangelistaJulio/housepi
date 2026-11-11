@@ -7,7 +7,9 @@
 measure_sar_by_hh_size(data, escaped = "escaped")
 }
 \arguments{
-\item{data}{\code{data.frame} Household data, one row per member.}
+\item{data}{\code{data.frame} Household data, one row per member.
+Column \code{status} holds integer codes (\code{0} for escaped members), or labels.
+Definitions keyed on a status name it the same way.}
 
 \item{escaped}{\code{character(1)} Label of status code \code{0},
 members outside the declared infected statuses,

@@ -61,10 +61,27 @@ helper_read_param_table_ <- function(ptab, thin_ess = TRUE, arg = "draws") {
   )
 }
 
+#' Whether each declared status is an integer code, not a label.
+#' @param st `character()` Declared statuses, without `NA`.
+#' @noRd
+is_status_code_ <- function(st) {
+  as_int <- suppressWarnings(as.integer(st))
+  !is.na(as_int) & as.character(as_int) == st
+}
+
+#' Split declared statuses into integer codes and labels.
+#' @param st `character()` Declared statuses, without `NA`.
+#' @return `list` Elements `codes` and `labels`, `character()` each.
+#' @noRd
+split_statuses_ <- function(st) {
+  st <- as.character(st)
+  is_code <- is_status_code_(st)
+  list(codes = st[is_code], labels = st[!is_code])
+}
+
 #' Resolve the character `status =` labels of latent definitions
 #' to codes 1..K against the model status dictionary.
 #' * integer code -> passes through;
-#' * integer and character declarations mixed -> error;
 #' * label absent from the dictionary -> error.
 #' @param dictionary `character()` Ordered infected-status labels.
 #' @return `data.frame` | `NULL` Definitions, `status` coded as integers.
@@ -72,15 +89,7 @@ helper_read_param_table_ <- function(ptab, thin_ess = TRUE, arg = "draws") {
 resolve_status_codes_ <- function(defs, dictionary) {
   if (is.null(defs)) return(defs)
   st <- as.character(unlist(defs[["status"]], use.names = FALSE))
-  known <- !is.na(st)
-  as_int <- suppressWarnings(as.integer(st))
-  is_int <- known & !is.na(as_int) & as.character(as_int) == st
-  is_lab <- known & !is_int
-  # guard: a model is all-integer or all-character on 'status ='
-  if (any(is_int) && any(is_lab)) stop_h(
-    "Mixed integer and character {.code status =} declarations in one model.",
-    "Use either integer codes or character labels throughout."
-  )
+  is_lab <- !is.na(st) & !is_status_code_(st)
   if (any(is_lab)) {
     code <- match(st[is_lab], dictionary)
     unknown <- unique(st[is_lab][is.na(code)])
@@ -473,12 +482,40 @@ HousepiModel <- R6::R6Class(
       )
     },
 
-    # Assert that escaped status matches the dictionary.
+    # Assert the status dictionary is well defined:
+    # * integer codes in one source, labels in another, data included
+    #   -> error, no label is tied to a code;
+    # * labelled data missing a declared label -> error;
+    # * escaped label among the infected statuses -> error.
     assert_status_ = function() {
+      coding <- private$coding_$dataset
+      data_lab <- coding$status_labels
+      sources <- list(
+        `the data` = list(codes = if (!length(data_lab)) coding$status,
+                          labels = data_lab),
+        `the status process` = list(codes = private$status_$codes,
+                                    labels = private$status_$labels),
+        `latent and observation definitions` = private$augm_$statuses,
+        `group rates` = private$group_rates_$statuses
+      )
+      has <- \(part) vapply(sources, \(s) length(s[[part]]) > 0, logical(1))
+      code_in <- has("codes")
+      label_in <- has("labels")
+      if (any(code_in) && any(label_in)) stop_h(
+        "Statuses are given both as integer codes and as labels.",
+        paste("Integer codes come from {names(which(code_in))},",
+              "labels from {names(which(label_in))}.")
+      )
+      unknown <- setdiff(unlist(lapply(sources[-1], `[[`, "labels")), data_lab)
+      if (length(data_lab) && length(unknown)) stop_h(
+        "Status label{?s} {.val {unknown}} {?is/are} not in the data.",
+        find_closest_match(unknown, data_lab),
+        paste("To keep a status no member has, make data column",
+              "{.field status} a factor with that status among its levels.")
+      )
       if (private$escaped_ %in% private$status_dictionary_()) stop_h(
         paste("Infected status {.val {private$escaped_}} collides",
-              "with the escaped-status label",
-              "({.val {private$escaped_}})."),
+              "with the escaped-status label."),
         "Rename the status or define a different {.code escaped =} label."
       )
       invisible(self)
@@ -678,11 +715,12 @@ HousepiModel <- R6::R6Class(
     # * data labels, the data being already coded;
     # * status process order;
     # * character labels declared on latent definitions.
+    # The last two serve data carrying no infected status, see assert_status_().
     status_dictionary_ = function() {
       data_lab <- private$coding_$dataset$status_labels
       if (length(data_lab)) return(data_lab)
       if (length(private$status_$labels)) return(private$status_$labels)
-      private$augm_$status_labels
+      private$augm_$statuses$labels
     },
 
     # Engine infected-status codes, named after the labels a rate may key on.

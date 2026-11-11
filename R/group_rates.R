@@ -726,6 +726,21 @@ HousepiGroupRate <- R6::R6Class(
       unique(covs[!is.na(covs)])
     },
 
+    # `list` Statuses the rates key on, in order of first appearance,
+    # see split_statuses_():
+    # * automatic mode -> `reference` status;
+    # * custom mode -> `status` column of the logic table.
+    statuses = function(value) {
+      st <- unlist(lapply(names(self$defs), function(rate_id) {
+        ref <- self$defs[[rate_id]][["reference"]]
+        if (self$defs[[rate_id]][["mode"]] == "auto")
+          as.character(unlist(ref[names(ref) == "status"]))
+        else lapply(self$logic_tables[[rate_id]],
+                    \(tbl) as.character(tbl[["status"]]))
+      }), use.names = FALSE)
+      split_statuses_(unique(st[!is.na(st)]))
+    },
+
     # `character()` Parameters required by group rates.
     param_required = function(value) {
       tables <- unlist(self$logic_tables, recursive = FALSE)

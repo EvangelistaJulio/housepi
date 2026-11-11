@@ -14,7 +14,9 @@ rd_model_out_ <- paste(
   rd_model_in_,
   "Deep clone of input with new definitions."
 )
-rd_dataset_ <- "`data.frame` Household data, one row per member."
+rd_dataset_ <- "`data.frame` Household data, one row per member.
+Column `status` holds integer codes (`0` for escaped members), or labels.
+Definitions keyed on a status name it the same way."
 rd_mdl_choice_ <- "`character(1)` Model to use, one of:
 \\describe{
   \\item{`<template>`}{a built-in template name;}
@@ -115,7 +117,9 @@ or an arithmetic expression combining them.
 A name is looked up among the latent variables, data columns, observations,
 group rates and parameters the model carries.
 Two of them sharing a name cannot be read."
-rd_aug_status_ <- "`integer(1)` Infected status the definition is specific to.
+rd_aug_status_ <- "`integer(1)` | `character(1)`
+Infected status the definition is specific to,
+an integer code or a label, as in data column `status`.
 If `NA`, the definition applies to every infected member."
 rd_obs_func_ <- paste("Deterministic definition of the observation,
 taking no `model`, depending on `level`:
@@ -919,6 +923,8 @@ add_observation <- function(hh_model, name = NULL,
 #' or depend on member covariates when given as a `strata` table.
 #' Inference holds the observed status fixed,
 #' and does not estimate the probabilities.
+#' Statuses are integer codes or labels, as in data column `status`.
+#' Data used only as household structure for a simulation can drop the column.
 #' @param hh_model `r rd_model_in_`
 #' @param ... Probabilities of the infected statuses, in order.
 #' When named, the names label the statuses: name all of them or none.
@@ -944,8 +950,11 @@ add_observation <- function(hh_model, name = NULL,
 #' Cannot be combined with `...` or `strata`.
 #' @return `r rd_model_out_`
 #' @examples
+#' # household structure only: the recorded status codes carry no label
+#' households <- subset(flu_1918_frederick, select = -status)
+#'
 #' # simulate infected members as symptomatic (70%) or asymptomatic (30%)
-#' hh_model <- flu_1918_frederick |>
+#' hh_model <- households |>
 #'   new_housepi_model("final-size") |>
 #'   add_parameter(import = "template") |>
 #'   add_status_process(symptomatic = 0.7, asymptomatic = 0.3)
@@ -955,7 +964,7 @@ add_observation <- function(hh_model, name = NULL,
 #'
 #' # the same probabilities, from a pre-built list
 #' probs <- list(symptomatic = 0.7, asymptomatic = 0.3)
-#' hh_model <- flu_1918_frederick |>
+#' hh_model <- households |>
 #'   new_housepi_model("final-size") |>
 #'   add_status_process(import = probs)
 #'
@@ -965,7 +974,7 @@ add_observation <- function(hh_model, name = NULL,
 #'   status = c("symptomatic", "asymptomatic", "symptomatic", "asymptomatic"),
 #'   weight = c(0.8, 0.2, 0.4, 0.6)
 #' )
-#' hh_model <- sarscov2_2021_icofs |>
+#' hh_model <- subset(sarscov2_2021_icofs, select = -status) |>
 #'   new_housepi_model("final-size") |>
 #'   add_status_process(strata = strata)
 #' get_status_process(hh_model)

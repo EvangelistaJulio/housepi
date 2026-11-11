@@ -129,29 +129,30 @@ test_that("Bulk import mirrors inline name = value pairs", {
 })
 
 test_that("Status probabilities import as a list or from the template", {
+  # its member escaped: the status process labels the statuses
+  hh_model <- new_housepi_model(data.frame(hh_id = "h1", status = 0), "test")
   # an external list equals the inline probabilities, labelled or not
-  mk_wrapper$model |>
+  hh_model |>
     add_status_process(import = list(symptomatic = 0.7, asymptomatic = 0.3)) |>
     get_status_process() |>
     expect_identical(get_status_process(add_status_process(
-      mk_wrapper$model, symptomatic = 0.7, asymptomatic = 0.3
+      hh_model, symptomatic = 0.7, asymptomatic = 0.3
     )))
-  mk_wrapper$model |>
+  hh_model |>
     add_status_process(import = list(0, 1)) |>
     get_status_process() |>
-    expect_identical(get_status_process(add_status_process(mk_wrapper$model,
-                                                           0, 1)))
+    expect_identical(get_status_process(add_status_process(hh_model, 0, 1)))
 
   # an imported table equals the `strata` argument
   strata <- data.frame(status = c("symptomatic", "asymptomatic"),
                        weight = c(0.7, 0.3))
-  mk_wrapper$model |>
+  hh_model |>
     add_status_process(import = list(strata = strata)) |>
     get_status_process() |>
     expect_identical(get_status_process(add_status_process(
-      mk_wrapper$model, strata = strata
+      hh_model, strata = strata
     )))
-  mk_wrapper$model |>
+  hh_model |>
     add_status_process(strata = strata, import = list(strata = strata)) |>
     expect_error("[Mm]ixing imported and inline status probabilities")
 

@@ -44,10 +44,15 @@ The probabilities apply to every member when given in \code{...},
 or depend on member covariates when given as a \code{strata} table.
 Inference holds the observed status fixed,
 and does not estimate the probabilities.
+Statuses are integer codes or labels, as in data column \code{status}.
+Data used only as household structure for a simulation can drop the column.
 }
 \examples{
+# household structure only: the recorded status codes carry no label
+households <- subset(flu_1918_frederick, select = -status)
+
 # simulate infected members as symptomatic (70\%) or asymptomatic (30\%)
-hh_model <- flu_1918_frederick |>
+hh_model <- households |>
   new_housepi_model("final-size") |>
   add_parameter(import = "template") |>
   add_status_process(symptomatic = 0.7, asymptomatic = 0.3)
@@ -57,7 +62,7 @@ table(simulated$status)
 
 # the same probabilities, from a pre-built list
 probs <- list(symptomatic = 0.7, asymptomatic = 0.3)
-hh_model <- flu_1918_frederick |>
+hh_model <- households |>
   new_housepi_model("final-size") |>
   add_status_process(import = probs)
 
@@ -67,7 +72,7 @@ strata <- data.frame(
   status = c("symptomatic", "asymptomatic", "symptomatic", "asymptomatic"),
   weight = c(0.8, 0.2, 0.4, 0.6)
 )
-hh_model <- sarscov2_2021_icofs |>
+hh_model <- subset(sarscov2_2021_icofs, select = -status) |>
   new_housepi_model("final-size") |>
   add_status_process(strata = strata)
 get_status_process(hh_model)

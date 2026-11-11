@@ -2,19 +2,22 @@ library(testthat)
 
 ####  Helpers  ####
 
-# model carrying the data columns the definition blocks refer to
+# model carrying the data columns the definition blocks refer to,
+# its member escaped: the status process labels the statuses
 mk_latent <- local({
-  hh_model <- data.frame(hh_id = "h1", status = 1, datum = 1,
+  hh_model <- data.frame(hh_id = "h1", status = 0, datum = 1,
                          record = 3, datum_2 = 2) |>
     new_housepi_model("test")
   list(model = hh_model)
 })
 
-# saturated outbreak: every household infects all of its members
+# saturated outbreak: every household infects all of its members,
+# the status process draws the status, so the data carries none
 mk_outbreak <- local({
   hh_data <- sarscov2_2021_icofs |>
     dplyr::filter(hh_id %in% utils::head(unique(hh_id), 50)) |>
-    dplyr::mutate(end_date = 21)
+    dplyr::mutate(end_date = 21) |>
+    subset(select = -status)
   hh_model <- hh_data |>
     new_housepi_model("case-ascertained") |>
     add_infectivity_profile(import = "template") |>
@@ -25,7 +28,9 @@ mk_outbreak <- local({
 # two infected statuses under the template definitions
 mk_status <- local({
   hh_data <- data.frame(id = c("m1", "m2", "m3", "m4"), hh_id = "h1",
-                        status = c(1, 2, 0, 0), end_date = 21)
+                        status = c("symptomatic", "asymptomatic",
+                                   "escaped", "escaped"),
+                        end_date = 21)
   hh_model <- hh_data |>
     new_housepi_model("case-ascertained") |>
     add_parameter(import = "template") |>
@@ -156,6 +161,73 @@ test_that("A status table is checked against the data", {
     expect_error("zero weight for 1 member")
 })
 
+test_that("Statuses are integer codes or labels throughout", {
+  err <- "[Bb]oth as integer codes and as labels"
+  hh_data <- data.frame(hh_id = "h1", status = c(1, 2, 0), datum = 1)
+  # integer data attached last, beside status process labels
+  new_housepi_model(model = "final-size") |>
+    add_status_process(symptomatic = 0.5, asymptomatic = 0.5) |>
+    add_dataset(hh_data) |>
+    expect_error(err)
+  # integer data beside a latent label
+  hh_data |>
+    new_housepi_model("test") |>
+    add_latent(hidden = list(model = "uniform", min = 0, max = 1,
+                             status = "symptomatic")) |>
+    expect_error(err)
+  # integer data beside a group-rate reference label
+  hh_data |>
+    new_housepi_model("final-size") |>
+    add_group_rate(infectivity = list(
+      by = "status", reference = list(status = "symptomatic")
+    )) |>
+    expect_error(err)
+
+  # labelled data beside integer statuses
+  hh_data_2 <- transform(hh_data, status = c("symptomatic", "asymptomatic",
+                                             "escaped"))
+  hh_data_2 |>
+    new_housepi_model("final-size") |>
+    add_status_process(0.5, 0.5) |>
+    expect_error(err)
+  hh_data_2 |>
+    new_housepi_model("final-size") |>
+    add_group_rate("infectivity", strata = data.frame(
+      status = c(1, 2), param_name = c("inf_1", "inf_2")
+    )) |>
+    expect_error(err)
+
+  # definitions mixing integer statuses and labels, the data carrying none
+  data.frame(hh_id = "h1", status = 0, datum = 1) |>
+    new_housepi_model("test") |>
+    add_status_process(symptomatic = 0.5, asymptomatic = 0.5) |>
+    add_latent(hidden = list(model = "uniform", min = 0, max = 1,
+                             status = 1)) |>
+    expect_error(err)
+})
+
+test_that("Status process labels are labels of the data", {
+  hh_data <- data.frame(hh_id = "h1", status = c("symptomatic", "escaped"),
+                        datum = 1)
+  # each close data label is suggested for the label it corrects
+  hh_data |>
+    new_housepi_model("final-size") |>
+    add_status_process(symptomatc = 0.5, asymptomatic = 0.5) |>
+    expect_error(paste0("[Ss]tatus labels .symptomatc. and .asymptomatic. ",
+                        "are not in the data.*[Dd]id you mean .symptomatic. ",
+                        "for .symptomatc."))
+
+  # a factor declares its levels, carried by a member or not
+  transform(hh_data, status = factor(
+    status, levels = c("escaped", "symptomatic", "asymptomatic")
+  )) |>
+    new_housepi_model("final-size") |>
+    add_status_process(symptomatic = 0.5, asymptomatic = 0.5) |>
+    get_status_process() |>
+    getElement("status") |>
+    expect_identical(c("symptomatic", "asymptomatic"))
+})
+
 test_that("Status probabilities are non-negative numbers", {
   # a parameter, a latent or a data column is not a number
   mk_status$model |>
@@ -181,7 +253,9 @@ test_that("Status is a constant in inference", {
   # refined statuses already in the data; infec_time is read from data so the
   # density is deterministic and the only difference is the status process.
   hh_model <- helper_onset_house$data |>
-    transform(status = c(1, 2, 1, 0, 0, 0, 0), infec_date = infec_time) |>
+    transform(status = c("symptomatic", "asymptomatic", "symptomatic",
+                         "escaped", "escaped", "escaped", "escaped"),
+              infec_date = infec_time) |>
     add_dataset(hh_model = mk_pinned$model)
 
   # the status process drops out of the density (status is fixed data)

@@ -59,6 +59,8 @@ Label for status code \code{0} in a character or factor \code{status} column.}
     \if{html}{\out{<div class="arguments">}}
     \describe{
       \item{\code{data}}{\code{data.frame} Household data, one row per member.
+Column \code{status} holds integer codes (\code{0} for escaped members), or labels.
+Definitions keyed on a status name it the same way.
 If omitted, attach it later with \code{\link[=add_dataset]{add_dataset()}}.}
       \item{\code{model}}{\code{character(1)} Model to use, one of:
 \describe{

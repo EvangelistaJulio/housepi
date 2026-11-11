@@ -833,7 +833,7 @@ test_that("Only the rates the model declares may be status stratified", {
 
 test_that("Status strata are declared, not read off the data", {
   # the observed labels are the model dictionary: a stratum outside it
-  # resolves no member
+  # is refused
   hh_data <- mk_status$data
   hh_data$status[hh_data$status == "asymptomatic"] <- "escaped"
   strata <- tibble::tribble(~status,        ~param_name,
@@ -842,7 +842,7 @@ test_that("Status strata are declared, not read off the data", {
   hh_data |>
     new_housepi_model("final-size") |>
     add_group_rate("infectivity", strata = strata) |>
-    expect_error("1 rule no member resolves to.*asymptomatic")
+    expect_error("[Ss]tatus label .asymptomatic. is not in the data")
 
   # with no status observed at all, no sample size can pick a reference
   hh_model <- mk_status$data |>

@@ -7,7 +7,9 @@
 sample_house_structure(data, houses = NA_integer_)
 }
 \arguments{
-\item{data}{\code{data.frame} Household data, one row per member.}
+\item{data}{\code{data.frame} Household data, one row per member.
+Column \code{status} holds integer codes (\code{0} for escaped members), or labels.
+Definitions keyed on a status name it the same way.}
 
 \item{houses}{\code{integer(1)} Number of households to draw.
 If \code{NA}, the number of households carried by \code{data}.}

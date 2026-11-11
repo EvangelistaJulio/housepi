@@ -190,6 +190,7 @@ inline_cli_ <- function(..., .envir = parent.frame()) {
 
 #' Suggest the option closest to `input`, as a hint.
 #' The accepted distance is capped by half the length of the input.
+#' * several inputs -> each hint names the input it corrects.
 #' @param min_dist `integer(1)` Threshold for minimal distance.
 #' @param otherwise `character()` Hint when no option is close,
 #'   naming where the options are shown.
@@ -202,8 +203,9 @@ find_closest_match <- function(input, options, min_dist = 3,
   idxs <- apply(dists, 1, min) <= pmin(min_dist, nchar(input) %/% 2)
   if (!any(idxs)) return(otherwise)
   closest <- options[apply(dists[idxs, , drop = FALSE], 1, which.min)]
-  vapply(closest, \(x) inline_cli_("Did you mean {.val {x}}?"),
-         character(1), USE.NAMES = FALSE)
+  if (length(input) == 1L) return(inline_cli_("Did you mean {.val {closest}}?"))
+  mapply(\(x, typed) inline_cli_("Did you mean {.val {x}} for {.val {typed}}?"),
+         closest, input[idxs], USE.NAMES = FALSE)
 }
 
 # Format an invalid-type error.
