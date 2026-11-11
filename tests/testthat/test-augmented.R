@@ -1433,6 +1433,30 @@ test_that("Latent draws stay inside their live support", {
   hidden |> expect_all_gte(rho)
 })
 
+test_that("An initial latent draw on its bound is drawn again", {
+  hh_model <- data.frame(id = "m1", hh_id = "h1", status = 1, obs = 0) |>
+    new_housepi_model("test")
+  run_short <- function(hh_model) {
+    hh_model |>
+      helper_flat_sink(loc = hidden) |>
+      run_inference(steps = 10L, adapt = 0L, thin = 1L, chains = 1L) |>
+      suppressWarnings()
+  }
+
+  # 83% of draws fall within 1.1e-16 of 1 and round to 1 in a double
+  draws <- hh_model |>
+    add_latent("hidden", model = "gamma", shape = 0.005, scale = 1, loc = 1) |>
+    run_short() |>
+    latent_frame()
+  draws[["m1_hidden"]] |> expect_all_gt(1)
+
+  # every draw falls on the bound
+  hh_model |>
+    add_latent("hidden", model = "gamma", shape = 1e-8, scale = 1, loc = 1) |>
+    run_short() |>
+    expect_error("[Ll]atent model of .hidden. is not finite")
+})
+
 test_that("Draws requested where no latent is sampled are ignored", {
   # a member carrying no infected status draws no latent
   data.frame(id = c("m1", "m2"), hh_id = "h1", status = c(1, 0), obs = 0) |>

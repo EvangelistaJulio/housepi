@@ -2115,6 +2115,19 @@ namespace housepi
         augm::check::obs_init_error(def_, rows, param_, data_.dataset().str(indiv));
     }
 
+    [[noreturn]] void Augmented::throw_latent_init_error(const Individual &indiv) const
+    {
+        // latents whose log-likelihood is not finite at their value
+        std::vector<std::string> names;
+        for (size_t a : list_latent_models(indiv))
+            if (!std::isfinite(state.of(indiv).vec[a].guarded_log_pdf()))
+                names.push_back(consult(a));
+        msg::stop(
+            "The latent model of " + str::format(names, false, 3) + " is not finite at the initial values of " +
+            data_.dataset().str(indiv) + ".\n" +
+            "Check the parameters the latent model reads and the values it accepts.");
+    }
+
     augm::Binder Augmented::binder_()
     {
         return augm::Binder(def_, *this, translator_, data_);

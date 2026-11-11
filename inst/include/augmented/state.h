@@ -86,17 +86,21 @@ namespace housepi::augm
 
     //////  Log-likelihood  //////
 
-    /// Compute and store the latent-model log-likelihood of a member.
+    /// Evaluate the latent log-likelihood of a member, without storing it.
     /// * value outside a support shifted by a moved parameter -> -Inf.
+    inline double eval_log_latent(const StatusScheme &ss, const IndivState &st)
+    {
+        double ll = 0.0;
+        for (size_t a : ss.latent_models)
+            ll += st.vec[a].guarded_log_pdf();
+        return ll;
+    }
+    /// Compute and store the latent log-likelihood of a member.
     inline double commit_latent_log_lik(const StatusScheme &ss, IndivState &st)
     {
         if (ss.latent_models.empty())
             return 0.;
-        double new_ll = 0.0;
-        // guarded: a moved parameter feeding loc/min/max may push a value out of its shifted support
-        // that value reads -Inf, not a stale finite density
-        for (size_t a : ss.latent_models)
-            new_ll += st.vec[a].guarded_log_pdf();
+        const double new_ll = eval_log_latent(ss, st);
         st.latent_log_lik.set(new_ll);
         return new_ll;
     }

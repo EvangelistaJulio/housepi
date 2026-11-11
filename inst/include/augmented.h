@@ -216,7 +216,7 @@ namespace housepi
         }
 
         /// Compute and store the observation log-likelihood of member `m`.
-        /// @note Call only if an observation model is defined.
+        /// * no observation model -> 0.
         double commit_obs_log_lik(const Individual &m)
         {
             return augm::commit_obs_log_lik(scheme_of_(m), state.of(m));
@@ -231,9 +231,16 @@ namespace housepi
         {
             return augm::eval_log_obs(scheme_of_(m), state.of(m));
         }
+        /// Evaluate the latent log-likelihood of member `m`, without storing it.
+        double eval_log_latent(const Individual &m) const
+        {
+            return augm::eval_log_latent(scheme_of_(m), state.of(m));
+        }
 
-        /// Throw the initialization error caused by the observations of `indiv`.
+        /// Throw the initialization error caused by the observations of `m`.
         [[noreturn]] void throw_obs_init_error(const Individual &m) const;
+        /// Throw the initialization error caused by the latent models of `m`.
+        [[noreturn]] void throw_latent_init_error(const Individual &m) const;
 
         //////  Flags  //////
 

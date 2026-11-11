@@ -931,26 +931,35 @@ namespace housepi
     {
         LogLik ll;
 
-        // observation
-        // resample each individual variable upon failure
-        if (chain.augm.scheme().is_any_obs_model())
+        // observation and latent models
+        // redraw a member's latents until its observation and latent log-likelihoods are finite
+        if (chain.augm.scheme().is_any_obs_model() ||
+            chain.augm.scheme().is_any_latent_model())
             for (const Individual &indiv : house.infected_indivs())
             {
-                if (chain.augm.list_obs_models(indiv).empty())
+                if (chain.augm.list_obs_models(indiv).empty() &&
+                    chain.augm.list_latent_models(indiv).empty())
                     continue;
 
                 size_t attempt = 0;
-                while (!std::isfinite(chain.augm.eval_log_obs(indiv)))
+                while (!std::isfinite(chain.augm.eval_log_obs(indiv) +
+                                      chain.augm.eval_log_latent(indiv)))
                 {
                     ++attempt;
-                    if (!chain.augm.scheme().is_any_sample() || attempt >= N_INIT_ATTEMPTS)
-                        chain.augm.throw_obs_init_error(indiv);
+                    if (!chain.augm.scheme().is_any_sample() ||
+                        attempt >= N_INIT_ATTEMPTS)
+                    {
+                        if (!std::isfinite(chain.augm.eval_log_obs(indiv)))
+                            chain.augm.throw_obs_init_error(indiv);
+                        chain.augm.throw_latent_init_error(indiv);
+                    }
                     chain.augm.restart(indiv, settings.prng(chain.id));
                 }
                 ll.obs += chain.augm.commit_obs_log_lik(indiv);
+                ll.latent += chain.augm.commit_latent_log_lik(indiv);
             }
 
-        // transmission, on the latents the observations accepted
+        // transmission, on the latents the observation and latent models accepted
         chain.model->update_house_transmission_cache(house);
         ll.transm = commit_transm_log_lik_(chain, house);
         if (!std::isfinite(ll.transm))
@@ -958,22 +967,6 @@ namespace housepi
                 "The transmission probability of " + chain.data.dataset().str(house) +
                 " is numerically zero at the initial values.\n"
                 "Check the parameters and latents the transmission model reads.");
-
-        // latent
-        if (chain.augm.scheme().is_any_latent_model())
-            for (const Individual &indiv : house.infected_indivs())
-            {
-                if (chain.augm.list_latent_models(indiv).empty())
-                    continue;
-
-                ll.latent += chain.augm.commit_latent_log_lik(indiv);
-                if (!std::isfinite(ll.latent))
-                    msg::stop(
-                        "The latent density of " + chain.data.dataset().str(indiv) +
-                        " is numerically zero at the initial values.\n"
-                        "Check the latent models of " +
-                        chain.data.dataset().str(indiv) + ".");
-            }
 
         return ll;
     }
