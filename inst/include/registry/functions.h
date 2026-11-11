@@ -22,7 +22,6 @@ namespace housepi
 {
     class Function;
     class Distribution;
-    class ModelBase;
 
     /// Factory-based creation of Function, Distribution and ModelBase objects by name.
     namespace registry
@@ -161,60 +160,4 @@ namespace housepi
             }                                                              \
         };                                                                 \
         static T##kind##_AutoRegister T##kind##_auto_register;             \
-    }
-
-//////////////////////////////  registry : models  //////////////////////////////
-
-namespace housepi::registry
-{
-    /// Map names to factories of ModelBase objects.
-    ///
-    /// * model DLLs register their factory into this singleton at load time;
-    /// * a name registered again -> the last loaded factory;
-    /// * the singleton lives in housepi.so: every model DLL shares one instance.
-    class RegModels
-    {
-    public:
-        using model_uptr = std::unique_ptr<ModelBase>;
-
-        /// Get the global model registry.
-        /// Defined in source, so every DLL shares one instance.
-        static RegModels &instance();
-
-        /// Register the factory of model class `T` under `name`.
-        template <typename T>
-        void register_factory(const std::string &name)
-        {
-            factory_map_.insert_or_assign(name,
-                                          []() -> std::unique_ptr<T>
-                                          { return std::make_unique<T>(); });
-        }
-
-        /// Create the model registered under `name`.
-        /// * unregistered name -> error.
-        model_uptr create(std::string_view name) const;
-
-    private:
-        /// Factories, keyed by model name.
-        std::map<std::string, std::function<model_uptr()>, std::less<>> factory_map_;
-    };
-}
-
-/// Namespace of a module model: prefixed so any folder name yields an identifier.
-#define HOUSEPI_MODEL_NAMESPACE(module) model_##module
-
-/// Register a module model under the module name, at load time.
-#define HOUSEPI_REGISTER_MODEL(module)                                                  \
-    namespace                                                                           \
-    {                                                                                   \
-        struct model_##module##_AutoRegister                                            \
-        {                                                                               \
-            model_##module##_AutoRegister()                                             \
-            {                                                                           \
-                housepi::registry::RegModels::instance()                                \
-                    .register_factory<housepi::HOUSEPI_MODEL_NAMESPACE(module)::Model>( \
-                        #module);                                                       \
-            }                                                                           \
-        };                                                                              \
-        static model_##module##_AutoRegister model_##module##_auto_register;            \
     }

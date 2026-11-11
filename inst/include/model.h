@@ -68,7 +68,10 @@ namespace housepi
     /// Transmission model: per-household log-likelihood and simulation hooks.
     ///
     /// * built-in and custom models derive from it through the `HOUSEPI_*` macros;
-    /// * the accessors below read the chain state and settings the model is bound to.
+    /// * the accessors below read the workspace and settings the model is bound to;
+    /// * every chain runs on its own copy of the model -> copy-constructible;
+    /// * member held by value -> one per chain;
+    /// * member behind a `std::shared_ptr` -> shared by every chain, read-only while sampling.
     class ModelBase
     {
     public:
@@ -76,8 +79,8 @@ namespace housepi
 
         virtual ~ModelBase() = default;
 
-        /// Bind the chain state `chain` and the settings `settings` the model reads.
-        void bind(ChainState &chain, const Settings &settings) noexcept
+        /// Bind the workspace `chain` and the settings `settings` the model reads.
+        void bind(Workspace &chain, const Settings &settings) noexcept
         {
             chain_ = &chain;
             settings_ = &settings;
@@ -236,9 +239,9 @@ namespace housepi
 
         /// User-configured time step of the simulation.
         double real_time_step() const { return settings_->time_step; }
-        /// Number of thread slots, the size of a per-thread pool.
-        size_t n_threads() const { return settings_->n_threads; }
-        /// Slot of the calling thread in a per-thread pool.
+        /// Number of thread slots of the chain, the size of a per-thread pool.
+        size_t n_thread_slots() const { return settings_->budget.inner; }
+        /// Slot of the calling thread in a per-thread pool, below n_thread_slots().
         size_t thread_slot() const { return settings_->thread_slot(); }
 
         /// Value of parameter `p`.
@@ -301,8 +304,8 @@ namespace housepi
         ///@}
 
     private:
-        /// Chain state the model reads and writes.
-        ChainState *chain_ = nullptr;
+        /// Workspace the model reads and writes.
+        Workspace *chain_ = nullptr;
         /// Settings: random streams, time step, thread slots.
         const Settings *settings_ = nullptr;
     };

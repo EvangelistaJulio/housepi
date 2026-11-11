@@ -22,7 +22,7 @@
 #include "tools/string.h"
 #include "distribution.h"
 #include "function.h"
-#include "registry.h"
+#include "registry/functions.h"
 
 namespace housepi
 {

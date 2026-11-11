@@ -27,8 +27,13 @@ endif
 ifneq ($(filter profile,$(MAKECMDGOALS)),)
   PROFILE := 1
 endif
+ifneq ($(filter tsan,$(MAKECMDGOALS)),)
+  TSAN := 1
+endif
 ifdef DEBUG
   FLAVOUR := debug
+else ifdef TSAN
+  FLAVOUR := tsan
 else ifdef PROFILE
   FLAVOUR := profile
 else
@@ -76,6 +81,10 @@ CXXFLAGS += -g3 -O0 \
 -D_GLIBCXX_DEBUG \
 -D_GLIBCXX_DEBUG_PEDANTIC \
 -fno-inline
+else ifdef TSAN
+CXXFLAGS += -g -O1 \
+-fsanitize=thread \
+-fno-omit-frame-pointer
 else ifdef PROFILE
 CXXFLAGS += -g -O3 -DNDEBUG\
 -fno-omit-frame-pointer
@@ -137,6 +146,9 @@ debug: all
 # Run make in profiling mode
 profile: all
 
+# Run make in data-race mode (ThreadSanitizer), TBB itself left uninstrumented
+tsan: all
+
 # Test log-likelihood evaluation
 test-log-lik: $(EXECUTABLE)
 	$(EXECUTABLE) $(STD_IN) --log-lik
@@ -149,7 +161,7 @@ test-infer: $(EXECUTABLE)
 test-simulate: $(EXECUTABLE)
 	$(EXECUTABLE) $(STD_IN) --simulate -O out.csv
 
-.PHONY: all clean debug profile test-log-lik test-infer test-simulate
+.PHONY: all clean debug profile tsan test-log-lik test-infer test-simulate
 
 # header dependencies recorded by -MMD, absent on the first build
 -include $(DEPENDS)

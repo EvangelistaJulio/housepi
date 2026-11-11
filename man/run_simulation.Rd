@@ -32,7 +32,8 @@ Once set, even to 1, the replicates are returned as a list.}
 \item{thin_ess}{\code{logical(1)}
 Whether to thin posterior \code{draws} to their bulk effective sample size (ESS).}
 
-\item{threads}{\code{integer(1)} Number of threads for parallel household runs.}
+\item{threads}{\code{integer(1)} Number of threads,
+over which households are spread.}
 
 \item{...}{Advanced configuration.}
 }

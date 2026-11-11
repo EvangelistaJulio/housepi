@@ -390,8 +390,8 @@ test_that("Every chain stores the log-likelihood of its own parameters", {
     add_parameter(import = "template")
   hh_fit <- hh_model |>
     run_inference(steps = 20L, chains = 2L, adapt = 0L, thin = 1L,
-                  warn = FALSE)
-  # last draw of the second chain, whose state is rebuilt for the run
+                  threads = 2L, warn = FALSE)
+  # last draw of the second chain, run with the first on a rebuilt state
   last <- \(x) posterior::subset_draws(x, chain = 2L, iteration = 20L) |>
     posterior::as_draws_matrix()
   param <- as.list(as.data.frame(last(get_parameter_draws(hh_fit))))

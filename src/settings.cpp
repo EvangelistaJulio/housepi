@@ -5,6 +5,7 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <numeric>
 #include <string>
 #include <vector>
 
@@ -101,24 +102,30 @@ namespace housepi
                 std::to_string(max_threads) + " available threads.");
             n_threads = max_threads;
         }
-        // every thread goes to the households of a single chain
+        // every thread to households, split across chains by init_mcmc_configuration()
         budget = {1, n_threads};
     }
 
     void Settings::set_prng_seed()
     {
         seed = std::max(1, seed);
-        prng_parallel_.resize(n_threads);
-        prng_parallel_[0].seed(seed);
-        for (size_t t = 1; t < n_threads; ++t)
+        prng_pool_.clear();
+        RndGen next(static_cast<RndGen::result_type>(seed));
+        for (size_t k = 0; k < n_chains * n_threads; ++k)
         {
-            prng_parallel_[t] = prng_parallel_[t - 1];
-            prng_parallel_[t].jump();
+            prng_pool_.push_back({next});
+            next.jump();
         }
     }
 
     void Settings::init_mcmc_configuration(bool is_adaptive)
     {
+        // every state runs as many chains on as many threads, none idle
+        // @note threads not a multiple of chains go to households
+        // where a model may scale worse than over chains
+        budget.outer = std::gcd<size_t>(n_chains, n_threads);
+        budget.inner = n_threads / budget.outer;
+
         c_sample_size = n_steps / n_thin;
 
         // nothing to adapt: adaptation steps run as burn-in

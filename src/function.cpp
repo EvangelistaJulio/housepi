@@ -19,7 +19,7 @@
 #include "tools/string.h"
 #include "tools/vector.h"
 #include "function.h"
-#include "registry.h"
+#include "registry/functions.h"
 
 namespace housepi
 {

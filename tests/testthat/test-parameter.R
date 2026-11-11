@@ -687,11 +687,15 @@ test_that("A failed run keeps the state of the chain that failed", {
   hh_model <- mk_final_size$template |>
     add_parameter(alpha = 1e-300, beta = 1e-300) |>
     suppressWarnings()
-  # the first of two chains fails at its start, after drawing its values
-  hh_model |>
-    run_inference(steps = 10L, chains = 2L, progress = FALSE, warn = FALSE) |>
-    expect_error("numerically zero")
-  inspect_state(hh_model, "1")$parameters[["gamma"]] |> expect_no_na()
+  # the first chain to fail does so at its start, after drawing its values
+  # at 2 threads both chains run at once, the error raised from a worker
+  for (threads in 1:2) {
+    hh_model |>
+      run_inference(steps = 10L, chains = 2L, threads = threads,
+                    progress = FALSE, warn = FALSE) |>
+      expect_error("numerically zero", class = "rlang_error")
+    inspect_state(hh_model, "1")$parameters[["gamma"]] |> expect_no_na()
+  }
 })
 
 test_that("Every prior family and nested function samples across chains", {
@@ -856,12 +860,28 @@ test_that("A fixed seed reproduces parameter draws at any thread count", {
   identical(draws, draws_at(2705L)) |> expect_false()
 
   # household terms summed in one order at any number of threads
-  fit_draws_at <- function(threads) {
+  # chains run at once, each drawing from its own streams
+  fit_draws_at <- function(threads, chains = 1L) {
     set.seed(1105L)
     mk_final_size$template |>
-      run_inference(steps = 50L, chains = 1L, thin = 1L, threads = threads) |>
+      run_inference(steps = 50L, chains = chains, thin = 1L,
+                    threads = threads, progress = FALSE) |>
       suppressWarnings() |>
       get_parameter_draws()
   }
   fit_draws_at(2L) |> expect_identical(fit_draws_at(1L))
+  draws_4 <- fit_draws_at(1L, chains = 4L)
+  fit_draws_at(2L, chains = 4L) |> expect_identical(draws_4)
+  fit_draws_at(4L, chains = 4L) |> expect_identical(draws_4)
+
+  # sampled latents, moved in one order by the single thread of each chain
+  latent_draws_at <- function(threads) {
+    set.seed(1105L)
+    mk_case_ascertained$model |>
+      run_inference(steps = 20L, adapt = 20L, thin = 1L, chains = 4L,
+                    threads = threads, progress = FALSE) |>
+      suppressWarnings() |>
+      get_parameter_draws()
+  }
+  latent_draws_at(4L) |> expect_identical(latent_draws_at(1L))
 })

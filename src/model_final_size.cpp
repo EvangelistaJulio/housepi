@@ -5,6 +5,8 @@
 
 //////////////////////////////  final_size  //////////////////////////////
 
+#include <memory>
+
 #include "chain_binom.h"
 #include "housepi.h"
 
@@ -17,7 +19,8 @@ HOUSEPI_OPEN_MODULE_NAMESPACE()
 class Model final : public ModelBase
 {
 private:
-    chain_binom::LookUpTables lut_;
+    /// Chain-binomial tables, shared by the copies of the model.
+    std::shared_ptr<chain_binom::LookUpTables> lut_ = std::make_shared<chain_binom::LookUpTables>();
     /// Shape index in `lut_`, per class representative household.
     std::vector<chain_binom::ShapeIdx> shape_idx_;
     /// Chain-binomial buffers, per thread slot.
@@ -53,7 +56,7 @@ public:
     void init_model_for_evaluation() override final
     {
         assert_no_missing_status();
-        scratch_.resize(n_threads());
+        scratch_.resize(n_thread_slots());
     }
 
     /// Order members of `house`, then group infected ones into rate partitions.
@@ -116,7 +119,7 @@ public:
         // assign a shape index to the class representative
         if (shape_idx_.size() <= Index::of(house))
             shape_idx_.resize(Index::of(house) + 1);
-        shape_idx_[Index::of(house)] = (K > 1 && K < n_infec) ? lut_.ensure_partitioned(part_counts, K) : 0;
+        shape_idx_[Index::of(house)] = (K > 1 && K < n_infec) ? lut_->ensure_partitioned(part_counts, K) : 0;
     }
 
     //////////////////////////////  Model : household log-likelihood  //////////////////////////////
@@ -188,7 +191,7 @@ public:
         fill_house_escape_matrix(house);
 
         return chain_binom::log_likelihood(
-            lut_,
+            *lut_,
             scratch_[thread_slot()],
             house.n_infected_status(),
             cache_member(house, HouseMember::num_parts),

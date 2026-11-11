@@ -14,7 +14,8 @@
 #include "data/household.h"
 #include "data/individual.h"
 #include "model.h"
-#include "registry.h"
+#include "registry/functions.h"
+#include "registry/models.h"
 
 #ifdef _STANDALONE
 #include "mcmc.h"
@@ -69,6 +70,7 @@
 #define HOUSEPI_REGISTER_MODULE_INTERFACE() \
     HOUSEPI_REGISTER_MODULE_INTERFACE_IMPL_(_HOUSEPI_MODULE)
 
+/// Open and close the namespace of the module's `Model`, registered at close.
 #define HOUSEPI_OPEN_MODULE_NAMESPACE_IMPL_(module)    \
     namespace housepi::HOUSEPI_MODEL_NAMESPACE(module) \
     {

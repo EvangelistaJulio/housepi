@@ -16,7 +16,7 @@
 namespace housepi
 {
     class Individual;
-    struct ChainState;
+    struct Workspace;
     struct Data;
     struct Parameter;
     struct Augmented;
@@ -62,11 +62,10 @@ namespace housepi
         std::vector<const Individual *> tracked_indivs;
 
         /// Initialize posterior sample of `chain`.
-        void init(const ChainState &chain, const Settings &settings);
-        /// Store the values of `chain` as draw `local` of chain `chain_id`, in its own column block.
-        void store(const ChainState &chain,
+        void init(const Workspace &chain, const Settings &settings);
+        /// Store the values of `chain` as draw `local` of chain `chain.id`, in its own column block.
+        void store(const Workspace &chain,
                    const Settings &settings,
-                   Settings::Chain chain_id,
                    Settings::Step local);
 
     private:

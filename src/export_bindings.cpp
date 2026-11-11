@@ -37,7 +37,7 @@
 #include "measures.h"
 #include "parameter.h"
 #include "rates.h"
-#include "registry.h"
+#include "registry/functions.h"
 #include "variable.h"
 
 //////////////////////////////  msg  //////////////////////////////
@@ -1022,7 +1022,7 @@ namespace housepi
             const data::Dataset &dataset = mcmc_ptr->chain().data.dataset();
             const Household &rep = mcmc_ptr->chain().data.eq_class_rep(house);
             HouseQuantities out(rep.size());
-            mcmc_ptr->model->export_house_quantities(rep, out);
+            mcmc_ptr->chain().model->export_house_quantities(rep, out);
 
             const std::vector<MemberIdx> member = mcmc_ptr->chain().data.map_rep_members(house);
             const Rcpp::CharacterVector ids = rcpp_ids(dataset, house);
@@ -1222,7 +1222,7 @@ namespace housepi
                         try
                         {
                             Household &house = dataset.at(H);
-                            engine.model->simulate_single_house(house);
+                            engine.chain().model->simulate_single_house(house);
 
                             // thread-local: no shared counter
                             size_t row = row_offsets[H];
@@ -1400,7 +1400,7 @@ namespace housepi
                 dataset.assert_required_everyone(engine.chain().data.state, augm.get_drawn_cols());
                 // store constant terms of the generic profile
                 engine.chain().infec_profile.finalize();
-                engine.model->init_model_for_simulation();
+                engine.chain().model->init_model_for_simulation();
                 engine.chain().rates.assert_identifiability(engine.chain().param);
                 // bind member definitions once per run
                 engine.chain().augm.init_members_for_simulation();
@@ -1507,11 +1507,11 @@ namespace housepi
     }
 
         // keys the model declares through HOUSEPI_DECLARE_<SLOT>_KEYS
-        MAKE_EXPORT_KEYS(data_keys, model->data_keys())
-        MAKE_EXPORT_KEYS(long_keys, model->long_keys())
-        MAKE_EXPORT_KEYS(param_keys, model->param_keys())
-        MAKE_EXPORT_KEYS(group_rate_keys, model->group_rate_keys())
-        MAKE_EXPORT_KEYS(latent_keys, model->latent_keys())
+        MAKE_EXPORT_KEYS(data_keys, chain().model->data_keys())
+        MAKE_EXPORT_KEYS(long_keys, chain().model->long_keys())
+        MAKE_EXPORT_KEYS(param_keys, chain().model->param_keys())
+        MAKE_EXPORT_KEYS(group_rate_keys, chain().model->group_rate_keys())
+        MAKE_EXPORT_KEYS(latent_keys, chain().model->latent_keys())
         // keys the model requests as discrete
         MAKE_EXPORT_KEYS(discrete_param_keys, chain().param.discrete_keys())
         MAKE_EXPORT_KEYS(discrete_latent_keys, chain().augm.discrete_keys())
@@ -1557,17 +1557,17 @@ namespace housepi
 
         bool has_contact_rate(Rcpp::XPtr<MCMC> mcmc_ptr)
         {
-            return mcmc_ptr->model->has_contact_rate();
+            return mcmc_ptr->chain().model->has_contact_rate();
         }
 
         bool has_infec_profile(Rcpp::XPtr<MCMC> mcmc_ptr)
         {
-            return mcmc_ptr->model->has_infec_profile();
+            return mcmc_ptr->chain().model->has_infec_profile();
         }
 
         bool has_case_ascertainment(Rcpp::XPtr<MCMC> mcmc_ptr)
         {
-            return mcmc_ptr->model->has_case_ascertainment();
+            return mcmc_ptr->chain().model->has_case_ascertainment();
         }
 
         /// Evaluate the log-likelihood of every household, named by household id.

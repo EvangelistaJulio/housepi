@@ -24,7 +24,7 @@
 #include "status_process.h"
 #include "translator.h"
 
-//////////////////////////////  ChainState  //////////////////////////////
+//////////////////////////////  Workspace  //////////////////////////////
 
 namespace housepi
 {
@@ -53,14 +53,14 @@ namespace housepi
 
     /// Definitions of a run, parsed from the imported tables, read by every chain.
     /// * built once per import, never written while sampling;
-    /// * a chain builds its modules from them, slot by slot, see ChainState::build().
+    /// * a workspace builds its modules from them, slot by slot, see Workspace::build().
     ///
-    /// @note Replaying every slot in `Slot` order rebuilds a chain only after the wall push:
+    /// @note Replaying every slot in `Slot` order rebuilds a workspace only after the wall push:
     /// before it, the latent slot may wait on incomplete definitions.
-    /// @note Chain state set outside these slots is lost by a rebuilt chain, unless the rebuild sets it too.
+    /// @note A rebuilt workspace loses members set outside these slots, unless the rebuild sets them.
     struct Definitions
     {
-        /// Slots a chain builds from, in replay order.
+        /// Slots a workspace builds from, in replay order.
         enum class Slot : std::uint8_t
         {
             Param,
@@ -98,27 +98,34 @@ namespace housepi
         }
     };
 
-    /// State of one Markov chain: modules built from definitions, log-likelihood totals, adaptation.
+    /// Memory chains run in, one at a time: model, modules built from definitions, totals, adaptation.
     /// * modules point into each other -> never copied, rebuilt.
-    struct ChainState
+    struct Workspace
     {
-        /// Register the keys declared by `model` in every key holder, bind `defs`.
+        /// Own `model_ptr`, register its keys in every key holder, bind `defs`.
+        /// * model -> bound to this workspace, then its requirements declared;
         /// * `shared` -> its imported tables shared, read-cells unset until evaluation setup.
-        ChainState(const ModelBase &model, const Definitions &defs, const Data *shared = nullptr);
-        ChainState(const ChainState &) = delete;
-        ChainState &operator=(const ChainState &) = delete;
+        Workspace(std::unique_ptr<ModelBase> model_ptr,
+                  const Definitions &defs,
+                  const Settings &settings,
+                  const Data *shared = nullptr);
+        Workspace(const Workspace &) = delete;
+        Workspace &operator=(const Workspace &) = delete;
+        ~Workspace();
 
         //////  Build  //////
 
         /// Build the modules that read slot `slot` of definitions.
-        /// * import -> the slot is set first, then built on the first chain;
-        /// * rebuilt chain -> every slot built again, in `Slot` order;
+        /// * import -> the slot is set first, then built on the first workspace;
+        /// * rebuilt workspace -> every slot built again, in `Slot` order;
         /// * equivalence classes -> left to the caller, partitioned again at evaluation setup.
-        /// @note Every other chain state a slot sets is set here, so imports and rebuilds agree.
+        /// @note Every other workspace member a slot sets is set here, so imports and rebuilds agree.
         void build(Definitions::Slot slot);
 
         //////  Modules  //////
 
+        /// Transmission model, bound to this workspace.
+        std::unique_ptr<ModelBase> model;
         /// Definitions the modules are built from.
         const Definitions &defs;
         /// Imported tables, shared across engines, and run state.
@@ -145,6 +152,9 @@ namespace housepi
         double gain = 0.;
         /// Robbins-Monro gain of the block factors at this step.
         double block_gain = 0.;
+
+        /// Chain the workspace runs, index of its streams and of its posterior column block.
+        Settings::Chain id = 0;
 
         //////  Setter  //////
 
@@ -218,19 +228,20 @@ namespace housepi
 
         //////  Constructor  //////
 
-        /// Build the state of the first chain over the keys declared by `model`.
-        explicit MCMCBase(const ModelBase &model);
+        /// Build the first workspace on `model`.
+        explicit MCMCBase(std::unique_ptr<ModelBase> model);
         virtual ~MCMCBase();
 
         //////  Getter  //////
 
-        /// State of the chain imports build, evaluation and simulation read.
-        ChainState &chain() noexcept { return *chains_.front(); }
-        const ChainState &chain() const noexcept { return *chains_.front(); }
+        /// Workspace built by imports, read by evaluation and simulation.
+        Workspace &chain() noexcept { return *workspaces_.front(); }
+        const Workspace &chain() const noexcept { return *workspaces_.front(); }
 
     protected:
-        /// State of every chain, the first built by imports.
-        /// * other chains -> rebuilt from definitions for one run, see MCMC::prepare_inference().
-        std::vector<std::unique_ptr<ChainState>> chains_ = {};
+        /// Workspaces the chains run on, one chain at a time per workspace.
+        /// * first -> built by imports, the only workspace outside a run;
+        /// * others -> rebuilt from definitions for one run, see MCMC::prepare_inference().
+        std::vector<std::unique_ptr<Workspace>> workspaces_ = {};
     };
 }

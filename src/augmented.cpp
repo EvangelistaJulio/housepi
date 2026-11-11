@@ -34,7 +34,7 @@
 #include "function.h"
 #include "infec_profile.h"
 #include "parameter.h"
-#include "registry.h"
+#include "registry/functions.h"
 #include "rules.h"
 #include "status_process.h"
 #include "translator.h"

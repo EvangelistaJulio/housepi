@@ -52,7 +52,8 @@ If nothing is adaptable, run as burn-in instead.}
 
 \item{threads}{\code{integer(1)} Number of threads.
 Up to \code{threads} replicates are fitted at once.
-Beyond \code{nrep}, the households of each fit share the threads left over.}
+If greater than \code{nrep}, each fit shares the threads left over
+as \code{\link[=run_inference]{run_inference()}} does.}
 
 \item{progress}{\code{numeric(1)} | \code{logical(1)} Control the progress bar,
 one of:

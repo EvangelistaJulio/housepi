@@ -58,7 +58,8 @@ If \code{NA} or \code{NULL}, no lower bound is applied. Only with \code{epi = TR
 \item{max_hh_size}{\code{integer(1)} Maximum household size retained in the outputs.
 If \code{NA} or \code{NULL}, no upper bound is applied. Only with \code{epi = TRUE}.}
 
-\item{threads}{\code{integer(1)} Number of threads for parallel household runs.}
+\item{threads}{\code{integer(1)} Number of threads,
+over which households are spread.}
 
 \item{progress}{\code{numeric(1)} | \code{logical(1)} Control the progress bar,
 one of:

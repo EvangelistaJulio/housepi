@@ -229,7 +229,8 @@ and the joint moves of latent variables and parameters.
 Run first and not stored as draws.
 If nothing is adaptable, run as burn-in instead."
 rd_smpl_chain_ <- "`integer(1)` Number of independent MCMC chains to run."
-rd_thread_ <- "`integer(1)` Number of threads for parallel household runs."
+rd_thread_ <- "`integer(1)` Number of threads,
+over which households are spread."
 rd_progress_ <- "`numeric(1)` | `logical(1)` Control the progress bar,
 one of:
 \\describe{
@@ -1424,7 +1425,9 @@ inspect_state <- function(hh_model, hh_id = NULL) {
 #' @param thin `r rd_smpl_thin_`
 #' @param adapt `r rd_smpl_adapt_`
 #' @param chains `r rd_smpl_chain_`
-#' @param threads `r rd_thread_`
+#' @param threads `integer(1)`
+#' Number of threads, shared equally by the chains running at once,
+#' each spreading its households over its share.
 #' @param id_draws `character()` | `list`
 #' Infected members whose public latent draws are stored.
 #' A `character()` lists individual identifiers.
@@ -1438,6 +1441,11 @@ inspect_state <- function(hh_model, hh_id = NULL) {
 #' read back from the `warnings` field of the returned object.
 #' @return An object of class `HousepiPosteriorDraws`.
 #' @details
+#' With `threads` a multiple of `chains`, every chain runs at once.
+#' Otherwise fewer do:
+#' 4 chains on 6 threads run 2 at a time on 3 threads each,
+#' and 4 chains on 3 threads run one at a time on all 3.
+#'
 #' The run warns on any of: `r paste(diagnostic_flags_, collapse = "; ")`.
 #' R-hat and bulk ESS are the rank-normalized ones of
 #' \insertCite{vehtari_rank_normalization_2021;textual}{housepi}.

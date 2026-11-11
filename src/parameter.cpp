@@ -28,7 +28,7 @@
 #include "proposal.h"
 #include "rates.h"
 #include "rates/definition.h"
-#include "registry.h"
+#include "registry/functions.h"
 #include "translator.h"
 #include "variable.h"
 

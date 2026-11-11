@@ -163,10 +163,12 @@ namespace housepi::parallel
 
     /// Run `body(i)` for i in [0, n) across `workers`, each unit in its own arena of `inner` slots.
     ///
+    /// * units -> dispatched in an arena of `workers` slots of their own, never the caller's;
     /// * unit thread -> slot 0 of its arena, so current_thread_index() stays below `inner`;
     /// * unit -> 64-bit x87 precision on the thread running it;
     /// * at most one worker -> units in order on the calling thread;
-    /// * first unit to throw -> raises `stop_flag`, a unit not yet started skips its body;
+    /// * unit throwing -> raises `stop_flag`, a unit not yet started skips its body;
+    /// * first unit to throw in this call -> recorded, whoever else raised `stop_flag`;
     /// * unit throwing Cancelled -> not recorded.
     /// @return Exception of the first unit to throw, with its index.
     template <class F>
@@ -176,7 +178,8 @@ namespace housepi::parallel
                              std::atomic<bool> &stop_flag)
     {
         Failure failure;
-        // run unit i in its own arena, the first exception raising `stop`
+        std::atomic<bool> is_failed{false};
+        // run unit i in its own arena, any exception raising `stop_flag`
         auto unit = [&](std::size_t i)
         {
             if (stop_flag.load(std::memory_order_relaxed))
@@ -191,11 +194,14 @@ namespace housepi::parallel
             }
             catch (...)
             {
-                if (!stop_flag.exchange(true))
+                stop_flag.store(true);
+                if (!is_failed.exchange(true))
                     failure = {std::current_exception(), i};
             }
         };
-        for_each(n, unit, workers);
+        // an arena of their own, whatever the size of the caller's
+        detail::in_arena(workers, [&]
+                         { for_each(n, unit, workers); });
         return failure;
     }
 

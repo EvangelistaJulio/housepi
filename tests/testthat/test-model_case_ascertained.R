@@ -194,6 +194,25 @@ test_that("In discrete time the community infects other members on day 0", {
 
 ####  Log-likelihood  ####
 
+test_that("A discrete-time model reproduces a seed with chains in parallel", {
+  # the compiled model is copied once per chain run at once
+  hh_model <- sarscov2_2021_icofs |>
+    dplyr::filter(hh_id %in% utils::head(unique(hh_id), 50)) |>
+    new_housepi_model("case-ascertained", discr = TRUE, quiet = TRUE) |>
+    add_parameter(import = "template") |>
+    add_infectivity_profile(import = "template") |>
+    add_latent(import = "template")
+  draws_at <- function(threads) {
+    set.seed(1105L)
+    hh_model |>
+      run_inference(steps = 10L, adapt = 10L, thin = 1L, chains = 2L,
+                    threads = threads, progress = FALSE) |>
+      suppressWarnings() |>
+      get_parameter_draws()
+  }
+  draws_at(2L) |> expect_identical(draws_at(1L))
+})
+
 test_that("Sentinel against no introduction throws error", {
   data.frame(id = seq(2), hh_id = "h1", status = 0,
              end_date = 21) |>

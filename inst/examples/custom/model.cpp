@@ -1,8 +1,5 @@
 
-#include "function.h"
 #include "housepi.h"
-#include "mcmc.h"
-#include "registry.h"
 
 HOUSEPI_OPEN_MODULE_NAMESPACE()
 

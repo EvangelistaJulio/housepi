@@ -29,7 +29,8 @@ Inference does not model it,
 so a process losing information makes the check measure the misspecification."
 rd_sweep_threads_ <- "`integer(1)` Number of threads.
 Up to `threads` replicates are fitted at once.
-Beyond `nrep`, the households of each fit share the threads left over."
+If greater than `nrep`, each fit shares the threads left over
+as [run_inference()] does."
 
 #' Columns the outbreaks are simulated on: the attached data without
 #' the observations and latent variables, which simulation regenerates,

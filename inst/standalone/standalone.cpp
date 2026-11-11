@@ -390,7 +390,7 @@ namespace housepi
 
         // build household-level observations
         engine.chain().augm.init_house_for_simulation();
-        engine.model->init_model_for_simulation();
+        engine.chain().model->init_model_for_simulation();
         // bind member definitions once per run
         engine.chain().augm.init_members_for_simulation();
 
@@ -412,7 +412,7 @@ namespace housepi
             for (Household &house : dataset)
                 try
                 {
-                    engine.model->simulate_single_house(house);
+                    engine.chain().model->simulate_single_house(house);
                     if (is_writing)
                         update_ofstream_dataset(ofs, r, house,
                                                 engine.chain().data,

@@ -30,7 +30,9 @@ If nothing is adaptable, run as burn-in instead.}
 
 \item{chains}{\code{integer(1)} Number of independent MCMC chains to run.}
 
-\item{threads}{\code{integer(1)} Number of threads for parallel household runs.}
+\item{threads}{\code{integer(1)}
+Number of threads, shared equally by the chains running at once,
+each spreading its households over its share.}
 
 \item{id_draws}{\code{character()} | \code{list}
 Infected members whose public latent draws are stored.
@@ -80,6 +82,11 @@ A parameter whose prior or bounds read another of them moves alone,
 as does a rate whose number of members or pairs is unknown.
 }
 \details{
+With \code{threads} a multiple of \code{chains}, every chain runs at once.
+Otherwise fewer do:
+4 chains on 6 threads run 2 at a time on 3 threads each,
+and 4 chains on 3 threads run one at a time on all 3.
+
 The run warns on any of: R-hat of 1.01 or more, or undefined; Bulk or Tail Effective Sample Size (ESS) below 100 per chain, or undefined.
 R-hat and bulk ESS are the rank-normalized ones of
 \insertCite{vehtari_rank_normalization_2021;textual}{housepi}.

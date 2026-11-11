@@ -70,9 +70,9 @@ namespace housepi
 
         //////  Run config  //////
 
-        /// Flag shared by the engines of one run, null outside it.
-        const std::atomic<bool> *stop_flag = nullptr;
-        /// Steps counted in the run, written by one thread.
+        /// Flag shared by the engines and chains of one run, null outside it.
+        std::atomic<bool> *stop_flag = nullptr;
+        /// Steps counted in the run, by every chain.
         std::atomic<Step> n_done{0};
 
         //////  Constructor  //////
@@ -87,29 +87,28 @@ namespace housepi
         void reset_defaults();
         /// Build settings from input table.
         void build(const housepi::str_table &input);
-        /// Derive the sample size, then settle the adaptation steps.
+        /// Split threads, then derive the sample size and adaptation steps.
+        /// * threads -> `gcd(chains, threads)` chains at once, the rest to the households of each;
         /// * nothing adaptive -> adaptation steps turn into burn-in.
         /// @note Counts are asserted R-side, `steps` extended to a multiple of `thin`.
         void init_mcmc_configuration(bool is_adaptive);
 
         //////  Random  //////
 
-        /// Seed one generator per thread.
-        ///
-        /// * thread 0 takes `seed`;
-        /// * each next thread jumps 2^128 steps ahead of the previous one.
+        /// Seed the generator pool, one stream per chain and thread.
         void set_prng_seed();
-        /// Return slot of the calling thread in per-thread pools, below n_threads.
+        /// Return slot of the calling thread in per-thread pools, below `budget.inner`.
         /// * one worker within a chain -> 0;
         /// * otherwise -> worker index in the arena.
         std::size_t thread_slot() const { return budget.inner == 1 ? 0 : housepi::parallel::current_thread_index(); }
-        /// Return generator of the calling thread.
-        housepi::RndGen &prng() const { return prng_parallel_[thread_slot()]; }
+        /// Return generator of chain `c` on the calling thread.
+        /// * default -> chain 0, the one evaluation and simulation draw from.
+        housepi::RndGen &prng(Chain c = 0) const { return prng_pool_[c + thread_slot() * n_chains].gen; }
 
-        /// Sample a uniform-distributed variable in [0, 1).
-        double uniform() const { return housepi::standard_uniform(prng()); }
-        /// Sample an exponential-distributed variable with rate 1.
-        double exponential() const { return housepi::standard_exponential(prng()); }
+        /// Sample a uniform-distributed variable in [0, 1), from the generator of chain `c`.
+        double uniform(Chain c = 0) const { return housepi::standard_uniform(prng(c)); }
+        /// Sample an exponential-distributed variable with rate 1, from the generator of chain `c`.
+        double exponential(Chain c = 0) const { return housepi::standard_exponential(prng(c)); }
 
         //////  Progress  //////
 
@@ -119,14 +118,21 @@ namespace housepi
         {
             if (stop_flag && stop_flag->load(std::memory_order_relaxed))
                 throw parallel::Cancelled{};
-            n_done.store(n_done.load(std::memory_order_relaxed) + 1, std::memory_order_relaxed);
+            n_done.fetch_add(1, std::memory_order_relaxed);
         }
         /// Return fraction of the run's steps counted, from 0 to 1.
         double fraction_done() const;
 
     private:
-        /// One generator per thread.
-        mutable std::vector<housepi::RndGen> prng_parallel_ = {};
+        /// Generator on a cache line of its own, so threads drawing from neighbouring streams share no line.
+        struct alignas(128) LineRndGen
+        {
+            housepi::RndGen gen;
+        };
+        /// Generator pool, seeded once: stream `k` starts `k * 2^128` draws past `seed`.
+        /// * chain `c` at thread slot `s` -> stream `c + s * n_chains`;
+        /// * chain thread, slot 0 -> stream `c`, at any thread count.
+        mutable std::vector<LineRndGen> prng_pool_ = {};
 
         /// Associate non-default user settings.
         void helper_non_default_build_(const housepi::str_table &input);

@@ -36,7 +36,7 @@ using discrete_up_policy = boost::math::policies::policy<
 #include "tools/string.h"
 
 #include "distribution.h"
-#include "registry.h"
+#include "registry/functions.h"
 
 namespace housepi
 {
