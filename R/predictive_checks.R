@@ -9,12 +9,13 @@ rd_max_hh_size_ <- "`integer(1)` Maximum household size retained in the outputs.
 If `NA` or `NULL`, no upper bound is applied."
 rd_measure_dots_ <- "Named `function`s computing measures from data.
 Each returns a `numeric()`, a `list` or a `data.frame`.
-Names must be unique and cannot match a member of the returned object."
+Names must be unique and cannot match a member of the returned object.
+A measure with an `escaped` argument receives the model's escaped label."
 rd_long_measures_ <- "`list`
 Named `function`s computing measures from the long dataset.
 Each replicate's long dataset comes from the `long_dataset` reporting process,
 see [add_reporting_process()].
-Returned values and names follow the rules of `...`."
+Arguments, returned values and names follow the rules of `...`."
 
 ########  Measures  ########
 
@@ -461,6 +462,14 @@ HousepiPredictiveCheck <- R6::R6Class(
           "Add one with {.code add_reporting_process(long_dataset = )}."
         )
 
+      # measure with an `escaped` formal -> called with the model's label
+      esc <- hh_model$escaped
+      bind_escaped <- function(f) {
+        if (!is.function(f) || !"escaped" %in% names(formals(f))) return(f)
+        \(x) f(x, escaped = esc)
+      }
+      measures <- lapply(measures, \(fs) lapply(fs, bind_escaped))
+
       # each side applies its measures to a frame
       # * no long measure -> long dataset reporting process skipped
       appliers <- lapply(measures, \(fs) function(x) lapply(fs, \(f) f(x)))
@@ -725,11 +734,9 @@ HousepiEpiPredictiveCheck <- R6::R6Class(
         length(measure_dots_(...)$measures) || length(long_measures)
 
       # case-ascertained model -> attack rate not checked
-      standard <- list(
-        attack_rate = \(x) measure_ar_by_hh_size(x, esc),
-        sec_attack_rate = \(x) measure_sar_by_hh_size(x, esc),
-        cases_distr = \(x) measure_cases_by_hh_size(x, esc)
-      )
+      standard <- list(attack_rate = measure_ar_by_hh_size,
+                       sec_attack_rate = measure_sar_by_hh_size,
+                       cases_distr = measure_cases_by_hh_size)
       mcmc_ptr <- hh_model$.__enclos_env__$private$mcmc_ptr_
       if (.engine$has_case_ascertainment(mcmc_ptr)) standard$attack_rate <- NULL
 

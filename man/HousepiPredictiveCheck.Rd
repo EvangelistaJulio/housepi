@@ -93,12 +93,13 @@ a \code{data.frame} with one row per draw,
 or one value per parameter, as in \code{c(alpha = 0.1, beta = 0.2)}.}
       \item{\code{...}}{Named \code{function}s computing measures from data.
 Each returns a \code{numeric()}, a \code{list} or a \code{data.frame}.
-Names must be unique and cannot match a member of the returned object.}
+Names must be unique and cannot match a member of the returned object.
+A measure with an \code{escaped} argument receives the model's escaped label.}
       \item{\code{long_measures}}{\code{list}
 Named \code{function}s computing measures from the long dataset.
 Each replicate's long dataset comes from the \code{long_dataset} reporting process,
 see \code{\link[=add_reporting_process]{add_reporting_process()}}.
-Returned values and names follow the rules of \code{...}.}
+Arguments, returned values and names follow the rules of \code{...}.}
       \item{\code{nrep}}{\code{integer(1)} Number of replicates.
 With \code{draws}, at most \code{nrep} evenly spaced draws are simulated,
 picked after thinning to their ESS when \code{thin_ess} is \code{TRUE}.

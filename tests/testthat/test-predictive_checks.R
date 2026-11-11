@@ -298,6 +298,32 @@ test_that("Custom measures return values of one shape that summarise", {
     suppressWarnings()
 })
 
+test_that("Measures with an escaped argument receive the model's label", {
+  hh_data <- flu_1918_frederick
+  hh_data$status <- ifelse(hh_data$status == 0, "negative", "positive")
+  hh_model <- hh_data |>
+    new_housepi_model("final_size", escaped = "negative") |>
+    add_parameter(import = "template")
+  param_table <- data.frame(alpha = 0.1, beta = 0.3, gamma = 1,
+                            hh_size_ref = 4L)
+  run <- function(...) {
+    hh_model |> check_predictive(param_table, ..., epi = FALSE, nrep = 5)
+  }
+  # the measure's own default yields to the model's label
+  infected <- function(data, escaped = "escaped") mean(data$status != escaped)
+  ppc <- run(sar = measure_sar_by_hh_size, overall = infected) |>
+    expect_no_warning(message = "escaped label") |>
+    suppressWarnings()
+  ppc$sar$observed |>
+    expect_equal(measure_sar_by_hh_size(hh_data, "negative"))
+  ppc$overall$observed |> expect_equal(mean(hh_data$status == "positive"))
+  ppc$overall$predicted |> expect_lt(1)
+  # a measure without the argument keeps its own label
+  run(sar = \(x) measure_sar_by_hh_size(x)) |>
+    expect_warning("escaped label") |>
+    suppressWarnings()
+})
+
 test_that("Standard measures can be dropped", {
   ppc <- mk_ppc$model |>
     check_predictive(mk_ppc$fit, overall = \(x) mean(x$status > 0),
