@@ -61,7 +61,7 @@ test_that("Households are resampled whole", {
 })
 
 test_that("Performance measures summarise the replicates", {
-  summary <- performance_summary_(mk_perf_frame$estimates)
+  summary <- performance_summary_(mk_perf_frame$estimates, level = 0.95)
   summary$houses |> expect_identical(c(10L, 10L, 20L, 20L))
   summary$variable |> expect_identical(c("rho", "rho_2", "rho", "rho_2"))
   summary$bias |> expect_equal(c(1, 1, -1, 3))
@@ -77,6 +77,11 @@ test_that("Performance measures summarise the replicates", {
             "cri_width_mcse")] |>
     unlist() |>
     expect_all_na()
+  # nor rejects any coverage at level 0.95
+  summary$coverage_nominal |> expect_identical(rep(TRUE, 4L))
+  # at level 0.02 a single covering replicate is already too many
+  summary_2 <- performance_summary_(mk_perf_frame$estimates, level = 0.02)
+  summary_2$coverage_nominal |> expect_identical(c(FALSE, TRUE, FALSE, TRUE))
 })
 
 test_that("Monte Carlo standard errors follow the replicates", {
@@ -86,7 +91,7 @@ test_that("Monte Carlo standard errors follow the replicates", {
     estimate = c(3, 0), cri_lower = c(1, -1), cri_upper = c(5, 1),
     covers = c(TRUE, FALSE), rhat = 1, ess_bulk = 100, flagged = FALSE
   )
-  summary <- performance_summary_(estimates)
+  summary <- performance_summary_(estimates, level = 0.95)
   summary$bias |> expect_equal(-0.5)
   # sd of the errors over the square root of the replicates
   summary$bias_mcse |> expect_equal(1.5)
@@ -99,6 +104,13 @@ test_that("Monte Carlo standard errors follow the replicates", {
   summary$coverage_mcse |> expect_equal(sqrt(0.5 * 0.5 / 2))
   summary$cri_width |> expect_equal(3)
   summary$cri_width_mcse |> expect_equal(1)
+  # central 95% of Binomial(2, 0.95): 1 or 2 covered
+  summary$coverage_lower |> expect_equal(0.5)
+  summary$coverage_upper |> expect_equal(1)
+  summary$coverage_nominal |> expect_true()
+  # central 95% of Binomial(2, 0.99): 2 covered only
+  performance_summary_(estimates, level = 0.99)$coverage_nominal |>
+    expect_false()
 })
 
 test_that("Sweep cost is averaged over the replicates", {

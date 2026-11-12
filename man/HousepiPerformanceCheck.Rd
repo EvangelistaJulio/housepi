@@ -172,6 +172,10 @@ per household count and parameter.
 \item{bias, rel_bias}{Mean error, absolute and relative to the truth;}
 \item{mse}{Mean squared error;}
 \item{coverage}{Share of replicates whose interval covers the truth;}
+\item{coverage_lower, coverage_upper}{2.5\% and 97.5\% quantiles
+of Binomial(\code{nrep}, \code{cri_level}) / \code{nrep}, the coverage of intervals
+that cover the truth with probability equal to their credible level;}
+\item{coverage_nominal}{Whether the coverage falls inside that range;}
 \item{cri_width}{Mean width of the credible interval;}
 \item{bias_mcse, rel_bias_mcse, mse_mcse, coverage_mcse,
 cri_width_mcse}{Monte Carlo standard error of each measure,

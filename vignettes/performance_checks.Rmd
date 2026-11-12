@@ -135,7 +135,9 @@ A reasonable performance check shows intervals scattered around the target line,
 An interval that misses the truth on a flagged fit points at the sampler rather than at the model.
 At this size the 95% intervals cover the truth in `r round(100 * observed["alpha", "coverage"])`% of the replicates for `alpha`, `r round(100 * observed["beta", "coverage"])`% for `beta`, and `r round(100 * observed["gamma", "coverage"])`% for `gamma`.
 `$summarise()` reports each measure next to its Monte Carlo standard error [@morris_using_2019].
-Over `r observed["alpha", "nrep"]` replicates, a coverage of 95% is known only to about ±`r round(100 * sqrt(0.95 * 0.05 / observed["alpha", "nrep"]))` percentage points, so a coverage a few points below 95% is no evidence of intervals too narrow.
+Over `r observed["alpha", "nrep"]` replicates, intervals that cover the truth with probability 0.95 cover between `r round(100 * observed["alpha", "coverage_lower"])`% and `r round(100 * observed["alpha", "coverage_upper"])`% of them in 95 checks out of 100.
+`$summarise()` reports a coverage in that range as `coverage_nominal`.
+Here `r sum(!observed$coverage_nominal)` of the `r nrow(observed)` coverages fall outside it.
 
 ## Bias across sizes
 

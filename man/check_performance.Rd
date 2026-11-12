@@ -96,6 +96,12 @@ To check inference at values drawn anew for each replicate,
 see \code{\link[=check_calibration]{check_calibration()}}.
 }
 \details{
+Over \code{nrep} replicates, intervals that cover the truth
+with probability equal to their credible level
+cover a share between \code{coverage_lower} and \code{coverage_upper}
+in 95\% of checks.
+\code{coverage_nominal} is \code{TRUE} when the coverage falls in that range.
+
 The first replicate that fails stops the check,
 with an error naming its household count and replicate.
 Each simulated study goes through

@@ -67,11 +67,13 @@ performance_collapse_truth_ <- function(table, point_estimate) {
 
 #' Performance measures per household count and parameter,
 #' each with its Monte Carlo standard error (Morris et al. 2019, table 6).
+#' Coverage nominal inside the central 95% of Binomial(nrep, level) / nrep.
 #' * one replicate -> every Monte Carlo standard error `NA`;
 #' * zero truth -> relative bias `NA`.
 #' @param estimates `data.frame` One row per replicate and parameter.
+#' @param level `numeric(1)` Credible level of the intervals.
 #' @noRd
-performance_summary_ <- function(estimates) {
+performance_summary_ <- function(estimates, level) {
   sweep_by_(estimates, c("houses", "variable"), function(d) {
     n <- nrow(d)
     truth <- d[["truth"]][[1L]]
@@ -80,6 +82,7 @@ performance_summary_ <- function(estimates) {
     sq_error <- error^2
     width <- d[["cri_upper"]] - d[["cri_lower"]]
     coverage <- mean(d[["covers"]])
+    band <- stats::qbinom(c(0.025, 0.975), n, level) / n
     # standard error of a mean over the replicates
     mcse <- \(x) stats::sd(x) / sqrt(n)
     data.frame(
@@ -91,6 +94,8 @@ performance_summary_ <- function(estimates) {
       coverage = coverage,
       coverage_mcse =
         if (n > 1L) sqrt(coverage * (1 - coverage) / n) else NA_real_,
+      coverage_lower = band[[1L]], coverage_upper = band[[2L]],
+      coverage_nominal = band[[1L]] <= coverage & coverage <= band[[2L]],
       cri_width = mean(width), cri_width_mcse = mcse(width),
       ess_bulk = mean(d[["ess_bulk"]]),
       nrep = n, n_flagged = sum(d[["flagged"]])
@@ -322,6 +327,10 @@ HousepiPerformanceCheck <- R6::R6Class(
     #'   \item{bias, rel_bias}{Mean error, absolute and relative to the truth;}
     #'   \item{mse}{Mean squared error;}
     #'   \item{coverage}{Share of replicates whose interval covers the truth;}
+    #'   \item{coverage_lower, coverage_upper}{2.5% and 97.5% quantiles
+    #'     of Binomial(`nrep`, `cri_level`) / `nrep`, the coverage of intervals
+    #'     that cover the truth with probability equal to their credible level;}
+    #'   \item{coverage_nominal}{Whether the coverage falls inside that range;}
     #'   \item{cri_width}{Mean width of the credible interval;}
     #'   \item{bias_mcse, rel_bias_mcse, mse_mcse, coverage_mcse,
     #'     cri_width_mcse}{Monte Carlo standard error of each measure,
@@ -329,7 +338,9 @@ HousepiPerformanceCheck <- R6::R6Class(
     #'   \item{nrep, n_flagged}{Number of replicates aggregated,
     #'     and of those flagged.}
     #' }
-    summarise = function() performance_summary_(private$sweep_$estimates),
+    summarise = function() {
+      performance_summary_(private$sweep_$estimates, private$cri_level_)
+    },
 
     #' @description Same as `$summarise()`.
     #' @return See `$summarise()`.
@@ -380,6 +391,12 @@ HousepiPerformanceCheck <- R6::R6Class(
 #' @param ... `r rd_dots_config_`
 #' @return An object of class [HousepiPerformanceCheck].
 #' @details
+#' Over `nrep` replicates, intervals that cover the truth
+#' with probability equal to their credible level
+#' cover a share between `coverage_lower` and `coverage_upper`
+#' in 95% of checks.
+#' `coverage_nominal` is `TRUE` when the coverage falls in that range.
+#'
 #' The first replicate that fails stops the check,
 #' with an error naming its household count and replicate.
 #' `r rd_sweep_reporting_`
