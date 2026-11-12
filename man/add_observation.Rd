@@ -95,12 +95,16 @@ with a warning.
 Nothing conditions on it, so the observation constrains neither
 the individual latent variables nor the parameters.
 A column holding no value at all is an error.
+A model reading missing data is an error
+for an individual whose datum is present.
+In simulations, it gives \code{NA}.
 
 At household level, the observation is a reduction across all members,
 shared by the whole household, and must reduce to a constant value.
 
 An observation carrying no \code{model} produces its own data column:
 it is evaluated for every member, and overwrites data of the same name.
+A member whose definition reads missing data gets \code{NA}.
 
 There are three mutually exclusive definition modes:
 \describe{

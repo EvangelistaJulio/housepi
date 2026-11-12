@@ -1008,6 +1008,34 @@ test_that("A missing observation leaves the likelihood", {
     expect_equal(log(1 / 0.8))
 })
 
+test_that("The observed value decides whether an empty data cell is an error", {
+  # m2 has no datum
+  mk <- function(record) {
+    data.frame(id = c("m1", "m2"), hh_id = "h1", status = 1,
+               datum = c(0.5, NA), record = record) |>
+      new_housepi_model("test") |>
+      add_observation("record", model = "uniform", loc = datum,
+                      min = -0.4, max = 0.4)
+  }
+
+  # without a record, m2 leaves the likelihood
+  expect_warning(log_lik <- evaluate_log_lik(mk(c(0.5, NA))),
+                 "[Mm]issing for 1 of 2 infected individuals")
+  log_lik |> expect_equal(log(1 / 0.8))
+
+  # with a record, the empty datum is an error
+  mk(c(0.5, 0.5)) |>
+    evaluate_log_lik() |>
+    expect_error("[Dd]ata .datum. has no value")
+
+  # in simulation, the empty datum gives NA
+  simulated <- run_simulation(mk(c(0.5, NA)))
+  simulated[["record"]][simulated[["id"]] == "m2"] |> expect_all_na()
+  simulated[["record"]][simulated[["id"]] == "m1"] |>
+    expect_all_gte(0.1) |>
+    expect_all_lte(0.9)
+})
+
 test_that("A latent goes with the observation that reads it", {
   # a latent nothing else reads is an unused parameter once its observation has
   # left the likelihood: marginalizing it integrates its model to one, so its
@@ -1103,7 +1131,8 @@ test_that("A deterministic observation overwrites the like-named data column", {
     new_housepi_model("test") |>
     add_observation(
       record_2 = list(func = min(datum_2), level = "house"),
-      record_3 = datum_2 + 1
+      record_3 = datum_2 + 1,
+      record_4 = exp(datum_2 - 2)
     ) |>
     add_latent(hidden = list(func = record_3 * 2))
 
@@ -1120,6 +1149,9 @@ test_that("A deterministic observation overwrites the like-named data column", {
   simulated <- run_simulation(hh_model)
   simulated[["record_3"]] |> expect_equal(c(3, 7, NA))
   simulated[["hidden"]] |> expect_equal(c(6, NA, NA))
+
+  # an empty datum under a nested call gives NA too
+  simulated[["record_4"]] |> expect_equal(c(1, exp(4), NA))
 
   # missing datum is reported and attributed to the observation reading it
   data.frame(hh_id = "h1", status = 1, record = 5) |>
@@ -2367,19 +2399,18 @@ test_that("A column needed for every member is not drawn with infection", {
 })
 
 test_that("A model argument reading an empty cell names member and household", {
-  data.frame(hh_id = "h1", status = 1, datum = c(2, NA, 4), record = 0) |>
+  data.frame(hh_id = "h1", status = 1, datum = c(2, NA, 4)) |>
     new_housepi_model("test") |>
-    add_observation(record = list(model = "normal", mean = datum + 1)) |>
+    add_latent(hidden = list(model = "normal", mean = datum + 1)) |>
     run_simulation() |>
     expect_error(paste0("[Dd]ata .datum. has no value",
                         ".*for\\s+household\\s+.h1.",
-                        ".*observation .record. for\\s+individual\\s+.2.",
+                        ".*latent .hidden. for\\s+individual\\s+.2.",
                         "\\s+\\(status\\s+1\\)"))
 })
 
 test_that("A call reading an empty cell is named as written", {
-  hh_data <- data.frame(hh_id = "h1", status = 1, datum = c(2, NA, 4),
-                        record = 0)
+  hh_data <- data.frame(hh_id = "h1", status = 1, datum = c(2, NA, 4))
   # `1 - datum` reads datum through its unary minus
   reads <- list("operator\\s+.[+]." = quote(datum + 1),
                 "operator\\s+.-." = quote(1 - datum),
@@ -2390,7 +2421,7 @@ test_that("A call reading an empty cell is named as written", {
   for (op in names(reads)) {
     hh_data |>
       new_housepi_model("test") |>
-      add_observation(record = list(model = "normal", mean = !!reads[[op]])) |>
+      add_latent(hidden = list(model = "normal", mean = !!reads[[op]])) |>
       run_simulation() |>
       expect_error(paste0("[Dd]ata .datum. has no value.*", op))
   }

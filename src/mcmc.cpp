@@ -62,13 +62,14 @@ namespace housepi
 
     const Attribute &Translator::to_attribute(const parse::Entry &node,
                                               const Individual *indiv_ptr,
-                                              const Household *house_ptr) const
+                                              const Household *house_ptr,
+                                              bool na_undefines) const
     {
         storage_ = Attribute();
 
         if (!node.is_terminal())
         {
-            helper_store_read_function_(node, indiv_ptr, house_ptr);
+            helper_store_read_function_(node, indiv_ptr, house_ptr, na_undefines);
         }
         else if (parse::is_numeric(node.type))
         {
@@ -124,7 +125,8 @@ namespace housepi
 
     void Translator::helper_store_read_function_(const parse::Entry &node,
                                                  const Individual *indiv_ptr,
-                                                 const Household *house_ptr) const
+                                                 const Household *house_ptr,
+                                                 bool na_undefines) const
     {
         std::unique_ptr<Function> func = registry::create_function(
             node.func, ErrType::Function, registry::func_distr_search_order(false));
@@ -133,7 +135,7 @@ namespace housepi
 
         Attribute parent;
         parent.init_function(std::move(func));
-        const bool is_defined = bind_arguments(parent, node, indiv_ptr, house_ptr);
+        const bool is_defined = bind_arguments(parent, node, indiv_ptr, house_ptr, na_undefines);
 
         storage_ = Attribute();
         if (is_defined)
@@ -180,7 +182,8 @@ namespace housepi
     bool Translator::bind_arguments(Attribute &parent,
                                     const parse::Entry &node,
                                     const Individual *indiv_ptr,
-                                    const Household *house_ptr) const
+                                    const Household *house_ptr,
+                                    bool na_undefines) const
     {
         const bool is_fold = is_house_fold(node, house_ptr);
 
@@ -194,23 +197,23 @@ namespace housepi
                                                                  : "x",
                                   attr);
         };
-        // within a household, an operand carrying no value:
+        // within a household, or with `na_undefines`, an operand carrying no value:
         // * drops out of a fold;
         // * leaves any other call undefined.
         const auto is_valueless = [&](const Attribute &attr)
-        { return house_ptr && attr.is_constant() && attr.is_na(); };
+        { return (house_ptr || na_undefines) && attr.is_constant() && attr.is_na(); };
 
         for (const parse::Entry &child : node.children)
             if (is_fold && reads_member_cell_(child))
                 for (const Individual &indiv : *house_ptr)
                 {
-                    const Attribute &attr = to_attribute(child, &indiv, house_ptr);
+                    const Attribute &attr = to_attribute(child, &indiv, house_ptr, na_undefines);
                     if (!is_valueless(attr))
                         append(child.key, attr);
                 }
             else
             {
-                const Attribute &attr = to_attribute(child, indiv_ptr, house_ptr);
+                const Attribute &attr = to_attribute(child, indiv_ptr, house_ptr, na_undefines);
                 if (!is_valueless(attr))
                     append(child.key, attr);
                 else if (!is_fold)
@@ -246,21 +249,31 @@ namespace housepi
         return args;
     }
 
-    void Translator::bind_distr(Variable &var,
+    bool Translator::bind_distr(Variable &var,
                                 const parse::Entry &model,
                                 const parse::Entry &min,
                                 const parse::Entry &max,
                                 bool discr,
                                 const Individual *indiv_ptr,
-                                bool numeric) const
+                                bool numeric,
+                                bool na_undefines) const
     {
-        const auto read = [&](const parse::Entry &node) -> const Attribute &
-        { return numeric ? to_numeric(node, indiv_ptr) : to_attribute(node, indiv_ptr); };
+        const auto bind = [&](std::string_view key, const parse::Entry &node)
+        {
+            const Attribute &attr = numeric ? to_numeric(node, indiv_ptr)
+                                            : to_attribute(node, indiv_ptr, nullptr, na_undefines);
+            if (na_undefines && attr.is_constant() && attr.is_na())
+                return false;
+            var.init_distr_attr(key, attr);
+            return true;
+        };
         for (const parse::Entry &child : model.children)
-            var.init_distr_attr(child.key, read(child));
-        var.init_distr_attr("min", read(min));
-        var.init_distr_attr("max", read(max));
+            if (!bind(child.key, child))
+                return false;
+        if (!bind("min", min) || !bind("max", max))
+            return false;
         var.reshape_distribution(discr);
+        return true;
     }
 
     void Translator::mark_param_produces_transm_cache(const parse::Entry &node) const

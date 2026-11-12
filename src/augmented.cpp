@@ -1327,28 +1327,15 @@ namespace housepi
             // where the cells it reads are empty, it has nothing to stand for
             const bool is_deterministic_obs = row.kind == Kind::Member && !row.has_model();
 
-            bool is_defined = true;
-            if (row.kind == Kind::House)
-                is_defined = translator_.bind_arguments(var, parser.root, nullptr, house);
-            else
-                for (const parse::Entry &child : parser.root.children)
-                {
-                    const Attribute &attr = translator_.to_attribute(child, &anchor);
-                    if (is_deterministic_obs && attr.is_constant() && attr.is_na())
-                    {
-                        is_defined = false;
-                        break;
-                    }
-                    var.init_func_attr(child.key, attr);
-                    translator_.mark_param_produces_transm_cache(child);
-                }
-
             // no operand carries a value: the definition yields NA here
-            if (!is_defined)
+            if (!translator_.bind_arguments(var, parser.root, indiv_ptr, house, is_deterministic_obs))
             {
                 var.init_numeric(na::DOUBLE);
                 return;
             }
+            if (row.kind != Kind::House)
+                for (const parse::Entry &child : parser.root.children)
+                    translator_.mark_param_produces_transm_cache(child);
 
             // domain and reshaping
             var.init_func_attr("min", translator_.to_attribute(row.min.root, &anchor));
@@ -1381,8 +1368,14 @@ namespace housepi
                 else
                     bind_variable(var, k, indiv, nullptr);
 
-                // initialize model attributes
-                bind_distr_(var, k, indiv);
+                // bind the model, none for an absent datum, NA where a simulation reads an empty data cell
+                const bool is_obs = row.kind == Kind::Member && row.has_model();
+                const bool is_absent = is_obs && !simulation && na::is(var.value());
+                if (!is_absent && !bind_distr_(var, k, indiv, is_obs && simulation))
+                {
+                    var.clear();
+                    var.init_numeric(na::DOUBLE);
+                }
 
                 // assign a proposal if the variable is sampled: its arguments fold into the proposal call
                 // simulation draws from the model and never proposes: data-bound args need not resolve
@@ -1401,17 +1394,19 @@ namespace housepi
             }
         }
 
-        void Binder::bind_distr_(Variable &var,
+        bool Binder::bind_distr_(Variable &var,
                                  size_t k,
-                                 const Individual &indiv) const
+                                 const Individual &indiv,
+                                 bool na_undefines) const
         {
             const DefRow &row = def_[k];
             // a bare row is uniform within its bounds, its density left out of the latent log-likelihood
             var.init_distr(row.is_bare() ? std::string_view("uniform") : std::string_view(row.model.root.func),
                            row.is_discr);
 
-            if (var.has_distr())
-                translator_.bind_distr(var, row.model.root, row.min.root, row.max.root, row.is_discr, &indiv, false);
+            return !var.has_distr() ||
+                   translator_.bind_distr(var, row.model.root, row.min.root, row.max.root, row.is_discr, &indiv,
+                                          false, na_undefines);
         }
 
         void Binder::bind_deterministic_obs(State &state,

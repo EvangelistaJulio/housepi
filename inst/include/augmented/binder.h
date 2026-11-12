@@ -54,6 +54,10 @@ namespace housepi::augm
         /// * model;
         /// * proposal, in inference only.
         ///
+        /// A stochastic member observation binds no model:
+        /// * inference, no datum -> left out of the likelihood;
+        /// * simulation, a model argument reading an empty data cell -> NA.
+        ///
         /// In simulation:
         /// * a generated observation is a placeholder;
         /// * the value of a sampled latent pins the Variable to it.
@@ -86,8 +90,11 @@ namespace housepi::augm
         Data &data_;
 
         /// Assign model, arguments and domain to definition row `k`.
-        void bind_distr_(Variable &var, size_t k,
-                         const Individual &indiv) const;
+        /// @param na_undefines Whether an argument reading an empty data cell stops binding.
+        /// @return Whether every argument and bound carries a value.
+        bool bind_distr_(Variable &var, size_t k,
+                         const Individual &indiv,
+                         bool na_undefines) const;
 
         /// Assert that `var` meets model requests of data column `d`.
         /// * NA `var` -> not checked.

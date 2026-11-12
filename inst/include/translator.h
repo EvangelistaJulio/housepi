@@ -44,10 +44,12 @@ namespace housepi
               group_rate_(group_rate) {}
 
         /// Translate definition node `node` into an attribute.
-        /// * within household `house_ptr`, no member bound -> a data cell is read through a fold only.
+        /// * within household `house_ptr`, no member bound -> a data cell is read through a fold only;
+        /// * within household `house_ptr`, or with `na_undefines` -> a call reading an empty data cell is NA.
         const Attribute &to_attribute(const parse::Entry &node,
                                       const Individual *indiv_ptr = nullptr,
-                                      const Household *house_ptr = nullptr) const;
+                                      const Household *house_ptr = nullptr,
+                                      bool na_undefines = false) const;
         /// Translate expression `expr` into an attribute.
         const Attribute &to_attribute(const std::string &expr,
                                       const Individual *indiv_ptr = nullptr) const;
@@ -61,15 +63,18 @@ namespace housepi
                                         const Individual *indiv_ptr = nullptr) const;
         /// Bind the arguments of distribution `model` and the bounds `min`, `max` into `var`, then reshape it.
         /// * `numeric` -> every argument a numeric constant;
-        /// * otherwise -> arguments live, read on `indiv_ptr`.
+        /// * otherwise -> arguments live, read on `indiv_ptr`;
+        /// * `na_undefines`, an argument or bound reading an empty data cell -> binding stops.
+        /// @return Whether every argument and bound carries a value.
         /// @note Call after Variable::init_distr().
-        void bind_distr(Variable &var,
+        bool bind_distr(Variable &var,
                         const parse::Entry &model,
                         const parse::Entry &min,
                         const parse::Entry &max,
                         bool discr,
                         const Individual *indiv_ptr,
-                        bool numeric) const;
+                        bool numeric,
+                        bool na_undefines = false) const;
 
         /// Mark parameter node `node` as a producer of the transmission cache.
         void mark_param_produces_transm_cache(const parse::Entry &node) const;
@@ -78,13 +83,15 @@ namespace housepi
         bool is_house_fold(const parse::Entry &node,
                            const Household *house_ptr) const;
         /// Bind the arguments of function `node` into `parent`.
-        /// * household fold -> each operand reading a member cell binds once per member, empty ones skipped.
+        /// * household fold -> each operand reading a member cell binds once per member, empty ones skipped;
         /// * defined call: every operand outside a fold carries a value, each fold holds at least one.
-        /// @return Whether the call is defined within the household.
+        /// @param na_undefines Whether an operand reading an empty data cell leaves the call undefined, as within a household.
+        /// @return Whether the call is defined.
         bool bind_arguments(Attribute &parent,
                             const parse::Entry &node,
                             const Individual *indiv_ptr,
-                            const Household *house_ptr) const;
+                            const Household *house_ptr,
+                            bool na_undefines = false) const;
 
     private:
         /// Parameter key module.
@@ -99,9 +106,11 @@ namespace housepi
         mutable Attribute storage_;
 
         /// Build function `node` into `storage_`, its arguments bound.
+        /// * undefined call -> NA.
         void helper_store_read_function_(const parse::Entry &node,
                                          const Individual *indiv_ptr,
-                                         const Household *house_ptr) const;
+                                         const Household *house_ptr,
+                                         bool na_undefines) const;
         /// Whether `node` reads a member value (data cell, latent or group rate) outside an inner reduction.
         bool reads_member_cell_(const parse::Entry &node) const;
         bool reads_member_cell_(const std::vector<parse::Entry> &nodes) const;
