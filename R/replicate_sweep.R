@@ -490,6 +490,7 @@ sweep_warning_counts_ <- function(raised) {
 
 #' One warning per distinct message, with the count of replicates raising it.
 #' Foreign text carries no markup.
+#' The messages are convergence diagnostics, the only warnings a fit records.
 #' @param what `character(1)` Name of the check, heading the warning.
 #' @noRd
 sweep_report_warnings_ <- function(warnings, what) {
@@ -500,7 +501,8 @@ sweep_report_warnings_ <- function(warnings, what) {
                   warnings[["count"]], warnings[["message"]])
   header <- inline_cli_("{what} raised {n_warn} distinct warning{?s}.")
   bullets <- stats::setNames(lines, rep("!", length(lines)))
-  emit_cli_condition(c(list(header), as.list(bullets)), "warn")
+  emit_cli_condition(c(list(header), as.list(bullets)), "warn",
+                     class = "housepi_warning_diagnostics")
 }
 
 #' Workers of a sweep: `outer` replicates fitted at once,

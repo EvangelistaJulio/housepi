@@ -26,7 +26,7 @@ mk_latent_draws <- local({
   hh_fit <- hh_model |>
     run_inference(steps = 5L, chains = 1L, adapt = 0L, thin = 1L,
                   id_draws = "m1") |>
-    suppressWarnings()
+    suppressWarnings(classes = "housepi_warning_diagnostics")
   list(model = hh_model, fit = hh_fit)
 })
 
@@ -267,7 +267,7 @@ test_that("Pointwise log-lik is carried into the complete-draws bundle", {
     add_parameter(import = "template") |>
     run_inference(steps = 10L, thin = 2L, adapt = 2L,
                   chains = 1L, threads = 2L) |>
-    suppressWarnings() |>
+    suppressWarnings(classes = "housepi_warning_diagnostics") |>
     expect_same_pointwise()
 })
 
@@ -277,7 +277,7 @@ test_that("A model without parameters returns empty parameter draws", {
     add_latent(hidden = list(model = "uniform")) |>
     helper_flat_sink(loc = hidden) |>
     run_inference(steps = 5L, chains = 1L, adapt = 0L, thin = 1L) |>
-    suppressWarnings()
+    suppressWarnings(classes = "housepi_warning_diagnostics")
 
   print(hh_fit) |> expect_message("Latent: 1")
   # nothing carries a prior: no lprior column in the bundle
@@ -329,7 +329,8 @@ test_that("Runs of one model bind their chains", {
     run_inference(steps = 100L, chains = 2L, adapt = 0L, thin = 1L,
                   warn = FALSE)
   # diagnostics run again over the chains bound, and warn as a run does
-  combined <- c(hh_fit, hh_fit_2) |> suppressWarnings()
+  combined <- c(hh_fit, hh_fit_2) |>
+    suppressWarnings(classes = "housepi_warning_diagnostics")
 
   combined |> expect_s3_class("HousepiPosteriorDraws")
   param <- get_parameter_draws(combined)

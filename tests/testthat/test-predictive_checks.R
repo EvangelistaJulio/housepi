@@ -9,7 +9,7 @@ mk_ppc <- local({
     add_parameter(import = "template")
   hh_fit <- hh_model |>
     run_inference(steps = 100L, chains = 1L, adapt = 0L, thin = 1L) |>
-    suppressWarnings()
+    suppressWarnings(classes = "housepi_warning_diagnostics")
   list(model = hh_model, fit = hh_fit)
 })
 
@@ -257,7 +257,7 @@ test_that("Household size bounds need the standard measures", {
   ppc <- mk_ppc$model |>
     check_predictive(mk_ppc$fit, overall = \(x) mean(x$status > 0),
                      max_hh_size = 3L, thin_ess = FALSE, nrep = 5) |>
-    suppressWarnings()
+    suppressWarnings(classes = "housepi_warning_ppc")
   ppc$format_attack_rate()$hh_size |> expect_all_lte(3)
 })
 
@@ -265,7 +265,7 @@ test_that("Custom measures are checked next to the standard ones", {
   ppc <- mk_ppc$model |>
     check_predictive(mk_ppc$fit, overall = \(x) mean(x$status > 0),
                      thin_ess = FALSE, nrep = 5) |>
-    suppressWarnings()
+    suppressWarnings(classes = "housepi_warning_ppc")
   class(ppc)[1] |> expect_identical("HousepiEpiPredictiveCheck")
   names(ppc$overall) |> expect_contains(c("observed", "predicted"))
   names(ppc$attack_rate) |> expect_contains(c("observed", "predicted"))
@@ -313,7 +313,7 @@ test_that("Measures with an escaped argument receive the model's label", {
   infected <- function(data, escaped = "escaped") mean(data$status != escaped)
   ppc <- run(sar = measure_sar_by_hh_size, overall = infected) |>
     expect_no_warning(message = "escaped label") |>
-    suppressWarnings()
+    suppressWarnings(classes = "housepi_warning_ppc")
   ppc$sar$observed |>
     expect_equal(measure_sar_by_hh_size(hh_data, "negative"))
   ppc$overall$observed |> expect_equal(mean(hh_data$status == "positive"))
@@ -328,7 +328,7 @@ test_that("Standard measures can be dropped", {
   ppc <- mk_ppc$model |>
     check_predictive(mk_ppc$fit, overall = \(x) mean(x$status > 0),
                      epi = FALSE, thin_ess = FALSE, nrep = 5) |>
-    suppressWarnings()
+    suppressWarnings(classes = "housepi_warning_ppc")
   class(ppc)[1] |> expect_identical("HousepiPredictiveCheck")
   ppc$format_attack_rate |> expect_null()
   ppc$attack_rate |> expect_null()
@@ -350,7 +350,8 @@ test_that("Measure names are unique, given and free of the members", {
     expect_error("[Rr]epeated measure.*overall")
   # standard names are free once the standard measures are dropped
   run(attack_rate = overall) |> expect_error("attack_rate.*used.*standard")
-  ppc <- run(attack_rate = overall, epi = FALSE) |> suppressWarnings()
+  ppc <- run(attack_rate = overall, epi = FALSE) |>
+    suppressWarnings(classes = "housepi_warning_ppc")
   ppc$attack_rate$observed |> expect_type("double")
   # a measure cannot take the name of a method or field of the check
   run(print = overall, epi = FALSE) |>  expect_error("reserved")
@@ -376,12 +377,12 @@ test_that("Long measures are checked alongside those on the dataset", {
   # one count read from either frame of the same replicates
   ppc <- run(long_measures = list(cases = \(x) sum(x$case)),
              wide_cases = \(x) sum(x$status > 0)) |>
-    suppressWarnings()
+    suppressWarnings(classes = "housepi_warning_ppc")
   ppc$cases |> expect_equal(ppc$wide_cases)
   ppc$nrep |> expect_identical(3L)
   # measures on long_dataset alone, the standard ones dropped
   run(long_measures = list(cases = \(x) sum(x$case)), epi = FALSE) |>
-    suppressWarnings() |>
+    suppressWarnings(classes = "housepi_warning_ppc") |>
     expect_s3_class("HousepiPredictiveCheck")
   # named as those in `...`, under names free across both
   run(long_measures = \(x) sum(x$case)) |>
@@ -398,7 +399,8 @@ test_that("A predictive check takes time_step as a run setting", {
   }
   # the step reaches the engine, as in run_simulation()
   run(time_step = -1) |> expect_error("time_step. must be strictly positive")
-  ppc <- run(time_step = 0.5) |> suppressWarnings()
+  ppc <- run(time_step = 0.5) |>
+    suppressWarnings(classes = "housepi_warning_ppc")
   ppc$time_step |> expect_null()
   # never a measure
   run(time_step = 0.5, epi = FALSE) |> expect_error("[Nn]o measure")
@@ -410,7 +412,7 @@ test_that("Predictive check on custom measures has read-only fields", {
       mk_ppc$fit, sar = measure_sar_by_hh_size,
       epi = FALSE, thin_ess = FALSE, nrep = 10
     ) |>
-    suppressWarnings()
+    suppressWarnings(classes = "housepi_warning_ppc")
 
   class(ppc)[1] |> expect_identical("HousepiPredictiveCheck")
   names(ppc$sar) |> expect_contains(c("observed", "predicted"))
@@ -427,7 +429,7 @@ test_that("Predictive check on custom measures has read-only fields", {
           mk_ppc$fit, sar = measure_sar_by_hh_size,
           epi = FALSE, thin_ess = FALSE, nrep = 2
         ) |>
-        suppressWarnings()
+        suppressWarnings(classes = "housepi_warning_ppc")
       averaged$point_estimate |> expect_identical("mean")
       averaged$cri_level |> expect_identical(0.8)
     }
@@ -471,7 +473,7 @@ test_that("The check names the source of the values it simulates at", {
 
   ppc <- mk_ppc$model |>
     check_predictive(nrep = 5, progress = FALSE) |>
-    suppressWarnings()
+    suppressWarnings(classes = "housepi_warning_ppc")
   ppc$source |> expect_identical("prior")
   ppc$nrep |> expect_identical(5L)
   # prior draws are independent: no ESS thinning
@@ -482,7 +484,7 @@ test_that("The check names the source of the values it simulates at", {
   param_table <- data.frame(alpha = 1, beta = 1, gamma = 1, hh_size_ref = 4)
   ppc_2 <- mk_ppc$model |>
     check_predictive(param_table, progress = FALSE) |>
-    suppressWarnings()
+    suppressWarnings(classes = "housepi_warning_ppc")
   ppc_2$source |> expect_identical("table")
   ppc_2$thin_ess |> expect_false()
 
@@ -490,7 +492,7 @@ test_that("The check names the source of the values it simulates at", {
   ppc_3 <- mk_ppc$model |>
     check_predictive(get_parameter_draws(mk_ppc$fit), nrep = 2,
                      progress = FALSE) |>
-    suppressWarnings()
+    suppressWarnings(classes = "housepi_warning_ppc")
   ppc_3$source |> expect_identical("posterior")
   ppc_3$thin_ess |> expect_true()
 })
@@ -503,7 +505,7 @@ test_that("Draws of a run on other data are given values, not a posterior", {
   ppc <- hh_model |>
     check_predictive(mk_ppc$fit, sar = measure_sar_by_hh_size,
                      epi = FALSE, nrep = 2, progress = FALSE) |>
-    suppressWarnings()
+    suppressWarnings(classes = "housepi_warning_ppc")
   ppc$source |> expect_identical("table")
   # the draws of a run are thinned to their ESS all the same
   ppc$thin_ess |> expect_true()
@@ -512,7 +514,7 @@ test_that("Draws of a run on other data are given values, not a posterior", {
 
 test_that("An epidemic predictive check formats counts per household size", {
   ppc <- check_predictive(mk_ppc$model, mk_ppc$fit) |>
-    suppressWarnings()
+    suppressWarnings(classes = "housepi_warning_ppc")
   class(ppc)[1] |> expect_identical("HousepiEpiPredictiveCheck")
   counts <- helper_house_counts(get_dataset(mk_ppc$model))
 
@@ -584,7 +586,7 @@ test_that("A case-ascertained check leaves the attack rate out", {
                             hh_size_ref = 4)
   ppc <- hh_model |>
     check_predictive(param_table, nrep = 2L, progress = FALSE) |>
-    suppressWarnings()
+    suppressWarnings(classes = "housepi_warning_ppc")
   ppc$attack_rate |> expect_null()
   ppc$format_attack_rate |> expect_null()
   ppc$format_sec_attack_rate() |> expect_s3_class("data.frame")
@@ -600,7 +602,7 @@ test_that("A case-ascertained check leaves the attack rate out", {
 test_that("Epi PPC honours min/max_hh_size arguments", {
   ppc <- mk_ppc$model |>
     check_predictive(mk_ppc$fit, min_hh_size = 2L, max_hh_size = 3L) |>
-    suppressWarnings()
+    suppressWarnings(classes = "housepi_warning_ppc")
   ppc$format_attack_rate()$hh_size |> expect_in(2:3)
   ppc$format_sec_attack_rate()$hh_size |> expect_in(2:3)
   ppc$format_cases_distr()$hh_size |> expect_in(2:3)
@@ -611,7 +613,7 @@ test_that("Epi PPC observed values are stable across calls and status codes", {
   run_on <- function(hh_model = mk_ppc$model, ...) {
     hh_model |>
       check_predictive(mk_ppc$fit, thin_ess = FALSE, nrep = 5, ...) |>
-      suppressWarnings()
+      suppressWarnings(classes = "housepi_warning_ppc")
   }
   ppc <- run_on()
   # repeated PPC calls must not mutate the model's dataset

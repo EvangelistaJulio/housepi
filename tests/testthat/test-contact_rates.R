@@ -656,7 +656,7 @@ test_that("A catch-all rule survives a missing cell in its covariate column", {
     add_contact_rate(strata = strata, symmetric = FALSE,
                      params = list(ctr_fm = 2, ctr_any = 3)) |>
     inspect_state("h1") |>
-    suppressWarnings()
+    suppressWarnings(classes = "housepi_warning_baseline")
 
   # the specific pair still wins on specificity
   ctr_cell(snapshot, "m1", "m2", key = "id") |> expect_equal(2)

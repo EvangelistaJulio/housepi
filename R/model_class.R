@@ -432,7 +432,8 @@ HousepiModel <- R6::R6Class(
         warn_h(
           paste("Absolute {cli::qty(rates)} rate{?s} {.val {rates}}",
                 "{?has/have} no reference."),
-          `!` = "Baseline {.val {name}} was turned into constant reference."
+          `!` = "Baseline {.val {name}} was turned into constant reference.",
+          .class = "housepi_warning_baseline"
         )
       }
       private$collapse_seen_ <- declared

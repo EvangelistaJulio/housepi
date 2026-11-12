@@ -877,7 +877,7 @@ test_that("Only the rates the model declares may be status stratified", {
   get_group_rates(hh_model)$group_rate |> expect_identical("infectivity")
   hh_model |>
     add_parameter(alpha = 0.01, beta = 0.2, gamma = 1, hh_size_ref = 3) |>
-    suppressWarnings() |>
+    suppressWarnings(classes = "housepi_warning_baseline") |>
     evaluate_log_lik() |>
     expect_error("model declares no level")
 })
@@ -1002,7 +1002,7 @@ test_that("An absolute rate collapses the baseline it scales", {
   # the collapsed baseline is carried into the posterior
   draws <- hh_model |>
     run_inference(steps = 5L, thin = 1L, adapt = 0L, chains = 1L) |>
-    suppressWarnings() |>
+    suppressWarnings(classes = "housepi_warning_diagnostics") |>
     summarise_draws()
   draws$variable |> expect_disjoint("alpha")
   draws$variable |> expect_match("^community_member", all = FALSE)

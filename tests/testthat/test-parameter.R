@@ -329,7 +329,7 @@ test_that("Lognormal proposal rejects unsupported domains", {
     add_parameter("rho", prior = "gamma", shape = 2,
                   max = 5, loc = -1, proposal = "rw_log") |>
     run_inference(steps = 20L, chains = 1L, adapt = 20L, thin = 1L) |>
-    suppressWarnings() |>
+    suppressWarnings(classes = "housepi_warning_diagnostics") |>
     get_parameter_draws()
   draws[["rho"]] |> expect_all_gt(-1) |> expect_all_lt(4)
 })
@@ -352,7 +352,7 @@ test_that("Discretization is enabled as expected", {
                    min = !!val$min, max = !!val$max)
     ) |>
     run_inference(steps = 200L, thin = 1L, adapt = 50L, chains = 1L) |>
-    suppressWarnings() |>
+    suppressWarnings(classes = "housepi_warning_diagnostics") |>
     get_parameter_draws() |>
     helper_draws_to_frame()
   (draws == floor(draws)) |> as.vector() |> expect_all_true()
@@ -375,7 +375,7 @@ test_that("Lattice random walks sample their target", {
       add_parameter(rho = list(prior = "binomial", size = 6, prob = 0.4,
                                proposal = !!kernel)) |>
       run_inference(steps = 1e4L, thin = 1L, adapt = 500L, chains = 1L) |>
-      suppressWarnings() |>
+      suppressWarnings(classes = "housepi_warning_diagnostics") |>
       get_parameter_draws()
 
     empirical <- as.numeric(table(factor(draws[["rho"]], levels = 0:6)))
@@ -416,7 +416,7 @@ test_that("Default random walks sample their target", {
                   rho_3 = list(prior = "normal", mean = 0, sd = 1, max = 0),
                   rho_4 = list(prior = "loguniform", min = 1e-6, max = 1)) |>
     run_inference(steps = 4e4L, thin = 1L, adapt = 500L, chains = 1L) |>
-    suppressWarnings() |>
+    suppressWarnings(classes = "housepi_warning_diagnostics") |>
     get_parameter_draws()
 
   mean(draws[["rho"]]) |> expect_equal(2 / 7, tolerance = 0.06)
@@ -438,7 +438,7 @@ test_that("A random walk adapts its scale unless the scale is a number", {
                                proposal_scale = 0.5))
   hh_model |>
     run_inference(steps = 10L, thin = 1L, adapt = 200L, chains = 1L) |>
-    suppressWarnings()
+    suppressWarnings(classes = "housepi_warning_diagnostics")
 
   moves <- inspect_state(hh_model)$.sampler$moves
   scale <- stats::setNames(moves$scale, moves$name)
@@ -480,7 +480,7 @@ test_that("Parameter defined as a function tracks its dependencies", {
   # both sampled and function-derived parameters appear in the trace
   draws <- hh_model |>
     run_inference(steps = 100L, chains = 1L, adapt = 0L, thin = 1L) |>
-    suppressWarnings() |>
+    suppressWarnings(classes = "housepi_warning_diagnostics") |>
     get_parameter_draws() |>
     posterior::as_draws_df() |>
     as.data.frame()
@@ -732,7 +732,7 @@ test_that("Every prior family and nested function samples across chains", {
       rho_12 = log(1 + exp(sub(sin(rho), tan(rho))))
     ) |>
     run_inference(steps = 5L, chains = 2L, adapt = 5L, thin = 1L) |>
-    suppressWarnings() |>
+    suppressWarnings(classes = "housepi_warning_diagnostics") |>
     get_parameter_draws()
 
   posterior::nchains(draws) |> expect_identical(2L)
@@ -867,7 +867,7 @@ test_that("A fixed seed reproduces draws at any thread count", {
     mk_param$model |>
       add_parameter("rho", prior = "normal", mean = 2, sd = 1) |>
       run_inference(steps = 50L, chains = 1L, adapt = 0L, thin = 1L) |>
-      suppressWarnings() |>
+      suppressWarnings(classes = "housepi_warning_diagnostics") |>
       get_parameter_draws()
   }
   draws <- draws_at(1105L)
@@ -883,7 +883,7 @@ test_that("A fixed seed reproduces draws at any thread count", {
     mk_final_size$template |>
       run_inference(steps = 50L, chains = chains, thin = 1L,
                     threads = threads, progress = FALSE) |>
-      suppressWarnings() |>
+      suppressWarnings(classes = "housepi_warning_diagnostics") |>
       get_parameter_draws()
   }
   fit_draws_at(2L) |> expect_identical(fit_draws_at(1L))
@@ -900,7 +900,7 @@ test_that("A fixed seed reproduces draws at any thread count", {
       run_inference(steps = 20L, adapt = 20L, thin = 1L, chains = 2L,
                     threads = threads, id_draws = "hh001m02",
                     progress = FALSE) |>
-      suppressWarnings()
+      suppressWarnings(classes = "housepi_warning_diagnostics")
     list(param = get_parameter_draws(hh_fit),
          latent = get_latent_draws(hh_fit))
   }

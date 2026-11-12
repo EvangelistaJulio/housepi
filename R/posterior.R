@@ -356,7 +356,9 @@ HousepiPosteriorDraws <- R6::R6Class(
       diag <- check_diagnostics_(private$draws_)
       private$diagnostics_ <- diag$param
       private$warnings_ <- count_diagnostics_(diag$blocks)
-      for (block in diag$blocks) warn_h(block)
+      for (block in diag$blocks) {
+        warn_h(block, .class = "housepi_warning_diagnostics")
+      }
     }
   ),
 

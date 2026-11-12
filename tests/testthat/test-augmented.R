@@ -354,7 +354,7 @@ test_that("A latent random walk adapts where its scale reads NA", {
     helper_flat_sink(loc = hidden, column = "record")
   hh_model |>
     run_inference(steps = 10L, thin = 1L, adapt = 200L, chains = 1L) |>
-    suppressWarnings()
+    suppressWarnings(classes = "housepi_warning_diagnostics")
 
   moves <- inspect_state(hh_model, "h1")$.sampler$moves
   scale <- stats::setNames(moves$scale, moves$member)
@@ -1316,7 +1316,7 @@ test_that("Independence proposal inherits the model location shift", {
                proposal = "gamma", proposal_shape = 2) |>
     helper_flat_sink(loc = hidden) |>
     run_inference(steps = 20L, adapt = 0L, chains = 1L) |>
-    suppressWarnings()
+    suppressWarnings(classes = "housepi_warning_diagnostics")
 
   draws <- as.data.frame(get_latent_draws(hh_fit))
   draws$m1_hidden |> expect_all_gte(4) |> expect_all_lte(5)
@@ -1331,7 +1331,7 @@ test_that("A latent shadowing a data column is sampled, not read", {
     add_latent("hidden", model = "uniform", min = 0, max = 1) |>
     helper_flat_sink(loc = hidden) |>
     run_inference(steps = 200L, adapt = 0L, chains = 1L) |>
-    suppressWarnings()
+    suppressWarnings(classes = "housepi_warning_diagnostics")
 
   draws <- as.data.frame(get_latent_draws(hh_fit))
   draws$m1_hidden |> expect_all_gte(0) |> expect_all_lte(1)
@@ -1348,7 +1348,7 @@ test_that("Latent variables moving together sample their models", {
                hidden = list(model = "normal", mean = layer_1, sd = 0.1)) |>
     helper_flat_sink(loc = hidden) |>
     run_inference(steps = 2e5L, adapt = 500L, thin = 5L, chains = 2L) |>
-    suppressWarnings()
+    suppressWarnings(classes = "housepi_warning_diagnostics")
 
   draws <- latent_frame(hh_fit)
   mean(draws$m1_layer_1) |> expect_equal(2, tolerance = 0.1)
@@ -1367,7 +1367,7 @@ test_that("A latent bounded through a function of another moves alone", {
     ) |>
     helper_flat_sink(loc = hidden) |>
     run_inference(steps = 40000L, adapt = 500L, thin = 1L, chains = 2L) |>
-    suppressWarnings()
+    suppressWarnings(classes = "housepi_warning_diagnostics")
 
   mean(latent_frame(hh_fit)$m1_layer_1) |> expect_equal(2, tolerance = 0.2)
 })
@@ -1387,7 +1387,7 @@ test_that("Truncated latent models are normalized in log-likelihood traces", {
     helper_flat_sink(loc = layer_1 + hidden + hidden_2) |>
     run_inference(steps = 50L, adapt = 0L, thin = 1L, chains = 1L,
                   id_draws = c("m1", "m2")) |>
-    suppressWarnings()
+    suppressWarnings(classes = "housepi_warning_diagnostics")
 
   draws <- latent_frame(hh_fit)
   rho <- helper_draws_to_frame(get_parameter_draws(hh_fit))$rho
@@ -1411,7 +1411,7 @@ test_that("Latent draws stay inside their live support", {
   run_short <- function(hh_model) {
     hh_model |>
       run_inference(steps = 100L, adapt = 0L, thin = 1L, chains = 1L) |>
-      suppressWarnings()
+      suppressWarnings(classes = "housepi_warning_diagnostics")
   }
 
   # other latent variable
@@ -1456,7 +1456,7 @@ test_that("An initial latent draw on its bound is drawn again", {
     hh_model |>
       helper_flat_sink(loc = hidden) |>
       run_inference(steps = 10L, adapt = 0L, thin = 1L, chains = 1L) |>
-      suppressWarnings()
+      suppressWarnings(classes = "housepi_warning_diagnostics")
   }
 
   # 83% of draws fall within 1.1e-16 of 1 and round to 1 in a double
@@ -1482,7 +1482,7 @@ test_that("Draws requested where no latent is sampled are ignored", {
     run_inference(steps = 5L, chains = 1L, adapt = 0L, thin = 1L,
                   id_draws = c("m1", "m2")) |>
     expect_warning("[Ii]gnored draws of non infected individual .m2.") |>
-    suppressWarnings()
+    suppressWarnings(classes = "housepi_warning_diagnostics")
 
   # a model sampling no latent at all has nothing to trace
   mk_latent$model |>
@@ -1490,7 +1490,7 @@ test_that("Draws requested where no latent is sampled are ignored", {
     run_inference(steps = 5L, chains = 1L, adapt = 0L, thin = 1L,
                   id_draws = "m1") |>
     expect_warning("[Ii]gnored.*id_draws.*no latent variables") |>
-    suppressWarnings()
+    suppressWarnings(classes = "housepi_warning_diagnostics")
 })
 
 test_that("Latent definitions are integrated in simulations", {
@@ -1630,7 +1630,7 @@ test_that("Latent traces export only relevant variables", {
     hh_model |>
       run_inference(steps = 100L, thin = 1L, adapt = 0L,
                     chains = 1L, id_draws = c("m1", "m2")) |>
-      suppressWarnings() |>
+      suppressWarnings(classes = "housepi_warning_diagnostics") |>
       get_latent_draws() |>
       suppressWarnings() |>
       posterior::variables()
@@ -1783,7 +1783,7 @@ test_that("Status-specific latent variables draw from per-status ranges", {
   hh_fit <- hh_model |>
     run_inference(steps = 5L, thin = 1L, adapt = 2L,
                   chains = 1L, id_draws = get_dataset(hh_model)$id) |>
-    suppressWarnings()
+    suppressWarnings(classes = "housepi_warning_diagnostics")
   draws <- as.data.frame(get_latent_draws(hh_fit))
   for (s in seq(4)) {
     trace <- draws[[paste0(s, "_hidden")]]
@@ -1833,8 +1833,7 @@ test_that("The latents of a member that declare no proposal move in a block", {
       helper_flat_sink(column = "obs_2", loc = hidden_2)
     hh_model |>
       run_inference(steps = 100L, adapt = 40L, chains = 1L, id_draws = NULL,
-                    progress = FALSE, warn = FALSE) |>
-      suppressWarnings()
+                    progress = FALSE, warn = FALSE)
     inspect_state(hh_model, "h1")$.sampler
   }
 
@@ -1880,8 +1879,7 @@ test_that("Discrete latents join a block beside continuous ones", {
                     loc = hidden + hidden_3)
   hh_fit <- hh_model |>
     run_inference(steps = 50000L, adapt = 1000L, chains = 1L, id_draws = "m1",
-                  progress = FALSE, warn = FALSE) |>
-    suppressWarnings()
+                  progress = FALSE, warn = FALSE)
 
   # one block: the lattice walks in the identity coordinate
   moves <- inspect_state(hh_model, "h1")$.sampler$moves
@@ -1925,8 +1923,7 @@ test_that("A block of discrete latents alone samples their exact posterior", {
                     loc = hidden + hidden_2)
   hh_fit <- hh_model |>
     run_inference(steps = 20000L, adapt = 1000L, chains = 1L, id_draws = "m1",
-                  progress = FALSE, warn = FALSE) |>
-    suppressWarnings()
+                  progress = FALSE, warn = FALSE)
   inspect_state(hh_model, "h1")$.sampler$moves$block |> expect_all_equal(1L)
 
   # exact posterior over the pairs on the ridge
@@ -1996,7 +1993,7 @@ test_that("Observation-aware initialization", {
                     min = -!!window, max = !!window)
   draws <- hh_model |>
     run_inference(steps = 10L, adapt = 0L, chains = 40L) |>
-    suppressWarnings() |>
+    suppressWarnings(classes = "housepi_warning_diagnostics") |>
     get_latent_draws() |>
     as.data.frame()
   abs(draws[["1_hidden"]] - 0.5) |> expect_all_lte(window)
@@ -2253,7 +2250,7 @@ test_that("A deterministic observation constrains its ancestors", {
       "onset_date", model = "normal", mean = onset_time, sd = 0.2
     ) |>
     run_inference(steps = 400L, thin = 1L, adapt = 100L, chains = 1L) |>
-    suppressWarnings() |>
+    suppressWarnings(classes = "housepi_warning_diagnostics") |>
     latent_frame()
 
   # the sampled onset (infec_time + incub_period) tracks the observed onset_date
@@ -2270,7 +2267,7 @@ test_that("Discretized observation node initializes finite", {
     add_observation("onset_date", model = "normal", discr = TRUE, sd = 1,
                     mean = infec_time + incub_period) |>
     run_inference(steps = 50L, thin = 1L, adapt = 0L, chains = 1L) |>
-    suppressWarnings()
+    suppressWarnings(classes = "housepi_warning_diagnostics")
 
   get_log_lik_draws(hh_fit)$h1 |> expect_all_finite()
 })

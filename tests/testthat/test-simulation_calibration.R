@@ -99,15 +99,15 @@ mk_calib <- local({
   prior_calibration <- hh_model |>
     check_calibration(nrep = 3, rank_levels = 10, steps = 400,
                       thin = 1, chains = 1, progress = FALSE) |>
-    suppressWarnings()
+    suppressWarnings(classes = "housepi_warning_diagnostics")
   hh_fit <- hh_model |>
     run_inference(steps = 1000, thin = 1, chains = 1, id_draws = ".none",
                   progress = FALSE) |>
-    suppressWarnings()
+    suppressWarnings(classes = "housepi_warning_diagnostics")
   post_calibration <- hh_model |>
     check_calibration(hh_fit, nrep = 3, rank_levels = 10, steps = 400,
                       thin = 1, chains = 1, progress = FALSE) |>
-    suppressWarnings()
+    suppressWarnings(classes = "housepi_warning_diagnostics")
   list(model = hh_model, fit = hh_fit,
        prior_calib = prior_calibration,
        post_calib = post_calibration)
@@ -123,12 +123,12 @@ mk_calib_direct <- local({
     add_observation("record", model = "normal", mean = rho, sd = 1)
   hh_fit <- hh_model |>
     run_inference(steps = 400, thin = 1, chains = 1, progress = FALSE) |>
-    suppressWarnings()
+    suppressWarnings(classes = "housepi_warning_diagnostics")
   sweep <- function(draws) {
     hh_model |>
       check_calibration(draws, nrep = 3, rank_levels = 10, steps = 400,
                         thin = 1, chains = 1, progress = FALSE) |>
-      suppressWarnings()
+      suppressWarnings(classes = "housepi_warning_diagnostics")
   }
   list(model = hh_model, fit = hh_fit,
        prior_calib = sweep(NULL), post_calib = sweep(hh_fit))
@@ -256,7 +256,7 @@ test_that("A sweep reproduces from a seed at any thread count", {
       mk_calib$model, nrep = 3, rank_levels = 10, steps = 400, thin = 1,
       chains = 1, threads = threads, progress = FALSE
     )) |>
-      suppressWarnings()
+      suppressWarnings(classes = "housepi_warning_diagnostics")
   }
   # one fit per wave, against a single wave of three fits of one thread,
   # then of two threads each sharing out its households
@@ -324,12 +324,12 @@ test_that("Posterior calibration checks pool across runs only", {
     hh_model |>
       check_calibration(hh_fit, nrep = 2, rank_levels = 10, steps = 400,
                         thin = 1, chains = 1, progress = FALSE) |>
-      suppressWarnings()
+      suppressWarnings(classes = "housepi_warning_diagnostics")
   }
   hh_fit_2 <- hh_model |>
     run_inference(steps = 1000, thin = 1, chains = 1,
                   id_draws = ".none", progress = FALSE) |>
-    suppressWarnings()
+    suppressWarnings(classes = "housepi_warning_diagnostics")
   combined <- c(calibration, rerun(hh_fit_2))
   combined$nrep |> expect_identical(5L)
   combined$source |> expect_identical("posterior")
@@ -347,7 +347,7 @@ test_that("Calibration checks of one model pool their replicates", {
     mk_calib$model |>
       check_calibration(nrep = nrep, rank_levels = rank_levels, steps = 400,
                         thin = 1, chains = 1, progress = FALSE, ...) |>
-      suppressWarnings()
+      suppressWarnings(classes = "housepi_warning_diagnostics")
   }
   calibration <- mk_calib$prior_calib
   combined <- c(calibration, rerun())
@@ -388,7 +388,7 @@ test_that("Latent inference is calibrated against the prior", {
   # a replicate flagged by convergence diagnostics warns
   calibration <- mk_calib$model |>
     check_calibration(threads = 4, progress = FALSE) |>
-    suppressWarnings()
+    suppressWarnings(classes = "housepi_warning_diagnostics")
   # a test at level 0.001, so a calibrated sampler fails one run in 1000
   nrep <- calibration$summarise()$nrep[[1L]]
   threshold <- calibration_log_threshold_(nrep, 99, 0.001)
@@ -407,12 +407,12 @@ test_that("Latent inference is calibrated on the data", {
     add_observation("record", model = "normal", mean = hidden, sd = 1)
   hh_fit <- hh_model |>
     run_inference(threads = 4, progress = FALSE) |>
-    suppressWarnings()
+    suppressWarnings(classes = "housepi_warning_diagnostics")
   calibration <- hh_model |>
     check_calibration(hh_fit, nrep = 100, houses = 5,
                       structure_sampler = sample_house_structure,
                       threads = 4, progress = FALSE) |>
-    suppressWarnings()
+    suppressWarnings(classes = "housepi_warning_diagnostics")
   # a test at level 0.001, so a calibrated sampler fails one run in 1000
   threshold <- calibration_log_threshold_(100, 99, 0.001)
   calibration$summarise()$log_gamma |> expect_all_gte(threshold)

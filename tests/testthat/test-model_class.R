@@ -316,8 +316,7 @@ test_that("inspect_state reads parameters and sampler", {
   inspect_state(hh_model)$.sampler$moves$scale |> expect_all_equal(1)
   hh_model |>
     run_inference(steps = 20L, adapt = 10L, chains = 1L, progress = FALSE,
-                  warn = FALSE) |>
-    suppressWarnings()
+                  warn = FALSE)
   state <- inspect_state(hh_model)
   state |> names() |> expect_identical(c("parameters", ".sampler"))
   state$.sampler$moves$name |> expect_setequal(c("alpha", "beta", "gamma"))
@@ -394,7 +393,8 @@ test_that("A copy is deep", {
     new_housepi_model("final-size") |>
     add_parameter(import = "template")
   invisible(suppressWarnings(
-    run_inference(hh_model, steps = 2L, chains = 1L, adapt = 0L, thin = 1L)
+    run_inference(hh_model, steps = 2L, chains = 1L, adapt = 0L, thin = 1L),
+    classes = "housepi_warning_diagnostics"
   ))
   hh_model_2 <- hh_model$copy()
 
@@ -413,7 +413,7 @@ test_that("A copy is deep", {
 
   # changes on the original do not reach the copy
   hh_model <- add_group_rate(hh_model, "susceptibility", by = "member") |>
-    suppressWarnings()
+    suppressWarnings(classes = "housepi_warning_baseline")
   isTRUE(all.equal(get_group_rates(hh_model), get_group_rates(hh_model_2))) |>
     expect_false()
 })
@@ -718,7 +718,7 @@ test_that("Inference rejects invalid settings", {
     run_inference(steps = 5L, chains = 1L, adapt = 0L, thin = 1L,
                   threads = 1000L) |>
     expect_warning("[Tt]hreads.*available") |>
-    suppressWarnings()
+    suppressWarnings(classes = "housepi_warning_diagnostics")
 })
 
 test_that("A run stores the sample size its settings ask for", {
@@ -726,7 +726,7 @@ test_that("A run stores the sample size its settings ask for", {
     add_parameter(rho = list(prior = "uniform", proposal = "forward"))
   n_draws <- function(hh_model, ...) {
     run_inference(hh_model, chains = 1L, ...) |>
-      suppressWarnings() |>
+      suppressWarnings(classes = "housepi_warning_diagnostics") |>
       get_parameter_draws() |>
       posterior::niterations()
   }
@@ -769,7 +769,7 @@ test_that("id_draws selections are resolved before the run", {
   hh_model |>
     run_inference(steps = 5L, chains = 1L, adapt = 0L, thin = 1L,
                   id_draws = NULL) |>
-    suppressWarnings() |>
+    suppressWarnings(classes = "housepi_warning_diagnostics") |>
     get_latent_draws() |>
     suppressWarnings() |>
     posterior::nvariables() |>
@@ -779,7 +779,7 @@ test_that("id_draws selections are resolved before the run", {
   hh_model |>
     run_inference(steps = 5L, chains = 1L, adapt = 0L, thin = 1L,
                   id_draws = NA) |>
-    suppressWarnings() |>
+    suppressWarnings(classes = "housepi_warning_diagnostics") |>
     get_latent_draws() |>
     suppressWarnings() |>
     posterior::variables() |>
@@ -796,7 +796,7 @@ test_that("A followed household without infected members warns", {
     run_inference(steps = 20L, adapt = 0L, chains = 1L,
                   id_draws = list(hh_id = "h2")) |>
     expect_warning("no infected members") |>
-    suppressWarnings()
+    suppressWarnings(classes = "housepi_warning_diagnostics")
 })
 
 ####  Simulation run  ####

@@ -207,7 +207,7 @@ test_that("A discrete-time model reproduces a seed with chains in parallel", {
     hh_model |>
       run_inference(steps = 10L, adapt = 10L, thin = 1L, chains = 2L,
                     threads = threads, progress = FALSE) |>
-      suppressWarnings() |>
+      suppressWarnings(classes = "housepi_warning_diagnostics") |>
       get_parameter_draws()
   }
   draws_at(2L) |> expect_identical(draws_at(1L))
@@ -368,7 +368,7 @@ test_that("Latent moves preserve log-likelihood", {
   hh_fit <- hh_model |>
     run_inference(steps = n_steps, thin = 1L, adapt = 0L, chains = 1L,
                   threads = 2L, id_draws = house$id[house$status > 0]) |>
-    suppressWarnings()
+    suppressWarnings(classes = "housepi_warning_diagnostics")
 
   # the pointwise log-lik folds transmission, the latent model and the
   # observation node: the complete-data density, parameter prior aside

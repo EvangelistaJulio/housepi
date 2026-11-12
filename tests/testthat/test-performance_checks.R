@@ -136,7 +136,7 @@ mk_perf <- local({
   performance <- hh_model |>
     check_performance(truth, nrep = 2L, houses = c(20, 40),
                       steps = 100L, chains = 1L, progress = FALSE) |>
-    suppressWarnings()
+    suppressWarnings(classes = "housepi_warning_diagnostics")
   list(model = hh_model, truth = truth, performance = performance)
 })
 
@@ -303,7 +303,7 @@ test_that("Every estimated parameter needs a simulation value", {
                     truth = data.frame(alpha = 0.15, beta = 0.2, gamma = 1,
                                        rho = 1)) |>
     expect_warning("[Nn]o parameter named.*get_parameters") |>
-    suppressWarnings()
+    suppressWarnings(classes = "housepi_warning_diagnostics")
 })
 
 test_that("A performance check simulates at one value per parameter", {
@@ -360,7 +360,7 @@ test_that("Every study keeps the rate parameters of the model", {
     check_performance(truth, nrep = 1L, houses = 20,
                       structure_sampler = sampler,
                       steps = 100L, chains = 1L, progress = FALSE) |>
-    suppressWarnings()
+    suppressWarnings(classes = "housepi_warning_diagnostics")
 
   performance$estimates$variable |> expect_setequal(estimated)
   performance$estimates$truth |> expect_no_na()
@@ -395,7 +395,7 @@ test_that("Performance checks of one model pool their replicates", {
     check_performance(mk_perf$truth, nrep = 1L, houses = c(40, 60),
                       steps = 100L, chains = 1L, progress = FALSE,
                       time_step = 0.05) |>
-    suppressWarnings()
+    suppressWarnings(classes = "housepi_warning_diagnostics")
   combined <- c(performance, performance_2)
 
   combined |> expect_s3_class("HousepiPerformanceCheck")
@@ -419,7 +419,7 @@ test_that("Performance checks of different runs do not combine", {
     hh_model |>
       check_performance(truth, nrep = 1L, houses = 20L, steps = steps,
                         chains = 1L, progress = FALSE, ...) |>
-      suppressWarnings()
+      suppressWarnings(classes = "housepi_warning_diagnostics")
   }
 
   c(performance, performance) |> expect_error("[Rr]epeat a replicate.*20")
@@ -458,7 +458,7 @@ test_that("Latent inference recovers the simulating parameter", {
     add_observation("record", model = "normal", mean = hidden, sd = 1) |>
     check_performance(data.frame(rho = 2), nrep = 1, steps = 8000, thin = 20,
                       progress = FALSE) |>
-    suppressWarnings() |>
+    suppressWarnings(classes = "housepi_warning_diagnostics") |>
     expect_recovered()
 })
 
@@ -468,7 +468,7 @@ test_that("Final-size inference recovers the simulating parameters", {
     new_housepi_model("final-size") |>
     add_parameter(import = "template") |>
     check_performance(mk_perf$truth, nrep = 1, progress = FALSE) |>
-    suppressWarnings() |>
+    suppressWarnings(classes = "housepi_warning_diagnostics") |>
     expect_recovered()
 })
 
@@ -492,6 +492,6 @@ test_that("Case-ascertained inference recovers the simulating parameters", {
     ) |>
     check_performance(data.frame(alpha = 1e-3, beta = 0.15, gamma = 1),
                       nrep = 1, houses = 200, progress = FALSE) |>
-    suppressWarnings() |>
+    suppressWarnings(classes = "housepi_warning_diagnostics") |>
     expect_recovered()
 })

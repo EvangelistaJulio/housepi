@@ -366,7 +366,7 @@ HousepiPredictiveCheck <- R6::R6Class(
           "{kind} flagged the following:",
           findings,
           "Observed data may be poorly captured by the model."
-        ))
+        ), .class = "housepi_warning_ppc")
       }
       invisible(self)
     }
