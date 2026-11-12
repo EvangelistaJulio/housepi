@@ -50,6 +50,9 @@ In 2 households isolation differs between members.
 
 To reproduce the data processing, see the script at:
 \code{system.file("data-raw", "make_sarscov2_2021_icofs.R", package = "housepi")}
+
+Adults gave informed consent to the study \insertCite{cortier_factors_2025}{housepi}.
+The source repository distributes the data under the GNU Lesser General Public License, version 3.
 }
 \examples{
 head(sarscov2_2021_icofs)

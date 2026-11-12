@@ -73,6 +73,10 @@ in the guide [Get started](https://mmmi-pasteur.pages.pasteur.fr/housepi/article
 
 To cite *housepi* in publications, run `citation("housepi")`.
 
+## Contributing
+
+Report bugs and request features on the [GitLab issue tracker](https://gitlab.pasteur.fr/mmmi-pasteur/housepi/-/work_items), following the [contributing guide](https://gitlab.pasteur.fr/mmmi-pasteur/housepi/-/blob/main/.github/CONTRIBUTING.md).
+
 ## License
 
 Copyright 2024-2026 Institut Pasteur (Paris), France.

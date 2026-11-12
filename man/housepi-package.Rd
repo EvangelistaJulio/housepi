@@ -31,7 +31,7 @@ Useful links:
 \itemize{
   \item \url{https://mmmi-pasteur.pages.pasteur.fr/housepi}
   \item \url{https://gitlab.pasteur.fr/mmmi-pasteur/housepi}
-  \item Report bugs at \url{https://gitlab.pasteur.fr/mmmi-pasteur/housepi/-/issues}
+  \item Report bugs at \url{https://gitlab.pasteur.fr/mmmi-pasteur/housepi/-/work_items}
 }
 
 }
