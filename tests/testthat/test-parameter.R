@@ -859,7 +859,7 @@ test_that("An unpinned parameter is drawn from its prior at evaluation", {
   stats::sd(log_lik) |> expect_gt(0.05 * span)
 })
 
-test_that("A fixed seed reproduces parameter draws at any thread count", {
+test_that("A fixed seed reproduces draws at any thread count", {
   # the normal prior and the default proposal both draw standard_normal:
   # sampler state surviving a re-seed desynchronises one run from the next
   draws_at <- function(seed) {
@@ -891,14 +891,20 @@ test_that("A fixed seed reproduces parameter draws at any thread count", {
   fit_draws_at(2L, chains = 4L) |> expect_identical(draws_4)
   fit_draws_at(4L, chains = 4L) |> expect_identical(draws_4)
 
-  # sampled latents, moved in one order by the single thread of each chain
+  # sampled latents, each household drawing from a generator of its own
+  # whichever thread moves it
+  # two chains at once, each spreading its households over two threads
   latent_draws_at <- function(threads) {
     set.seed(1105L)
-    mk_case_ascertained$model |>
-      run_inference(steps = 20L, adapt = 20L, thin = 1L, chains = 4L,
-                    threads = threads, progress = FALSE) |>
-      suppressWarnings() |>
-      get_parameter_draws()
+    hh_fit <- mk_case_ascertained$model |>
+      run_inference(steps = 20L, adapt = 20L, thin = 1L, chains = 2L,
+                    threads = threads, id_draws = "hh001m02",
+                    progress = FALSE) |>
+      suppressWarnings()
+    list(param = get_parameter_draws(hh_fit),
+         latent = get_latent_draws(hh_fit))
   }
-  latent_draws_at(4L) |> expect_identical(latent_draws_at(1L))
+  latent_draws <- latent_draws_at(1L)
+  posterior::nvariables(latent_draws$latent) |> expect_gt(0L)
+  latent_draws_at(4L) |> expect_identical(latent_draws)
 })

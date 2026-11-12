@@ -888,6 +888,7 @@ namespace housepi
 
     void MCMC::init_monte_carlo_chain_(Workspace &chain)
     {
+        chain.step = 0;
         chain.param.restart(settings.prng(chain.id));
         chain.augm.restart(settings.prng(chain.id));
 
@@ -1053,6 +1054,7 @@ namespace housepi
                     move_param_block_<Adapt>(chain, block);
             else if (Adapt)
                 observe_param_block_(chain, block);
+        ++chain.step;
         settings.count_step();
     }
 
@@ -1163,6 +1165,7 @@ namespace housepi
     LogLik MCMC::move_latent_single_house_(Workspace &chain, size_t H)
     {
         const Household &house = chain.data.dataset().at(H);
+        RndGen &prng = settings.start_house_prng(chain.id, chain.step, H);
 
         LogLik ll;
         for (const Individual &indiv : house.infected_indivs())
@@ -1171,9 +1174,9 @@ namespace housepi
             block_rw::Factor *factor = chain.augm.block_factor(indiv);
             const bool is_block = factor && !(Adapt && chain.is_warm);
             for (size_t a : is_block ? chain.augm.list_sample_alone(indiv) : chain.augm.list_sample(indiv))
-                ll += move_latent_single_variable_<Adapt>(chain, house, indiv, a);
+                ll += move_latent_single_variable_<Adapt>(chain, house, indiv, a, prng);
             if (is_block)
-                ll += move_latent_block_<Adapt>(chain, house, indiv, *factor);
+                ll += move_latent_block_<Adapt>(chain, house, indiv, *factor, prng);
             else if (Adapt && factor)
                 observe_latent_block_(chain, indiv, *factor);
         }
@@ -1184,7 +1187,8 @@ namespace housepi
     LogLik MCMC::move_latent_single_variable_(Workspace &chain,
                                               const Household &house,
                                               const Individual &indiv,
-                                              size_t a)
+                                              size_t a,
+                                              RndGen &prng)
     {
         Variable &avar = chain.augm.at(a, indiv);
 
@@ -1198,7 +1202,7 @@ namespace housepi
         const bool produces_transm = chain.augm.produces_transm(indiv, a);
 
         // propose new value and save old
-        avar.propose(settings.prng(chain.id));
+        avar.propose(prng);
 
         // a null move is accepted without evaluation
         if (avar.is_null_move())
@@ -1224,7 +1228,7 @@ namespace housepi
             const double r = d_obs + d_transm + d_latent - avar.proposal_log_ratio();
             if constexpr (Adapt)
                 avar.adapt_proposal(accept_probability(r), chain.gain);
-            if (settings.exponential(chain.id) > -r)
+            if (standard_exponential(prng) > -r)
                 return {d_obs, d_transm, d_latent};
 
             recover_member_move_(chain, house, indiv, {chain.augm.produces_obs(indiv, a), produces_transm, true});
@@ -1240,13 +1244,14 @@ namespace housepi
     LogLik MCMC::move_latent_block_(Workspace &chain,
                                     const Household &house,
                                     const Individual &indiv,
-                                    block_rw::Factor &factor)
+                                    block_rw::Factor &factor,
+                                    RndGen &prng)
     {
         const std::vector<size_t> &keys = chain.augm.list_block(indiv);
         const LogLikTerms &terms = chain.augm.block_terms(indiv);
         if constexpr (Adapt)
             factor.reshape();
-        factor.propose(settings.prng(chain.id));
+        factor.propose(prng);
 
         // a null jump is accepted without evaluation
         if (factor.is_null_jump())
@@ -1281,7 +1286,7 @@ namespace housepi
                 ll.transm = commit_transm_log_lik_ratio_(chain, house);
             r += ll.value();
         }
-        const bool is_accepted = is_evaluated && settings.exponential(chain.id) > -r;
+        const bool is_accepted = is_evaluated && standard_exponential(prng) > -r;
         if constexpr (Adapt)
             factor.adapt(is_evaluated ? accept_probability(r) : 0., chain.block_gain);
         if (!is_accepted)

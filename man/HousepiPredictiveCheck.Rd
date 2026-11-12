@@ -109,7 +109,9 @@ each with parameters drawn from their prior. \code{NA} is then an error.}
       \item{\code{thin_ess}}{\code{logical(1)}
 Whether to thin posterior \code{draws} to their bulk effective sample size (ESS).}
       \item{\code{threads}}{\code{integer(1)} Number of threads,
-over which households are spread.}
+over which households are spread.
+Calls after the same \code{set.seed()} draw the same replicates
+at any \code{threads}.}
       \item{\code{progress}}{\code{numeric(1)} | \code{logical(1)} Control the progress bar,
 one of:
 \describe{

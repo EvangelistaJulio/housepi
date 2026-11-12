@@ -156,6 +156,8 @@ namespace housepi
 
         /// Chain the workspace runs, index of its streams and of its posterior column block.
         Settings::Chain id = 0;
+        /// Steps completed by the chain, a word of its household generator keys.
+        Settings::Step step = 0;
 
         //////  Setter  //////
 

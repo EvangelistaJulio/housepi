@@ -25,7 +25,7 @@ Without the reference stratum, the baseline and the rates are identified
 only through their products, with wide intervals."
 rd_sweep_seed_ <- "Replicates are independent draws.
 Call `set.seed()` before the check to replay a whole sweep,
-at any `threads` up to `nrep`."
+at any `threads`."
 rd_sweep_reporting_ <- "Each simulated study goes through
 the `dataset` reporting process of the model before it is fitted back,
 see [add_reporting_process()].

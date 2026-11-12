@@ -409,9 +409,11 @@ namespace housepi
             engine.chain().augm.clear_all();
             dataset.recover_all_status();
 
-            for (Household &house : dataset)
+            for (size_t H = 0; H < dataset.report_house.total; ++H)
                 try
                 {
+                    Household &house = dataset.at(H);
+                    engine.settings.start_house_prng(0, r, H);
                     engine.chain().model->simulate_single_house(house);
                     if (is_writing)
                         update_ofstream_dataset(ofs, r, house,
@@ -421,7 +423,7 @@ namespace housepi
                 catch (const std::exception &e)
                 {
                     throw std::runtime_error(
-                        "While simulating " + dataset.str(house) + ":\n" + e.what());
+                        "While simulating " + dataset.str(dataset.at(H)) + ":\n" + e.what());
                 }
         }
 

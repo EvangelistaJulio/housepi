@@ -32,7 +32,9 @@ If nothing is adaptable, run as burn-in instead.}
 
 \item{threads}{\code{integer(1)}
 Number of threads, shared equally by the chains running at once,
-each spreading its households over its share.}
+each spreading its households over its share.
+Runs after the same \code{set.seed()} call draw the same chains
+at any \code{threads}.}
 
 \item{id_draws}{\code{character()} | \code{list}
 Infected members whose public latent draws are stored.

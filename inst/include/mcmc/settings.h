@@ -95,20 +95,32 @@ namespace housepi
 
         //////  Random  //////
 
-        /// Seed the generator pool, one stream per chain and thread.
+        /// Seed one stream per chain, allot one household generator per thread.
         void set_prng_seed();
         /// Return slot of the calling thread in per-thread pools, below `budget.inner`.
         /// * one worker within a chain -> 0;
         /// * otherwise -> worker index in the arena.
         std::size_t thread_slot() const { return budget.inner == 1 ? 0 : housepi::parallel::current_thread_index(); }
-        /// Return generator of chain `c` on the calling thread.
+        /// Return stream of chain `c`.
         /// * default -> chain 0, the one evaluation and simulation draw from.
-        housepi::RndGen &prng(Chain c = 0) const { return prng_pool_[c + thread_slot() * n_chains].gen; }
+        housepi::RndGen &prng(Chain c = 0) const { return prng_pool_[c].gen; }
+        /// Restart the calling thread's household generator of chain `c`, return it.
+        /// Its state is keyed_state() of (seed, `c`, `step`, `H`), whichever thread calls.
+        housepi::RndGen &start_house_prng(Chain c, Step step, std::size_t H) const
+        {
+            housepi::RndGen &gen = house_prng(c);
+            gen.restart(housepi::keyed_state(static_cast<std::uint64_t>(seed), c, step, H));
+            return gen;
+        }
+        /// Return the calling thread's household generator of chain `c`.
+        /// @note Draws continue the household of the last start_house_prng() on this thread.
+        housepi::RndGen &house_prng(Chain c) const
+        {
+            return house_pool_[c % budget.outer + thread_slot() * budget.outer].gen;
+        }
 
-        /// Sample a uniform-distributed variable in [0, 1), from the generator of chain `c`.
-        double uniform(Chain c = 0) const { return housepi::standard_uniform(prng(c)); }
         /// Sample an exponential-distributed variable with rate 1, from the generator of chain `c`.
-        double exponential(Chain c = 0) const { return housepi::standard_exponential(prng(c)); }
+        double exponential(Chain c) const { return housepi::standard_exponential(prng(c)); }
 
         //////  Progress  //////
 
@@ -129,10 +141,11 @@ namespace housepi
         {
             housepi::RndGen gen;
         };
-        /// Generator pool, seeded once: stream `k` starts `k * 2^128` draws past `seed`.
-        /// * chain `c` at thread slot `s` -> stream `c + s * n_chains`;
-        /// * chain thread, slot 0 -> stream `c`, at any thread count.
+        /// Chain streams, seeded once: stream `c` starts `c * 2^128` draws past `seed`.
         mutable std::vector<LineRndGen> prng_pool_ = {};
+        /// Household generators, one per thread, restarted at each household.
+        /// * chain `c` at thread slot `s` -> generator `c % budget.outer + s * budget.outer`.
+        mutable std::vector<LineRndGen> house_pool_ = {};
 
         /// Associate non-default user settings.
         void helper_non_default_build_(const housepi::str_table &input);

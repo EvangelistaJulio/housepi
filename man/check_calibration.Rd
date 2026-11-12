@@ -165,7 +165,7 @@ so a process losing information makes the check measure the misspecification.
 
 Replicates are independent draws.
 Call \code{set.seed()} before the check to replay a whole sweep,
-at any \code{threads} up to \code{nrep}.
+at any \code{threads}.
 }
 \examples{
 calibration <- flu_1918_frederick |>

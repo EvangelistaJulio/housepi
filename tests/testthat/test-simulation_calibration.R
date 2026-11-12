@@ -250,7 +250,7 @@ test_that("Calibration calibration print their settings", {
   lines |> expect_match("^Inference time per fit: [0-9]+s$", all = FALSE)
 })
 
-test_that("A sweep reproduces from a seed at any thread count up to nrep", {
+test_that("A sweep reproduces from a seed at any thread count", {
   sweep_at <- function(threads) {
     withr::with_seed(1L, check_calibration(
       mk_calib$model, nrep = 3, rank_levels = 10, steps = 400, thin = 1,
@@ -258,15 +258,18 @@ test_that("A sweep reproduces from a seed at any thread count up to nrep", {
     )) |>
       suppressWarnings()
   }
-  # one fit per wave, then a single wave of three: the ranks break ties
-  # from the same stream as the engine seeds
+  # one fit per wave, against a single wave of three fits of one thread,
+  # then of two threads each sharing out its households
+  # the ranks break ties from the same stream as the engine seeds
   calibration <- sweep_at(1L)
-  calibration_2 <- sweep_at(3L)
   untimed <- \(replicates) replicates[names(replicates) != "inference_secs"]
-  calibration_2$estimates |> expect_identical(calibration$estimates)
-  untimed(calibration_2$replicates) |>
-    expect_identical(untimed(calibration$replicates))
-  calibration_2$warnings |> expect_identical(calibration$warnings)
+  for (threads in c(3L, 6L)) {
+    calibration_2 <- sweep_at(threads)
+    calibration_2$estimates |> expect_identical(calibration$estimates)
+    untimed(calibration_2$replicates) |>
+      expect_identical(untimed(calibration$replicates))
+    calibration_2$warnings |> expect_identical(calibration$warnings)
+  }
 })
 
 test_that("Calibration refuses a sweep it cannot rank", {

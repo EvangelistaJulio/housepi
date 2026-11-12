@@ -111,11 +111,12 @@ namespace housepi
         seed = std::max(1, seed);
         prng_pool_.clear();
         RndGen next(static_cast<RndGen::result_type>(seed));
-        for (size_t k = 0; k < n_chains * n_threads; ++k)
+        for (size_t c = 0; c < n_chains; ++c)
         {
             prng_pool_.push_back({next});
             next.jump();
         }
+        house_pool_.assign(n_threads, {});
     }
 
     void Settings::init_mcmc_configuration(bool is_adaptive)

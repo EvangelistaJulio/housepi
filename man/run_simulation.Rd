@@ -33,7 +33,9 @@ Once set, even to 1, the replicates are returned as a list.}
 Whether to thin posterior \code{draws} to their bulk effective sample size (ESS).}
 
 \item{threads}{\code{integer(1)} Number of threads,
-over which households are spread.}
+over which households are spread.
+Calls after the same \code{set.seed()} draw the same replicates
+at any \code{threads}.}
 
 \item{...}{Advanced configuration.}
 }

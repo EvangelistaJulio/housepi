@@ -106,7 +106,7 @@ so a process losing information makes the check measure the misspecification.
 Results are summarised at the point estimate
 and credible level of the global options, see \code{\link[=set_housepi_summary]{set_housepi_summary()}}. Replicates are independent draws.
 Call \code{set.seed()} before the check to replay a whole sweep,
-at any \code{threads} up to \code{nrep}.
+at any \code{threads}.
 }
 \examples{
 performance <- flu_1918_frederick |>

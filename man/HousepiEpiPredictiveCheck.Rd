@@ -104,7 +104,9 @@ If \code{NA} or \code{NULL}, no lower bound is applied.}
       \item{\code{max_hh_size}}{\code{integer(1)} Maximum household size retained in the outputs.
 If \code{NA} or \code{NULL}, no upper bound is applied.}
       \item{\code{threads}}{\code{integer(1)} Number of threads,
-over which households are spread.}
+over which households are spread.
+Calls after the same \code{set.seed()} draw the same replicates
+at any \code{threads}.}
       \item{\code{progress}}{\code{numeric(1)} | \code{logical(1)} Control the progress bar,
 one of:
 \describe{

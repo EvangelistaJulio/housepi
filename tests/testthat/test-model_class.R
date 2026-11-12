@@ -1004,6 +1004,27 @@ test_that("A simulation with a reporting process is reproducible", {
     expect_identical(simulated)
 })
 
+test_that("A simulation reproduces a seed at any thread count", {
+  # each household draws from a generator of its own, whichever thread runs it
+  simulated_at <- function(hh_model, threads) {
+    withr::with_seed(1, run_simulation(hh_model, nrep = 3, threads = threads))
+  }
+  simulated <- simulated_at(mk_frederick$template, 1L)
+  simulated_at(mk_frederick$template, 2L) |> expect_identical(simulated)
+
+  # latents drawn along transmission, from a member drawn uniformly
+  hh_model <- sarscov2_2021_icofs |>
+    dplyr::filter(hh_id %in% utils::head(unique(hh_id), 100)) |>
+    dplyr::mutate(end_date = 21) |>
+    new_housepi_model("case-ascertained") |>
+    add_infectivity_profile(import = "template") |>
+    add_parameter(alpha = 1e-3, beta = 0.5, gamma = 1, hh_size_ref = 4)
+  simulated <- simulated_at(hh_model, 1L)
+  # one introduction per household at least
+  sum(!is.na(simulated[[1]]$infec_time)) |> expect_gte(100L)
+  simulated_at(hh_model, 2L) |> expect_identical(simulated)
+})
+
 test_that("A household error in simulation names the household", {
   # a negative datum in h2 empties the latent domain
   hh_model <- data.frame(hh_id = c("h1", "h1", "h2"), id = c("m1", "m2", "m3"),

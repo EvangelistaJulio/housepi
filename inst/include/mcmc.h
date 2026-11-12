@@ -222,18 +222,20 @@ namespace housepi
         template <bool Adapt>
         void move_all_latent_(Workspace &chain);
         /// Move the latents of infected members of household `H`, one member at a time.
-        /// * latent block -> moved together after the other latents, one at a time over the warm-up.
+        /// * latent block -> moved together after the other latents, one latent at a time over the warm-up;
+        /// * draws -> household generator, restarted at (seed, chain, step, `H`).
         /// @return Accepted deltas of transmission and latent-model log-likelihoods.
         template <bool Adapt>
         LogLik move_latent_single_house_(Workspace &chain, size_t H);
-        /// Move latent `a` of member `indiv`.
+        /// Move latent `a` of member `indiv`, drawing from `prng`.
         /// @return Accepted deltas of transmission and latent-model log-likelihoods.
         template <bool Adapt>
         LogLik move_latent_single_variable_(Workspace &chain,
                                             const Household &house,
                                             const Individual &indiv,
-                                            size_t a);
-        /// Attempt a move of the latent block of member `indiv`, adapting `factor`.
+                                            size_t a,
+                                            RndGen &prng);
+        /// Attempt a move of the latent block of member `indiv`, drawing from `prng`, adapting `factor`.
         /// * member latent and observation log-likelihoods -> recomputed whole;
         /// * transmission -> one commit, if a block latent produces it.
         /// @return Accepted deltas of observation, transmission and latent-model log-likelihoods.
@@ -241,7 +243,8 @@ namespace housepi
         LogLik move_latent_block_(Workspace &chain,
                                   const Household &house,
                                   const Individual &indiv,
-                                  block_rw::Factor &factor);
+                                  block_rw::Factor &factor,
+                                  RndGen &prng);
         /// Add the coordinates of the latent block of member `indiv` to the running moments of `factor`.
         void observe_latent_block_(Workspace &chain, const Individual &indiv, block_rw::Factor &factor)
         {

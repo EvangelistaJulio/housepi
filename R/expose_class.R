@@ -234,7 +234,9 @@ Run first and not stored as draws.
 If nothing is adaptable, run as burn-in instead."
 rd_smpl_chain_ <- "`integer(1)` Number of independent MCMC chains to run."
 rd_thread_ <- "`integer(1)` Number of threads,
-over which households are spread."
+over which households are spread.
+Calls after the same `set.seed()` draw the same replicates
+at any `threads`."
 rd_progress_ <- "`numeric(1)` | `logical(1)` Control the progress bar,
 one of:
 \\describe{
@@ -1435,6 +1437,8 @@ inspect_state <- function(hh_model, hh_id = NULL) {
 #' @param threads `integer(1)`
 #' Number of threads, shared equally by the chains running at once,
 #' each spreading its households over its share.
+#' Runs after the same `set.seed()` call draw the same chains
+#' at any `threads`.
 #' @param id_draws `character()` | `list`
 #' Infected members whose public latent draws are stored.
 #' A `character()` lists individual identifiers.

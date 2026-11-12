@@ -130,6 +130,8 @@ namespace housepi
         /// Initialize the model for simulation (cache variables, lookup tables).
         virtual void init_model_for_simulation() {}
         /// Simulate household `house`.
+        /// * uniform(), exponential(), set_infected(), init_missing_latent() -> generator of `house`.
+        /// @note A draw outside this call reads a generator no household restarted.
         virtual void simulate_single_house(Household & /*house*/) = 0;
 
         //////  Setter: model requests  //////
@@ -188,7 +190,7 @@ namespace housepi
         /// @note Call init_missing_latent() after to initialize individual status-specific variables.
         void set_infected(Household &house, Individual &indiv)
         {
-            house.set_new_status_(indiv, chain_->defs.status_process.draw(indiv, settings_->prng()));
+            house.set_new_status_(indiv, chain_->defs.status_process.draw(indiv, house_prng_()));
         }
         /// Set member `indiv` escaped.
         void set_escaped(Household &house, Individual &indiv)
@@ -226,16 +228,16 @@ namespace housepi
         void init_missing_latent(Individual &indiv)
         {
             chain_->augm.init_definitions_for_simulation(indiv);
-            chain_->augm.draw_sample_for_simulation(indiv, settings_->prng());
-            chain_->augm.sample_obs(indiv, settings_->prng());
+            chain_->augm.draw_sample_for_simulation(indiv, house_prng_());
+            chain_->augm.sample_obs(indiv, house_prng_());
         }
 
         //////  Getter  //////
 
-        /// Draw a uniform variate on [0, 1].
-        double uniform() const { return settings_->uniform(); }
-        /// Draw a unit-rate exponential variate.
-        double exponential() const { return settings_->exponential(); }
+        /// Draw a uniform variate on [0, 1), from the generator of the household simulated.
+        double uniform() const { return housepi::standard_uniform(house_prng_()); }
+        /// Draw a unit-rate exponential variate, from the generator of the household simulated.
+        double exponential() const { return housepi::standard_exponential(house_prng_()); }
 
         /// User-configured time step of the simulation.
         double real_time_step() const { return settings_->time_step; }
@@ -308,6 +310,9 @@ namespace housepi
         Workspace *chain_ = nullptr;
         /// Settings: random streams, time step, thread slots.
         const Settings *settings_ = nullptr;
+
+        /// Return the generator of the household simulated, on the calling thread.
+        housepi::RndGen &house_prng_() const { return settings_->house_prng(chain_->id); }
     };
 }
 

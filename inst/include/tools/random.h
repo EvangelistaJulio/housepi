@@ -5,6 +5,7 @@
 
 #pragma once
 
+#include <array>
 #include <cmath>
 #include <cstdint>
 #include <random>
@@ -15,7 +16,7 @@
 namespace housepi
 {
     /// Xor Shift Rotate 256 Star Star, seeded with Split Mix 64.
-    /// Based on @cite blackman_xoshiro256starstar_2018 and @cite vigna_pseudo_random_2015
+    /// Based on @cite blackman_xoshiro256starstar_2018 and @cite steele_fast_2014
     struct RndGen
     {
         using result_type = std::uint64_t;
@@ -35,6 +36,10 @@ namespace housepi
         /// Seed with SplitMix64.
         void seed(result_type seed) { engine_.seed(seed); }
 
+        /// Restart from the 256-bit state `state`.
+        /// @note The all-zero state draws zeros only.
+        void restart(const std::array<result_type, 4> &state) { engine_.seed(state.begin(), state.end()); }
+
         /// Jump 2^128 steps ahead, splitting parallel streams.
         void jump() noexcept { engine_.jump(); }
 
@@ -47,6 +52,39 @@ namespace housepi
     private:
         boost::random::xoshiro256mm engine_;
     };
+
+    //////  Keyed states  //////
+
+    namespace detail
+    {
+        /// SplitMix64 finalizer, a bijection of 64-bit words.
+        /// Based on @cite steele_fast_2014
+        inline constexpr std::uint64_t mix64(std::uint64_t z) noexcept
+        {
+            z = (z ^ (z >> 30)) * 0xbf58476d1ce4e5b9ULL;
+            z = (z ^ (z >> 27)) * 0x94d049bb133111ebULL;
+            return z ^ (z >> 31);
+        }
+    }
+
+    /// Return the generator state of key (`seed`, `chain`, `step`, `house`), a bijection of the key.
+    /// * forward pass -> word `i` mixes key word `i`, the previous word and a Weyl offset;
+    /// * backward pass -> word `i` mixes itself and the next word.
+    /// Every state word then reads the whole key.
+    /// @note The key of the all-zero state has a seed word above 2^31, out of reach of a 32-bit seed.
+    inline std::array<std::uint64_t, 4> keyed_state(std::uint64_t seed, std::uint64_t chain,
+                                                    std::uint64_t step, std::uint64_t house) noexcept
+    {
+        constexpr std::uint64_t GAMMA = 0x9e3779b97f4a7c15ULL;
+        const std::array<std::uint64_t, 4> key = {seed, chain, step, house};
+        std::array<std::uint64_t, 4> state;
+        std::uint64_t prev = 0;
+        for (int i = 0; i < 4; ++i)
+            prev = state[i] = detail::mix64(key[i] + prev + GAMMA * (i + 1));
+        for (int i = 2; i >= 0; --i)
+            state[i] = detail::mix64(state[i] + state[i + 1]);
+        return state;
+    }
 
     //////  Standard samplers  //////
 

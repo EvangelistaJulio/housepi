@@ -1207,8 +1207,10 @@ namespace housepi
 
         namespace simulate
         {
-            /// Simulate one repetition over every household.
+            /// Simulate repetition `r` over every household.
+            /// * draws -> household generator, restarted at (seed, 0, `r`, household).
             void single_repetition(MCMC &engine,
+                                   Settings::Step r,
                                    Rcpp::IntegerVector &status_col,
                                    std::vector<Rcpp::NumericVector> &latent_cols,
                                    const std::vector<size_t> &row_offsets)
@@ -1223,6 +1225,7 @@ namespace housepi
                         try
                         {
                             Household &house = dataset.at(H);
+                            engine.settings.start_house_prng(0, r, H);
                             engine.chain().model->simulate_single_house(house);
 
                             // thread-local: no shared counter
@@ -1460,7 +1463,7 @@ namespace housepi
 
                     // run one repetition
                     simulate::single_repetition(
-                        engine, status_col, latent_cols, row_offsets);
+                        engine, r, status_col, latent_cols, row_offsets);
 
                     if (r == 0)
                         discr_cols = augm.discrete_export_cols();
