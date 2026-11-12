@@ -11,6 +11,22 @@
 # Columns of strata table `tbl` a rule keys on: every one but the `reserved`.
 strata_cov_cols_ <- function(tbl, reserved) setdiff(colnames(tbl), reserved)
 
+# Levels a stratification axis of an automatic rate takes before a warning.
+rate_axis_max_levels <- 10L
+
+# Levels of each stratification axis, one per logic table in `tables`:
+# * single covariate -> its levels;
+# * joint covariates -> their combinations.
+# @param rate `character(1)` Group rate id, `NA` for the contact rate.
+# @param cells `function` Level rows of one table, one column per covariate.
+# @return `list` of `list(rate, cols, levels)`.
+rate_axis_levels_ <- function(tables, rate, cells) {
+  lapply(tables, function(tbl) {
+    lv <- unique(cells(tbl))
+    list(rate = rate, cols = colnames(lv), levels = NROW(lv))
+  })
+}
+
 # Assert rule table `tbl` is a data.frame with rows and the `required` columns.
 # @param label `character(1)` Opening of the message.
 # @param hint `character(1)` Hint following a missing column.

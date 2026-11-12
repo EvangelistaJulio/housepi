@@ -227,13 +227,17 @@ test_that("Chain binomial guards against misusage", {
 })
 
 test_that("A household with too many rate partitions to evaluate is refused", {
-  # every infected member in its own stratum
-  build_strata_model(rep(1, 16)) |>
+  # every infected member in its own stratum, a covariate of many levels
+  expect_warning(hh_model <- build_strata_model(rep(1, 16)),
+                 class = "housepi_warning_levels")
+  hh_model |>
     evaluate_log_lik() |>
     expect_error("household .h1. fall into 16 rate partitions")
 
   # fewer partitions, but a repeated pair of members doubles the terms to sum
-  build_strata_model(c(2, rep(1, 14))) |>
+  expect_warning(hh_model <- build_strata_model(c(2, rep(1, 14))),
+                 class = "housepi_warning_levels")
+  hh_model |>
     evaluate_log_lik() |>
     expect_error("household .h1. fall into 15 rate partitions")
 

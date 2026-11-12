@@ -213,6 +213,8 @@ HousepiModel <- R6::R6Class(
     infec_profile_ = NULL,
     reporting_process_ = NULL,
     collapse_seen_ = character(),
+    # level count last reported for each stratification axis above the threshold
+    levels_seen_ = integer(),
     # engine, and hashes of the data and definitions, at the last wall push
     fingerprint_ = NULL,
 
@@ -720,6 +722,7 @@ HousepiModel <- R6::R6Class(
       private$infec_profile_ <- HousepiInfecProfile$new()
       private$reporting_process_ <- list(dataset = NULL, long_dataset = NULL)
       private$collapse_seen_ <- character()
+      private$levels_seen_ <- integer()
       invisible(self)
     },
 
@@ -866,12 +869,44 @@ HousepiModel <- R6::R6Class(
     },
 
     # Re-push the R-side definitions to the engine, without hard validation,
-    # then report the baselines the rates absorbed.
+    # then report the baselines the rates absorbed and the axes of many levels.
     # Hard validation runs in build_full_().
     # @param wall `logical(1)` Whether to raise an error.
     rebuild_ = function(wall = FALSE) {
       private$push_definitions_(wall)
       private$warn_baseline_collapse_()
+      private$warn_many_levels_()
+      invisible(self)
+    },
+
+    # Warn about each axis of an automatic rate past `rate_axis_max_levels`.
+    # * level count already reported -> silent;
+    # * axis back under the threshold -> forgotten.
+    warn_many_levels_ = function() {
+      axes <- Filter(\(ax) ax$levels > rate_axis_max_levels,
+                     c(private$group_rates_$axis_levels(),
+                       private$contact_rates_$axis_levels()))
+      names(axes) <- vapply(axes, function(ax) {
+        paste(c(ax$rate, sort(ax$cols)), collapse = " ")
+      }, character(1))
+      for (key in names(axes)) {
+        n <- axes[[key]]$levels
+        if (identical(unname(private$levels_seen_[key]), n)) next
+        rate <- axes[[key]]$rate
+        cols <- axes[[key]]$cols
+        label <- if (is.na(rate)) "Contact rate"
+        else "Group rate {.val {rate}}"
+        msg <- if (length(cols) == 1L) c(
+          "stratifies on {n} levels of {.field {cols}}.",
+          "Check that {.arg by} names a categorical covariate."
+        ) else c(
+          "stratifies on {n} combinations of {.field {cols}}.",
+          "Check that the covariates in {.arg by} are needed jointly."
+        )
+        warn_h(paste(label, msg[[1]]), msg[[2]],
+               .class = "housepi_warning_levels")
+      }
+      private$levels_seen_ <- vapply(axes, \(ax) ax$levels, integer(1))
       invisible(self)
     },
 
@@ -1241,8 +1276,8 @@ HousepiModel <- R6::R6Class(
       # clone every field but the runner, created afresh
       for (field in c("compiled_", "param_", "augm_", "group_rates_",
                       "contact_rates_", "status_", "infec_profile_",
-                      "reporting_process_", "collapse_seen_", "escaped_",
-                      "coding_", "data_hash_")) {
+                      "reporting_process_", "collapse_seen_", "levels_seen_",
+                      "escaped_", "coding_", "data_hash_")) {
         obj_priv[[field]] <- helper_clone(private[[field]])
       }
       obj_priv$mcmc_ptr_ <- create_mcmc_runner_(obj_priv$compiled_)

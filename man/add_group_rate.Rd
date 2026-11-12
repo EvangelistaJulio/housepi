@@ -28,7 +28,9 @@ add_group_rate(
 \item{name}{\code{character(1)} Name used by internal calls.}
 
 \item{by}{\code{list} Data columns of the covariates the group rate stratifies on.
-The columns must be categorical.}
+The columns must be categorical.
+A covariate with more than 10 levels raises a warning,
+as do joint covariates with more than 10 combinations.}
 
 \item{...}{Named arguments for the prior distribution.
 Advanced Monte Carlo options may also be passed through \code{...},

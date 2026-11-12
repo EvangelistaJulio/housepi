@@ -25,7 +25,9 @@ add_contact_rate(
 \item{hh_model}{\code{HousepiModel} object.}
 
 \item{by}{\code{character()} Data columns of the covariates pairs are matched on.
-The columns must be categorical.}
+The columns must be categorical.
+A covariate with more than 10 levels raises a warning,
+as do joint covariates with more than 10 combinations.}
 
 \item{...}{Named arguments for the prior distribution.
 Advanced Monte Carlo options may also be passed through \code{...},

@@ -249,6 +249,32 @@ test_that("Group rates sentinels work correctly", {
     expect_error("[Mm]ust be a unidimensional type")
 })
 
+test_that("A rate axis of many levels warns once per level count", {
+  hh_data <- data.frame(hh_id = "h1", status = 0L,
+                        datum = c(letters[1:11], "a"))
+  hh_model <- new_housepi_model(hh_data, "final-size")
+  expect_warning(
+    hh_model <- add_group_rate(hh_model, "community", by = "datum"),
+    "[Ss]tratifies on 11 levels.*datum", class = "housepi_warning_levels"
+  ) |>
+    expect_s3_class("housepi_warning")
+
+  # same level count, a copy included -> silent
+  hh_model |>
+    add_parameter(beta = 0.1) |>
+    expect_no_warning(class = "housepi_warning_levels")
+  hh_model$copy() |>
+    add_parameter(beta = 0.1) |>
+    expect_no_warning(class = "housepi_warning_levels")
+
+  # new level count -> warned again
+  hh_data$datum[12] <- "l"
+  hh_model |>
+    add_dataset(hh_data) |>
+    expect_warning("[Ss]tratifies on 12 levels",
+                   class = "housepi_warning_levels")
+})
+
 test_that("An automatic reference names an observed stratum of its axes", {
   mk_rate$model |>
     add_group_rate("susceptibility", by = "age",

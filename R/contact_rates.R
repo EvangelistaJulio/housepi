@@ -320,6 +320,12 @@ HousepiContactRate <- R6::R6Class(
       invisible(self)
     },
 
+    # Whether the rate re-derives its logic tables from each dataset:
+    # automatic mode, tables not frozen.
+    rederives_ = function() {
+      !self$frozen && identical(self$defs[["mode"]], "auto")
+    },
+
     # Assert each observed ordered pair resolves to one rule per group.
     # * frozen -> a rule matching no pair allowed.
     assert_rules_fit_ = function(dataset) {
@@ -426,6 +432,17 @@ HousepiContactRate <- R6::R6Class(
       rate_is_absolute_(self$defs, self$logic_tables)
     },
 
+    # Levels of the covariates on either end of a pair, per automatic table,
+    # see rate_axis_levels_().
+    axis_levels = function() {
+      if (!private$rederives_()) return(list())
+      rate_axis_levels_(self$logic_tables, NA_character_, function(tbl) {
+        covs <- pair_covs_(colnames(tbl))
+        rbind(stats::setNames(tbl[paste0("from_", covs)], covs),
+              stats::setNames(tbl[paste0("to_", covs)], covs))
+      })
+    },
+
     # Add the definition, arguments as in add_contact_rate().
     add_quo = function(by = NA_character_, ...,
                        reference = NULL,
@@ -470,7 +487,7 @@ HousepiContactRate <- R6::R6Class(
     implement = function(dataset) {
       symmetric <- isTRUE(self$defs[["symmetric"]])
 
-      if (!self$frozen && self$defs[["mode"]] == "auto") {
+      if (private$rederives_()) {
         private$helper_implement_auto_(dataset, symmetric)
       } else {
         private$helper_implement_custom_(dataset, symmetric)

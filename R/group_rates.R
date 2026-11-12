@@ -821,6 +821,16 @@ HousepiGroupRate <- R6::R6Class(
       rate_is_absolute_(self$defs[[name]], self$logic_tables[[name]])
     },
 
+    # Levels per stratification axis of automatic rates,
+    # see rate_axis_levels_().
+    axis_levels = function() {
+      rates <- Filter(private$rederives_, names(self$defs))
+      unlist(lapply(rates, function(rate_id) {
+        rate_axis_levels_(self$logic_tables[[rate_id]], rate_id,
+                          \(tbl) tbl[rate_cov_cols_(tbl)])
+      }), recursive = FALSE)
+    },
+
     # Add a definition, arguments as in add_group_rate().
     add_quo = function(name, by = NA_character_, ...,
                        reference = NULL, joint = FALSE,

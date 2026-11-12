@@ -189,6 +189,13 @@ rd_grr_prefix_ <- paste(
   "If `NA`, the rate name."
 )
 rd_crr_prefix_ <- paste(rd_rate_prefix_, "If `NA`, `contact`.")
+# a function, since `rate_axis_max_levels` is collated after this file
+rd_rate_by_levels_ <- function() {
+  sprintf("The columns must be categorical.
+A covariate with more than %1$d levels raises a warning,
+as do joint covariates with more than %1$d combinations.",
+          rate_axis_max_levels)
+}
 rd_rate_joint_ <- "`logical(1)` Whether covariates are joint.
 If `FALSE`, they are independent."
 rd_rate_strata_ <-
@@ -1019,7 +1026,7 @@ add_status_process <- function(hh_model, ..., strata = NULL, import = NULL) {
 #' @param hh_model `r rd_model_in_`
 #' @param name `r rd_var_name_`
 #' @param by `list` Data columns of the covariates the group rate stratifies on.
-#' The columns must be categorical.
+#' `r rd_rate_by_levels_()`
 #' @param reference `r rd_rate_reference_("group")`
 #' @param joint `r rd_rate_joint_`
 #' @param strata `r rd_rate_strata_`
@@ -1089,7 +1096,7 @@ add_group_rate <-  function(hh_model,
 #' @description `r rd_rate_desc_("contact")`
 #' @param hh_model `r rd_model_in_`
 #' @param by `character()` Data columns of the covariates pairs are matched on.
-#' The columns must be categorical.
+#' `r rd_rate_by_levels_()`
 #' @param reference `r rd_rate_reference_("pair")`
 #' Names can carry `from_`/`to_` prefixes matching `by`,
 #' or no prefix, applying to both ends.

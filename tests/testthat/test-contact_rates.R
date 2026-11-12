@@ -190,6 +190,28 @@ test_that("Auto mode with two joint covariates behaves correctly", {
   setdiff(unique(tidy$param_name), ".reference") |> expect_length(3L)
 })
 
+test_that("A pair axis counts the levels of either end, not the pairs", {
+  hh_model <- data.frame(hh_id = "h1", status = 0L,
+                         datum = rep_len(letters[1:5], 12),
+                         datum_2 = rep(c("x", "y", "z"), each = 4)) |>
+    new_housepi_model("final-size")
+
+  # 5 and 3 levels make 21 parameters, under the threshold
+  hh_model |>
+    add_contact_rate(by = c("datum", "datum_2")) |>
+    expect_no_warning(class = "housepi_warning_levels") |>
+    get_contact_rates() |>
+    getElement("param_name") |>
+    unique() |>
+    expect_length(21L)
+
+  # joint: 12 observed combinations, above the threshold
+  hh_model |>
+    add_contact_rate(by = c("datum", "datum_2"), joint = TRUE) |>
+    expect_warning("[Ss]tratifies on 12 combinations",
+                   class = "housepi_warning_levels")
+})
+
 test_that("Absoluteness follows the reference across every definition mode", {
   # the default prior tracks whether a rate carries absolute values
   rate_prior <- function(...) {

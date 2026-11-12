@@ -105,10 +105,13 @@ local_quiet_warnings_ <- function(quiet, .envir = parent.frame()) {
 #' @param level `character(1)` Either `"stop"` or `"warn"`.
 #' @param trusted `logical(1)` Whether the text is trusted.
 #' If `FALSE`, braces are escaped so foreign text cannot trip cli glue.
+#' @param class `character()` Subclasses of a warning, ahead of
+#' `housepi_warning`.
 #' @param .envir `environment` Frame used to resolve `{ }` interpolations.
 #' @noRd
 emit_cli_condition <- function(parts, level = c("stop", "warn"),
-                               trusted = TRUE, .envir = parent.frame()) {
+                               trusted = TRUE, class = NULL,
+                               .envir = parent.frame()) {
   parts <- flatten_cli_parts_(parts)
   level <- match.arg(level)
 
@@ -129,7 +132,7 @@ emit_cli_condition <- function(parts, level = c("stop", "warn"),
   else if (quiet_warnings_$on) invisible()
   # display at emission time, so warnings are not deferred past the errors
   else withr::with_options(list(warn = 1), cli::cli_warn(
-    bullets, call = NULL, .envir = .envir
+    bullets, class = c(class, "housepi_warning"), call = NULL, .envir = .envir
   ))
 }
 
@@ -140,11 +143,13 @@ stop_h <- function(...) {
   emit_cli_condition(list(...), "stop", .envir = parent.frame())
 }
 
-#' Emit a harmonized, cli-rendered warning.
+#' Emit a harmonized, cli-rendered warning of class `housepi_warning`.
 #' @param ... Message lines, with the bullet convention of stop_h().
+#' @param .class `character()` Subclasses ahead of `housepi_warning`.
 #' @noRd
-warn_h <- function(...) {
-  emit_cli_condition(list(...), "warn", .envir = parent.frame())
+warn_h <- function(..., .class = NULL) {
+  emit_cli_condition(list(...), "warn", class = .class,
+                     .envir = parent.frame())
 }
 
 #' Restyle any condition raised beneath `expr` through the cli emitter,
