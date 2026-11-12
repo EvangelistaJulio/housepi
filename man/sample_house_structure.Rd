@@ -9,7 +9,8 @@ sample_house_structure(data, houses = NA_integer_)
 \arguments{
 \item{data}{\code{data.frame} Household data, one row per member.
 Column \code{status} holds integer codes (\code{0} for escaped members), or labels.
-Definitions keyed on a status name it the same way.}
+Definitions keyed on a status name it the same way.
+A definition reads a \code{Date} column as its number of days, see \link[base:Dates]{base::Dates}.}
 
 \item{houses}{\code{integer(1)} Number of households to draw.
 If \code{NA}, the number of households carried by \code{data}.}

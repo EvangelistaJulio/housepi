@@ -145,6 +145,9 @@ HousepiStatusProcess <- R6::R6Class(
   ####  Private  ####
 
   private = list(
+    # `character()` Level order of a factor `status`, else `NULL`.
+    levels_ = NULL,
+
     deep_clone = function(name, value) helper_clone(value)
   ),
 
@@ -154,12 +157,15 @@ HousepiStatusProcess <- R6::R6Class(
     # `logical(1)` Whether a status process is declared.
     is_defined = function(value) !is.null(self$strata),
 
-    # `character()` Status labels, in order of first appearance.
+    # `character()` Status labels the rules draw:
+    # * factor `status` -> in its level order;
+    # * character `status` -> in order of first appearance;
     # * integer statuses, or no status process -> empty.
     labels = function(value) {
       status <- self$strata[["status"]]
       if (!is.character(status)) return(character())
-      unique(status[!is.na(status)])
+      if (is.null(private$levels_)) unique(status[!is.na(status)])
+      else intersect(private$levels_, status)
     },
 
     # `integer()` Integer statuses drawn, from 1 to the highest code.
@@ -177,10 +183,11 @@ HousepiStatusProcess <- R6::R6Class(
     # `data.frame` Rule table: covariates, `status`, `weight` and `rule_group`.
     strata = NULL,
 
-    # Record the rule table, labels ordering the statuses by first appearance.
+    # Record the rule table, and the level order of a factor `status`.
     # @param strata `data.frame` Columns `status`, `weight` and covariates.
     set = function(strata) {
       self$strata <- assert_status_strata_(strata)
+      private$levels_ <- levels(strata[["status"]])
       invisible(self)
     },
 
@@ -214,8 +221,12 @@ HousepiStatusProcess <- R6::R6Class(
       n <- if (is.null(dataset)) NA_integer_
       else rule_counts_(self$strata, member_cells_(dataset, covs, levels),
                         status_reserved_cols)
-      cbind(self$strata[c("status", "weight")], n = n,
-            self$strata[c("rule_group", covs)])
+      tbl <- cbind(self$strata[c("status", "weight")], n = n,
+                   self$strata[c("rule_group", covs)])
+      # a factor `status` reads back as given
+      if (!is.null(private$levels_))
+        tbl$status <- factor(tbl$status, levels = private$levels_)
+      tbl
     },
 
     # Encode the rule table for the engine:

@@ -16,7 +16,8 @@ rd_model_out_ <- paste(
 )
 rd_dataset_ <- "`data.frame` Household data, one row per member.
 Column `status` holds integer codes (`0` for escaped members), or labels.
-Definitions keyed on a status name it the same way."
+Definitions keyed on a status name it the same way.
+A definition reads a `Date` column as its number of days, see [base::Dates]."
 rd_mdl_choice_ <- "`character(1)` Model to use, one of:
 \\describe{
   \\item{`<template>`}{a built-in template name;}

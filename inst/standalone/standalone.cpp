@@ -147,6 +147,20 @@ namespace housepi
 
             return output;
         }
+
+        /// Split data `table` into identifiers `id` and `hh_id`, as text, and the other columns, as doubles.
+        std::pair<str_table, dbl_table> data_tables(str_table table)
+        {
+            str_table ids;
+            for (const std::string key : {"id", "hh_id"})
+                if (auto node = table.extract(key))
+                    ids.insert(std::move(node));
+            dbl_table cells;
+            for (const auto &[key, col] : table)
+                for (const std::string &cell : col)
+                    cells[key].push_back(str::tod(cell, "data " + msg::arg(key)));
+            return {std::move(ids), std::move(cells)};
+        }
     }
 
     void Options::read_settings(MCMCBase &model)
@@ -178,7 +192,8 @@ namespace housepi
     {
         try
         {
-            model.chain().data.build_dataset(read::csv_table(file.dataset));
+            const auto [ids, cells] = read::data_tables(read::csv_table(file.dataset));
+            model.chain().data.build_dataset(ids, cells);
         }
         catch (const std::exception &e)
         {
@@ -190,7 +205,8 @@ namespace housepi
     {
         try
         {
-            model.chain().data.build_long_dataset(read::csv_table(file.long_dataset));
+            const auto [ids, cells] = read::data_tables(read::csv_table(file.long_dataset));
+            model.chain().data.build_long_dataset(ids, cells);
         }
         catch (const std::exception &e)
         {

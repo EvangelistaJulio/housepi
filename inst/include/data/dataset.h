@@ -54,8 +54,8 @@ namespace housepi::data
 
         //////  Setter  //////
 
-        /// Build members and households from table `input`.
-        void build(const str_table &input);
+        /// Build members and households from identifiers `ids` and data columns `cells`.
+        void build(const str_table &ids, const dbl_table &cells);
         /// Recover every status.
         void recover_all_status() noexcept;
         /// Declare data columns `produced_cols`, produced by observations, missing for every member.
@@ -142,8 +142,8 @@ namespace housepi::data
         size_t index_of_(std::string_view hh_id) const;
         /// Clear the previous data and report.
         void helper_build_clear_data_();
-        /// Throw if the headers of `input` are malformed.
-        void helper_build_data_headers_(const str_table &input);
+        /// Throw if the headers of `ids` are malformed, register those of `cells`.
+        void helper_build_data_headers_(const str_table &ids, const dbl_table &cells);
         /// Fill the report from the loaded data.
         void build_helper_fill_report_data_();
     };

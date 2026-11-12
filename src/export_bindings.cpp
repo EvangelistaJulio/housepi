@@ -497,17 +497,17 @@ namespace housepi
             mcmc_ptr->defs.param_pins.clear();
         }
 
-        void import_dataset(Rcpp::XPtr<MCMC> mcmc_ptr, SEXP input)
+        void import_dataset(Rcpp::XPtr<MCMC> mcmc_ptr, SEXP ids, SEXP cells)
         {
             mcmc_ptr->detach_data_store();
-            mcmc_ptr->chain().data.build_dataset(rdataframe_to<str_table>(input));
+            mcmc_ptr->chain().data.build_dataset(rdataframe_to<str_table>(ids), rdataframe_to<dbl_table>(cells));
             mcmc_ptr->chain().init_equivalence_class_compression();
         }
 
-        void import_long_dataset(Rcpp::XPtr<MCMC> mcmc_ptr, SEXP input)
+        void import_long_dataset(Rcpp::XPtr<MCMC> mcmc_ptr, SEXP ids, SEXP cells)
         {
             // @todo Decide whether the long dataset should be copy-on-write too.
-            mcmc_ptr->chain().data.build_long_dataset(rdataframe_to<str_table>(input));
+            mcmc_ptr->chain().data.build_long_dataset(rdataframe_to<str_table>(ids), rdataframe_to<dbl_table>(cells));
             mcmc_ptr->chain().data.state.set_evaluated(false);
         }
 

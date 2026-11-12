@@ -9,7 +9,8 @@ measure_ar_by_hh_size(data, escaped = "escaped")
 \arguments{
 \item{data}{\code{data.frame} Household data, one row per member.
 Column \code{status} holds integer codes (\code{0} for escaped members), or labels.
-Definitions keyed on a status name it the same way.}
+Definitions keyed on a status name it the same way.
+A definition reads a \code{Date} column as its number of days, see \link[base:Dates]{base::Dates}.}
 
 \item{escaped}{\code{character(1)} Label of status code \code{0},
 members outside the declared infected statuses,

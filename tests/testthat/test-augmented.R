@@ -981,6 +981,7 @@ test_that("A missing observation leaves the likelihood", {
 
   # a categorical column reaches the engine as integer codes: its empty cell
   # must code to no level, or the density would read the code of a non-value
+  # codes are whole numbers: the observation is a discrete uniform over 0:3
   mk_categorical <- function(x) {
     data.frame(id = c("m1", "m2"), hh_id = "h1", status = 1, record = x) |>
       new_housepi_model("test") |>
@@ -990,7 +991,7 @@ test_that("A missing observation leaves the likelihood", {
     log_lik <- evaluate_log_lik(mk_categorical(c("a", NA))),
     "[Mm]issing for 1 of 2 infected individuals"
   )
-  log_lik |> expect_equal(log(1 / 3))
+  log_lik |> expect_equal(log(1 / 4))
   mk_categorical(c(NA, NA)) |>
     evaluate_log_lik() |>
     expect_error("missing for every infected individual")
@@ -1320,6 +1321,21 @@ test_that("Independence proposal inherits the model location shift", {
   draws <- as.data.frame(get_latent_draws(hh_fit))
   draws$m1_hidden |> expect_all_gte(4) |> expect_all_lte(5)
   draws$m2_hidden |> expect_all_gte(8) |> expect_all_lte(9)
+})
+
+test_that("A latent shadowing a data column is sampled, not read", {
+  # a simulated frame fed back as data carries its latent column
+  hh_fit <- data.frame(id = c("m1", "m2"), hh_id = "h1", status = 1,
+                       hidden = 100, obs = 0) |>
+    new_housepi_model("test") |>
+    add_latent("hidden", model = "uniform", min = 0, max = 1) |>
+    helper_flat_sink(loc = hidden) |>
+    run_inference(steps = 200L, adapt = 0L, chains = 1L) |>
+    suppressWarnings()
+
+  draws <- as.data.frame(get_latent_draws(hh_fit))
+  draws$m1_hidden |> expect_all_gte(0) |> expect_all_lte(1)
+  length(unique(draws$m1_hidden)) |> expect_gt(1L)
 })
 
 test_that("Latent variables moving together sample their models", {

@@ -294,6 +294,22 @@ test_that("Status process generates a labelled status factor in simulation", {
     expect_identical(c("escaped", "symptomatic", "asymptomatic"))
 })
 
+test_that("A factor status of the status process orders the drawn labels", {
+  strata <- data.frame(status = factor(c("asymptomatic", "symptomatic"),
+                                       levels = c("symptomatic",
+                                                  "asymptomatic")),
+                       weight = c(1, 0))
+  hh_model <- add_status_process(mk_outbreak$model, strata = strata)
+  # the rule table reads back as given
+  get_status_process(hh_model)$status |> expect_identical(strata$status)
+
+  simulated <- run_simulation(hh_model)
+  levels(simulated$status) |>
+    expect_identical(c("escaped", "symptomatic", "asymptomatic"))
+  as.character(simulated$status[simulated$status != "escaped"]) |>
+    expect_all_equal("asymptomatic")
+})
+
 test_that("Unnamed status probabilities draw integer status codes", {
   simulated <- mk_outbreak$model |>
     add_status_process(0, 1, 0, 0) |>

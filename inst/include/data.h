@@ -53,11 +53,15 @@ namespace housepi
             state.reset_readcells(dataset());
         }
 
-        /// Build the dataset from `input`, then reset the read-cells over it.
+        /// Build the dataset from identifiers `ids` and data columns `cells`,
+        /// then reset the read-cells over it.
         /// * equivalence-class keys of definitions cleared.
-        void build_dataset(const str_table &input);
-        /// Build the long dataset from `input`, matched to the dataset.
-        void build_long_dataset(const str_table &input) { long_dataset().build(dataset(), input); }
+        void build_dataset(const str_table &ids, const dbl_table &cells);
+        /// Build the long dataset from `ids` and `cells`, matched to the dataset.
+        void build_long_dataset(const str_table &ids, const dbl_table &cells)
+        {
+            long_dataset().build(dataset(), ids, cells);
+        }
 
         /// Point every read-cell back at its imported value.
         /// * `produced_cols`: data columns produced by observations, declared alongside.

@@ -50,8 +50,8 @@ test_that("Data provided at construction is exposed via get_dataset", {
 
   # id automatically added
   hh_data$id |> expect_identical(as.character(seq_len(nrow(hh_data))))
-  # hh_id cast to character
-  hh_data$hh_id |> expect_identical(as.character(flu_1918_baltimore$hh_id))
+  # hh_id keeps its class
+  hh_data$hh_id |> expect_identical(flu_1918_baltimore$hh_id)
   # statuses are integer
   hh_data$status |> expect_identical(flu_1918_baltimore$status)
 })

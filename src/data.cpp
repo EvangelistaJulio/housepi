@@ -49,9 +49,9 @@ namespace housepi
                   model.house_double_mtx_keys()),
           long_dataset(model.long_keys()) {}
 
-    void Data::build_dataset(const str_table &input)
+    void Data::build_dataset(const str_table &ids, const dbl_table &cells)
     {
-        dataset().build(input);
+        dataset().build(ids, cells);
         state.reset_readcells(dataset());
         // definitions push their keys again over the new data
         for (Source source : {Source::GroupRate, Source::ContactRate, Source::Latent})
@@ -271,13 +271,13 @@ namespace housepi::data
 {
     //////////////////////////////  data::Dataset  //////////////////////////////
 
-    void Dataset::build(const str_table &input)
+    void Dataset::build(const str_table &ids, const dbl_table &cells)
     {
         clear_optional_();
 
         helper_build_clear_data_();
-        helper_build_data_headers_(input);
-        report_indiv.total = count_rows(input);
+        helper_build_data_headers_(ids, cells);
+        report_indiv.total = std::max(count_rows(ids), count_rows(cells));
         if (report_indiv.total > std::numeric_limits<IndivIdx>::max())
             msg::stop(
                 "Data exceeded the maximum of " +
@@ -298,25 +298,25 @@ namespace housepi::data
             // individual context for reading errors
             std::string err_ctx = " for individual in row n." + std::to_string(i + 1);
 
-            if (input.count("id"))
+            if (ids.count("id"))
             {
-                id = input.at("id")[i];
+                id = ids.at("id")[i];
                 if (na::is(id))
                     msg::stop("Missing identifier " + msg::field("id") + err_ctx + ".");
                 err_ctx = " for individual " + msg::val(id);
             }
-            if (input.count("hh_id"))
+            if (ids.count("hh_id"))
             {
-                hh_id = input.at("hh_id")[i];
+                hh_id = ids.at("hh_id")[i];
                 if (na::is(hh_id))
                     msg::stop("Missing household identifier " + msg::field("hh_id") + err_ctx + ".");
             }
-            if (input.count("status"))
+            if (cells.count("status"))
             {
                 // note: NA status is a missing status
-                if (!na::is(input.at("status")[i]))
+                const double s = cells.at("status")[i];
+                if (!na::is(s))
                 {
-                    const int s = str::toi(input.at("status")[i], "individual status");
                     if (s < 0)
                         msg::stop(
                             "Negative status found " + err_ctx +
@@ -337,10 +337,8 @@ namespace housepi::data
                 double &x = indiv_values_[i * n_cols + d];
 
                 // model-required column absent at import: missing, reported at the run wall
-                x = na::DOUBLE;
-
-                if (input.count(dname))
-                    x = str::tod(input.at(dname)[i], "data " + msg::arg(dname));
+                const auto col = cells.find(dname);
+                x = col == cells.end() ? na::DOUBLE : col->second[i];
 
                 // a missing cell carries no verdict, its absence is reported at the run wall
                 if (na::is(x))
@@ -436,22 +434,20 @@ namespace housepi::data
         report_house = ReportHousehold();
     }
 
-    void Dataset::helper_build_data_headers_(const str_table &input)
+    void Dataset::helper_build_data_headers_(const str_table &ids, const dbl_table &cells)
     {
-        std::vector<std::string> headers = extract_keys(input);
-
         // assess the presence of house IDs
-        if (!vect::contains(headers, "hh_id"))
+        if (!ids.count("hh_id"))
             msg::warn("Ignored household structure.\n" +
                       msg::alert("Missing data column " + msg::field("hh_id") + "."));
 
         // assess individual IDs are unique
-        if (vect::contains(headers, "id") &&
-            input.at("id").size() != str::unique(input.at("id")).size())
+        if (ids.count("id") && ids.at("id").size() != str::unique(ids.at("id")).size())
             msg::stop("Provided individual IDs are not unique.");
 
         // remove standard headers
-        vect::remove(headers, {"id", "hh_id", "status"});
+        std::vector<std::string> headers = extract_keys(cells);
+        vect::remove(headers, {"status"});
 
         // add optional keys to registry
         for (const std::string &datastring : headers)
@@ -656,15 +652,16 @@ namespace housepi::data
     //////////////////////////////  data::LongDataset  //////////////////////////////
 
     void LongDataset::build(Dataset &dataset,
-                            const str_table &input)
+                            const str_table &ids,
+                            const dbl_table &cells)
     {
         clear_optional_();
 
-        if (input.empty())
+        if (ids.empty() && cells.empty())
             return;
 
         helper_build_clear_data_();
-        helper_build_data_headers_(dataset, input);
+        helper_build_data_headers_(dataset, ids, cells);
 
         // data-long allocation
         size_t n_indiv = dataset.report_indiv.total;
@@ -677,10 +674,10 @@ namespace housepi::data
                 id_to_index.emplace(dataset.id(indiv), Index::of(indiv));
 
         // load individual data list
-        size_t n_rows = count_rows(input);
-        for (size_t r = 0; r < n_rows; ++r)
+        const std::vector<std::string> &id_col = ids.at("id");
+        for (size_t r = 0; r < id_col.size(); ++r)
         {
-            const std::string &id = input.at("id")[r];
+            const std::string &id = id_col[r];
             if (na::is(id))
                 msg::stop(
                     "Invalid id found in row n." + std::to_string(r + 1) + ".");
@@ -692,33 +689,27 @@ namespace housepi::data
             auto &idat = indiv_datalist[id_to_index.at(id)];
             idat.resize(size());
             for (size_t d = 0; d < size(); ++d)
-            {
-                const std::string &dstr = consult(d);
-                idat[d].emplace_back(
-                    str::tod(input.at(dstr)[r], "long dataset column " + msg::arg(dstr)));
-            }
+                idat[d].emplace_back(cells.at(consult(d))[r]);
         }
     }
 
     void LongDataset::helper_build_clear_data_() { indiv_datalist.clear(); }
 
     void LongDataset::helper_build_data_headers_(const Dataset &dataset,
-                                                 const str_table &input)
+                                                 const str_table &ids,
+                                                 const dbl_table &cells)
     {
         if (dataset.is_empty())
             msg::stop(
                 "Long dataset attached before the dataset.");
 
-        std::vector<std::string> headers = extract_keys(input);
         // check for individual IDs
-        if (!vect::contains(headers, "id"))
+        if (!ids.count("id"))
             msg::stop(
                 "Individual identifier column " + msg::arg("id") + " was missing.");
-        // remove 'id'
-        vect::remove(headers, {"id"});
 
         // add optional keys to registry
-        for (const std::string &datastring : headers)
+        for (const std::string &datastring : extract_keys(cells))
             add_(datastring);
     }
 }

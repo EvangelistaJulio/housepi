@@ -28,8 +28,8 @@ namespace housepi::data
         /// Member rows, by member index.
         std::vector<IndivRows> indiv_datalist = {};
 
-        /// Build member rows from table `input`, matched on `id` to `dataset`.
-        void build(Dataset &dataset, const str_table &input);
+        /// Build member rows from data columns `cells`, matched on `ids` column `id` to `dataset`.
+        void build(Dataset &dataset, const str_table &ids, const dbl_table &cells);
 
         /// Rows of member `indiv`.
         const IndivRows *rows_of(const Individual &indiv) const noexcept
@@ -40,8 +40,9 @@ namespace housepi::data
     private:
         /// Clear the previous rows.
         void helper_build_clear_data_();
-        /// Throw if the headers of `input` are malformed.
+        /// Throw if `ids` misses column `id`, register the headers of `cells`.
         void helper_build_data_headers_(const Dataset &dataset,
-                                        const str_table &input);
+                                        const str_table &ids,
+                                        const dbl_table &cells);
     };
 }
