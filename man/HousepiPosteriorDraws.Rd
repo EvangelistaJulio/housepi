@@ -37,7 +37,7 @@ and \code{log_lik} contracts to transmission alone.
 hh_fit <- flu_1918_frederick |>
   new_housepi_model("final-size") |>
   add_parameter(import = "template") |>
-  run_inference(chains = 2)
+  run_inference()
 hh_fit
 get_parameter_draws(hh_fit)
 }

@@ -12,7 +12,7 @@ on simulated household studies.
 hh_model <- flu_1918_frederick |>
   new_housepi_model("final-size") |>
   add_parameter(import = "template")
-hh_fit <- run_inference(hh_model, chains = 2)
+hh_fit <- run_inference(hh_model)
 
 # a user-defined measure: the overall attack rate
 overall_ar <- function(data) mean(data$status > 0)

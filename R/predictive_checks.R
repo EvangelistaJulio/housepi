@@ -296,7 +296,7 @@ draws_source_ <- function(draws, hh_model) {
 #' hh_model <- flu_1918_frederick |>
 #'   new_housepi_model("final-size") |>
 #'   add_parameter(import = "template")
-#' hh_fit <- run_inference(hh_model, chains = 2)
+#' hh_fit <- run_inference(hh_model)
 #'
 #' # a user-defined measure: the overall attack rate
 #' overall_ar <- function(data) mean(data$status > 0)
@@ -656,7 +656,7 @@ ppc_format_cases_distr <- function(measure, min_hh_size = NA,
 #' hh_model <- flu_1918_frederick |>
 #'   new_housepi_model("final-size") |>
 #'   add_parameter(import = "template")
-#' hh_fit <- run_inference(hh_model, chains = 2)
+#' hh_fit <- run_inference(hh_model)
 #'
 #' ppc <- check_predictive(hh_model, hh_fit, nrep = 50)
 #' ppc$format_attack_rate()
@@ -823,7 +823,7 @@ HousepiEpiPredictiveCheck <- R6::R6Class(
 #' hh_model <- flu_1918_frederick |>
 #'   new_housepi_model("final-size") |>
 #'   add_parameter(import = "template")
-#' hh_fit <- run_inference(hh_model, chains = 2)
+#' hh_fit <- run_inference(hh_model)
 #'
 #' ppc <- check_predictive(hh_model, hh_fit, nrep = 50)
 #' ppc

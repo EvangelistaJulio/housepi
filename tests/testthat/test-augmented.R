@@ -1608,9 +1608,10 @@ test_that("Bounds of a bare latent read neither draws nor free parameters", {
   hh_fit <- mk_onset$model |>
     add_latent(incub_period = list(model = "gamma", shape = 2, scale = 1),
                infec_time = list(min = -14, max = onset_date + 1),
-               onset_time = infec_time + incub_period, append = FALSE) |>
+               append = FALSE) |>
     add_observation("onset_date", model = "normal", discr = TRUE,
-                    mean = onset_time, sd = 1, min = floor(onset_time)) |>
+                    mean = infec_time + incub_period, sd = 1,
+                    min = floor(infec_time)) |>
     run_inference(steps = 10L, thin = 1L, adapt = 0L, chains = 1L,
                   progress = FALSE, warn = FALSE)
   get_log_lik_draws(hh_fit)$h1 |> expect_all_finite()

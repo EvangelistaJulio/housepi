@@ -150,7 +150,7 @@ tag_rcpp_draws_ <- function(df, chain) {
 #' hh_fit <- flu_1918_frederick |>
 #'   new_housepi_model("final-size") |>
 #'   add_parameter(import = "template") |>
-#'   run_inference(chains = 2)
+#'   run_inference()
 #'
 #' # all parameters and stored latent variables
 #' summarise_draws(hh_fit)
@@ -327,7 +327,7 @@ count_diagnostics_ <- function(blocks) {
 #' hh_fit <- flu_1918_frederick |>
 #'   new_housepi_model("final-size") |>
 #'   add_parameter(import = "template") |>
-#'   run_inference(chains = 2)
+#'   run_inference()
 #' hh_fit
 #' get_parameter_draws(hh_fit)
 #' @docType class
@@ -465,8 +465,8 @@ HousepiPosteriorDraws <- R6::R6Class(
 #' hh_model <- flu_1918_frederick |>
 #'   new_housepi_model("final-size") |>
 #'   add_parameter(import = "template")
-#' hh_fit <- run_inference(hh_model, chains = 2)
-#' hh_fit_2 <- run_inference(hh_model, chains = 2)
+#' hh_fit <- run_inference(hh_model)
+#' hh_fit_2 <- run_inference(hh_model)
 #' c(hh_fit, hh_fit_2)
 #' @name combine_draws
 #' @export
@@ -573,7 +573,7 @@ stopifnotdraws <- function(hh_fit) {
 #' hh_fit <- flu_1918_frederick |>
 #'   new_housepi_model("final-size") |>
 #'   add_parameter(import = "template") |>
-#'   run_inference(chains = 2)
+#'   run_inference()
 #' get_parameter_draws(hh_fit, c("alpha", "beta"))
 #'
 #' # parameters, pointwise log_lik and lprior side by side

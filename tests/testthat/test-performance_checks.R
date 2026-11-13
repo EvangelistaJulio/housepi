@@ -493,12 +493,11 @@ test_that("Case-ascertained inference recovers the simulating parameters", {
     add_infectivity_profile(import = "template") |>
     add_latent(
       infec_time = list(min = start_date - 14, max = end_date),
-      incub_period = list(model = "gamma", mean = 2, sd = 1, max = 14),
-      onset_time = infec_time + incub_period
+      incub_period = list(model = "gamma", mean = 2, sd = 1, max = 14)
     ) |>
     add_observation(
-      onset_date = list(discr = TRUE, model = "normal",
-                        mean = onset_time, sd = 1, min = floor(onset_time)),
+      onset_date = list(discr = TRUE, model = "normal", min = floor(infec_time),
+                        mean = infec_time + incub_period),
       start_date = list(func = min(onset_date), level = "house"),
       end_date = start_date + 21
     ) |>

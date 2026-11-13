@@ -180,7 +180,7 @@ calibration$overview
 hh_model <- flu_1918_frederick |>
   new_housepi_model("final-size") |>
   add_parameter(import = "template")
-hh_fit <- run_inference(hh_model, chains = 2)
+hh_fit <- run_inference(hh_model)
 calibration <- check_calibration(hh_model, hh_fit, nrep = 2, houses = 30,
                                  structure_sampler = sample_house_structure)
 calibration

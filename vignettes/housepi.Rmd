@@ -157,20 +157,18 @@ We can call `add_parameter()` as follows:
 
 # single parameter definitions
 hh_model <- hh_model |>
-  # baseline community transmission rate
-  add_parameter(
-    name = "alpha",   # name matching the model requirement
-    prior = "uniform" # uniform prior
-  ) |>
-  # within-household baseline person-to-person transmission rate
+  # alpha: baseline community transmission rate
+  # name: matching the model requirement
+  # prior: uniform with default arguments, min = 0, max = 1
+  add_parameter(name = "alpha", prior = "uniform") |>
+  # beta: baseline person-to-person transmission rate
   add_parameter("beta", prior = "uniform")
 
 # append parameters using multiple definitions
 hh_model <- hh_model |>
-  add_parameter(
-    hh_size_ref = 6L,                # constant reference household size
-    gamma = list(prior = "uniform") # size-scaling of person-to-person rate
-  )
+  # hh_size_ref: reference household size, constant value
+  # gamma: size-scaling of person-to-person rate
+  add_parameter(hh_size_ref = 6L, gamma = list(prior = "uniform"))
 
 # inspect parameter definitions
 hh_model |> get_parameters()
@@ -259,16 +257,12 @@ hh_model <- hh_model |>
     # sampled in inference within these bounds
     infec_time = list(min = start_date - 14, max = onset_date + 1),
     # incubation period for each individual
-    incub_period = list(model = "gamma", mean = 2, sd = 1, max = 14),
-    # onset time is deterministic
-    onset_time = infec_time + incub_period
+    incub_period = list(model = "gamma", mean = 2, sd = 1, max = 14)
   ) |>
   add_observation(
-    # observation of onset date is noisy around the real onset time
-    onset_date = list(
-      discr = TRUE, model = "normal",
-      mean = onset_time, sd = 1, min = floor(onset_time)
-    ),
+    # observation of onset date noisy around the real onset time
+    onset_date = list(discr = TRUE, model = "normal", min = floor(infec_time),
+                      mean = infec_time + incub_period),
     # followup starts with earliest onset date (house-level observation)
     start_date = list(func = min(onset_date), level = "house"),
     # followup ends after 3 weeks after first onset
@@ -298,10 +292,10 @@ Simulations associate latent incubation periods, infection times and sampled ons
 ```{r}
 #| label: run-simulation
 # parameter values of the simulation
-sim_values <- data.frame(alpha = 1e-3, beta = 0.15, gamma = 1)
+sim_values <- c(alpha = 1e-3, beta = 0.15, gamma = 1)
 
 # the onset_date observation is sampled automatically
-simulated <- hh_model |> run_simulation(draws = sim_values)
+simulated <- hh_model |> run_simulation(sim_values)
 
 head(simulated)
 ```
@@ -343,7 +337,7 @@ param_draws <- get_parameter_draws(hh_fit)
 
 # original parameters used for the simulation
 simul_parameters <- data.frame(parameter = names(sim_values),
-                               simulated = unlist(sim_values))
+                               simulated = sim_values)
 
 # use bayesplot to plot the posterior draws
 bayesplot::mcmc_trace(param_draws, facet_args = list(ncol = 1)) +

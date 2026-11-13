@@ -97,8 +97,7 @@ R-hat and bulk ESS are the rank-normalized ones of
 flu_1918_frederick |>
   new_housepi_model("final-size") |>
   add_parameter(import = "template") |>
-  run_inference(steps = 50, thin = 2,
-                chains = 2) |>
+  run_inference(steps = 5000) |>
   get_parameter_draws() |>
   posterior::summarize_draws()
 }

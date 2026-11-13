@@ -125,14 +125,12 @@ hh_model <- sarscov2_2021_icofs |>
   new_housepi_model("case-ascertained") |>
   add_parameter(import = "template") |>
   add_infectivity_profile(import = "template") |>
-  add_latent(
-    infec_time = list(min = end_date - 31, max = end_date),
-    incub_period = list(model = "gamma", mean = 3, sd = 1.4),
-    onset_time = infec_time + incub_period
-  ) |>
+  add_latent(infec_time = list(min = end_date - 31, max = end_date),
+             incub_period = list(model = "gamma", mean = 3, sd = 1.4)) |>
   # member level: the test date is noisy around the onset time
   add_observation("test_date", model = "normal",
-                  mean = onset_time, sd = 1, min = floor(onset_time)) |>
+                  mean = infec_time + incub_period, sd = 1,
+                  min = floor(infec_time)) |>
   # house level: the earliest positive test among members
   add_observation("first_test", func = min(test_date), level = "house")
 get_observations(hh_model)
