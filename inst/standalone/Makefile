@@ -138,7 +138,6 @@ $(BUILD):
 # To clean objects
 clean:
 	$(RM) -r build
-	$(RM) ../models/*/model.cpp
 
 # Run make in debugging mode
 debug: all

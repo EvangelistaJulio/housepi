@@ -1,0 +1,33 @@
+/* housepi - Epidemiological Analysis of Household Outbreaks.
+ * Copyright 2024-2026 Institut Pasteur (Paris), France.
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
+
+//////////////////////////////  test  //////////////////////////////
+
+#include "housepi.h"
+
+#ifndef _HOUSEPI_MODULE
+#define _HOUSEPI_MODULE test
+#endif
+
+HOUSEPI_OPEN_MODULE_NAMESPACE()
+/// Blank model: unit likelihood, latents initialized in simulation.
+class Model final : public ModelBase
+{
+public:
+    /// Return a null log-likelihood: unit likelihood.
+    double compute_house_transm_log_lik(const Household &) override final { return 0.; }
+
+    /// Initialize the latent variables of infected members.
+    void simulate_single_house(Household &house) override final
+    {
+        for (MemberIdx i = 0; i < house.size(); ++i)
+        {
+            Individual &indiv = house.at(i);
+            if (indiv.is_infected_status())
+                init_missing_latent(indiv);
+        }
+    }
+};
+HOUSEPI_CLOSE_MODULE_NAMESPACE()

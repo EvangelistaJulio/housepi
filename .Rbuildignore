@@ -13,10 +13,6 @@
 ^covr$
 ^.*\.Rproj$
 ^\.Rproj\.user$
-^cleanup$
-^cleanup.win$
-^src/Makevars$
-^src/Makevars\.win$
 ^doc$
 ^vignettes/articles$
 ^pkgdown$

@@ -51,8 +51,6 @@ Thumbs.db
 *.Rcheck/
 *.Rcheck/**
 .Rproj.user
-/src/Makevars
-/src/Makevars.win
 /public/
 /doc/
 /docs/
@@ -74,7 +72,6 @@ CLAUDE.md
 
 # Package files #
 #################
-/inst/models/*/model.cpp
 /inst/models/*/model.exe
 /inst/standalone/build/
 /inst/standalone/profile/
