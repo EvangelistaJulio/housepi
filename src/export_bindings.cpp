@@ -1169,17 +1169,18 @@ namespace housepi
         /// * household -> its variables, then the sampler.
         Rcpp::List export_state(Rcpp::XPtr<MCMC> mcmc_ptr, const std::string &hh_id)
         {
+            if (na::is(hh_id))
+                return Rcpp::List::create(
+                    Rcpp::_["parameters"] = rcpp_snapshot_param(mcmc_ptr),
+                    Rcpp::_[".sampler"] = rcpp_snapshot_sampler(mcmc_ptr, nullptr));
+
+            if (mcmc_ptr->chain().data.dataset().is_empty())
+                return Rcpp::List::create();
+
+            // unknown household -> error raised as is, outside the household tag below
+            const Household &house = mcmc_ptr->chain().data.dataset().at(hh_id);
             try
             {
-                if (na::is(hh_id))
-                    return Rcpp::List::create(
-                        Rcpp::_["parameters"] = rcpp_snapshot_param(mcmc_ptr),
-                        Rcpp::_[".sampler"] = rcpp_snapshot_sampler(mcmc_ptr, nullptr));
-
-                if (mcmc_ptr->chain().data.dataset().is_empty())
-                    return Rcpp::List::create();
-
-                const Household &house = mcmc_ptr->chain().data.dataset().at(hh_id);
                 const Augmented &augm = mcmc_ptr->chain().augm;
                 data::State &state = mcmc_ptr->chain().data.state;
 

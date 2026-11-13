@@ -150,14 +150,12 @@ ppc_frame_apply <- function(frame_list, func, name = NA_character_) {
     # column-wise, for possibly mixed types
     nr <- nrow(elem_n1)
 
-    output <- as.data.frame(stats::setNames(
-      lapply(seq_len(ncol(elem_n1)), function(x) {
-        apply(matrix(unlist(lapply(frame_list, `[[`, x)), nrow = nr), 1L, func)
-      }),
-      colnames(elem_n1)
-    ), check.names = FALSE)
-    rownames(output) <- rownames(elem_n1)
+    output <- as.data.frame(lapply(seq_len(ncol(elem_n1)), function(x) {
+      apply(matrix(unlist(lapply(frame_list, \(f) f[, x])), nrow = nr),
+            1L, func)
+    }), col.names = seq_len(ncol(elem_n1)))
     if (!is.data.frame(elem_n1)) output <- as.matrix(output)
+    dimnames(output) <- dimnames(elem_n1)
   }
 
   output
@@ -314,7 +312,6 @@ HousepiPredictiveCheck <- R6::R6Class(
   ####  Private  ####
 
   private = list(
-    deep_clone = function(name, value) helper_clone(value),
     cri_level_ = 0.9,
     point_estimate_ = "median",
     nrep_ = NA_integer_,
@@ -670,7 +667,6 @@ HousepiEpiPredictiveCheck <- R6::R6Class(
   ####  Private  ####
 
   private = list(
-    deep_clone = function(name, value) helper_clone(value),
     min_hh_size_ = NA_integer_,
     max_hh_size_ = NA_integer_,
     house_counts_ = NULL,

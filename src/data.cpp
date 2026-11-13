@@ -417,8 +417,7 @@ namespace housepi::data
     {
         auto it = hh_id_to_index_.find(hh_id);
         if (it == hh_id_to_index_.end())
-            msg::stop(
-                "Index " + msg::val(std::string(hh_id)) + " did not match any household in the data.");
+            msg::stop("Household " + msg::val(std::string(hh_id)) + " is not in the data.");
         return it->second;
     }
 

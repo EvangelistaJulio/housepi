@@ -17,6 +17,7 @@ add_long_dataset(hh_model, data)
 \description{
 Make an internal copy of member data with any number of rows per member,
 such as repeated tests over time, matched to the dataset on \code{id}.
+A long dataset missing a column the model reads is refused.
 }
 \examples{
 # repeated measures of one individual, matched on `id`

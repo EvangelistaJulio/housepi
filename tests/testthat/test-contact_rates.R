@@ -55,6 +55,8 @@ test_that("Contact rates pair counts are computed correctly", {
   # no household structure, no pair to count
   contact_rate_logic_table(data.frame(age = c("child", "adult")), "age") |>
     expect_null()
+  pair_cells_(data.frame(age = c("child", "adult")), "age") |>
+    expect_nrow(0L)
 })
 
 test_that("Pair counts drop the member meeting itself", {

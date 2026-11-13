@@ -9,8 +9,6 @@ key_sep_ <- "\x1F"
 #' Hash the `cols` of each row of `x` into one key.
 #' @noRd
 row_keys_ <- function(x, cols) {
-  # no column: every row shares one key
-  if (!length(cols)) return(rep(key_sep_, nrow(x)))
   do.call(paste, c(lapply(x[cols], as.character), list(sep = key_sep_)))
 }
 
@@ -61,14 +59,6 @@ template_def_files <- c(parameter = "param.R",
                         latent = "latent.R",
                         `infectivity profile` = "infecprof.R",
                         `status process` = "status.R")
-
-# Deep clone R6 objects.
-helper_clone <- function(x) {
-  if (is.data.frame(x)) x[TRUE, , drop = FALSE]
-  else if (is.list(x)) lapply(x, helper_clone)
-  else if (inherits(x, "R6")) x$clone(deep = TRUE)
-  else x
-}
 
 #' Names of the entries of named list `a` that differ from those of `b`.
 #' @noRd

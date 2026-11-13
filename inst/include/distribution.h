@@ -154,8 +154,6 @@ namespace housepi
             {
             case Discrete::None:
                 return raw_log_ratio_(xo, xn);
-            case Discrete::Center:
-                return std::log(discr_func_center_(xn)) - std::log(discr_func_center_(xo));
             case Discrete::Left:
                 return std::log(discr_func_left_(xn)) - std::log(discr_func_left_(xo));
             // Discrete::Defined:
@@ -182,8 +180,6 @@ namespace housepi
         {
             switch (discr_mode_)
             {
-            case Discrete::Center:
-                return static_cast<double>(std::lround(x));
             case Discrete::Left:
                 return std::floor(x);
             // cases Discrete::Defined, Discrete::None

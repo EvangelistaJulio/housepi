@@ -214,13 +214,19 @@ test_that("Custom models share function registries", {
   func$log_func(x) |> expect_error("undefined")
 })
 
-# a folder named `model` holding the custom example, its engine scoring
-# -scale * alpha and its `growth` scaled by `scale`
+# a folder named `model` holding the custom example:
+# * engine scoring -scale * alpha;
+# * `growth` scaled by `scale`;
+# * long-data column `datum` declared.
 make_custom_folder <- function(scale) {
   path <- file.path(tempfile(), "model")
   dir.create(path, recursive = TRUE)
   system.file("examples", "custom", "model.cpp", package = "housepi") |>
     readLines() |>
+    sub(pattern = "HOUSEPI_DECLARE_PARAM_KEYS(alpha)",
+        replacement = paste("HOUSEPI_DECLARE_PARAM_KEYS(alpha)",
+                            "HOUSEPI_DECLARE_LONG_KEYS(datum)"),
+        fixed = TRUE) |>
     sub(pattern = "-par(Param::alpha)",
         replacement = paste0("-", scale, " * par(Param::alpha)"),
         fixed = TRUE) |>
@@ -237,9 +243,10 @@ test_that("Model folders sharing a name keep their own engine and functions", {
   # the second source predates the first build: its hash, not its
   # timestamp, triggers the rebuild
   Sys.setFileTime(file.path(paths[2], "model.cpp"), Sys.time() - 3600)
-  hh_data <- data.frame(hh_id = "h1", status = 0)
+  hh_data <- data.frame(id = "m1", hh_id = "h1", status = 0)
   log_lik <- function(hh_model) {
     hh_model |>
+      add_long_dataset(data.frame(id = "m1", datum = 1)) |>
       add_parameter("alpha", const = 1) |>
       add_latent(proba = list(model = "uniform", min = 0, max = 1)) |>
       evaluate_log_lik()
@@ -273,9 +280,10 @@ test_that("Model folders sharing a name keep their own engine and functions", {
 test_that("Runs combine across folders of one engine, never across engines", {
   paths <- vapply(c(1, 1, 2), make_custom_folder, "")
   on.exit(unlink(dirname(paths), recursive = TRUE), add = TRUE)
-  hh_data <- data.frame(hh_id = "h1", status = 0)
+  hh_data <- data.frame(id = "m1", hh_id = "h1", status = 0)
   fit <- function(path) {
     suppressMessages(new_housepi_model(hh_data, path, quiet = TRUE)) |>
+      add_long_dataset(data.frame(id = "m1", datum = 1)) |>
       add_parameter("alpha", prior = "normal", mean = 1, sd = 2) |>
       add_latent(proba = list(model = "uniform", min = 0, max = 1)) |>
       run_inference(steps = 20, adapt = 0, chains = 1,
@@ -291,6 +299,32 @@ test_that("Runs combine across folders of one engine, never across engines", {
                  "[Cc]onvergence diagnostics flagged")
   posterior::nchains(get_parameter_draws(hh_fit_4)) |> expect_identical(2L)
   c(hh_fit, hh_fit_3) |> expect_error("differ in.*model")
+})
+
+test_that("Long-data columns a model declares are required", {
+  # same source as a folder built above -> its loaded build reused
+  path <- make_custom_folder(1)
+  on.exit(unlink(dirname(path), recursive = TRUE), add = TRUE)
+  hh_model <- data.frame(id = "m1", hh_id = "h1", status = 0) |>
+    new_housepi_model(path, quiet = TRUE) |>
+    suppressMessages() |>
+    add_parameter("alpha", const = 1) |>
+    add_latent(proba = list(model = "uniform", min = 0, max = 1))
+
+  # no long data -> reported, then refused at the wall
+  helper_print_lines(print(hh_model)) |>
+    expect_match("Long data: there is 1 missing long data column", all = FALSE)
+  hh_model |>
+    evaluate_log_lik() |>
+    expect_error("missing long data column.*datum.*[Rr]equired by transmission")
+  # long data without the column -> refused as attached
+  hh_model |>
+    add_long_dataset(data.frame(id = "m1", other = 1)) |>
+    expect_error("missing long data column.*datum")
+  hh_model |>
+    add_long_dataset(data.frame(id = "m1", datum = 1)) |>
+    evaluate_log_lik() |>
+    expect_equal(-1)
 })
 
 test_that("A failed relink to the loaded housepi stops the build", {

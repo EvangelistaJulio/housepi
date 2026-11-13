@@ -353,7 +353,6 @@ namespace housepi
         enum class Discrete : std::uint8_t
         {
             None,
-            Center,
             Left,
             Defined
         };
@@ -625,7 +624,7 @@ namespace housepi
         virtual double raw_primitive_(double /*x*/) const { raise_undefined_call_err_("primitive"); }
         /// Raw complementary cumulative distribution, 1 - cdf.
         ///
-        /// * continuous distribution -> a tail-accurate closed form, read by Center and Left discretization;
+        /// * continuous distribution -> a tail-accurate closed form, read by Left discretization;
         /// * any other -> undefined.
         virtual double raw_ccdf_(double /*x*/) const { raise_undefined_call_err_("ccdf"); }
 
@@ -637,9 +636,6 @@ namespace housepi
             {
             case Discrete::None:
                 y = raw_function_(x);
-                break;
-            case Discrete::Center:
-                y = discr_func_center_(x);
                 break;
             case Discrete::Left:
                 y = discr_func_left_(x);
@@ -660,9 +656,6 @@ namespace housepi
             {
             case Discrete::None:
                 y = raw_log_func_(x);
-                break;
-            case Discrete::Center:
-                y = std::log(discr_func_center_(x));
                 break;
             case Discrete::Left:
                 y = std::log(discr_func_left_(x));
@@ -727,8 +720,6 @@ namespace housepi
             {
             case Discrete::Defined:
                 return raw_primitive_(std::ceil(domain_.min.value()) - 1.);
-            case Discrete::Center:
-                return raw_primitive_(std::ceil(domain_.min.value()) - 0.5);
             case Discrete::Left:
                 return raw_primitive_(std::ceil(domain_.min.value()));
             // case Discrete::None:
@@ -745,8 +736,6 @@ namespace housepi
             {
             case Discrete::Defined:
                 return raw_primitive_(std::floor(domain_.max.value()));
-            case Discrete::Center:
-                return raw_primitive_(std::floor(domain_.max.value()) + 0.5);
             case Discrete::Left:
                 return raw_primitive_(std::floor(domain_.max.value()) + 1.);
             // case Discrete::None:
@@ -786,8 +775,6 @@ namespace housepi
             {
             case Discrete::Defined:
                 return std::floor(x);
-            case Discrete::Center:
-                return std::round(x) + 0.5;
             case Discrete::Left:
                 return std::floor(x) + 1.;
             default:
@@ -795,8 +782,6 @@ namespace housepi
             }
         }
 
-        /// Mass of the unit bin centered on `x`.
-        double discr_func_center_(double x) const { return discr_bin_(std::round(x) - 0.5); }
         /// Mass of the unit bin starting at floor(`x`).
         double discr_func_left_(double x) const { return discr_bin_(std::floor(x)); }
 

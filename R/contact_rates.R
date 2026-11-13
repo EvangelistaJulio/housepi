@@ -248,8 +248,6 @@ HousepiContactRate <- R6::R6Class(
   ####  Private  ####
 
   private = list(
-    deep_clone = function(name, value) helper_clone(value),
-
     # Add a definition in automatic mode.
     helper_auto_add_ = function(by, reference, prefix, joint, symmetric) {
       # validate covariates

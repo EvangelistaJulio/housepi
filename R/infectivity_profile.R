@@ -11,12 +11,6 @@ HousepiInfecProfile <- R6::R6Class(
   classname = "HousepiInfecProfile",
   cloneable = TRUE,
 
-  ####  Private  ####
-
-  private = list(
-    deep_clone = function(name, value) helper_clone(value)
-  ),
-
   ####  Public  ####
 
   public = list(
@@ -125,8 +119,10 @@ HousepiInfecProfile <- R6::R6Class(
 
       # append func_args if not present
       i <- which(names(output) == "func")
-      if (names(output)[i + 1] != "func_args")
-        output <- append(output, list(func_args = NA), after = i)
+      if (names(output)[i + 1] != "func_args") {
+        output <- cbind(output[seq_len(i)], func_args = NA, output[-seq_len(i)])
+        output$func_args <- as.list(output$func_args)
+      }
       output
     }
   )

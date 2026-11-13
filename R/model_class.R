@@ -269,6 +269,11 @@ HousepiModel <- R6::R6Class(
       )
     },
 
+    # Long-data columns required by the model.
+    get_required_long_dataset_ = function() {
+      private$required_of_model_(.engine$long_keys)
+    },
+
     # Group rates required by the model and by other definitions.
     get_required_group_rates_ = function() {
       c(
@@ -345,6 +350,16 @@ HousepiModel <- R6::R6Class(
       wall_or_return_(sms, wall)
     },
 
+    # Assert long-data columns `cols` hold those required by the model.
+    # * `wall` -> error, else the messages are returned.
+    assert_long_dataset_ = function(wall = TRUE,
+                                    cols = private$coding_$long_dataset$cols) {
+      sms <- definition_missing_stop(private$get_required_long_dataset_(),
+                                     cols, "long data",
+                                     noun = "column", style = "field")
+      wall_or_return_(sms, wall)
+    },
+
     # Assert the model reads every group rate defined.
     assert_group_rates_ = function() {
       private$group_rates_$assert(private$get_required_group_rates_())
@@ -390,7 +405,7 @@ HousepiModel <- R6::R6Class(
     effective_param_ = function() {
       pins <- names(private$baseline_pins_())
       if (!length(pins)) return(private$param_)
-      param <- private$param_$clone(deep = TRUE)
+      param <- private$param_$clone()
       for (name in pins) param$add_quo(name, const = 1, .warn_over = FALSE)
       # a pin reads nothing, so leading keeps it ahead of whatever reads it
       is_pin <- param$defs[["name"]] %in% pins
@@ -643,6 +658,8 @@ HousepiModel <- R6::R6Class(
         format_type_error(data)
       )
       assert_valid_data_columns(colnames(data), "id")
+      # the engine reads every required column at import
+      private$assert_long_dataset_(cols = colnames(data))
 
       data <- private$embed_data_(data, "long_dataset")
       .engine$import_long_dataset(private$mcmc_ptr_, data$ids, data$cells)
@@ -1033,6 +1050,7 @@ HousepiModel <- R6::R6Class(
       )
       # hard validation before MCMC
       private$assert_dataset_(wall = TRUE, simulating = simulating)
+      private$assert_long_dataset_(wall = TRUE)
       # a column not yet attached is the likeliest cause of an unsettled source
       private$assert_sources_(wall = TRUE)
       private$assert_param_(wall = TRUE)
@@ -1100,7 +1118,7 @@ HousepiModel <- R6::R6Class(
         # an undeclared model builds on the table's first row: the engine
         # keeps it for the run, the caller's definitions stay as declared
         if (!nrow(get_parameters(self))) {
-          declared <- private$param_$clone(deep = TRUE)
+          declared <- private$param_$clone()
           on.exit(private$param_ <- declared, add = TRUE)
           param_dummy_list <- as.list(utils::head(param_table, 1))
           private$param_$add_quo_list(
@@ -1117,7 +1135,7 @@ HousepiModel <- R6::R6Class(
         private$augm_$defs[["name"]]
       )
       if (length(generated)) {
-        declared_augm <- private$augm_$clone(deep = TRUE)
+        declared_augm <- private$augm_$clone()
         on.exit(private$augm_ <- declared_augm, add = TRUE)
         bare <- rep(list(list(min = 0, max = 1)), length(generated))
         private$augm_$add_quo_list(
@@ -1274,12 +1292,15 @@ HousepiModel <- R6::R6Class(
       obj <- HousepiModel$new()
       obj_priv <- obj$.__enclos_env__$private
 
-      # clone every field but the runner, created afresh
+      # copy every field but the runner, created afresh
+      # * definition holder -> its own R6 clone;
+      # * plain value -> copied on modify.
       for (field in c("compiled_", "param_", "augm_", "group_rates_",
                       "contact_rates_", "status_", "infec_profile_",
                       "reporting_process_", "collapse_seen_", "levels_seen_",
                       "escaped_", "coding_", "data_hash_")) {
-        obj_priv[[field]] <- helper_clone(private[[field]])
+        value <- private[[field]]
+        obj_priv[[field]] <- if (inherits(value, "R6")) value$clone() else value
       }
       obj_priv$mcmc_ptr_ <- create_mcmc_runner_(obj_priv$compiled_)
 
@@ -1315,6 +1336,9 @@ HousepiModel <- R6::R6Class(
       # data
       if (length(private$get_required_dataset_()) > 0) blocks <- c(blocks,
         list(fmt_assert_cli("Data", private$assert_dataset_(FALSE)))
+      )
+      if (length(private$get_required_long_dataset_()) > 0) blocks <- c(blocks,
+        list(fmt_assert_cli("Long data", private$assert_long_dataset_(FALSE)))
       )
       # parameters
       if (length(private$get_required_parameters_()) > 0) blocks <- c(blocks,

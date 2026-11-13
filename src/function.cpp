@@ -875,9 +875,13 @@ namespace housepi
 
     void Function::init_attr(std::string_view key, const Attribute &attr)
     {
+        // NA constant -> error, an unnamed one named by its argument
         if (attr.is_constant() && attr.is_na())
-            msg::stop(attr.str() + " has no value to pass as argument " +
-                      msg::arg(std::string(key)) + " of " + str() + ".");
+        {
+            const std::string arg = "argument " + msg::arg(std::string(key)) + " of " + str();
+            msg::stop((attr.name().empty() ? "Constant " + arg + " is NA"
+                                           : attr.str() + " has no value to pass as " + arg) + ".");
+        }
 
         // the attribute must be callable implicitly
         try

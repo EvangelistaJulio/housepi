@@ -263,11 +263,23 @@ test_that("Household size bounds need the standard measures", {
 
 test_that("Custom measures are checked next to the standard ones", {
   ppc <- mk_ppc$model |>
-    check_predictive(mk_ppc$fit, overall = \(x) mean(x$status > 0),
-                     thin_ess = FALSE, nrep = 5) |>
+    check_predictive(
+      mk_ppc$fit,
+      as_list = \(x) list(cases = sum(x$status > 0)),
+      as_matrix = \(x) matrix(c(nrow(x), 1, 2, 3), 2),
+      label = \(x) "flu",
+      overall = \(x) mean(x$status > 0),
+      thin_ess = FALSE, nrep = 5
+    ) |>
     suppressWarnings(classes = "housepi_warning_ppc")
   class(ppc)[1] |> expect_identical("HousepiEpiPredictiveCheck")
   names(ppc$overall) |> expect_contains(c("observed", "predicted"))
+  # each summary keeps the shape the measure returns
+  ppc$as_list$predicted |> expect_type("list")
+  # a matrix every replicate shares is summarised cell by cell
+  ppc$as_matrix$predicted |> expect_equal(ppc$as_matrix$observed)
+  # a label shared by every replicate is its own summary
+  ppc$label$predicted |> expect_identical("flu")
   names(ppc$attack_rate) |> expect_contains(c("observed", "predicted"))
   colnames(ppc$format_attack_rate()) |> expect_contains("observed")
   ppc |> expect_read_only_field("overall", "attack_rate")

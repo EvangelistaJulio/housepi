@@ -332,6 +332,9 @@ test_that("inspect_state reads parameters and sampler", {
   # a household is one identifier, or NULL
   hh_model |> inspect_state(NA) |> expect_error("single household ID")
   hh_model |> inspect_state(c(1, 2)) |> expect_error("single household ID")
+  # an unknown household is named once
+  err <- expect_error(inspect_state(hh_model, 3), "[Hh]ousehold .3. is not in")
+  conditionMessage(err) |> expect_no_match("for household")
 })
 
 test_that("A model prints with and without data and parameters", {

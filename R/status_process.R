@@ -146,9 +146,7 @@ HousepiStatusProcess <- R6::R6Class(
 
   private = list(
     # `character()` Level order of a factor `status`, else `NULL`.
-    levels_ = NULL,
-
-    deep_clone = function(name, value) helper_clone(value)
+    levels_ = NULL
   ),
 
   ####  Active  ####

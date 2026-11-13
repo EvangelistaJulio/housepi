@@ -158,6 +158,8 @@ test_that("Every replicate is ranked at a value drawn from the prior", {
   calibration$overview$nrep |> expect_identical(3L)
   calibration$houses |> expect_identical(30L)
   calibration$rank_levels |> expect_identical(10L)
+  calibration$point_estimate |> expect_identical("median")
+  calibration$cri_level |> expect_identical(0.9)
   calibration$source |> expect_identical("prior")
 })
 

@@ -9,10 +9,6 @@ HousepiParameter <- R6::R6Class(
   classname = "HousepiParameter",
   cloneable = TRUE,
 
-  private = list(
-    deep_clone = function(name, value) helper_clone(value)
-  ),
-
   ####  Public  ####
 
   public = list(

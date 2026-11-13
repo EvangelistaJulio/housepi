@@ -373,6 +373,7 @@ add_dataset <- function(hh_model, data) {
 #' @description
 #' Make an internal copy of member data with any number of rows per member,
 #' such as repeated tests over time, matched to the dataset on `id`.
+#' A long dataset missing a column the model reads is refused.
 #' @param hh_model `r rd_model_in_`
 #' @param data `data.frame` Long dataset, one row per member and entry.
 #' @return `r rd_model_out_`

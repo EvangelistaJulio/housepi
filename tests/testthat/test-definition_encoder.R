@@ -6,6 +6,9 @@ test_that("Rlang standard functions work as expected", {
 
   housepi_extractor(log(alpha)) |>
     expect_identical("log|x|[alpha|?]")
+  # a call without arguments encodes as its bare name
+  housepi_extractor(hh_size()) |>
+    expect_identical("hh_size")
 })
 
 test_that("Invalid definition values are refused at encoding", {

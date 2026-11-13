@@ -88,6 +88,14 @@ test_that("Infectivity profile definitions are correct", {
   defs$min |> expect_equal(2)
   defs$max |> expect_equal(10)
 
+  # a function taking no argument
+  defs <- mk_infec$model |>
+    add_infectivity_profile("uniform", max = 4) |>
+    get_infectivity_profiles()
+  defs$func |> expect_identical("uniform")
+  defs$func_args[[1]] |> expect_all_na()
+  defs$max |> expect_equal(4)
+
   # bulk form
   ## UPDATE: the bulk form names a definition only to discard the name: a
   ## profile has no name of its own, so `profile =` labels nothing

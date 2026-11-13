@@ -25,8 +25,6 @@ HousepiAugmented <- R6::R6Class(
   ####  Private  ####
 
   private = list(
-    deep_clone = function(name, value) helper_clone(value),
-
     # Kind of definitions managed, for display:
     # * "latent": latent variables;
     # * "member": member-level observations;

@@ -99,15 +99,15 @@ expect_truncated_matches <- function(name, args, ref, x,
   distr$cdf(x) |> expect_equal(pmin(pmax((p(x) - p(min)) / zz, 0), 1))
 }
 
-# Assert a discretized law stays finite far in the upper tail, where the naive
-# difference of cumulatives underflows. `bin` holds the edges of the bin at x.
+# Assert a discretized law stays finite far in the upper tail,
+# where the naive difference of cumulatives over bin [x, x + 1) underflows.
 # Tail masses sit below the tolerance of `expect_equal`, which then compares
 # them in absolute terms: only the log-scale comparison has resolution there.
-expect_tail_finite <- function(name, args, ref, x, bin = c(0, 1)) {
+expect_tail_finite <- function(name, args, ref, x) {
   distr <- do.call(browse_distributions, c(list(name), args, discr = TRUE))
   p <- stats_ref("p", ref, args)
-  any(p(x + bin[2]) == p(x + bin[1])) |> expect_true()
-  pmf <- p(x + bin[1], lower.tail = FALSE) - p(x + bin[2], lower.tail = FALSE)
+  any(p(x + 1) == p(x)) |> expect_true()
+  pmf <- p(x, lower.tail = FALSE) - p(x + 1, lower.tail = FALSE)
   distr$log_pdf(x) |> expect_all_finite()
   distr$pdf(x) |> expect_equal(pmf)
   distr$log_pdf(x) |> expect_equal(log(pmf))
@@ -229,6 +229,8 @@ test_that("The codomain reports what a definition returns", {
   # a negative factor, a divisor and an exponent keep the value they return
   browse_functions("prod", x = -2, x2 = 3)$codomain |>
     expect_equal(interval("[-6, -6]"))
+  browse_functions("prod", x = -2, x2 = -3)$codomain |>
+    expect_equal(interval("[6, 6]"))
   browse_functions("div", x = 1, x2 = -4)$codomain |>
     expect_equal(interval("[-0.25, -0.25]"))
   browse_functions("pow", x = 4, x2 = 0.5)$codomain |>
@@ -339,6 +341,9 @@ test_that("Function arguments are validated", {
   # an argument given twice
   browse_functions("sum", x2 = 1, x2 = 2) |>
     expect_error("[Rr]epeated argument .x2. for function .sum.")
+  # a missing argument value
+  browse_functions("sum", x2 = NA) |>
+    expect_error("[Cc]onstant argument .x2. of function .sum. is NA")
   browse_distributions("normal", mean = 0, mean = 5) |>
     expect_error("[Rr]epeated argument .mean. for distribution .normal.")
 })
@@ -755,35 +760,35 @@ test_that("Discretized exponential and gamma use left-discretization", {
     expect_equal(gcdf(x + 1) - gcdf(x))
 })
 
-test_that("Discretized normal methods go through center-discretization", {
+test_that("A discretized normal uses left bins, bounded or not", {
   args <- list(mean = 5, sd = 2)
   distr <- browse_distributions("normal", args, discr = TRUE)
   normcdf <- stats_ref("p", "norm", args)
 
-  # center discretization: pdf(k) = pnorm(k+0.5) - pnorm(k-0.5)
+  # left discretization: pdf(k) = pnorm(k + 1) - pnorm(k)
   x <- seq(0, 10, 1)
-  expected_pmf <- normcdf(x + 0.5) - normcdf(x - 0.5)
+  expected_pmf <- normcdf(x + 1) - normcdf(x)
   distr$pdf(x) |> expect_equal(expected_pmf)
-
-  # log_func_ Center branch
   distr$log_pdf(x) |> expect_equal(log(expected_pmf))
-  # primitive_ Center branch (cdf is the primitive)
-  distr$cdf(x) |> expect_equal(normcdf(x + 0.5))
-  # log_ratio_ Center branch with distinct rounded values
-  xn <- x + 1
-  distr$log_ratio(x, xn) |>
-    expect_equal(log(distr$pdf(xn) / distr$pdf(x)))
-  # log_ratio when rounded values coincide should be 0
-  distr$log_ratio(x, x + 0.1) |> expect_equal(rep(0, length(x)))
+  distr$cdf(x) |> expect_equal(normcdf(x + 1))
+  distr$log_ratio(x, x + 1) |>
+    expect_equal(log(distr$pdf(x + 1) / distr$pdf(x)))
+  # values in one bin share its mass
+  distr$log_ratio(x, x + 0.9) |> expect_equal(rep(0, length(x)))
 
-  # truncation at max renormalizes over the bins below it
+  # a bound renormalizes over the bins it keeps, the bins staying put
   args <- list(mean = 2, sd = 1.5)
   normcdf <- stats_ref("p", "norm", args)
-  distr <- browse_distributions("normal", args, max = 4, discr = TRUE)
   x <- seq(-3, 5, 1)
-  expec_pmf <- ifelse(x > 4, 0, normcdf(x + 0.5) - normcdf(x - 0.5)) /
-    normcdf(4.5)
-  distr$pdf(x) |> expect_equal(expec_pmf)
+  bins <- normcdf(x + 1) - normcdf(x)
+  browse_distributions("normal", args, max = 4, discr = TRUE)$pdf(x) |>
+    expect_equal(ifelse(x > 4, 0, bins) / normcdf(5))
+  browse_distributions("normal", args, min = 0, discr = TRUE)$pdf(x) |>
+    expect_equal(ifelse(x < 0, 0, bins) / (1 - normcdf(0)))
+
+  # half a unit of shift rounds to the nearest integer instead
+  browse_distributions("normal", mean = 2.5, sd = 1.5, discr = TRUE)$pdf(x) |>
+    expect_equal(normcdf(x + 0.5) - normcdf(x - 0.5))
 })
 
 test_that("Discretized lognormal keeps the mass of the origin bin", {
@@ -809,11 +814,12 @@ test_that("Discretized lognormal keeps the mass of the origin bin", {
 })
 
 test_that("Discretized laws stay finite far in the upper tail", {
-  # complementary-CDF branches: center bins for the normal, gamma/erfc
-  # complement for the lognormal, boost gamma_q complement for the gamma,
-  # closed forms for the weibull and rayleigh
-  expect_tail_finite("normal", list(mean = 0, sd = 1), "norm", seq(9, 30, 1),
-                     bin = c(-0.5, 0.5))
+  # complementary-CDF branches:
+  # * normal -> erfc;
+  # * lognormal -> gamma/erfc complement;
+  # * gamma -> boost gamma_q complement;
+  # * weibull, rayleigh -> closed forms.
+  expect_tail_finite("normal", list(mean = 0, sd = 1), "norm", seq(9, 30, 1))
   expect_tail_finite("lognormal", list(meanlog = 0, sdlog = 0.5), "lnorm",
                      seq(60, 200, 5))
   expect_tail_finite("gamma", list(shape = 2, scale = 1.5), "gamma",
@@ -822,9 +828,9 @@ test_that("Discretized laws stay finite far in the upper tail", {
                      seq(7, 12, 1))
   expect_tail_finite("rayleigh", list(scale = 1), "rayleigh", seq(9, 30, 1))
 
-  # symmetry: reflecting about the mean matches the lower tail
+  # symmetry: bin [k, k + 1) reflects about the mean onto [-k - 1, -k)
   distr <- browse_distributions("normal", mean = 0, sd = 1, discr = TRUE)
-  distr$pdf(9:30) |> expect_equal(distr$pdf(-(9:30)))
+  distr$pdf(9:30) |> expect_equal(distr$pdf(-(10:31)))
 })
 
 test_that("Discretized laws keep their mass far in the lower tail", {

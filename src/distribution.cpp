@@ -137,20 +137,13 @@ namespace housepi
         }
 
         /// Define left discretization, with a minimum closed at 0.
-#define INIT_DISCR_LEFT_MIN_ZERO_CLOSE()        \
-    void discretize() override final            \
-    {                                           \
-        discr_mode_ = Discrete::Left;           \
-    }                                           \
-    void truncate() override final              \
-    {                                           \
-        if (helper_init_domain_min_(0., false)) \
-            helper_init_distr_truncation_();    \
+#define INIT_DISCR_LEFT()             \
+    void discretize() override final  \
+    {                                 \
+        discr_mode_ = Discrete::Left; \
     }
-
-        /// Define a discrete-defined distribution, with a minimum closed at 0.
-#define INIT_DISCR_DEFINED_MIN_ZERO_CLOSE()     \
-    void discretize() override final {}         \
+        /// Define minimum closed at 0.
+#define INIT_MIN_ZERO_CLOSE()                   \
     void truncate() override final              \
     {                                           \
         if (helper_init_domain_min_(0., false)) \
@@ -284,10 +277,7 @@ namespace housepi
             static constexpr const char *NAME = "normal";
             Normal_() : Cloneable({{"mean", 0.}, {"sd", 1.}}) {}
 
-            void discretize() override final
-            {
-                discr_mode_ = domain_.min.is_empty() ? Discrete::Center : Discrete::Left;
-            }
+            INIT_DISCR_LEFT()
             void truncate() override final
             {
                 helper_init_standard_domain_();
@@ -349,7 +339,8 @@ namespace housepi
                 register_alt_("mean-sd", {{"mean", na::DOUBLE}, {"sd", na::DOUBLE}});
             }
 
-            INIT_DISCR_LEFT_MIN_ZERO_CLOSE()
+            INIT_DISCR_LEFT()
+            INIT_MIN_ZERO_CLOSE()
 
             /// Finalize, then store the effective arguments of "mean-sd" when both arguments are constant.
             void finalize() override final
@@ -538,7 +529,8 @@ namespace housepi
                 register_alt_("mean-sd", {{"mean", na::DOUBLE}, {"sd", na::DOUBLE}});
             }
 
-            INIT_DISCR_LEFT_MIN_ZERO_CLOSE()
+            INIT_DISCR_LEFT()
+            INIT_MIN_ZERO_CLOSE()
 
             /// Finalize, then store each value when the arguments it reads are constant.
             /// * effective arguments of "mean-sd" -> both arguments;
@@ -653,7 +645,8 @@ namespace housepi
             static constexpr const char *NAME = "rayleigh";
             Rayleigh_() : Cloneable({{"scale", 1.}}, 0.) {}
 
-            INIT_DISCR_LEFT_MIN_ZERO_CLOSE()
+            INIT_DISCR_LEFT()
+            INIT_MIN_ZERO_CLOSE()
 
         protected:
             ArgRequirements arg_requirements_() const override final { return positive_args_({0}); }
@@ -704,7 +697,8 @@ namespace housepi
             static constexpr const char *NAME = "weibull";
             Weibull_() : Cloneable({{"shape", na::DOUBLE}, {"scale", 1.}}, 0.) {}
 
-            INIT_DISCR_LEFT_MIN_ZERO_CLOSE()
+            INIT_DISCR_LEFT()
+            INIT_MIN_ZERO_CLOSE()
 
         protected:
             ArgRequirements arg_requirements_() const override final { return positive_args_({0, 1}); }
@@ -764,7 +758,8 @@ namespace housepi
             static constexpr const char *NAME = "exponential";
             Exponential_() : Cloneable({{"rate", 1.}}, 0.) {}
 
-            INIT_DISCR_LEFT_MIN_ZERO_CLOSE()
+            INIT_DISCR_LEFT()
+            INIT_MIN_ZERO_CLOSE()
 
         protected:
             ArgRequirements arg_requirements_() const override final { return positive_args_({0}); }
@@ -813,7 +808,8 @@ namespace housepi
                 discr_mode_ = Discrete::Defined;
             }
 
-            INIT_DISCR_DEFINED_MIN_ZERO_CLOSE()
+            void discretize() override final {}
+            INIT_MIN_ZERO_CLOSE()
 
         protected:
             ArgRequirements arg_requirements_() const override final { return positive_args_({0}); }
@@ -938,7 +934,8 @@ namespace housepi
                 discr_mode_ = Discrete::Defined;
             }
 
-            INIT_DISCR_DEFINED_MIN_ZERO_CLOSE()
+            void discretize() override final {}
+            INIT_MIN_ZERO_CLOSE()
 
         protected:
             /// `size` counts successes: the binomial coefficient truncates it to an integer.
@@ -993,7 +990,8 @@ namespace housepi
                 discr_mode_ = Discrete::Defined;
             }
 
-            INIT_DISCR_DEFINED_MIN_ZERO_CLOSE()
+            void discretize() override final {}
+            INIT_MIN_ZERO_CLOSE()
 
         private:
             /// Shrink of `p` keeping an accurate cumulative atom on its own quantile.
@@ -1151,7 +1149,8 @@ namespace housepi
             Ferretti20_()
                 : Cloneable({{"shape", 5.85}, {"scale", 1.85}, {"c_loc", -4.0}, {"mean_incub", 5.42}, {"incub_period", na::DOUBLE}}, 0.) {}
 
-            INIT_DISCR_LEFT_MIN_ZERO_CLOSE()
+            INIT_DISCR_LEFT()
+            INIT_MIN_ZERO_CLOSE()
 
             /// Finalize, then store each onset term when the arguments it reads are constant.
             void finalize() override final

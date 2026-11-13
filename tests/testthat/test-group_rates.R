@@ -1251,6 +1251,25 @@ test_that("A catch-all stratum survives a missing covariate cell", {
   rates$n[rates$param_name == "sus_rest"] |> expect_identical(sum(rate == 3))
 })
 
+test_that("An observation reads a group rate at its member's stratum", {
+  # `datum_3` holds each member's rate: 1 at the reference, 3 as pinned
+  hh_data <- transform(get_dataset(mk_observed$model),
+                       record = c(1, 2), datum_3 = c(1, 3))
+  strata <- tibble::tribble(~datum, ~param_name,  ~const,
+                            2,      ".reference", NA,
+                            3,      "sus_high",   3)
+  log_lik <- function(...) {
+    hh_data |>
+      new_housepi_model("final-size") |>
+      add_parameter(alpha = 0.1, beta = 0.1, gamma = 1, hh_size_ref = 2) |>
+      add_group_rate("susceptibility", strata = strata) |>
+      add_observation("record", model = "normal", ..., sd = 1) |>
+      evaluate_log_lik()
+  }
+  log_lik(mean = susceptibility) |>
+    expect_equal(log_lik(mean = datum_3))
+})
+
 ####  Observation collision  ####
 
 test_that("A group rate keyed on an observation is rejected", {

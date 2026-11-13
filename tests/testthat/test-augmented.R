@@ -1229,6 +1229,8 @@ test_that("A household reduction folds its argument over the members", {
   reduce(quote(max(datum) + 1)) |> expect_equal(10)
   reduce(quote(log(max(datum)))) |> expect_equal(log(9))
   reduce(quote(max(datum) - min(datum))) |> expect_equal(7)
+  # an inner reduction is one household value, folded once
+  reduce(quote(sum(max(datum)))) |> expect_equal(9)
   # the argument is computed for each member, then folded
   reduce(quote(max(datum + 1))) |> expect_equal(10)
   reduce(quote(sum(datum + 1))) |> expect_equal(18)
@@ -1336,6 +1338,16 @@ test_that("A latent status label is a label of the data", {
     add_latent(incub_period = list(model = "gamma", shape = 2, scale = 1,
                                    status = "symptomatc")) |>
     expect_error("label .symptomatc. is not in the data.*[Dd]id you mean")
+  # data carrying no infected label -> a label of the status process
+  data.frame(id = c("m1", "m2"), hh_id = "h1", status = 0, end_date = 10) |>
+    new_housepi_model("case-ascertained") |>
+    add_parameter(import = "template") |>
+    add_infectivity_profile(import = "template") |>
+    add_status_process(symptomatic = 0.5, asymptomatic = 0.5) |>
+    add_latent(incub_period = list(model = "gamma", shape = 2, scale = 1,
+                                   status = "symptomatc")) |>
+    evaluate_log_lik() |>
+    expect_error("[Uu]nknown status label .symptomatc.")
 })
 
 ####  Latent end-to-end  ####
@@ -1596,6 +1608,12 @@ test_that("Bounds of a bare latent read neither draws nor free parameters", {
                infec_time = list(min = -14, max = incub_period),
                append = FALSE) |>
     expect_error("[Bb]ound .max. of latent .infec_time. reads latent")
+  # so does a group rate
+  mk_outbreak$model |>
+    add_group_rate("susceptibility", by = "age", reference = ".auto") |>
+    add_latent(infec_time = list(min = -14 * susceptibility, max = end_date),
+               append = FALSE) |>
+    expect_error("[Bb]ound .min. of latent .infec_time. reads a group rate")
 
   # a constant parameter does not
   mk_outbreak$model |>

@@ -183,10 +183,7 @@ Note that here we dropped all arguments that allow for default values.
 
 # Discretization in practice
 
-Depending on the distribution support, the discretization is defined as:
-
-* Left discretization: average probability between the closest lower and larger integer;
-* Center discretization: average probability over a symmetric interval of width 1 centered at the integer (i.e. between integer − 0.5 and integer + 0.5).
+A discretized distribution gives each integer `k` the probability between `k` and `k + 1`.
 
 With this scheme normalization is respected, however the shape of the distribution might not be the expected one.
 You can use the function `browse_distributions` to return a Distribution object from housepi and explore its methods.
