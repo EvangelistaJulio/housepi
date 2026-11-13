@@ -14,7 +14,7 @@ Entry format, one level-2 heading per publication, newest first:
 
 ![](gallery/<slug>.png)
 
-<Surname, I., I. Surname, and I. Surname>. <year>. "<Title in Title Case>." *<Journal>*. <https://doi.org/...>
+Paper: @<bibkey>, its entry added to `inst/REFERENCES.bib`.
 
 <One or two sentences: the data, the model, the question answered.>
 
@@ -24,21 +24,27 @@ Entry format, one level-2 heading per publication, newest first:
 
 ## Introducing housepi
 
-![ICoFS 2021: relative susceptibility and infectivity estimated by housepi against @cortier_factors_2025, and secondary attack rates by household size observed against predicted.](gallery/introduce-housepi.png)
+<figure>
+<a href="https://mmmi-pasteur.pages.pasteur.fr/introduce-housepi/articles/icofs.html"><img src="gallery/introduce-housepi.png" alt="ICoFS 2021 figure of the paper introducing housepi" /></a>
+<figcaption>
 
-Camaglia, F., L. Cristancho-Fajardo, T. Cortier, T. K. Tsang, P. Bosetti, A. Brault, B. J. Cowling, and S. Cauchemez. 2026.
-"Seamless Household Epidemiological Modelling with *housepi*."
-Preprint, forthcoming.
+ICoFS 2021: relative susceptibility and infectivity estimated by housepi against @cortier_factors_2025, and secondary attack rates by household size observed against predicted.
+
+</figcaption>
+</figure>
+
+Paper: @camaglia_seamless_2026.
 
 Three household studies reanalysed with *housepi*, one vignette each:
 
-- [Influenza in Matsumoto households, 2014/15](https://mmmi-pasteur.pages.pasteur.fr/introduce-housepi/matsumoto.html):
+- [Influenza in Matsumoto households, 2014/15](https://mmmi-pasteur.pages.pasteur.fr/introduce-housepi/articles/matsumoto.html):
   a final-size chain binomial model estimates the community transmission rate by member type and the contact rate between member types, as in @endo_fine_scale_2019.
-- [SARS-CoV-2 Delta in Israeli households, 2021](https://mmmi-pasteur.pages.pasteur.fr/introduce-housepi/icofs.html):
+- [SARS-CoV-2 Delta in Israeli households, 2021](https://mmmi-pasteur.pages.pasteur.fr/introduce-housepi/articles/icofs.html):
   a case-ascertained continuous-time model estimates susceptibility by immune status and isolation, and infectivity by symptom status, integrating out the infection times, as in @cortier_factors_2025.
-- [SARS-CoV-2 Delta in Israeli households, 2021, in discrete time](https://mmmi-pasteur.pages.pasteur.fr/introduce-housepi/icofs_discrete.html):
+- [SARS-CoV-2 Delta in Israeli households, 2021, in discrete time](https://mmmi-pasteur.pages.pasteur.fr/introduce-housepi/articles/icofs_discrete.html):
   the same model with time counted in whole days.
 
+Site: <https://mmmi-pasteur.pages.pasteur.fr/introduce-housepi/>.
 Code: <https://gitlab.pasteur.fr/mmmi-pasteur/introduce-housepi>, run with the development version of *housepi* on `main`.
 
 ## References

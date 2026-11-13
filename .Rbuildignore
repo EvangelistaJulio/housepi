@@ -22,6 +22,7 @@
 ^pkgdown$
 ^public$
 ^README\.Rmd$
+^CONTRIBUTING\.md$
 ^LICENSE\.md$
 ^inst/standalone$
 ^Meta$

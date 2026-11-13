@@ -7,7 +7,7 @@ We close merge requests from outside the team without review, so open an issue i
 
 ## Bug reports
 
-Open the issue with the [Bug template](https://gitlab.pasteur.fr/mmmi-pasteur/housepi/-/issues/new?issuable_template=Bug)
+Open an issue with the [Bug template](https://gitlab.pasteur.fr/mmmi-pasteur/housepi/-/issues/new?issuable_template=Bug)
 and fill in every section:
 
 - the *housepi* version, from `packageVersion("housepi")`;

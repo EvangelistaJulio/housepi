@@ -1,6 +1,22 @@
 bibentry(
+  bibtype = "Misc",
+  header = "To cite housepi in publications, use the paper introducing it:",
+  title = "Seamless household epidemiological modelling with {housepi}",
+  author = c(person("Francesco", "Camaglia"),
+             person("Lina", "Cristancho-Fajardo"),
+             person("Thomas", "Cortier"),
+             person(c("Tim", "K."), "Tsang"),
+             person("Paolo", "Bosetti"),
+             person("Antoine", "Brault"),
+             person(c("Benjamin", "J."), "Cowling"),
+             person("Simon", "Cauchemez")),
+  year = "2026",
+  note = "Preprint, forthcoming"
+)
+
+bibentry(
   bibtype = "Manual",
-  header = "To cite the housepi package in publications use:",
+  header = "To cite a specific version of the package:",
   title = "{housepi}: Household Epidemiological Modelling and Analysis",
   author = c(person("Francesco", "Camaglia"), person("Simon", "Cauchemez")),
   year = substr(if (is.null(meta$Packaged)) Sys.Date() else meta$Packaged, 1, 4),
