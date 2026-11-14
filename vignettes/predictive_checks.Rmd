@@ -122,15 +122,14 @@ To show both observed and predicted cases distributions by household size, we ca
 ppc$set_max_hh_size(5)
 
 # return a data.frame with observed and predicted cases distributions
-cases_df <- ppc$format_cases_distr()
+cases_df <- ppc$format_cases_distr() |>
+  format_estimates(as_integer = TRUE)
 
 # observed counts as they are, predictions with their credible interval
 cells <- rbind(
   transform(cases_df, distribution = "observed",
             value = as.character(observed)),
-  transform(cases_df, distribution = "predicted",
-            value = format_credible_interval(predicted, cri_lower, cri_upper,
-                                             as_integer = TRUE))
+  transform(cases_df, distribution = "predicted", value = formatted)
 )
 
 # one row per household size and distribution, one column per number of cases

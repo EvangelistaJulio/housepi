@@ -87,7 +87,7 @@ reference:
   contents:
     - starts_with("summari")
     - -ends_with("_draws")
-    - format_credible_interval
+    - format_estimates
     - set_housepi_summary
     - set_housepi_theme
 

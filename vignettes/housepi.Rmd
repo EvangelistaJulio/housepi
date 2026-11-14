@@ -368,12 +368,8 @@ The table puts the estimates next to the values used for the simulation.
 #| label: parameter-comparison-table
 param_draws |>
   summarise_draws() |>
-  dplyr::reframe(
-    parameter = variable,
-    inferred = format_credible_interval(
-      median, q2.5, q97.5, fmt = "%s (95%% CrI, %s-%s)"
-    )
-  ) |>
+  format_estimates() |>
+  dplyr::select(parameter = variable, inferred = formatted) |>
   dplyr::inner_join(simul_parameters, by = "parameter") |>
   flextable::flextable() |>
   flextable::separate_header() |>

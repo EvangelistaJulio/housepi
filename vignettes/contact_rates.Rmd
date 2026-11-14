@@ -244,16 +244,17 @@ The from/to table returned by `get_contact_rates()` joins the draws back onto th
 #|  median rate and credible interval.
 library(ggplot2)
 
+hh_summary <- hh_fit |>
+  summarise_draws() |>
+  format_estimates(fmt = "%s\n[%s, %s]")
+
 hh_model |>
   get_contact_rates() |>
   dplyr::rename(variable = param_name) |>
-  dplyr::left_join(summarise_draws(hh_fit), by = "variable") |>
+  dplyr::left_join(hh_summary, by = "variable") |>
   ggplot(aes(x = from_member, y = to_member, fill = median)) +
   geom_tile() +
-  geom_text(
-    aes(label = format_credible_interval(median, q2.5, q97.5, "%s\n[%s, %s]")),
-    colour = "white"
-  ) +
+  geom_text(aes(label = formatted), colour = "white") +
   guides(fill = "none") +
   coord_fixed() +
   labs(x = "infector", y = "infectee")
