@@ -27,8 +27,8 @@ Here we present all available options for the choice of the prior and Monte Carl
 
 # Continuous priors
 
-To perform the sampling we consider the "test" model, i.e. a data independent template model, with log-likelihood always equal to zero.
-Here's the full list of available continuous distributions present in housepi:
+To perform the sampling we consider the "test" model (see `?template_test`), i.e. a data independent template model, with log-likelihood always equal to zero.
+The continuous distributions in housepi are:
 ```{r}
 #| label: continuous-priors-density
 #| warning: false
@@ -65,9 +65,7 @@ Arguments carrying no default in base R, such as the gamma `shape`, stay require
 
 # Provide a custom domain
 
-Here we test various examples to show how to select a custom domain for the variables.
-This will automatically impose a truncation of the prior of the parameter.
-We do this with the arguments `min` (minimum) and `max` (maximum).
+The arguments `min` (minimum) and `max` (maximum) set a custom domain for a variable, which truncates its prior.
 
 ```{r}
 #| label: truncation-demo
@@ -133,7 +131,7 @@ new_housepi_model(model = "test") |>
 bayesplot::color_scheme_set(scheme = "orange")
 ```
 
-Here's the full list of available discrete distributions present in housepi:
+The discrete distributions in housepi are:
 
 ```{r}
 #| label: discrete-priors-hist
@@ -157,7 +155,7 @@ new_housepi_model(model = "test") |>
 
 # Discretize continuous priors
 
-Previous continuous priors can be chosen to be discretized using the argument `discr`.
+Any continuous prior can be discretized with the argument `discr`.
 
 ```{r}
 #| label: discretized-priors-hist
@@ -179,14 +177,12 @@ new_housepi_model(model = "test") |>
   bayesplot::mcmc_hist(binwidth = 1)
 ```
 
-Note that here we dropped all arguments that allow for default values.
+Here we dropped all arguments that have a default value.
 
 # Discretization in practice
 
 A discretized distribution gives each integer `k` the probability between `k` and `k + 1`.
-
-With this scheme normalization is respected, however the shape of the distribution might not be the expected one.
-You can use the function `browse_distributions` to return a Distribution object from housepi and explore its methods.
+We use the function `browse_distributions` to return a Distribution object from housepi and explore its methods.
 
 ```{r}
 #| label: discretization-scheme-plot
@@ -263,8 +259,7 @@ new_housepi_model(model = "test") |>
   bayesplot::mcmc_trace()
 ```
 
-Already with the default adaptive steps, mixing is good across the random-walk
-proposals — at the cost of the additional steps before sampling.
+With the default adaptation, the random-walk proposals mix well, at the cost of extra steps before sampling.
 
 ## Fix proposal scales
 
@@ -296,8 +291,7 @@ new_housepi_model(model = "test") |>
 
 Warnings and trace plots show bad mixing:
 the over-sized scale made the random-walk proposals barely move.
-On the contrary, the `forward` mechanism mixes as usual.
-Handle `proposal_scale` with care!
+By contrast, the `forward` mechanism mixes as usual.
 
 ```{r footer-child, child = "helpers/_footer.Rmd"}
 ```

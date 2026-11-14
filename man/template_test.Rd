@@ -21,4 +21,3 @@ No parameters are required by the model.
 \seealso{
 \code{\link[=browse_templates]{browse_templates()}}
 }
-\keyword{internal}

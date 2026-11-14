@@ -27,41 +27,42 @@ Bayesian data augmentation is a computational strategy that expands the paramete
 
 For example, consider a single infectious individual $i$.
 Imagine that someone reported the date of symptom onset $T^\mathrm{ons}_{i}$.
-We can think of the observation process that returned that value as some function of the actual real time of onset, $t^\mathrm{ons}_{i}$.
+We can think of the observation process that returned that value as some function of the true onset time, $t^\mathrm{ons}_{i}$.
 
-We can introduce latent infection times $t_{i}$, defined as the difference between the onset time and the latent incubation period $\tau^\mathrm{inc}_{i}$, so that 
+We can introduce latent infection times $t_{i}$, defined as the difference between the onset time and the latent incubation period $\tau^\mathrm{inc}_{i}$, so that
 $$t^\mathrm{ons}_{i} = t_{i} + \tau^\mathrm{inc}_{i},$$
 where the incubation period is distributed according to a prior.
 
-Say $x$ the data of a single household (onset date and status), $z$ its latent variables (infection time and incubation period) and $\theta$ the vector of parameters.
+Let $x$ be the data of a single household (onset date and status), $z$ its latent variables (infection time and incubation period) and $\theta$ the vector of parameters.
 The joint posterior then reads
 $$p(\theta, z \mid x) \propto
   \underbrace{p^\mathrm{obs}(x \mid \theta, z)\, p^\mathrm{transm}(x \mid \theta, z)\, p^\mathrm{lat}(z \mid \theta)}_{\texttt{likelihood}}\;
   \underbrace{p(\theta)}_{\texttt{prior}},$$
-where the reported `log_lik` gathers the transmission term $p^\mathrm{transm}$, the observation term $p^\mathrm{obs}$ (only when an observation node is defined, so it contracts to transmission otherwise) and the latent-variable model $p^\mathrm{lat}$, while `lprior` is the parameter prior $p(\theta)$.
+where the reported `log_lik` gathers the transmission term $p^\mathrm{transm}$, the observation term $p^\mathrm{obs}$ and the latent-variable model $p^\mathrm{lat}$, while `lprior` is the parameter prior $p(\theta)$.
+Without an observation node, $p^\mathrm{obs} = 1$.
 
-We here explain how to associate individual latent variables in housepi for minimal examples.
+The sections below define individual latent variables on minimal examples.
 
 # Link arguments to source
 
-Similarly to parameters, latent variables require definitions for models and proposals needed for the Bayesian Monte Carlo.
+Like parameters, latent variables need a model and a proposal for the MCMC sampler.
 In many applications, latent variable definitions can also depend on the dataset or on model parameters to be inferred.
 
 An argument value may name another definition of the model: a latent variable, a data column, an observation, a group rate or a parameter.
 housepi looks the name up among the definitions the model carries, so each name must stand for one of them only^[A name nothing declares is an error, reported when the model is run, and so is a name two definitions claim.].
 E.g. `visit_day` reads the individual data column "visit_day", `beta` the current value of the parameter "beta", while a number such as `14` is read as it is.
 
-The convention applies to every definition argument: not only `const`, `func`, `min` and `max`, but also the arguments of the model distribution, as in `model = "gamma", mean = mean, sd = sd`, reading the parameters "mean" and "sd".
+The convention applies to every definition argument, from `const`, `func`, `min` and `max` to the arguments of the model distribution, as in `model = "gamma", mean = mean, sd = sd`, reading the parameters "mean" and "sd".
 Names combine into arithmetic expressions, such as `onset_date - incub_period` or `exposure_max + 0.99`, and can be passed to any of the functions listed by `browse_functions()`, e.g. `sqrt(beta)` or `min(onset_date)`.
 An expression referencing no definition is instead evaluated once, when the definition is built: `max = 3 * 7` is stored as the plain value `21`, and a date such as `as.Date("2021-07-01")` collapses to its day count.
 
 # Status specific definitions
 
 In many applications, the same latent variable has to be augmented according to different rules depending on the individual.
-This is the case for example of infection times for symptomatic and asymptomatic members.
-We can address this issue in housepi using status specific definitions, as opposed to generic definitions valid for all positive status individuals.
-Let's consider the case of a survey that reported symptoms within a follow-up period and tested every household member only when a first individual showed symptoms and after 10 days.
-Let's use `status = 1` to tag symptomatic individuals and `status = 2` to tag asymptomatic.
+Infection times of symptomatic and asymptomatic members are one example.
+Status specific definitions apply to one status only, while generic definitions hold for every positive status.
+Consider a survey that follows a household for 10 days from the first symptom onset, testing every member at the start and at the end of follow-up.
+We tag symptomatic members with `status = 1` and asymptomatic ones with `status = 2`.
 We augment infection times of symptomatic members as shown in [Get Started](housepi.html), informed by the reported onset date.
 For asymptomatic members we sample the infection time within the follow-up period: transmission gives its probability, so it takes no `model`.
 
@@ -97,9 +98,7 @@ hh_model <- data.frame(id = c("tommy", "gina"),
   )
 ```
 
-We could run the inference and extract the results as usual.
-However, sometimes it is useful to check if latent variable draws evolve as expected.
-We can do so by providing the `id` of individuals whose latent variables we want to store through the argument `id_draws` of `run_inference()`.
+To check how the latent draws evolve, pass the `id` of the individuals to follow to the argument `id_draws` of `run_inference()`.
 
 ```{r}
 #| label: latent-infection-time-plot
@@ -116,13 +115,13 @@ hh_model |>
   coord_cartesian(xlim = onset_tommy + c(-10, 10))
 ```
 
-We see that since we assumed the infection of the asymptomatic member to happen after the onset of the index, the model logically makes it more probable to occur closer to that limit.
+Gina's infection time cannot precede the start of follow-up, Tommy's onset, and the model makes it more probable close to that bound.
 
 # Example: estimate incubation period distribution
 
 For simplicity, we start testing data augmentation on a dataset which is not a household survey.
 Instead we consider a synthetic report documenting the days when a number of cases were exposed to infection and the days of symptom onset.
-We simulate it with the "test" model, which carries no transmission dynamics, by chaining latent variables for each individual:
+We simulate it with the "test" model (see `?template_test`), which carries no transmission dynamics, by chaining latent variables for each individual:
 
 - the exposure window lasts 1 to 4 days, drawn from a categorical distribution (the draw is 0-based, so `exposure_days` counts the days after the first);
 - the infection time `infec_time` is uniform within the exposure window;
@@ -160,7 +159,7 @@ dataset <- data.frame(id = seq_len(n_cases), hh_id = seq_len(n_cases),
   dplyr::select(id, hh_id, status, exposure_max, onset_min, onset_max)
 head(dataset)
 ```
-Note that here the data has no demographic structure: we are implicitly assuming that all individuals live in distinct households.
+The data has no household structure, so every individual lives in a household of their own.
 
 Assuming the incubation period to be described by a gamma distribution, we want to estimate its `mean` and `sd` by augmenting the infection and onset times.
 Following the decomposition introduced above, the incubation period enters the *latent model* $p^\mathrm{lat}(z \mid \theta)$, while the reported onset day enters the *observation* term $p^\mathrm{obs}(x \mid \theta, z)$; both are reported in the pointwise `log_lik`.
@@ -233,7 +232,7 @@ bayesplot::mcmc_trace(get_latent_draws(hh_fit, "incub_period"))
 
 In this example we had to introduce the auxiliary latent variables `onset_time` and `infec_time`.
 housepi samples every latent variable the likelihood reads, these two included, and stores a trace for each of them.
-Pass `variable` to `get_latent_draws()` to pick out the ones you want to look at.
+Passing `variable` to `get_latent_draws()` picks out the ones of interest.
 
 A latent variable that no observation and no transmission term ever reads is a different case.
 There is nothing to learn about it, so housepi does not sample it and it carries no trace.
@@ -246,8 +245,7 @@ There is nothing to learn about it, so housepi does not sample it and it carries
 bayesplot::color_scheme_set(scheme = "orange")
 ```
 
-For data augmentation we might need to explore different options for the Monte Carlo moves.
-As shown in [Priors and proposals](priors_and_proposals.html), we can do the testing with the "test" template.
+Proposals for latent variables can be tried out on the "test" template, as in [Priors and proposals](priors_and_proposals.html).
 
 A latent variable is sampled only where something reads it, so a playground needs an observation reading `z`.
 A uniform observation over a window the variable can never leave contributes the same constant at every draw, which leaves the sampling to follow the model alone:

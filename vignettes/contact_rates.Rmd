@@ -26,7 +26,7 @@ Unlike group rates, contact rates are pairwise: they scale the person-to-person 
 They are factors on that rate, not counts of contacts per unit time.
 By default, rates are absolute, each pair introducing its own parameter.
 If a reference pair is introduced (constant 1), every other pair becomes a rate ratio to it.
-We illustrate the API on the influenza survey in Matsumoto, which reports final sizes together with the family role of each member.
+We illustrate the API on the influenza survey in Matsumoto (see `?flu_2014_matsumoto`), which reports final sizes together with the family role of each member.
 To simplify this walkthrough, we regroup members as follows:
 
 ```{r}
@@ -56,7 +56,7 @@ table(dataset$member)
 
 # Define absolute contact rates
 
-To associate contact rates to models that encode them, we call `add_contact_rate()`.
+Models that encode contact rates take them from `add_contact_rate()`.
 This reads one or more covariate columns and introduces a parameter per pair.
 
 ```{r}
@@ -71,7 +71,7 @@ Here `n` counts the ordered pairs observed in the data, and `param_name` names t
 Pairs that never occur are dropped.
 The `rule_group` column matters once rules overlap (see [strata tables](#strata-tables-and-specificity-rules)).
 
-By default, a pair and its reverse share one parameter, so `parent` infecting `child` and viceversa will be equal.
+By default, a pair and its reverse share one parameter, so `parent` infecting `child` and vice versa are equal.
 Set `symmetric = FALSE` to let them differ.
 
 ```{r}
@@ -91,11 +91,12 @@ c_diff <- count_ctr(add_contact_rate(hh_model, "member", symmetric = FALSE)) -
   count_ctr(add_contact_rate(hh_model, "member"))
 ```
 
-Dropping symmetry splits every mixed pair in two, leaving the homologous pairs alone, and costing `r c_diff` new parameters to infer.
+Dropping symmetry splits every pair of distinct classes in two, while pairs within a class stay as they are.
+The model gains `r c_diff` parameters to infer.
 
 # A reference pair makes the rates relative
 
-Parameters associated to rates are collected alongside other declarations.
+`get_parameters()` lists the contact-rate parameters with the others:
 ```{r}
 #| label: parameters-default
 hh_model |>
@@ -104,7 +105,7 @@ hh_model |>
 ```
 
 Parameters inherit shared MCMC default configurations as in group rates (see [Group rates](group_rates.html)).
-By default, all contact rates are absolute and the baseline transmission `beta` non identifiable, so the model fixes it at 1.
+By default, all contact rates are absolute and the baseline transmission `beta` is non identifiable, so the model fixes it at 1.
 Instead, naming a `reference` pair makes it the unit, `beta` is freed, and every other parameter reads as a rate ratio to the reference.
 
 ```{r}
@@ -138,7 +139,7 @@ hh_model |>
 
 # Strata tables and specificity rules
 
-While `by` associates parameters automatically to all covariates, a fine grained stratification can be provided with a `strata` table.
+While `by` associates parameters automatically to all covariates, a fine-grained stratification can be provided with a `strata` table.
 In `strata`, covariate columns say which pairs each row matches, and `param_name` says which parameter they get.
 An `NA` cell is a catch-all that matches any value, unless a more specific rule exists.
 A row with all covariate cells set to `NA` is the least specific rule possible, so it is beaten by every other rule and covers whatever remains.
@@ -175,7 +176,7 @@ state$contact_rates
 Contacts between a child and a parent got a parameter `child_to_parent`.
 By default, the table gets symmetrized, so the opposite direction is matched by the same rule.
 Everything else fell on the reference.
-Here we used `tibble::tribble` for cleanness, but any object ultimately a `data.frame` will do.
+Here we used `tibble::tribble` for readability, but any `data.frame` works.
 
 
 The reserved column `const` pins `child_to_parent` to its value, which is what we use here to read the rates off a household.
@@ -258,7 +259,7 @@ hh_model |>
   labs(x = "infector", y = "infectee")
 ```
 
-We obtain that transmission between members of the same class is much larger than across classes.
+Transmission within a class is much higher than across classes.
 
 After the run, the model holds the state of the last step of its last chain.
 Inspected again, the household from the strata example now also reports `model_quantities`: the escape probabilities the likelihood reads at that state (see `?template_final_size`).

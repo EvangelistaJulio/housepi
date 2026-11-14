@@ -87,7 +87,8 @@ ggplot(ppc_prior$format_attack_rate(),
 
 The prior intervals are wide and cover the observed rates: the priors allow the data without favoring it.
 Their medians sit above most observed rates, as uniform priors on transmission put more weight on large outbreaks than these data show.
-An observed value outside its prior interval would raise a warning to sign that the priors exclude what was observed and should be revised before inference. For example, with a too low community transmission rate we get
+An observed value outside its prior interval raises a warning: the priors exclude what was observed and should be revised before inference.
+For example, with a too low community transmission rate we get
 
 ```{r}
 #| label: warn-prior
@@ -98,19 +99,14 @@ ppc_prior_warn <- hh_model |>
 
 # Posterior predictive checks over cases distribution
 
-We now run inference as in [Get started](housepi.html) and store the posterior draws:
+We now run inference as in [Get started](housepi.html) and store the posterior draws to compute posterior predictive checks.
+BY default, the measure always include secondary attack rates and the distribution of household cases ("final size") by household size,
 
 ```{r}
 #| label: inference
 hh_fit <- hh_model |>
   run_inference()
-```
 
-We can use the simulation process to challenge the validity of the inferred model on top of the original dataset.
-We do so by computing the predicted distribution of household cases ("final size") per household size according to our posterior distribution (i.e. by producing simulations according to posterior values).
-
-```{r}
-#| label: compute-predictions
 # compute posterior predictive checks
 ppc <- hh_model |>
   # run simulations according to previous posterior traces in hh_fit
@@ -169,7 +165,7 @@ Bounds are rounded to integers, so an observed count equal to a printed bound ca
 
 # Secondary attack rate
 
-We can compare the secondary attack rates observed, predicted by the posterior:
+We compare the observed and posterior-predicted secondary attack rates:
 
 ```{r}
 #| label: sar-plot
@@ -249,7 +245,7 @@ hh_model |>
                    epi = FALSE)
 ```
 
-Similarly can be done for all stored measures:
+The same works for every stored measure:
 
 ```{r}
 #| label: plot-overall-attack-rate

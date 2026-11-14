@@ -38,7 +38,8 @@ To reproduce the data processing, see the script at:
 \code{system.file("data-raw", "make_flu_2014_matsumoto.R", package = "housepi")}
 }
 \examples{
-table(flu_2014_matsumoto$member, flu_2014_matsumoto$status)
+head(flu_2014_matsumoto)
+measure_cases_by_hh_size(flu_2014_matsumoto)
 }
 \references{
 \insertRef{uchida_effectiveness_2017}{housepi}

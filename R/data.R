@@ -17,7 +17,6 @@
 #' @keywords datasets
 #' @examples
 #' dummy_household
-#' new_housepi_model(dummy_household, "test")
 #' @name dummy_household
 #' @usage data(dummy_household)
 #' @format A data frame with 2 rows and 3 columns
@@ -35,7 +34,8 @@ NULL
 #' @docType data
 #' @keywords datasets
 #' @examples
-#' measure_ar_by_hh_size(flu_1918_frederick)
+#' head(flu_1918_frederick)
+#' measure_cases_by_hh_size(flu_1918_frederick)
 #' @name flu_1918_frederick
 #' @usage data(flu_1918_frederick)
 #' @format A data frame with 2,207 rows and 2 columns
@@ -60,7 +60,8 @@ NULL
 #' @docType data
 #' @keywords datasets
 #' @examples
-#' measure_ar_by_hh_size(flu_1918_baltimore)
+#' head(flu_1918_baltimore)
+#' measure_cases_by_hh_size(flu_1918_baltimore)
 #' @name flu_1918_baltimore
 #' @usage data(flu_1918_baltimore)
 #' @format A data frame with 28,977 rows and 2 columns
@@ -105,8 +106,7 @@ NULL
 #' @keywords datasets
 #' @examples
 #' head(sarscov2_2021_icofs)
-#' hh_model <- new_housepi_model(sarscov2_2021_icofs, "case_ascertained")
-#' summarise_house_cases(hh_model)
+#' measure_sar_by_hh_size(flu_1918_frederick)
 #' @name sarscov2_2021_icofs
 #' @usage data(sarscov2_2021_icofs)
 #' @format A data frame with 4,168 rows and 10 columns
@@ -151,7 +151,8 @@ NULL
 #' @docType data
 #' @keywords datasets
 #' @examples
-#' table(flu_2014_matsumoto$member, flu_2014_matsumoto$status)
+#' head(flu_2014_matsumoto)
+#' measure_cases_by_hh_size(flu_2014_matsumoto)
 #' @name flu_2014_matsumoto
 #' @usage data(flu_2014_matsumoto)
 #' @format A data frame with 47,213 rows and 3 columns

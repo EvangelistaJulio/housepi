@@ -23,7 +23,8 @@ To reproduce the data processing, see the script at:
 \code{system.file("data-raw", "make_flu_1918_baltimore_frederick.R", package = "housepi")}
 }
 \examples{
-measure_ar_by_hh_size(flu_1918_baltimore)
+head(flu_1918_baltimore)
+measure_cases_by_hh_size(flu_1918_baltimore)
 }
 \references{
 \insertRef{fraser_influenza_2011}{housepi}

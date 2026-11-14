@@ -39,14 +39,6 @@ reference:
     - starts_with("inspect_")
     - starts_with("run_")
 
-- title: "Model definitions"
-  desc: >
-    Decorators used to customize model definitions.
-  contents:
-  - starts_with("add_")
-  - starts_with("get_")
-  - -ends_with("_draws")
-
 - title: "Model templates"
   desc: >
     Documentation of built-in models.
@@ -54,6 +46,14 @@ reference:
   - template_final_size
   - template_case_ascertained
   - template_test
+
+- title: "Model definitions"
+  desc: >
+    Decorators used to customize model definitions.
+  contents:
+  - starts_with("add_")
+  - starts_with("get_")
+  - -ends_with("_draws")
 
 - title: "Inference results"
   desc: >

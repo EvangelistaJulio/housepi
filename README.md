@@ -7,21 +7,19 @@
 [![coverage report](https://gitlab.pasteur.fr/mmmi-pasteur/housepi/badges/main/coverage.svg?job=coverage)](https://gitlab.pasteur.fr/mmmi-pasteur/housepi/-/commits/main)
 [![license](https://img.shields.io/badge/license-GPL--3.0--or--later-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![docs](https://img.shields.io/badge/docs-pkgdown-blue.svg)](https://mmmi-pasteur.pages.pasteur.fr/housepi)
+[![DOI](https://img.shields.io/badge/DOI-forthcoming-lightgrey.svg)](#citation)
 <!-- badges: end -->
 
-*housepi* is an R package for the statistical analysis and modelling
+housepi is an R package for the statistical analysis and modelling
 of infectious disease transmission within households.
 Household transmission models are specified declaratively, fitted to data with Bayesian MCMC
 and used to simulate outbreaks.
 They support data augmentation, infectivity profiles, and individual group and contact rates.
 Validation is supported through simulation studies, and prior and posterior predictive checks.
 
-> [!IMPORTANT]
-> *housepi* has not been released yet: the API may change between versions until the first release.
-
 ## Installation
 
-*housepi* is compiled from source, so it needs a working C++17 toolchain.
+housepi is compiled from source, so it needs a working C++17 toolchain.
 The same toolchain compiles custom and discrete-time models at runtime.
 Check that it is available with:
 ``` r
@@ -71,11 +69,17 @@ in the guide [Get started](https://mmmi-pasteur.pages.pasteur.fr/housepi/article
 
 ## Citation
 
-To cite *housepi* in publications, run `citation("housepi")`.
+To cite housepi in publications, run `citation("housepi")`.
 
 ## Contributing
 
 Report bugs and request features on the [GitLab issue tracker](https://gitlab.pasteur.fr/mmmi-pasteur/housepi/-/work_items), following the [contributing guide](https://gitlab.pasteur.fr/mmmi-pasteur/housepi/-/blob/main/CONTRIBUTING.md).
+
+## AI disclosure
+
+Claude models (Anthropic) were used to develop the code and documentation of this package.
+All code was validated against standard statistical tests and previous implementations.
+The authors take full responsibility for its content.
 
 ## License
 

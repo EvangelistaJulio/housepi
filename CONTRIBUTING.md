@@ -1,6 +1,6 @@
 # Contributing to housepi
 
-*housepi* is developed by the Mathematical Modelling for Infectious Diseases unit at Institut Pasteur.
+housepi is developed by the Mathematical Modelling for Infectious Diseases unit at Institut Pasteur.
 Report bugs and request features on the
 [GitLab issue tracker](https://gitlab.pasteur.fr/mmmi-pasteur/housepi/-/work_items).
 We close merge requests from outside the team without review, so open an issue instead.
@@ -10,7 +10,7 @@ We close merge requests from outside the team without review, so open an issue i
 Open an issue with the [Bug template](https://gitlab.pasteur.fr/mmmi-pasteur/housepi/-/issues/new?issuable_template=Bug)
 and fill in every section:
 
-- the *housepi* version, from `packageVersion("housepi")`;
+- the housepi version, from `packageVersion("housepi")`;
 - a minimal example that reproduces the bug from `library(housepi)`, with `set.seed()` if the result depends on random draws;
 - the full error or warning, or the output you got and the output you expected;
 - the output of `sessionInfo()`.

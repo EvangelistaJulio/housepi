@@ -120,4 +120,3 @@ Choose \eqn{n_\mathrm{ref}}{n_ref} from \code{\link[=measure_geom_mean_hh_size]{
 \seealso{
 \code{\link[=browse_templates]{browse_templates()}}
 }
-\keyword{internal}

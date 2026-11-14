@@ -97,9 +97,12 @@ ggplot(calibration$estimates, aes(x = rank)) +
   labs(x = "rank", y = "replicates")
 ```
 
-Ranks piling at both ends mean the posterior is too narrow, so the truth falls in its tails too often.
-Ranks piling in the middle mean it is too wide.
-Ranks piling on one side mean it is shifted.
+Where the ranks pile up tells how the posterior is off:
+
+- at both ends, it is too narrow, so the truth falls in its tails too often,
+- in the middle, it is too wide,
+- on one side, it is shifted.
+
 Low ranks put the truth below most posterior draws, so the posterior overestimates the parameter.
 
 # Test for uniformity

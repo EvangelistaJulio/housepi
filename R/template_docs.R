@@ -18,7 +18,6 @@
 #'
 #' @seealso [browse_templates()]
 #' @name template_test
-#' @keywords internal
 NULL
 
 #' Final Size
@@ -82,7 +81,6 @@ NULL
 #' \insertAllCited{}
 #' @seealso [browse_templates()]
 #' @name template_final_size
-#' @keywords internal
 NULL
 
 #' Case Ascertained
@@ -177,5 +175,4 @@ NULL
 #' \insertAllCited{}
 #' @seealso [browse_templates()]
 #' @name template_case_ascertained
-#' @keywords internal
 NULL

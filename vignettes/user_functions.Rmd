@@ -21,7 +21,7 @@ editor_options:
 knitr::opts_chunk$set(fig.width = 5, fig.height = 3)
 ```
 
-Sometimes your case study requires a function, distribution or infectivity profile not immediately available in housepi.
+Sometimes a case study requires a function, distribution or infectivity profile missing from housepi.
 Custom function classes can be registered in C++ and made available to models and to R.
 This route is for users comfortable reading and editing C++ code and working with custom housepi models.
 The authors will also consider requests to add missing functions to the package.
@@ -100,7 +100,7 @@ Here is what each part does:
 
 4. **Core computation**: `raw_function_()` implements the function. Arguments are accessed by position with `arg(0)`, `arg(1)`, etc. (note that `x` is reserved as the function input).
 
-5. **Registration**: `HOUSEPI_REGISTER_FUNCTION(Growth_, Custom)` registers the function under the `Custom` category, making `"growth"` available to the framework and callable from R.
+5. **Registration**: `HOUSEPI_REGISTER_FUNCTION(Growth_, Custom)` registers the function under the `Custom` category, making `"growth"` available to models and callable from R.
 
 # The custom model
 

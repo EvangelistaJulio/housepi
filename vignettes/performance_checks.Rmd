@@ -58,7 +58,7 @@ We check whether a dataset similar to the target one, simulated at the estimated
 # Performance at the estimates
 
 Passing the fit as `truth` simulates every study at its point estimates.
-To test values of your own choosing, pass one value per parameter, as in `c(alpha = 0.15, beta = 0.2, gamma = 1)`.
+Other values are tested by passing one value per parameter, as in `c(alpha = 0.15, beta = 0.2, gamma = 1)`.
 
 Each study is generated on households drawn with replacement from the attached data by `sample_house_structure()`, so it keeps the original household-size distribution, while the model draws who gets infected.
 The results then describe a population of households shaped like those of Frederick.

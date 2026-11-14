@@ -56,8 +56,7 @@ The source repository distributes the data under the GNU Lesser General Public L
 }
 \examples{
 head(sarscov2_2021_icofs)
-hh_model <- new_housepi_model(sarscov2_2021_icofs, "case_ascertained")
-summarise_house_cases(hh_model)
+measure_sar_by_hh_size(flu_1918_frederick)
 }
 \references{
 \insertRef{cortier_factors_2025}{housepi}
