@@ -306,6 +306,10 @@ namespace housepi
 
         /// Whether `x` falls inside.
         bool is_valid(double x) const { return !is_below(x) && !is_above(x); }
+        /// Whether the minimum is the support edge `x`, as a constant.
+        bool is_min_at(double x) const { return min.is_constant() && min.value() == x; }
+        /// Whether the maximum is the support edge `x`, as a constant.
+        bool is_max_at(double x) const { return max.is_constant() && max.value() == x; }
         /// The interval the bounds delimit, in the absolute frame.
         /// Bounds read through their codomains: an undrawn bound still places the interval it reaches.
         Codomain relocated() const;

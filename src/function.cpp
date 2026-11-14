@@ -791,7 +791,7 @@ namespace housepi
             msg::stop(
                 "Invoked invalid min value " + str::format(old) + " for " + owner + ".");
 
-        if (old == min_val && max.is_empty())
+        if (is_min_at(min_val) && max.is_empty())
             return false;
 
         init_standard(is_min_open ? old == min_val : false, false, owner);

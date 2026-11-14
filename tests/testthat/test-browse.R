@@ -434,6 +434,14 @@ test_that("Truncated discrete mass is normalised on the bins of the support", {
   sum(distr$pdf(k)) |> expect_equal(1)
   distr$cdf(max(k)) |> expect_equal(1)
 
+  # a window opening on the zero bin reads the cumulative below the support
+  k <- 0:5
+  distr <- browse_distributions("poisson", lambda = 3, max = max(k))
+  distr$pdf(k) |> expect_equal(stats::dpois(k, 3) / stats::ppois(max(k), 3))
+  distr$cdf(k) |> expect_equal(stats::ppois(k, 3) / stats::ppois(max(k), 3))
+  browse_distributions("poisson", lambda = 3, min = 0, max = max(k))$cdf(k) |>
+    expect_equal(distr$cdf(k))
+
   # left-discretized: bin i carries [i, i + 1), so the support holds 5 bins
   i <- 1:5
   distr <- browse_distributions("gamma", shape = 2, scale = 1,

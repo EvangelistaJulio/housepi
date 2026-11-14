@@ -73,6 +73,62 @@ namespace housepi
     }
 }
 
+namespace housepi
+{
+    //////////////////////////////  Distribution  //////////////////////////////
+    Function::ArgRequirements Distribution::positive_args_(std::initializer_list<size_t> idx) const
+    {
+        Function::ArgRequirements reqs;
+        for (size_t i : idx)
+            reqs.emplace_back(&arguments_(i), Codomain::positive());
+        return reqs;
+    }
+
+    /// Whether arguments `idx` of the active parametrization are constant.
+    bool Distribution::are_args_constant_(std::initializer_list<size_t> idx) const
+    {
+        for (size_t i : idx)
+            if (!arguments_(i).is_constant())
+                return false;
+        return true;
+    }
+
+    double Distribution::truncated_rand_(RndGen &prng) const
+    {
+        const double cdf_at_min = trunc_mode_ == Trunc::Max ? 0. : cdf_min_();
+        const double cdf_at_max = trunc_mode_ == Trunc::Min ? 1. : cdf_max_();
+        const double window = cdf_at_max - cdf_at_min;
+
+        if (window > MIN_REJECT_WINDOW)
+        {
+            const double min_val = trunc_mode_ == Trunc::Max ? -inf::DOUBLE : domain_.min.value();
+            const double max_val = trunc_mode_ == Trunc::Min ? inf::DOUBLE : domain_.max.value();
+            for (int k = 0; k < MAX_REJECT_DRAWS; ++k)
+            {
+                const double x = cast_discr_(raw_rand_(prng));
+                if (x >= min_val && x <= max_val)
+                    return x;
+            }
+        }
+        return raw_quantile_(cdf_at_min + standard_uniform(prng) * window);
+    }
+
+    void Distribution::helper_init_distr_truncation_(bool min_edge, bool max_edge)
+    {
+        const bool has_min = domain_.below != Interval::Unbounded && !min_edge;
+        const bool has_max = domain_.above != Interval::Unbounded && !max_edge;
+
+        if (!has_min && !has_max)
+            trunc_mode_ = Trunc::None;
+        else if (has_min && !has_max)
+            trunc_mode_ = Trunc::Min;
+        else if (!has_min && has_max)
+            trunc_mode_ = Trunc::Max;
+        else
+            trunc_mode_ = Trunc::Both;
+    }
+}
+
 //////////////////////////////  Distribution implementations  //////////////////////////////
 
 namespace housepi
@@ -143,11 +199,11 @@ namespace housepi
         discr_mode_ = Discrete::Left; \
     }
         /// Define minimum closed at 0.
-#define INIT_MIN_ZERO_CLOSE()                   \
-    void truncate() override final              \
-    {                                           \
-        if (helper_init_domain_min_(0., false)) \
-            helper_init_distr_truncation_();    \
+#define INIT_MIN_ZERO_CLOSE()                                     \
+    void truncate() override final                                \
+    {                                                             \
+        if (helper_init_domain_min_(0., false))                   \
+            helper_init_distr_truncation_(domain_.is_min_at(0.)); \
     }
 
         /// Refuse discretization, for a law with no discrete counterpart.
@@ -468,10 +524,12 @@ namespace housepi
                 if (dx > 1)
                     msg::stop(
                         "Invoked invalid max value " + str::format(dx) + " for " + str() + ".");
-                if (sx > 0 || dx < 1)
+                const bool min_edge = domain_.is_min_at(0.);
+                const bool max_edge = domain_.is_max_at(1.);
+                if (!min_edge || !max_edge)
                 {
                     helper_init_standard_domain_(sx == 0, dx == 1);
-                    helper_init_distr_truncation_();
+                    helper_init_distr_truncation_(min_edge, max_edge);
                 }
             }
 
@@ -866,7 +924,9 @@ namespace housepi
                     msg::stop(
                         "Invoked invalid min value " + str::format(sx) +
                         " for " + str() + ".");
-                if (sx > 0. || arguments_(0).pointer() != max().pointer())
+                const bool min_edge = domain_.is_min_at(0.);
+                const bool max_edge = arguments_(0).pointer() == max().pointer();
+                if (!min_edge || !max_edge)
                 {
                     const double dx = domain_.max.value();
                     if (dx > arg(0))
@@ -874,7 +934,7 @@ namespace housepi
                             "Invoked invalid max value " + str::format(dx) +
                             " for " + str() + " with size " + str::format(arg(0)) + ".");
                     helper_init_standard_domain_();
-                    helper_init_distr_truncation_();
+                    helper_init_distr_truncation_(min_edge, max_edge);
                 }
             }
 

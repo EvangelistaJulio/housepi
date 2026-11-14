@@ -119,26 +119,10 @@ namespace housepi
         }
 
     protected:
-        //////  Arguments  //////
-
         /// Require arguments `idx` of the active parametrization to be positive.
-        ArgRequirements positive_args_(std::initializer_list<size_t> idx) const
-        {
-            ArgRequirements reqs;
-            for (size_t i : idx)
-                reqs.emplace_back(&arguments_(i), Codomain::positive());
-            return reqs;
-        }
+        ArgRequirements positive_args_(std::initializer_list<size_t> idx) const;
         /// Whether arguments `idx` of the active parametrization are constant.
-        bool are_args_constant_(std::initializer_list<size_t> idx) const
-        {
-            for (size_t i : idx)
-                if (!arguments_(i).is_constant())
-                    return false;
-            return true;
-        }
-
-        //////  Virtual  //////
+        bool are_args_constant_(std::initializer_list<size_t> idx) const;
 
         /// Raw quantile at cumulative probability `p`.
         virtual double raw_quantile_(double /*p*/) const = 0;
@@ -161,8 +145,6 @@ namespace housepi
                 return raw_log_ratio_(std::floor(xo), std::floor(xn));
             }
         }
-
-        //////  Getter  //////
 
         /// Lattice of the draws.
         /// * location off the integers -> the support moves off with it.
@@ -197,43 +179,14 @@ namespace housepi
         ///
         /// * window above MIN_REJECT_WINDOW -> rejection sampling;
         /// * otherwise, or after MAX_REJECT_DRAWS rejections -> inverse sampling.
-        double truncated_rand_(RndGen &prng) const
-        {
-            const double cdf_at_min = trunc_mode_ == Trunc::Max ? 0. : cdf_min_();
-            const double cdf_at_max = trunc_mode_ == Trunc::Min ? 1. : cdf_max_();
-            const double window = cdf_at_max - cdf_at_min;
+        double truncated_rand_(RndGen &prng) const;
 
-            if (window > MIN_REJECT_WINDOW)
-            {
-                const double min_val = trunc_mode_ == Trunc::Max ? -inf::DOUBLE : domain_.min.value();
-                const double max_val = trunc_mode_ == Trunc::Min ? inf::DOUBLE : domain_.max.value();
-                for (int k = 0; k < MAX_REJECT_DRAWS; ++k)
-                {
-                    const double x = cast_discr_(raw_rand_(prng));
-                    if (x >= min_val && x <= max_val)
-                        return x;
-                }
-            }
-            return raw_quantile_(cdf_at_min + standard_uniform(prng) * window);
-        }
-
-        //////  Truncation  //////
-
-        /// Select truncation mode.
-        void helper_init_distr_truncation_()
-        {
-            const bool has_min = domain_.below != Interval::Unbounded;
-            const bool has_max = domain_.above != Interval::Unbounded;
-
-            if (!has_min && !has_max)
-                trunc_mode_ = Trunc::None;
-            else if (has_min && !has_max)
-                trunc_mode_ = Trunc::Min;
-            else if (!has_min && has_max)
-                trunc_mode_ = Trunc::Max;
-            else
-                trunc_mode_ = Trunc::Both;
-        }
+        /// Select truncation mode from the sides that cut mass.
+        /// * side unbounded -> no cut;
+        /// * side on a support edge -> bounds values, no cut.
+        /// @param min_edge Whether the minimum sits on the support floor.
+        /// @param max_edge Whether the maximum sits on the support ceiling.
+        void helper_init_distr_truncation_(bool min_edge = false, bool max_edge = false);
     };
 
     //////////////////////////////  PinnedDistribution  //////////////////////////////
