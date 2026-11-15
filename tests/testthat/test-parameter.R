@@ -429,6 +429,18 @@ test_that("Default random walks sample their target", {
   abs(quartiles - log(1e-6) * c(0.75, 0.5, 0.25)) |> expect_all_lt(0.7)
 })
 
+test_that("An infinite bound leaves the default walk moving", {
+  draws <- mk_param$model |>
+    add_parameter(rho = list(prior = "gamma", shape = 2, max = Inf),
+                  rho_2 = list(prior = "normal", mean = 0, min = -Inf)) |>
+    run_inference(steps = 50L, thin = 1L, adapt = 0L, chains = 1L) |>
+    suppressWarnings(classes = "housepi_warning_diagnostics") |>
+    get_parameter_draws()
+
+  length(unique(draws[["rho"]])) |> expect_gt(1)
+  length(unique(draws[["rho_2"]])) |> expect_gt(1)
+})
+
 test_that("A random walk adapts its scale unless the scale is a number", {
   # an NA scale is no scale: the walk starts from its prior and adapts
   hh_model <- mk_param$model |>

@@ -209,6 +209,20 @@ test_that("Truncation bounds the reported domain, location stays apart", {
   browse_functions("log", max = 5)$domain |> expect_equal(interval("(0, 5]"))
 })
 
+test_that("An infinite bound leaves its side unbounded", {
+  # a bound at the infinity of its side cuts no mass: the law reads as unbounded
+  x <- seq(-3, 6, 0.5)
+  distr <- browse_distributions("gamma", shape = 2, scale = 1, max = Inf)
+  distr$domain |> expect_equal(interval("[0, Inf)"))
+  distr$pdf(x) |> expect_equal(stats::dgamma(x, shape = 2, scale = 1))
+  distr$cdf(x) |> expect_equal(stats::pgamma(x, shape = 2, scale = 1))
+  distr$rand(100) |> expect_all_finite()
+  distr_2 <- browse_distributions("normal", mean = 0, sd = 1, min = -Inf)
+  distr_2$domain |> expect_equal(interval("(-Inf, Inf)"))
+  distr_2$cdf(x) |> expect_equal(stats::pnorm(x))
+  distr_2$rand(100) |> expect_all_finite()
+})
+
 test_that("The codomain reports what a definition returns", {
   # a function is bounded on the values it accepts and on the values it gives
   # back, and the two are not the same interval

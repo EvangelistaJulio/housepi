@@ -319,6 +319,7 @@ namespace housepi
         Codomain relocated(Lattice lattice) const;
 
         /// Set the openness of both sides from the bounds provided.
+        /// * bound empty, or user-defined infinity -> side unbounded.
         /// @param owner Name of the definition, for the error it may raise.
         void init_standard(bool is_min_open, bool is_max_open, const std::string &owner);
         /// Lower the minimum onto `min_val`, returning whether truncation is needed.

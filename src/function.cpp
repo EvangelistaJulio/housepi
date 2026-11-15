@@ -800,14 +800,14 @@ namespace housepi
 
     void Domain::init_standard(bool is_min_open, bool is_max_open, const std::string &owner)
     {
-        if (min.is_empty())
+        if (min.is_empty() || is_min_at(-inf::DOUBLE))
             below = Interval::Unbounded;
         else if (is_min_open)
             below = Interval::Open;
         else
             below = Interval::Closed;
 
-        if (max.is_empty())
+        if (max.is_empty() || is_max_at(inf::DOUBLE))
             above = Interval::Unbounded;
         else if (is_max_open)
             above = Interval::Open;

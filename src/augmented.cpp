@@ -124,7 +124,7 @@ namespace housepi
         {
             mode_ = Mode::LookUp;
             size_t n = infprof::LOOKUP_SIZE;
-            if (generic->max().is_callable())
+            if (generic->domain().above != Interval::Unbounded && generic->max().is_callable())
             {
                 // ensure enough space when 'max' is de-located
                 const double loc = generic->loc().is_callable() ? generic->loc().value() : 0.;
