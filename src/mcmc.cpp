@@ -260,6 +260,8 @@ namespace housepi
     {
         const auto bind = [&](std::string_view key, const parse::Entry &node)
         {
+            if (node.is_empty())
+                return true;
             const Attribute &attr = numeric ? to_numeric(node, indiv_ptr)
                                             : to_attribute(node, indiv_ptr, nullptr, na_undefines);
             if (na_undefines && attr.is_constant() && attr.is_na())

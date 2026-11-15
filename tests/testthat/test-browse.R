@@ -701,6 +701,16 @@ test_that("Categorical distribution is correct", {
   browse_distributions("categorical") |> expect_error("no weights")
   browse_distributions("categorical", a = 1, b = -2) |>
     expect_error("non-strictly positive")
+
+  # codes sit on no axis: a zero weight drops one
+  browse_distributions("categorical", a = 1, b = 2, min = 1) |>
+    expect_error("[Uu]nused argument .min. in distribution .categorical.")
+  browse_distributions("categorical", a = 1, b = 2, max = 0) |>
+    expect_error("[Uu]nused argument .max. in distribution .categorical.")
+  browse_distributions("categorical", a = 1, b = 2, loc = 1) |>
+    expect_error("[Uu]nused argument .loc. in distribution .categorical.")
+  browse_distributions("categorical", a = 0, b = 2)$pdf(0:1) |>
+    expect_equal(c(0, 1))
 })
 
 test_that("Default parameters match R reference for d", {

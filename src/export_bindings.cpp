@@ -281,12 +281,15 @@ namespace housepi
                 const Domain &d = ptr_->domain();
                 return rcpp_interval(d.min.value(), d.max.value(), d.below, d.above);
             }
-            /// Whether each bound reads an argument rather than holding its own value.
+            /// Whether each bound is set by the law rather than holding its own value.
+            /// * bound reading an argument -> set by the law;
+            /// * law of the categorical registry -> both set by its weights.
             Rcpp::LogicalVector bound_aliases() const
             {
+                const bool coded = registry::instance(registry::Kind::Categorical).contains(ptr_->name());
                 return Rcpp::LogicalVector::create(
-                    Rcpp::_["min"] = ptr_->min().is_pointer(),
-                    Rcpp::_["max"] = ptr_->max().is_pointer());
+                    Rcpp::_["min"] = coded || ptr_->min().is_pointer(),
+                    Rcpp::_["max"] = coded || ptr_->max().is_pointer());
             }
             /// Location shift, NA without a location argument.
             double loc() const { return hsp_to_rcpp(ptr_->loc().value()); }

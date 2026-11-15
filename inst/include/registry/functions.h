@@ -34,6 +34,8 @@ namespace housepi
             Transcendental,
             Continuous,
             Discrete,
+            /// Laws over codes, one per weight.
+            Categorical,
             InfecProfile
         };
 
@@ -42,6 +44,7 @@ namespace housepi
         {
             return kind == Kind::Continuous ||
                    kind == Kind::Discrete ||
+                   kind == Kind::Categorical ||
                    kind == Kind::InfecProfile;
         }
 
@@ -110,16 +113,16 @@ namespace housepi
             std::vector<std::string> names() const;
         };
 
-        /// Distribution registries.
-        /// * name in both registries -> the discrete one when `discr`.
+        /// Distribution registries, categorical last.
+        /// * name in both continuous and discrete registries -> the discrete one when `discr`.
         SearchOrder distr_search_order(bool discr);
         /// Deterministic function registries.
         SearchOrder func_search_order();
         /// Function, distribution and infectivity-profile registries.
         /// * name in both distribution registries -> the discrete one when `discr`.
         SearchOrder func_distr_search_order(bool discr);
-        /// Infectivity-profile registry, then the distribution registries.
-        /// * name in both distribution registries -> the discrete one when `discr`.
+        /// Infectivity-profile registry, then the continuous and discrete distribution registries.
+        /// * name in both distribution registries -> the discrete one when `discr`;
         SearchOrder infec_profile_search_order(bool discr);
 
         /// Create a function from the first registry carrying the name.

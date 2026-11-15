@@ -570,6 +570,11 @@ namespace housepi
 
         Attribute x_arg_ = Attribute();
 
+        /// Arguments every function carries, named at construction: `x`, `loc`, `min`, `max`.
+        std::vector<Attribute *> standard_args_() { return {&x_arg_, &domain_.loc, &domain_.min, &domain_.max}; }
+        /// Standard argument `key`, nullptr for any other.
+        Attribute *find_standard_arg_(std::string_view key);
+
         /// Arguments of one parametrization.
         struct AltArgSet
         {
@@ -606,7 +611,7 @@ namespace housepi
         virtual Attribute &find_arg_(std::string_view arg_name);
 
         /// Append argument `key`, for variadic parametrizations.
-        /// * standard arguments `x`, `loc`, `min`, `max` -> returned, not appended.
+        /// * standard argument -> returned, not appended.
         /// @note Call once per key: repeated names are refused R-side.
         Attribute &append_arg_(std::string_view key);
 

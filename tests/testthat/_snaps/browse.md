@@ -51,7 +51,6 @@
       i Available infectivity profiles:
       * "beta"
       * "binomial"
-      * "categorical"
       * "exponential"
       * "ferretti20"
       * "gamma"

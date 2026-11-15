@@ -515,7 +515,7 @@ namespace housepi
     Function::Function(const Function::default_args &args,
                        double domain_min, double domain_max)
     {
-        // default arguments initialized as empty
+        // standard arguments initialized as empty
         x_arg_.name("x");
         domain_.loc.name("loc");
         domain_.min.name("min");
@@ -555,16 +555,18 @@ namespace housepi
 
     //////////////////////////////  Function : getter  //////////////////////////////
 
+    Attribute *Function::find_standard_arg_(std::string_view key)
+    {
+        for (Attribute *attr : standard_args_())
+            if (attr->name() == key)
+                return attr;
+        return nullptr;
+    }
+
     Attribute &Function::find_arg_(std::string_view key)
     {
-        if (key == "x")
-            return x_arg_;
-        if (key == "loc")
-            return domain_.loc;
-        if (key == "min")
-            return domain_.min;
-        if (key == "max")
-            return domain_.max;
+        if (Attribute *attr = find_standard_arg_(key))
+            return *attr;
 
         // non-standard arguments: the first hit picks or confirms the active parametrization
         for (size_t i = 0; i < alts_.size(); ++i)
@@ -594,7 +596,8 @@ namespace housepi
             if (!is_user_alt_ || i == static_cast<size_t>(alt_idx_))
                 for (const Attribute &attr : alts_[i].args)
                     options.emplace_back(attr.name());
-        vect::append(options, {"loc", "min", "max", "x"});
+        for (const Attribute *attr : standard_args_())
+            options.emplace_back(attr->name());
         msg::stop(
             "Unused argument " + msg::arg(std::string(key)) + " in " + str() + "." +
             str::find_closest(key, options, "Show its arguments with " + registry::browse_call(name()) + "."));
@@ -602,14 +605,8 @@ namespace housepi
 
     Attribute &Function::append_arg_(std::string_view key)
     {
-        if (key == "x")
-            return x_arg_;
-        if (key == "loc")
-            return domain_.loc;
-        if (key == "min")
-            return domain_.min;
-        if (key == "max")
-            return domain_.max;
+        if (Attribute *attr = find_standard_arg_(key))
+            return *attr;
 
         std::vector<Attribute> &args = arguments_();
         args.emplace_back();
@@ -730,7 +727,7 @@ namespace housepi
             return;
 
         raise_not_discrete_(
-            domain_.loc, msg::arg("loc") + " definition is incompatible with discrete " + str() + ".");
+            domain_.loc, msg::arg(domain_.loc.name()) + " definition is incompatible with discrete " + str() + ".");
     }
 
     void Function::assert_arg_requirements() const
@@ -755,7 +752,9 @@ namespace housepi
                                  const Function::default_args &args)
     {
         // known names, for collision detection
-        std::vector<std::string> existing_names = {"x", "loc", "min", "max"};
+        std::vector<std::string> existing_names;
+        for (const Attribute *attr : standard_args_())
+            existing_names.emplace_back(attr->name());
         for (const AltArgSet &alt : alts_)
             for (const Attribute &attr : alt.args)
                 existing_names.emplace_back(attr.name());
@@ -913,12 +912,12 @@ namespace housepi
 
             if (!attr.function()->is_callable_implicitly())
                 msg::stop(
-                    "Argument " + msg::arg("x") + " of " + attr.function()->str() + " cannot be missing.");
+                    "Argument " + msg::arg(x_arg_.name()) + " of " + attr.function()->str() + " cannot be missing.");
         }
         else if (attr.is_constant())
         {
             double x = attr.value();
-            if (key == "x" && !is_valid(x))
+            if (key == x_arg_.name() && !is_valid(x))
                 msg::stop("Value " + str::format(x) + " is outside of domain " + domain_.str() + ".");
         }
     }
@@ -971,7 +970,7 @@ namespace housepi
         RegFunctions &instance(Kind kind)
         {
             static RegFunctions custom, arithmetic, transcendental;
-            static RegDistributions continuous, discrete, infec_profile;
+            static RegDistributions continuous, discrete, categorical, infec_profile;
             switch (kind)
             {
             case Kind::Custom:
@@ -984,6 +983,8 @@ namespace housepi
                 return continuous;
             case Kind::Discrete:
                 return discrete;
+            case Kind::Categorical:
+                return categorical;
             // case Kind::InfecProfile
             default:
                 return infec_profile;
@@ -1007,8 +1008,8 @@ namespace housepi
 
         SearchOrder distr_search_order(bool discr)
         {
-            return {discr ? std::vector<Kind>{Kind::Discrete, Kind::Continuous}
-                          : std::vector<Kind>{Kind::Continuous, Kind::Discrete}};
+            return {discr ? std::vector<Kind>{Kind::Discrete, Kind::Continuous, Kind::Categorical}
+                          : std::vector<Kind>{Kind::Continuous, Kind::Discrete, Kind::Categorical}};
         }
         SearchOrder func_search_order()
         {
@@ -1021,7 +1022,8 @@ namespace housepi
         }
         SearchOrder infec_profile_search_order(bool discr)
         {
-            return {vect::concatenate({Kind::InfecProfile}, distr_search_order(discr).kinds)};
+            return {discr ? std::vector<Kind>{Kind::InfecProfile, Kind::Discrete, Kind::Continuous}
+                          : std::vector<Kind>{Kind::InfecProfile, Kind::Continuous, Kind::Discrete}};
         }
 
         namespace
@@ -1037,6 +1039,7 @@ namespace housepi
                     return "browse_functions";
                 case Kind::Continuous:
                 case Kind::Discrete:
+                case Kind::Categorical:
                     return "browse_distributions";
                 // case Kind::InfecProfile
                 default:
@@ -1062,7 +1065,7 @@ namespace housepi
         std::string browse_call(std::string_view name)
         {
             std::string browser = browser_(Kind::Custom);
-            for (Kind kind : {Kind::InfecProfile, Kind::Continuous, Kind::Discrete})
+            for (Kind kind : {Kind::InfecProfile, Kind::Continuous, Kind::Discrete, Kind::Categorical})
                 if (instance(kind).contains(name))
                 {
                     browser = browser_(kind);

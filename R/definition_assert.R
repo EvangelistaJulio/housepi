@@ -125,10 +125,7 @@ append_call_args_ <- function(call, args) {
           paste(sprintf("[%s]", vals), collapse = ":"))
 }
 
-# Write into row `r` the defaults the user left out:
-# * arguments of the parametrization in use;
-# * bounds holding a value of their own, not those reading an argument,
-#   which passing would detach from it.
+# Write into row `r` the defaults the user left out.
 fill_defaults_ <- function(gear, r, col, obj, user_args) {
   args <- cpp_member_(obj, "args")()
   args <- args[!is.na(args) & !names(args) %in% user_args]

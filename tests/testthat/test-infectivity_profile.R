@@ -61,6 +61,10 @@ test_that("Infectivity profile definition errors are recognized", {
   mk_infec$model |>
     add_infectivity_profile(func = "unknown", x = 5) |>
     expect_error("[Uu]nknown infectivity profile")
+  # a categorical draws codes, not days
+  mk_infec_discr$model |>
+    add_infectivity_profile(func = "categorical", a = 1, b = 2) |>
+    expect_error("[Uu]nknown infectivity profile .categorical.")
   # a name outside the naming convention
   mk_infec$model |>
     add_infectivity_profile(func = "gam|ma", shape = 2) |>

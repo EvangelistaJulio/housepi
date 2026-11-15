@@ -1142,7 +1142,16 @@ namespace housepi
                 return reqs;
             }
 
-            Attribute &find_arg_(std::string_view key) override final { return append_arg_(key); }
+            /// Append every key as a weight.
+            /// * standard argument other than `x` -> error, codes sit on no axis to shift or bound.
+            Attribute &find_arg_(std::string_view key) override final
+            {
+                const Attribute *attr = find_standard_arg_(key);
+                if (attr && attr != &x_arg_)
+                    msg::stop("Unused argument " + msg::arg(std::string(key)) + " in " + str() + "." +
+                              (attr == &domain_.loc ? "" : "\nDrop corresponding entries passing a weight of 0."));
+                return append_arg_(key);
+            }
 
             double raw_function_(double x) const override final
             {
@@ -1185,7 +1194,7 @@ namespace housepi
                 return static_cast<double>(i);
             }
         };
-        HOUSEPI_REGISTER_FUNCTION(Categorical_, Discrete)
+        HOUSEPI_REGISTER_FUNCTION(Categorical_, Categorical)
 
         //////////////////////////////  Ferretti20  //////////////////////////////
 

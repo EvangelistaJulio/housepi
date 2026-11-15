@@ -64,7 +64,8 @@ namespace housepi
         /// Bind the arguments of distribution `model` and the bounds `min`, `max` into `var`, then reshape it.
         /// * `numeric` -> every argument a numeric constant;
         /// * otherwise -> arguments live, read on `indiv_ptr`;
-        /// * `na_undefines`, an argument or bound reading an empty data cell -> binding stops.
+        /// * `na_undefines`, an argument or bound reading an empty data cell -> binding stops;
+        /// * empty bound -> not bound, a law taking no bounds never sees it.
         /// @return Whether every argument and bound carries a value.
         /// @note Call after Variable::init_distr().
         bool bind_distr(Variable &var,
