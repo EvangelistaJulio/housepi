@@ -519,16 +519,17 @@ namespace housepi
                 }
         }
 
-        /// List the data names (source D) read by `def` that are in `names`.
-        static std::vector<std::string> referred_data(const parse::Definition &def,
-                                                      const std::vector<std::string> &names)
+        /// List the data names (source D) in `names` that `row` reads, in simulation or evaluation.
+        static std::vector<std::string> referred_data(const DefRow &row,
+                                                      const std::vector<std::string> &names,
+                                                      bool simulation)
         {
             std::vector<std::string> output = {};
-            if (def.is_na())
-                return output;
-            for (const std::string &dstr : def.list_dataset_producers())
-                if (vect::contains(names, dstr))
-                    output.push_back(dstr);
+            for (const parse::Definition *col : row.source_cols(simulation))
+                if (!col->is_na())
+                    for (const std::string &dstr : col->list_dataset_producers())
+                        if (vect::contains(names, dstr))
+                            output.push_back(dstr);
             return output;
         }
 
@@ -567,80 +568,33 @@ namespace housepi
                     continue;
 
                 // the bounds of a bare row are never evaluated in simulation, nor flagged
-                for (const parse::Definition *col : row.source_cols(true))
-                    for (const std::string &dstr : referred_data(*col, drawn_names))
-                        msg::stop(
-                            "Found cyclic dependency in simulation.\n" +
-                            msg::alert("Latent " + msg::val(row.name) +
-                                       " reads generated household observation " + msg::val(dstr) + ".") +
-                            "\nDefine " + msg::val(row.name) +
-                            " without referencing " + msg::val(dstr) + ", or viceversa.");
+                for (const std::string &dstr : referred_data(row, drawn_names, true))
+                    msg::stop(
+                        "Found cyclic dependency in simulation.\n" +
+                        msg::alert("Latent " + msg::val(row.name) +
+                                   " reads generated household observation " + msg::val(dstr) + ".") +
+                        "\nDefine " + msg::val(row.name) +
+                        " without referencing " + msg::val(dstr) + ", or viceversa.");
             }
         }
 
-        void no_obs_entry_collision(const DefTable &def,
-                                    const std::vector<std::string> &obs_names)
-        {
-            if (obs_names.empty())
-                return;
-
-            // producer graph (name -> the latent names it reads), over latent + obs rows
-            std::vector<size_t> rows;
-            for (size_t k = 0; k < def.size(); ++k)
-                if (def[k].kind == Kind::Latent || def[k].kind == Kind::Member)
-                    rows.push_back(k);
-            const dag::prod_graph pgraph = graph::producers(def, rows, false);
-
-            for (size_t k : rows)
-            {
-                const std::string &name = def[k].name;
-
-                // the two rules partition DefRow::source_cols() by role:
-                // * model support: model, min, max;
-                // * deterministic value: value, func.
-                // keep them in sync with source_cols()
-
-                // rule 1: a latent's model (distribution and support) reads no observation
-                // its producers are parameters and other latents only
-                // an observation's model may read another observation, drawn before it
-                if (def[k].kind == Kind::Latent && def[k].has_model())
-                    for (const parse::Definition *col : {&def[k].model, &def[k].min, &def[k].max})
-                        for (const std::string &dstr : referred_data(*col, obs_names))
-                            msg::stop(
-                                "Definition collision: the model of " + msg::val(name) +
-                                " reads observation " + msg::val(dstr) +
-                                ".\nA latent model cannot depend on observed or generated values.");
-
-                // rule 2: a deterministic definition may read an observation, as a downstream readout
-                // unless it closes a loop: the observation is also its consumer
-                for (const parse::Definition *col : {&def[k].value, &def[k].func})
-                    for (const std::string &dstr : referred_data(*col, obs_names))
-                    {
-                        // observation node reading its own entry column
-                        if (dstr == name)
-                            continue;
-
-                        // loop iff observation `d` transitively consumes `name`
-                        const auto consumers = dag::transitive_consumers(name, pgraph, ErrType::Latent);
-                        if (vect::contains(consumers, dstr))
-                            msg::stop(
-                                "Cyclic definition: " + msg::val(name) +
-                                " reads observation " + msg::val(dstr) +
-                                ", but " + msg::val(dstr) + " depends on " + msg::val(name) +
-                                ".\nBreak the loop by defining one of them independently of the other.");
-                    }
-            }
-        }
-
-        void bare_rows(const DefTable &def,
-                       const Parameter &param,
-                       const std::vector<std::string> &transm)
+        void transm_rows(const DefTable &def,
+                         const Parameter &param,
+                         const std::vector<std::string> &transm)
         {
             for (const DefRow &row : def.rows)
             {
+                const bool is_transm = vect::contains(transm, row.name);
+
+                if (row.kind == Kind::Member && row.has_model() && is_transm)
+                    msg::stop(
+                        "Observation " + msg::val(row.name) +
+                        " is generated by the transmission model, which already gives its probability.\n" +
+                        "Drop the observation, and define " + msg::val(row.name) +
+                        " from a data column of another name.");
+
                 if (row.kind != Kind::Latent)
                     continue;
-                const bool is_transm = vect::contains(transm, row.name);
 
                 if (row.has_model() && row.is_sampled() && is_transm)
                     msg::stop(
@@ -867,11 +821,13 @@ namespace housepi
                     list_definition_(s, k, src);
 
                 // simulation draws a member observation before its readers: its producers differ from inference
+                // sampled latents and modelled observations are drawn in one pass, in this order
                 at_(s).sim_order = sorted_rows(true);
                 for (size_t k : at_(s).sim_order)
                 {
                     const size_t a = keys_.consult(def_[k].name);
-                    if (vect::contains(at_(s).sample, a))
+                    if (vect::contains(at_(s).sample, a) ||
+                        (def_[k].kind == Kind::Member && def_[k].has_model()))
                         at_(s).sim_sample.push_back(a);
                 }
             }
@@ -1122,8 +1078,15 @@ namespace housepi
         {
             // copy: the store reallocates below
             StatusScheme ss = scheme_.status_schemes_[base];
-            const std::vector<size_t> dead = keys_.consult(
-                graph::dead_names(def_, ss.order, transm, keys_.consult(absent)));
+            // a deterministic observation reading an absent datum is absent too
+            // simulation order lists an observation after those it reads: one pass propagates absence
+            std::vector<std::string> absent_names = keys_.consult(absent);
+            for (size_t k : ss.sim_order)
+                if (def_[k].kind == Kind::Member && !def_[k].has_model() &&
+                    !check::referred_data(def_[k], absent_names, false).empty())
+                    absent_names.push_back(def_[k].name);
+            const std::vector<std::string> dead_names = graph::dead_names(def_, ss.order, transm, absent_names);
+            const std::vector<size_t> dead = keys_.consult(dead_names);
 
             vect::remove(ss.obs_models, absent);
             vect::remove(ss.draws, dead);
@@ -1131,10 +1094,32 @@ namespace housepi
             vect::remove(ss.adaptive, dead);
             vect::remove(ss.latent_models, dead);
 
+            // a row reading an absent datum:
+            // * absent or deterministic observation -> kept, it adds no term;
+            // * dead latent -> out of the order, never bound;
+            // * live latent, observation with a datum -> error.
+            // a dead latent reading no absent datum stays, bound for its definition checks
             std::vector<size_t> order;
             for (size_t k : ss.order)
-                if (!vect::contains(dead, keys_.consult(def_[k].name)))
+            {
+                const DefRow &row = def_[k];
+                const std::vector<std::string> read = check::referred_data(row, absent_names, false);
+                const bool reads_value = row.kind == Kind::Latent ||
+                                         (row.has_model() && !vect::contains(absent_names, row.name));
+                if (read.empty() || !reads_value)
+                {
                     order.push_back(k);
+                    continue;
+                }
+                if (vect::contains(dead_names, row.name))
+                    continue;
+                std::string alert = str::format(row.kind) + " " + msg::val(row.name) + " reads its value";
+                if (row.kind == Kind::Latent)
+                    alert += ", and an observed value or transmission depends on " + msg::val(row.name);
+                msg::stop("Observation " + msg::val(read.front()) + " is missing.\n" + msg::alert(alert + ".") +
+                          "\nProvide the value, or define " + msg::val(row.name) +
+                          " without reading " + msg::val(read.front()) + ".");
+            }
             ss.order = std::move(order);
 
             // a dead key shifts no density and an absent observation reads none
@@ -1543,10 +1528,8 @@ namespace housepi
         builder.init_transm(user_transm_vec_.empty() ? std::vector<std::string>{}
                                                      : transm_names_());
 
-        // no definition reads an obs entry column
-        augm::check::no_obs_entry_collision(def_, consult(scheme_.list_obs_member));
-        // a bare latent is generated by transmission, a generated latent has no model
-        augm::check::bare_rows(def_, param_, consult(user_transm_vec_));
+        // a bare latent is generated by transmission, a generated latent or observation has no model
+        augm::check::transm_rows(def_, param_, consult(user_transm_vec_));
     }
 
     void Augmented::build_restore_internal_()
@@ -1632,16 +1615,16 @@ namespace housepi
         builder.init_models();
         const augm::Binder binder = binder_();
 
-        // bind latents of every infected member in order, each distinct warning raised once
+        // observations the data provide a value for, and what still reaches a sink
+        init_live_schemes_(builder);
+
+        // bind latents of every infected member in the order of its variant, each distinct warning raised once
         msg::WarningBuffer warnings;
         for (const Household &house : data_.dataset())
             for (const Individual &indiv : house.infected_indivs())
-                for (size_t k : helper_materialize_definition_order_(indiv, false))
+                for (size_t k : scheme_of_(indiv).order)
                     binder.bind_member(state.of(indiv).vec[consult(def_[k].name)], k, indiv, false);
         warnings.flush();
-
-        // observations the data provide a value for, and what still reaches a sink
-        init_live_schemes_(builder);
 
         // parameters that may move latent/observation models
         builder.init_param_producers(param_);
@@ -1716,7 +1699,6 @@ namespace housepi
     void Augmented::init_live_schemes_(augm::SchemeBuilder &builder)
     {
         // a previous run left its variants behind
-        // the definition-order pass points every individual back at the base scheme of its status
         builder.clear_variants();
         const std::vector<std::string> transm = transm_names_();
 
@@ -1728,11 +1710,15 @@ namespace housepi
         for (const Household &house : data_.dataset())
             for (const Individual &indiv : house.infected_indivs())
             {
+                // point the individual at the base scheme of its status
+                helper_materialize_definition_order_(indiv, false);
+
+                // read the datum from the data cell: observation Variables are not bound yet
                 std::vector<size_t> absent;
                 for (size_t a : scheme_of_(indiv).obs_models)
                 {
                     ++declared[a];
-                    if (na::is(state.of(indiv).vec[a].value()))
+                    if (na::is(data_.state.readcell(data_.dataset().consult(consult(a)), indiv).value()))
                         ++missing[a], absent.push_back(a);
                 }
                 const std::vector<size_t> key =
@@ -1740,10 +1726,20 @@ namespace housepi
                 const auto it = std::find_if(variants.begin(), variants.end(),
                                              [&key](const auto &v)
                                              { return v.first == key; });
-                state.of(indiv).idx =
-                    it != variants.end()
-                        ? it->second
-                        : variants.emplace_back(key, builder.make_variant(key.front(), absent, transm)).second;
+                if (it != variants.end())
+                {
+                    state.of(indiv).idx = it->second;
+                    continue;
+                }
+                try
+                {
+                    state.of(indiv).idx =
+                        variants.emplace_back(key, builder.make_variant(key.front(), absent, transm)).second;
+                }
+                catch (const std::exception &e)
+                {
+                    msg::stop(msg::join(e.what(), "for " + data_.dataset().str(indiv)));
+                }
             }
 
         augm::check::report_missing_obs(*this, declared, missing);

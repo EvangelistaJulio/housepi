@@ -59,7 +59,7 @@ namespace housepi::augm
         std::vector<size_t> latent_models = {};
         /// Keys to sample.
         std::vector<size_t> sample = {};
-        /// Keys of `sample`, in simulation order.
+        /// Keys of `sample` and of modelled member observations, in simulation order.
         std::vector<size_t> sim_sample = {};
         /// Keys with an adaptive proposal, a subset of `sample`.
         std::vector<size_t> adaptive = {};
@@ -183,6 +183,9 @@ namespace housepi::augm
         void clear_variants() { scheme_.status_schemes_.resize(scheme_.n_base_); }
         /// Append a variant of scheme `base` leaving observations `absent` out, and return its index.
         /// A latent no sink reaches is left out too, with its draw and density.
+        /// A deterministic observation reading an absent datum is absent too.
+        /// * latent reaching a sink reads an absent datum -> error;
+        /// * observation with a datum reads an absent one -> error.
         size_t make_variant(size_t base,
                             const std::vector<size_t> &absent,
                             const std::vector<std::string> &transm);

@@ -224,12 +224,10 @@ namespace housepi
 
         /// Initialize the latents and observations of member `indiv`.
         /// * latent set by the user -> skipped.
-        /// @todo Allow order-dependent assignments in simulation.
         void init_missing_latent(Individual &indiv)
         {
             chain_->augm.init_definitions_for_simulation(indiv);
             chain_->augm.draw_sample_for_simulation(indiv, house_prng_());
-            chain_->augm.sample_obs(indiv, house_prng_());
         }
 
         //////  Getter  //////

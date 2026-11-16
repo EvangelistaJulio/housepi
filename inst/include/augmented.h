@@ -91,14 +91,6 @@ namespace housepi
         void init_members_for_simulation();
         /// Empty every member variable and drop the blocks, at the end of a simulation run.
         void release_simulation();
-        /// Draw the observations of `indiv` from their models, for simulation.
-        /// * each draw lands in its Variable, where data readers read it;
-        /// * the data column, if any, is never overwritten.
-        void sample_obs(const Individual &indiv, RndGen &prng)
-        {
-            augm::draw_sample(scheme_of_(indiv).obs_models, state.of(indiv), prng);
-        }
-
         /// Build columns of deterministic observations, and point member read-surfaces at them.
         ///
         /// Only static columns are eligible: a drawn one has no fixed value.
@@ -115,8 +107,11 @@ namespace housepi
         /// * no latent to sample -> skipped.
         void restart(RndGen &prng);
 
-        /// Draw the sampled latents of `indiv` from their models, for simulation.
+        /// Draw the sampled latents and modelled observations of `indiv` from their models, for simulation.
         /// Unlike restart(), it uses no proposal.
+        /// * one pass in simulation order -> a latent reads the observations drawn before it;
+        /// * observation draw -> lands in its Variable, where data readers read it;
+        /// * data column of an observation -> never overwritten.
         void draw_sample_for_simulation(const Individual &indiv, RndGen &prng)
         {
             augm::draw_sample(scheme_of_(indiv).sim_sample, state.of(indiv), prng);
@@ -295,6 +290,7 @@ namespace housepi
         /// * definitions still reaching a sink.
         ///
         /// A datum absent at build stays absent for the run: the likelihood never reads it.
+        /// @note Call before binding: a definition the variant leaves out is never bound.
         /// @note Evaluation only: a simulation reads every definition it produces.
         void init_live_schemes_(augm::SchemeBuilder &builder);
         /// Set the latent block of every status scheme an infected member follows, and its members' factors.
