@@ -385,7 +385,7 @@ add_dataset <- function(hh_model, data) {
 #'   new_housepi_model("case-ascertained") |>
 #'   add_long_dataset(measures)
 #' get_long_dataset(hh_model)
-#' @export
+#' @noRd
 add_long_dataset <- function(hh_model, data) {
   stopifnothousepi(hh_model)
   new_obj <- hh_model$copy()
@@ -444,9 +444,9 @@ subset_definitions_ <- function(defs, name, col = "name") {
 #' @title Retrieve currently loaded data and definitions from a housepi model
 #' @description
 #' Return the definitions currently stored in the housepi model.
-#' Each variant returns one category: dataset, long dataset, parameters,
+#' Each variant returns one category: dataset, parameters,
 #' latent variables, observations, status process, group rates,
-#' contact rates, infectivity profile or reporting process.
+#' contact rates or infectivity profile.
 #' @details
 #' `get_dataset()` returns the dataset the model reads, one row per member.
 #' A column a deterministic observation stands in for
@@ -468,8 +468,6 @@ subset_definitions_ <- function(defs, name, col = "name") {
 #' its `from_` and `to_` covariates, its `param_name`,
 #' the `n` ordered pairs of members it applies to and its `rule_group`.
 #' A symmetric contact rate lists the reverse of each rule as a rule of its own.
-#' `get_reporting_process()` returns `list(dataset = , long_dataset = )`,
-#' see [add_reporting_process()].
 #' @examples
 #' hh_model <- new_housepi_model(flu_1918_frederick, "final_size") |>
 #'   add_parameter(import = "template")
@@ -488,8 +486,7 @@ get_dataset <- function(hh_model) {
     pvt$refactor_data_("dataset")
 }
 
-#' @rdname get_definitions
-#' @export
+#' @noRd
 get_long_dataset <- function(hh_model) {
   stopifnothousepi(hh_model)
   pvt <- hh_model$.__enclos_env__$private
@@ -578,8 +575,7 @@ get_infectivity_profiles <- function(hh_model) {
     sort_definitions_()
 }
 
-#' @rdname get_definitions
-#' @export
+#' @noRd
 get_reporting_process <- function(hh_model) {
   stopifnothousepi(hh_model)
   hh_model$.__enclos_env__$private$reporting_process_
@@ -1244,7 +1240,7 @@ add_infectivity_profile <- function(hh_model,
 #'   add_reporting_process(dataset = miss_cases) |>
 #'   run_simulation() |>
 #'   head()
-#' @export
+#' @noRd
 add_reporting_process <- function(hh_model, dataset, long_dataset) {
   stopifnothousepi(hh_model)
   if (missing(dataset) && missing(long_dataset)) stop_h(
@@ -1261,11 +1257,16 @@ add_reporting_process <- function(hh_model, dataset, long_dataset) {
 
 ########  Evaluation  ########
 
-#' @title Evaluate the log-likelihood of a housepi model at current values
+#' @title Evaluate the log-likelihood of a housepi model
 #' @description
 #' Compute the complete-data log-likelihood of a `HousepiModel`,
 #' transmission plus observation.
-#' With latent variables, it is conditioned on their current values.
+#' Each call draws new values for the latent variables
+#' and for the parameters without a `const` value.
+#' Only a model whose parameters all take a `const` value,
+#' and with no latent variable,
+#' returns the same log-likelihood at every call.
+#' [inspect_augmented_data()] and [inspect_state()] read the evaluated values.
 #' @param hh_model `r rd_model_in_`
 #' @param total `logical(1)` If `TRUE`, the sum over households,
 #' else one value per household.
@@ -1273,10 +1274,12 @@ add_reporting_process <- function(hh_model, dataset, long_dataset) {
 #' With `total = FALSE`, a `numeric` vector named by household ID.
 #' `r rd_natural_log_`
 #' @examples
-#' flu_1918_frederick |>
+#' hh_model <- flu_1918_frederick |>
 #'   new_housepi_model("final-size") |>
-#'   add_parameter(import = "template") |>
-#'   evaluate_log_lik()
+#'   add_parameter(alpha = 0.1, beta = 0.3, gamma = 1, hh_size_ref = 4)
+#' evaluate_log_lik(hh_model)
+#' evaluate_log_lik(hh_model, total = FALSE) |>
+#'   head()
 #' @export
 evaluate_log_lik <- function(hh_model, total = TRUE) {
   stopifnothousepi(hh_model)
@@ -1566,8 +1569,6 @@ wrap_inference_ <- function(hh_model, ran, i = 1L) {
 #' @title Simulate a household survey from a housepi model
 #' @description
 #' Simulate a household survey on the households of the loaded data.
-#' With a reporting process, the generated data go through it,
-#' see [add_reporting_process()].
 #' @param hh_model `r rd_model_in_`
 #' @param draws `r rd_draws_`
 #' @param nrep `r rd_nrep_`
@@ -1580,8 +1581,6 @@ wrap_inference_ <- function(hh_model, ran, i = 1L) {
 #' when `nrep` is `NA` and `draws` is `NULL`, named values
 #' or a one-row `data.frame`.
 #' Otherwise a `list` with one `data.frame` per replicate.
-#' With a `long_dataset` reporting process,
-#' a `list(dataset = , long_dataset = )` of either.
 #' @examples
 #' flu_1918_frederick |>
 #'   new_housepi_model("final-size") |>

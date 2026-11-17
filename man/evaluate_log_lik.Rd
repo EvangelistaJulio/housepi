@@ -2,7 +2,7 @@
 % Please edit documentation in R/expose_class.R
 \name{evaluate_log_lik}
 \alias{evaluate_log_lik}
-\title{Evaluate the log-likelihood of a housepi model at current values}
+\title{Evaluate the log-likelihood of a housepi model}
 \usage{
 evaluate_log_lik(hh_model, total = TRUE)
 }
@@ -20,11 +20,18 @@ Logarithms are natural (base \eqn{e}).
 \description{
 Compute the complete-data log-likelihood of a \code{HousepiModel},
 transmission plus observation.
-With latent variables, it is conditioned on their current values.
+Each call draws new values for the latent variables
+and for the parameters without a \code{const} value.
+Only a model whose parameters all take a \code{const} value,
+and with no latent variable,
+returns the same log-likelihood at every call.
+\code{\link[=inspect_augmented_data]{inspect_augmented_data()}} and \code{\link[=inspect_state]{inspect_state()}} read the evaluated values.
 }
 \examples{
-flu_1918_frederick |>
+hh_model <- flu_1918_frederick |>
   new_housepi_model("final-size") |>
-  add_parameter(import = "template") |>
-  evaluate_log_lik()
+  add_parameter(alpha = 0.1, beta = 0.3, gamma = 1, hh_size_ref = 4)
+evaluate_log_lik(hh_model)
+evaluate_log_lik(hh_model, total = FALSE) |>
+  head()
 }

@@ -95,10 +95,7 @@ namespace housepi
 
     double Distribution::truncated_rand_(RndGen &prng) const
     {
-        const double cdf_at_min = trunc_mode_ == Trunc::Max ? 0. : cdf_min_();
-        const double cdf_at_max = trunc_mode_ == Trunc::Min ? 1. : cdf_max_();
-        const double window = cdf_at_max - cdf_at_min;
-
+        const double window = trunc_();
         if (window > MIN_REJECT_WINDOW)
         {
             const double min_val = trunc_mode_ == Trunc::Max ? -inf::DOUBLE : domain_.min.value();
@@ -110,6 +107,7 @@ namespace housepi
                     return x;
             }
         }
+        const double cdf_at_min = trunc_mode_ == Trunc::Max ? 0. : cdf_min_();
         return raw_quantile_(cdf_at_min + standard_uniform(prng) * window);
     }
 

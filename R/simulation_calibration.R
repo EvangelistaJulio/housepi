@@ -586,8 +586,6 @@ HousepiCalibrationCheck <- R6::R6Class(
 #' then `nrep` of them are picked evenly spaced, one per replicate,
 #' so the run must hold at least `nrep` independent draws.
 #'
-#' `r rd_sweep_reporting_`
-#'
 #' `r rd_sweep_seed_`
 #' @references
 #' \insertAllCited{}

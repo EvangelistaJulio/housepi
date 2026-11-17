@@ -298,31 +298,15 @@ count_diagnostics_ <- function(blocks) {
 #' @description
 #' Posterior draws returned by [run_inference()] on a household model.
 #' This class stores posterior draws of model parameters,
-#' the joint log-prior (`lprior`)
+#' the log-prior (`lprior`)
 #' and the pointwise per-household log-likelihood (`log_lik`).
+#' For models with latent variables,
+#' the chain targets the joint (latent, parameter) posterior
+#' and stores the joint log-likelihood.
 #' If requested during inference, it also stores latent variables.
 #' Read them with [get_parameter_draws()], [get_latent_draws()],
 #' [get_log_lik_draws()] and [get_complete_draws()].
 #'
-#' For models with latent variables,
-#' the chain targets the joint (latent, parameter) posterior.
-#' Write \eqn{x} for a single household's data,
-#' \eqn{\theta} for the parameter vector
-#' and \eqn{z} for that household's latent variables.
-#' The unnormalised joint log-density splits into the two bundles
-#' this class exposes,
-#' \deqn{\log p(\theta, z, x) =
-#'   \underbrace{\log p(\theta)}_{\texttt{lprior}}
-#'   + \underbrace{\log p^\mathrm{lat}(z \mid \theta)
-#'     + \log p^\mathrm{transm}(x \mid z, \theta)
-#'     + \log p^\mathrm{obs}(x \mid z, \theta)}_{\texttt{log\_lik}},}
-#' where \eqn{p(\theta)} is the parameter prior,
-#' \eqn{p^\mathrm{lat}} the latent-variable model,
-#' \eqn{p^\mathrm{transm}} the transmission likelihood
-#' and \eqn{p^\mathrm{obs}} the observation likelihood.
-#' The transmission term is the contract of the per-household `log_lik`:
-#' with no latent variable or observation node, the remaining terms vanish
-#' and `log_lik` contracts to transmission alone.
 #' @examples
 #' hh_fit <- flu_1918_frederick |>
 #'   new_housepi_model("final-size") |>

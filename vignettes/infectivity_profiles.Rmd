@@ -12,13 +12,7 @@ editor_options:
     wrap: sentence
 ---
 
-```{r setup-child, child = "helpers/_setup.Rmd"}
-```
-
-```{r}
-#| label: options
-#| include: false
-knitr::opts_chunk$set(fig.width = 5, fig.height = 3)
+```{r setup-child, child = "helpers/_setup_tiny_fig.Rmd"}
 ```
 
 Time dependent transmission models require a choice for the infectivity profile $f$, defined as the instantaneous rate of secondary infection caused by a reference infector.
@@ -53,9 +47,6 @@ A model whose transmission is driven by a profile refuses to run until one is de
 Models shipping a suggested profile expose it through `import = "template"`.
 
 Whatever the profile, it must give no infectivity at generation time 0: nobody transmits at the instant of being infected.
-A profile that does is refused, and the error points at the two ways of excluding the origin: truncating the profile with `min`, or shifting it with `loc`.
-Distributions such as `exponential` or `uniform` are positive at 0 and need one of the two.
-Distributions authored as infectivity profiles, like `ferretti20`, are taken as they are written.
 
 For example, consider the model "case-ascertained" introduced in [Get started](housepi.html).
 Its template is a generic profile in continuous time, a gamma distribution parametrized with `mean` and `sd` (see `?template_case_ascertained`):
@@ -173,7 +164,7 @@ plot_profile_demo(profile)
 ```
 
 If the profiles, distributions or functions currently loaded in housepi are not sufficient to deal with a case study, we provide a mechanism to define custom user functions^[Unfortunately, this requires some programming knowledge in C++.].
-We show how to deal with that case in [User functions](user_functions.html).
+We show how to deal with that case in [Custom models and functions](user_functions.html).
 
 ```{r footer-child, child = "helpers/_footer.Rmd"}
 ```

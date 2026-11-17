@@ -3,23 +3,20 @@
 <div style="display: flex; justify-content: center; font-size: 0.85em;">
 <div>
 
-`r if (isTRUE(getOption("housepi.footer.warranty"))) paste0(
+`r if (isTRUE(getOption("housepi.footer.warranty"))) paste(
   cli::symbol$warning,
-  " ",
   "For illustration only.",
-  " ", 
-  "Results carry no warranty for health decisions."
+  "Results carry no warranty for public health decisions."
 )`
 
-`r if (isTRUE(getOption("housepi.footer.sample"))) paste0(
+`r if (isTRUE(getOption("housepi.footer.sample"))) paste(
   cli::symbol$warning,
-  " ",
   "Increase the number of steps in realistic applications."
 )`
 
 `r paste0(
-  cli::symbol$info,
-  " ",
+  cli::symbol$info, " ",
+  "Rendered with housepi ", utils::packageVersion("housepi"), ". ",
   paste(utils::capture.output(sessionInfo())[1:3], collapse = ". "),
   "."
 )`

@@ -929,6 +929,21 @@ test_that("rand() honours location shift and truncation", {
   x |> expect_all_gte(-1) |> expect_all_lte(2)
 })
 
+test_that("Truncated draws follow the renormalized law up to the bound", {
+  # a bound at 0 keeps half the mass and draws by inverse cdf, a bound at -0.5
+  # keeps more and draws by rejection: in both, every bin holds its exact mass,
+  # the one against the bound included
+  for (bound in c(0, -0.5)) {
+    edges <- c(seq(bound, 2.5, by = 0.25), Inf)
+    exact <- diff(stats::pnorm(edges)) / stats::pnorm(bound, lower.tail = FALSE)
+    distr <- browse_distributions("normal", mean = 0, sd = 1, min = bound)
+    empirical <- table(cut(distr$rand(2e4L), edges, include.lowest = TRUE))
+    empirical <- as.numeric(empirical) / 2e4
+    # total variation distance, 0.009 with sd 0.002 for a correct sampler
+    (0.5 * sum(abs(empirical - exact))) |> expect_lt(0.025)
+  }
+})
+
 test_that("cdf honours location shift above the upper bound", {
   args <- list(min = 2, max = 4, loc = 10)
   shifted <- browse_distributions("uniform", args)

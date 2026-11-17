@@ -157,12 +157,6 @@ Posterior draws are thinned to their bulk effective sample size,
 then \code{nrep} of them are picked evenly spaced, one per replicate,
 so the run must hold at least \code{nrep} independent draws.
 
-Each simulated study goes through
-the \code{dataset} reporting process of the model before it is fitted back,
-see \code{\link[=add_reporting_process]{add_reporting_process()}}.
-Inference does not model it,
-so a process losing information makes the check measure the misspecification.
-
 Replicates are independent draws.
 Call \code{set.seed()} before the check to replay a whole sweep,
 at any \code{threads}.

@@ -1,6 +1,5 @@
 bibentry(
   bibtype = "Misc",
-  header = "To cite housepi in publications, use the paper introducing it:",
   title = "Seamless household epidemiological modelling with {housepi}",
   author = c(person("Francesco", "Camaglia"),
              person("Lina", "Cristancho-Fajardo"),
@@ -11,5 +10,6 @@ bibentry(
              person(c("Benjamin", "J."), "Cowling"),
              person("Simon", "Cauchemez")),
   year = "2026",
-  note = "Preprint, forthcoming"
+  howpublished = "HAL preprint pasteur-05869643",
+  url = "https://pasteur.hal.science/pasteur-05869643"
 )

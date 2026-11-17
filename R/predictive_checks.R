@@ -13,8 +13,7 @@ Names must be unique and cannot match a member of the returned object.
 A measure with an `escaped` argument receives the model's escaped label."
 rd_long_measures_ <- "`list`
 Named `function`s computing measures from the long dataset.
-Each replicate's long dataset comes from the `long_dataset` reporting process,
-see [add_reporting_process()].
+Each replicate's long dataset comes from the `long_dataset` reporting process.
 Arguments, returned values and names follow the rules of `...`."
 
 ########  Measures  ########
@@ -788,20 +787,17 @@ HousepiEpiPredictiveCheck <- R6::R6Class(
 #' \item{`"sec_attack_rate"`}{see [measure_sar_by_hh_size];}
 #' \item{`"cases_distr"`}{see [measure_cases_by_hh_size].}
 #' }
-#' Named measure functions in `...` and `long_measures` are checked
+#' Named measure functions in `...` are checked
 #' alongside them, under names that differ from these.
-#' Each replicate goes through the reporting process of the model,
-#' see [add_reporting_process()].
 #' @param hh_model `r rd_model_in_`
 #' @param draws `r rd_draws_`
 #' @param ... `r rd_measure_dots_`
-#' @param long_measures `r rd_long_measures_`
 #' @param nrep `r rd_nrep_`
 #' `r rd_nrep_prior_` `NA` is then an error.
 #' @param thin_ess `r rd_thin_ess_`
 #' @param epi `logical(1)`
 #' Whether to check standard epidemiological measures.
-#' If `FALSE`, only the measures in `...` and `long_measures` are checked,
+#' If `FALSE`, only the measures in `...` are checked,
 #' and the formatted outputs and household size bounds of
 #' [HousepiEpiPredictiveCheck] are unavailable.
 #' @param min_hh_size `r rd_min_hh_size_` Only with `epi = TRUE`.
@@ -843,7 +839,6 @@ HousepiEpiPredictiveCheck <- R6::R6Class(
 check_predictive <- function(hh_model,
                              draws = NULL,
                              ...,
-                             long_measures = NULL,
                              epi = TRUE,
                              nrep = NA_integer_,
                              thin_ess = TRUE,
@@ -856,14 +851,13 @@ check_predictive <- function(hh_model,
     "{.arg epi} should be {.code TRUE} or {.code FALSE}."
   )
   if (isTRUE(epi)) return(HousepiEpiPredictiveCheck$new(
-    hh_model$copy(), draws, ..., long_measures = long_measures, nrep = nrep,
+    hh_model$copy(), draws, ..., nrep = nrep,
     thin_ess = thin_ess, min_hh_size = min_hh_size, max_hh_size = max_hh_size,
     threads = threads, progress = progress
   ))
-  if (!length(measure_dots_(...)$measures) && !length(long_measures)) stop_h(
+  if (!length(measure_dots_(...)$measures)) stop_h(
     "No measure to check.",
-    paste("Pass measure functions in {.arg ...} or {.arg long_measures},",
-          "or keep {.code epi = TRUE}.")
+    "Pass measure functions in {.arg ...}, or keep {.code epi = TRUE}."
   )
   if (!all(is.na(c(min_hh_size, max_hh_size)))) stop_h(
     paste("Arguments {.arg min_hh_size} and {.arg max_hh_size} bound only",
@@ -871,8 +865,7 @@ check_predictive <- function(hh_model,
     "Set {.code epi = TRUE} or restrict household sizes inside the measures."
   )
   HousepiPredictiveCheck$new(
-    hh_model$copy(), draws, ...,
-    long_measures = long_measures, nrep = nrep, thin_ess = thin_ess,
+    hh_model$copy(), draws, ..., nrep = nrep, thin_ess = thin_ess,
     threads = threads, progress = progress
   )
 }

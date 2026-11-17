@@ -104,11 +104,6 @@ in 95\% of checks.
 
 The first replicate that fails stops the check,
 with an error naming its household count and replicate.
-Each simulated study goes through
-the \code{dataset} reporting process of the model before it is fitted back,
-see \code{\link[=add_reporting_process]{add_reporting_process()}}.
-Inference does not model it,
-so a process losing information makes the check measure the misspecification.
 Results are summarised at the point estimate
 and credible level of the global options, see \code{\link[=set_housepi_summary]{set_housepi_summary()}}. Replicates are independent draws.
 Call \code{set.seed()} before the check to replay a whole sweep,

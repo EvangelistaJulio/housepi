@@ -429,6 +429,30 @@ test_that("Default random walks sample their target", {
   abs(quartiles - log(1e-6) * c(0.75, 0.5, 0.25)) |> expect_all_lt(0.7)
 })
 
+test_that("Every proposal samples a truncated prior up to its bound", {
+  # no model reads them: the posterior is the half-normal prior, and every bin
+  # holds its exact mass, the one against the bound included
+  edges <- c(seq(0, 2.5, by = 0.25), Inf)
+  exact <- diff(2 * stats::pnorm(edges) - 1)
+  draws <- mk_param$model |>
+    add_parameter(
+      rho = list(prior = "normal", min = 0, proposal = "forward"),
+      rho_2 = list(prior = "normal", min = 0, proposal = "rw_unif"),
+      rho_3 = list(prior = "normal", min = 0, proposal = "rw"),
+      rho_4 = list(prior = "normal", min = 0, proposal = "rw_log")
+    ) |>
+    run_inference(steps = 1e4L, thin = 1L, adapt = 500L, chains = 1L) |>
+    suppressWarnings(classes = "housepi_warning_diagnostics") |>
+    get_parameter_draws()
+
+  for (name in c("rho", "rho_2", "rho_3", "rho_4")) {
+    empirical <- table(cut(draws[[name]], edges, include.lowest = TRUE))
+    empirical <- as.numeric(empirical) / nrow(draws)
+    # total variation distance, at most 0.024 with sd 0.007 for a correct kernel
+    (0.5 * sum(abs(empirical - exact))) |> expect_lt(0.06)
+  }
+})
+
 test_that("An infinite bound leaves the default walk moving", {
   draws <- mk_param$model |>
     add_parameter(rho = list(prior = "gamma", shape = 2, max = Inf),

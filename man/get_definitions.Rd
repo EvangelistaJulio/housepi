@@ -2,7 +2,6 @@
 % Please edit documentation in R/expose_class.R
 \name{get_dataset}
 \alias{get_dataset}
-\alias{get_long_dataset}
 \alias{get_parameters}
 \alias{get_latent}
 \alias{get_observations}
@@ -10,12 +9,9 @@
 \alias{get_group_rates}
 \alias{get_contact_rates}
 \alias{get_infectivity_profiles}
-\alias{get_reporting_process}
 \title{Retrieve currently loaded data and definitions from a housepi model}
 \usage{
 get_dataset(hh_model)
-
-get_long_dataset(hh_model)
 
 get_parameters(hh_model, name = NA)
 
@@ -30,8 +26,6 @@ get_group_rates(hh_model, name = NA)
 get_contact_rates(hh_model)
 
 get_infectivity_profiles(hh_model)
-
-get_reporting_process(hh_model)
 }
 \arguments{
 \item{hh_model}{\code{HousepiModel} object.}
@@ -52,14 +46,12 @@ its \code{rule_group} and its covariates.
 its \code{from_} and \code{to_} covariates, its \code{param_name},
 the \code{n} ordered pairs of members it applies to and its \code{rule_group}.
 A symmetric contact rate lists the reverse of each rule as a rule of its own.
-\code{get_reporting_process()} returns \code{list(dataset = , long_dataset = )},
-see \code{\link[=add_reporting_process]{add_reporting_process()}}.
 }
 \description{
 Return the definitions currently stored in the housepi model.
-Each variant returns one category: dataset, long dataset, parameters,
+Each variant returns one category: dataset, parameters,
 latent variables, observations, status process, group rates,
-contact rates, infectivity profile or reporting process.
+contact rates or infectivity profile.
 }
 \details{
 \code{get_dataset()} returns the dataset the model reads, one row per member.

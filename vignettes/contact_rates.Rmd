@@ -16,7 +16,7 @@ editor_options:
 ```
 
 ```{r}
-#| label: options
+#| label: footer-options
 #| include: false
 options(housepi.footer.sample = TRUE)
 ```
@@ -30,12 +30,12 @@ We illustrate the API on the influenza survey in Matsumoto (see `?flu_2014_matsu
 To simplify this walkthrough, we regroup members as follows:
 
 ```{r}
+#| label: recall-original-data
 library(housepi)
 set_housepi_theme(colour_strips = TRUE)
 set_housepi_summary(cri_level = 0.95)
 set.seed(42)
 
-#| label: recall-original-data
 hh_model <- new_housepi_model(model = "final-size")
 
 # group together children and parents
@@ -69,7 +69,7 @@ hh_model |>
 Contact rates are paired, `from_member` (the infector), `to_member` (the infectee).
 Here `n` counts the ordered pairs observed in the data, and `param_name` names the associated parameter.
 Pairs that never occur are dropped.
-The `rule_group` column matters once rules overlap (see [strata tables](#strata-tables-and-specificity-rules)).
+Rules sharing a `rule_group` are ranked against each other by specificity (see [strata tables](#strata-tables-and-specificity-rules)).
 
 By default, a pair and its reverse share one parameter, so `parent` infecting `child` and vice versa are equal.
 Set `symmetric = FALSE` to let them differ.
@@ -180,35 +180,8 @@ Here we used `tibble::tribble` for readability, but any `data.frame` works.
 
 
 The reserved column `const` pins `child_to_parent` to its value, which is what we use here to read the rates off a household.
-A bare number in `params` pins a parameter the same way.
+A bare number in `add_parameter()`, as in `add_parameter(child_to_parent = 2.5)`, pins a parameter the same way.
 `inspect_state()` returns everything the engine holds for one household, including the matrix of pairwise rates it multiplies `beta` by.
-
-## Ambiguous rules are rejected
-
-Rules that key on different columns cannot be ranked against each other.
-The `rule_group` column of `get_contact_rates()` reports which rules were compared together, and a catch-all rule that straddles two groups raises an error instead of picking a winner:
-
-```{r}
-#| label: strata-ambiguous
-#| error: true
-half_keyed <- tibble::tribble(
-  ~from_member, ~to_member, ~param_name,
-  "child",      NA,         "ctr_child",
-  NA,           NA,         ".reference"
-)
-
-# not ambiguos definiton for symmetric rates
-hh_model |>
-  add_contact_rate(strata = half_keyed, symmetric = FALSE) |>
-  get_contact_rates()
-
-# ambiguos definiton for symmetric rates
-hh_model |>
-  add_contact_rate(strata = half_keyed, symmetric = TRUE) |>
-  get_contact_rates()
-```
-
-Keying the first rule on both columns, as in the tables above, removes the choice and the definition goes through.
 
 # Inference
 

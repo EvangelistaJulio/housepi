@@ -44,13 +44,9 @@ A \code{data.frame} for a single replicate,
 when \code{nrep} is \code{NA} and \code{draws} is \code{NULL}, named values
 or a one-row \code{data.frame}.
 Otherwise a \code{list} with one \code{data.frame} per replicate.
-With a \code{long_dataset} reporting process,
-a \code{list(dataset = , long_dataset = )} of either.
 }
 \description{
 Simulate a household survey on the households of the loaded data.
-With a reporting process, the generated data go through it,
-see \code{\link[=add_reporting_process]{add_reporting_process()}}.
 }
 \examples{
 flu_1918_frederick |>

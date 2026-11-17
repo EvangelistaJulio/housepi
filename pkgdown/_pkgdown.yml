@@ -109,17 +109,23 @@ reference:
 
 ## Articles ##
 articles:
-  - title: "Articles"
-    navbar: ~
+  - title: "Model definitions"
+    navbar: "Model definitions"
     contents:
       - priors_and_proposals
-      - group_rates
-      - contact_rates
       - data_augmentation
       - infectivity_profiles
+      - group_rates
+      - contact_rates
+  - title: "Model checking"
+    navbar: "Model checking"
+    contents:
       - predictive_checks
       - performance_checks
       - simulation_calibration_checks
+  - title: "Extending housepi"
+    navbar: "Extending housepi"
+    contents:
       - user_functions
   - title: "Gallery"
     navbar: "Gallery"

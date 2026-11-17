@@ -370,9 +370,10 @@ test_that("Measure names are unique, given and free of the members", {
   run(format_attack_rate = overall) |> expect_error("reserved")
 })
 
+# @todo: `long_measures` is not exported, so the classes are called directly
 test_that("Long measures need a long dataset reporting process", {
-  mk_ppc$model |>
-    check_predictive(mk_ppc$fit, long_measures = list(n = nrow)) |>
+  HousepiEpiPredictiveCheck$new(mk_ppc$model$copy(), mk_ppc$fit,
+                                long_measures = list(n = nrow)) |>
     expect_error("[Ll]ong dataset reporting process")
 })
 
@@ -381,9 +382,10 @@ test_that("Long measures are checked alongside those on the dataset", {
   hh_model <- mk_ppc$model |>
     add_long_dataset(cases_long(get_dataset(mk_ppc$model))) |>
     add_reporting_process(long_dataset = cases_long)
-  run <- function(...) {
-    check_predictive(hh_model, mk_ppc$fit, ..., nrep = 3, thin_ess = FALSE,
-                     progress = FALSE)
+  run <- function(..., epi = TRUE) {
+    check <- if (epi) HousepiEpiPredictiveCheck else HousepiPredictiveCheck
+    check$new(hh_model$copy(), mk_ppc$fit, ..., nrep = 3, thin_ess = FALSE,
+              progress = FALSE)
   }
 
   # one count read from either frame of the same replicates

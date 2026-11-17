@@ -18,7 +18,7 @@ editor_options:
 ```
 
 ```{r}
-#| label: options
+#| label: footer-options
 #| include: false
 options(housepi.footer.warranty = TRUE)
 options(housepi.footer.sample = TRUE)
@@ -100,7 +100,7 @@ ppc_prior_warn <- hh_model |>
 # Posterior predictive checks over cases distribution
 
 We now run inference as in [Get started](housepi.html) and store the posterior draws to compute posterior predictive checks.
-BY default, the measure always include secondary attack rates and the distribution of household cases ("final size") by household size,
+By default, the measures include the secondary attack rates and the distribution of household cases ("final size") by household size:
 
 ```{r}
 #| label: inference
@@ -151,16 +151,16 @@ ft <- flextable::flextable(combined) |>
 flagged <- cases_df[cases_df$outside, ]
 for (k in seq_len(nrow(flagged))) {
   ft <- ft |>
-    flextable::italic(i = which(combined$size == flagged$hh_size[k] &
-                                  combined$distribution == "observed"),
-                      j = paste0("number of cases_", flagged$cases[k]))
+    flextable::style(i = which(combined$size == flagged$hh_size[k] &
+                                 combined$distribution == "observed"),
+                     j = paste0("number of cases_", flagged$cases[k]),
+                     pr_t = flextable::fp_text_default(underlined = TRUE))
 }
 ft
 ```
 
-Observed counts in italics fall outside the 95% credible interval of their prediction: these are the values flagged by `check_predictive()`.
+Underlined observed counts fall outside the 95% credible interval of their prediction: these are the values flagged by `check_predictive()`.
 The flags cover every household size, while the table stops at 5.
-Bounds are rounded to integers, so an observed count equal to a printed bound can still fall just outside the unrounded interval.
 
 # Secondary attack rate
 

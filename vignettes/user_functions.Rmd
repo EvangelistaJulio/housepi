@@ -1,10 +1,10 @@
 ---
-title: "User functions"
+title: "Custom models and functions"
 output:
   rmarkdown::html_vignette:
     toc: true
 vignette: >
-  %\VignetteIndexEntry{User functions}
+  %\VignetteIndexEntry{Custom models and functions}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 editor_options:
@@ -12,13 +12,7 @@ editor_options:
     wrap: sentence
 ---
 
-```{r setup-child, child = "helpers/_setup.Rmd"}
-```
-
-```{r}
-#| label: library
-#| include: false
-knitr::opts_chunk$set(fig.width = 5, fig.height = 3)
+```{r setup-child, child = "helpers/_setup_tiny_fig.Rmd"}
 ```
 
 Sometimes a case study requires a function, distribution or infectivity profile missing from housepi.

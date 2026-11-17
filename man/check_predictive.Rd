@@ -8,7 +8,6 @@ check_predictive(
   hh_model,
   draws = NULL,
   ...,
-  long_measures = NULL,
   epi = TRUE,
   nrep = NA_integer_,
   thin_ess = TRUE,
@@ -31,15 +30,9 @@ Each returns a \code{numeric()}, a \code{list} or a \code{data.frame}.
 Names must be unique and cannot match a member of the returned object.
 A measure with an \code{escaped} argument receives the model's escaped label.}
 
-\item{long_measures}{\code{list}
-Named \code{function}s computing measures from the long dataset.
-Each replicate's long dataset comes from the \code{long_dataset} reporting process,
-see \code{\link[=add_reporting_process]{add_reporting_process()}}.
-Arguments, returned values and names follow the rules of \code{...}.}
-
 \item{epi}{\code{logical(1)}
 Whether to check standard epidemiological measures.
-If \code{FALSE}, only the measures in \code{...} and \code{long_measures} are checked,
+If \code{FALSE}, only the measures in \code{...} are checked,
 and the formatted outputs and household size bounds of
 \link{HousepiEpiPredictiveCheck} are unavailable.}
 
@@ -94,10 +87,8 @@ not checked on a case-ascertained model;}
 \item{\code{"sec_attack_rate"}}{see \link{measure_sar_by_hh_size};}
 \item{\code{"cases_distr"}}{see \link{measure_cases_by_hh_size}.}
 }
-Named measure functions in \code{...} and \code{long_measures} are checked
+Named measure functions in \code{...} are checked
 alongside them, under names that differ from these.
-Each replicate goes through the reporting process of the model,
-see \code{\link[=add_reporting_process]{add_reporting_process()}}.
 }
 \details{
 Results are summarised at the point estimate

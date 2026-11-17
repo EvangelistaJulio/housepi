@@ -18,54 +18,36 @@ editor_options:
 ```
 
 ```{r}
-#| label: options
+#| label: footer-options
 #| include: false
 options(housepi.footer.sample = TRUE)
 ```
 
-Bayesian data augmentation is a computational strategy that expands the parameter space by introducing latent variables (also referred to as hidden or augmented variables), so that a likelihood intractable on the observed data alone becomes tractable on the augmented data [@tanner_calculation_1987].
+Bayesian data augmentation [@tanner_calculation_1987] is a computational strategy that expands the parameter space by introducing latent variables,
+so that a likelihood intractable on the observed data alone becomes tractable on the "augmented data", observed and latent variables.
 
-For example, consider a single infectious individual $i$.
-Imagine that someone reported the date of symptom onset $T^\mathrm{ons}_{i}$.
+For example, consider a single infected individual $i$.
+Imagine that someone reported the date of symptom onset $d^\mathrm{ons}_{i}$.
 We can think of the observation process that returned that value as some function of the true onset time, $t^\mathrm{ons}_{i}$.
+Then, we introduce a latent infection time $t_{i}$, defined as the difference between the onset time and the latent incubation period $\tau^\mathrm{inc}_{i}$, so that $t^\mathrm{ons}_{i} = t_{i} + \tau^\mathrm{inc}_{i}$, where the incubation period is modelled according to some prior knowledge, or depending on some parameters to be inferred.
 
-We can introduce latent infection times $t_{i}$, defined as the difference between the onset time and the latent incubation period $\tau^\mathrm{inc}_{i}$, so that
-$$t^\mathrm{ons}_{i} = t_{i} + \tau^\mathrm{inc}_{i},$$
-where the incubation period is distributed according to a prior.
+Like parameters, latent variables need a model (eventually the transmission model) and a proposal for the MCMC sampler.
+Latent variable definitions may depend on another definition in the model:
+another latent variable, a data column, an observation, a group rate or a parameter.
+A model looks the name up among its definitions, so each name must stand for one of them only^[A name nothing declares is an error, reported when the model is run, and so is a name claimed by two definitions.].
+Names combine into arithmetic expressions, such as `onset_date - incub_period` or `exposure_max + 0.99`, and can be passed to any of the functions listed by `browse_functions()`, e.g. `sqrt(beta)` or `floor(onset_time)`.
 
-Let $x$ be the data of a single household (onset date and status), $z$ its latent variables (infection time and incubation period) and $\theta$ the vector of parameters.
-The joint posterior then reads
-$$p(\theta, z \mid x) \propto
-  \underbrace{p^\mathrm{obs}(x \mid \theta, z)\, p^\mathrm{transm}(x \mid \theta, z)\, p^\mathrm{lat}(z \mid \theta)}_{\texttt{likelihood}}\;
-  \underbrace{p(\theta)}_{\texttt{prior}},$$
-where the reported `log_lik` gathers the transmission term $p^\mathrm{transm}$, the observation term $p^\mathrm{obs}$ and the latent-variable model $p^\mathrm{lat}$, while `lprior` is the parameter prior $p(\theta)$.
-Without an observation node, $p^\mathrm{obs} = 1$.
+The sections below show how to define such individual latent variables on minimal examples.
 
-The sections below define individual latent variables on minimal examples.
-
-# Link arguments to source
-
-Like parameters, latent variables need a model and a proposal for the MCMC sampler.
-In many applications, latent variable definitions can also depend on the dataset or on model parameters to be inferred.
-
-An argument value may name another definition of the model: a latent variable, a data column, an observation, a group rate or a parameter.
-housepi looks the name up among the definitions the model carries, so each name must stand for one of them only^[A name nothing declares is an error, reported when the model is run, and so is a name two definitions claim.].
-E.g. `visit_day` reads the individual data column "visit_day", `beta` the current value of the parameter "beta", while a number such as `14` is read as it is.
-
-The convention applies to every definition argument, from `const`, `func`, `min` and `max` to the arguments of the model distribution, as in `model = "gamma", mean = mean, sd = sd`, reading the parameters "mean" and "sd".
-Names combine into arithmetic expressions, such as `onset_date - incub_period` or `exposure_max + 0.99`, and can be passed to any of the functions listed by `browse_functions()`, e.g. `sqrt(beta)` or `min(onset_date)`.
-An expression referencing no definition is instead evaluated once, when the definition is built: `max = 3 * 7` is stored as the plain value `21`, and a date such as `as.Date("2021-07-01")` collapses to its day count.
-
-# Status specific definitions
+# Status-specific definitions
 
 In many applications, the same latent variable has to be augmented according to different rules depending on the individual.
 Infection times of symptomatic and asymptomatic members are one example.
-Status specific definitions apply to one status only, while generic definitions hold for every positive status.
+Status-specific definitions apply to one status only, while generic definitions hold for every positive status.
 Consider a survey that follows a household for 10 days from the first symptom onset, testing every member at the start and at the end of follow-up.
 We tag symptomatic members with `status = 1` and asymptomatic ones with `status = 2`.
 We augment infection times of symptomatic members as shown in [Get Started](housepi.html), informed by the reported onset date.
-For asymptomatic members we sample the infection time within the follow-up period: transmission gives its probability, so it takes no `model`.
-
+For asymptomatic members we sample the infection time within the follow-up period:
 ```{r}
 #| label: status-specific-latent
 #| warning: false
@@ -75,31 +57,26 @@ set_housepi_theme(colour_strips = TRUE)
 set.seed(42)
 
 onset_tommy <- 5
-hh_model <- data.frame(id = c("tommy", "gina"),
-                       hh_id = "house_1",
-                       start_date = onset_tommy,
-                       end_date = onset_tommy + 10,
-                       status = c(1, 2),
-                       onset_date = c(onset_tommy, NA)) |>
+hh_model <- data.frame(id = c("tommy", "gina"), hh_id = "house_1",
+                       start_date = onset_tommy, end_date = onset_tommy + 10,
+                       status = c(1, 2),  onset_date = c(onset_tommy, NA)) |>
   new_housepi_model("case-ascertained") |>
   add_parameter(alpha = 0.001, beta = 0.07, gamma = 0.9, hh_size_ref = 4) |>
   add_infectivity_profile(import = "template") |>
-
   # associate latent definitions
   add_latent(
-    # latent infection time for symptomatic members
-    # here we use a generic definition
+    # latent infection time for symptomatic members,
+    # using a generic definition
     infec_time = onset_date - incub_period,
     incub_period = list(model = "gamma", shape = 2, scale = 1),
-
-    # latent infection time for asymptomatic members
-    # here we use a status specific definition, with priority over generic
+    # latent infection time for asymptomatic members,
+    # using a status-specific definition, with priority over generic
     infec_time = list(status = 2, min = start_date, max = end_date)
   )
 ```
+Note that for case-ascertained models, infection times are modelled by transmission, so they take no `model`.
 
 To check how the latent draws evolve, pass the `id` of the individuals to follow to the argument `id_draws` of `run_inference()`.
-
 ```{r}
 #| label: latent-infection-time-plot
 #| fig-alt: >
@@ -114,112 +91,98 @@ hh_model |>
              aes(xintercept = xintercept)) +
   coord_cartesian(xlim = onset_tommy + c(-10, 10))
 ```
+Gina's infection time cannot precede the start of follow-up (Tommy's onset), and the model makes it more probable close to that bound.
 
-Gina's infection time cannot precede the start of follow-up, Tommy's onset, and the model makes it more probable close to that bound.
+The model keeps the last step of its last running chain, and `inspect_augmented_data()` adds those latent values to the dataset:
+```{r}
+#| label: inspect-augmented-data
+inspect_augmented_data(hh_model)
+```
+Tommy's infection time is his onset date minus his incubation period, while Gina carries no incubation period, as her definition does not read one.
 
-# Example: estimate incubation period distribution
+# Estimate latent model parameters
 
-For simplicity, we start testing data augmentation on a dataset which is not a household survey.
-Instead we consider a synthetic report documenting the days when a number of cases were exposed to infection and the days of symptom onset.
-We simulate it with the "test" model (see `?template_test`), which carries no transmission dynamics, by chaining latent variables for each individual:
+Consider a synthetic report of the days when each case was exposed to infection and of the day of symptom onset.
+We simulate it with the "test" model (see `?template_test`), which carries no transmission dynamics,
+by chaining latent variables and observations for each individual:
 
-- the exposure window lasts 1 to 4 days, drawn from a categorical distribution (the draw is 0-based, so `exposure_days` counts the days after the first);
+- the exposure window lasts 1 to 4 days, and its last day `exposure_max` is an observation drawn from a categorical distribution (the draw is 0-based, so `exposure_max` counts the days after the first);
 - the infection time `infec_time` is uniform within the exposure window;
 - the incubation period `incub_period` is gamma distributed with the `mean` and `sd` we want to recover later;
-- the onset time `onset_time` is their sum;
-- `report_shift` marks a reporting error, which widens the onset interval by one day, earlier or later.
+- the reporting delay `report_offset` is symmetrical of -1, 0 or 1 day.
 
-Observations with no `model` produce the reported columns: the last day of exposure and the first and last day of the reported onset interval.
-
+The observations produce the reported columns:
+the last day of exposure, drawn from its model, and the reported onset day `onset_day`, computed from the onset time and the reporting delay.
 ```{r}
 #| label: generate-delays-data
-true_mean <- 2.2
-true_sd <- 1.2
-n_cases <- 223
-dataset <- data.frame(id = seq_len(n_cases), hh_id = seq_len(n_cases),
-                      status = 1) |>
+true_params <- c(mean = 2.2, sd = 1.2)
+dataset <- data.frame(hh_id = seq_len(223), status = 1) |>
   new_housepi_model("test") |>
-  add_parameter(mean = !!true_mean, sd = !!true_sd) |>
+  add_parameter(import = true_params) |>
   add_latent(
-    exposure_days = list(model = "categorical",
-                         d1 = 0.28, d2 = 0.34, d3 = 0.26, d4 = 0.12),
-    infec_time = list(model = "uniform", max = exposure_days + 1),
+    # infection time uniform within the reported exposure window
+    # min = 0 by default for uniform, max + 1 spans the whole last day
+    infec_time = list(model = "uniform", max = exposure_max + 1),
+    # incubation period gamma by mean/std. deviation
     incub_period = list(model = "gamma", mean = mean, sd = sd),
-    onset_time = infec_time + incub_period,
-    report_shift = list(model = "categorical",
-                        early = 0.135, exact = 0.73, late = 0.135)
+    # reporting delay in days
+    report_offset = list(model = "categorical", 0.2, 0.6, 0.2),
   ) |>
   add_observation(
-    exposure_max = exposure_days,
-    onset_min = floor(onset_time) - max(1 - report_shift, 0),
-    onset_max = floor(onset_time) + max(report_shift - 1, 0)
+    exposure_max = list(model = "categorical", 0.28, 0.34, 0.26, 0.12),
+    onset_day = floor(infec_time + incub_period) + report_offset - 1
   ) |>
   run_simulation() |>
   # keep the reported columns only
-  dplyr::select(id, hh_id, status, exposure_max, onset_min, onset_max)
+  dplyr::select(id, hh_id, status, exposure_max, onset_day)
 head(dataset)
 ```
 The data has no household structure, so every individual lives in a household of their own.
 
-Assuming the incubation period to be described by a gamma distribution, we want to estimate its `mean` and `sd` by augmenting the infection and onset times.
-Following the decomposition introduced above, the incubation period enters the *latent model* $p^\mathrm{lat}(z \mid \theta)$, while the reported onset day enters the *observation* term $p^\mathrm{obs}(x \mid \theta, z)$; both are reported in the pointwise `log_lik`.
+We then imagine we received such a dataset and, assuming a gamma-distributed incubation period,
+we want to estimate its `mean` and `sd` by augmenting the infection times and the incubation periods.
 
-For inference we keep the "test" model ($p^\mathrm{transm} = 1$) and build the whole augmentation from definitions:
+For inference we keep the "test" model, which has no transmission term, and build the augmentation definitions for:
 
-- the infection time `infec_time` is drawn uniformly within the reported exposure window;
-- the incubation period `incub_period` is the quantity we model, gamma distributed with the inferred `mean` and `sd` and bounded to a plausible range;
-- the onset time `onset_time` follows deterministically as their sum.
+- the infection time `infec_time`, drawn uniformly within the reported exposure window;
+- the incubation period `incub_period`, gamma distributed with the `mean` and `sd` to be inferred.
 
-Finally, an observation node ties the latent onset time to the data: we model the reported onset day `onset_mid` as a noisy measurement of the true onset time, normally distributed around `onset_time`.
-
-```{r}
-#| label: incubation-example-setup
-# generate an instance of the household model class
-hh_model <- dataset |>
-  dplyr::mutate(
-    # reported onset mid-point: noisy measurement of the reported interval
-    onset_mid = 0.5 * (onset_min + onset_max + 1.)
-  ) |>
-  new_housepi_model("test") |>
-  # define the gamma distribution parameters to be inferred
-  add_parameter(
-    mean = list(prior = "uniform", min = 0.1, max = 5),
-    sd = list(prior = "uniform", min = 0.1, max = 5)
-  ) |>
-  # latent variable definitions
-  add_latent(
-    # infection time uniform within the reported exposure window
-    # min = 0 by default for uniform; + 0.99 spans the whole reported day
-    infec_time = list(model = "uniform", max = exposure_max + 0.99),
-    # incubation period gamma by mean/std. deviation
-    incub_period = list(model = "gamma", mean = mean, sd = sd,
-                        min = 0.1, max = 14),
-    # onset time follows deterministically as their sum
-    onset_time = infec_time + incub_period
-  ) |>
-  # observation model for the observed mid-point
-  add_observation("onset_mid", model = "normal", mean = onset_time, sd = 0.3)
-```
+Finally, an observation ties the reported `onset_day` to the onset time `infec_time + incub_period`.
+`onset_day` counts whole days, so we set `discr = TRUE`, and the probability of day $k$ is the mass the normal law puts on $[k, k + 1)$.
+The reporting delay is symmetric around 0, so we centre the normal law on the onset time and let its `sd` absorb the delay.
 
 ```{r}
-#| label: inference-traces
+#| label: incubation-example
 #| fig-height: 3
 #| message: false
 #| warning: false
 #| fig-alt: >
 #|  Trace plots for mean and standard deviation parameters with three parallel chains.
 #|  Overlaying orange lines indicate the values used for the simulation.
-hh_fit <- hh_model |>
+# generate an instance of the household model class
+hh_fit <- dataset |>
+  new_housepi_model("test") |>
+  # define the gamma distribution parameters to be inferred
+  add_parameter(mean = list(prior = "uniform", min = 0.1, max = 4),
+                sd = list(prior = "uniform", min = 0.1, max = 4)) |>
+  # latent variable definitions
+  add_latent(infec_time = list(model = "uniform", max = exposure_max + 1),
+             incub_period = list(model = "gamma", mean = mean, sd = sd)) |>
+  # observation model for the reported onset day
+  add_observation("onset_day", discr = TRUE, model = "normal",
+                  mean = infec_time + incub_period, sd = 0.5) |>
   # store latent draws of "7" and "13"
   run_inference(id_draws = c("7", "13"))
 
 # plot traces of parameter draws
-bayesplot::mcmc_trace(get_parameter_draws(hh_fit)) +
-  geom_hline(data = data.frame(parameter = c("mean", "sd"),
-                               simulated = c(true_mean, true_sd)),
-             aes(yintercept = simulated))
+true_table <- data.frame(parameter = names(true_params), true = true_params)
+hh_fit |>
+  get_parameter_draws() |>
+  bayesplot::mcmc_trace() +
+  geom_hline(data = true_table, aes(yintercept = true))
 ```
 
+The draws of the latent variables `infec_time` and `incub_period` are stored for individuals "7" and "13", here the incubation periods:
 ```{r}
 #| label: latent-draws-traces
 #| fig-height: 3
@@ -227,60 +190,12 @@ bayesplot::mcmc_trace(get_parameter_draws(hh_fit)) +
 #|  Trace plots for individual latent variables across three MCMC chains.
 #|  Incubation period for two subjects (IDs 7 and 13).
 # plot the traces of the incubation period alone
-bayesplot::mcmc_trace(get_latent_draws(hh_fit, "incub_period"))
-```
-
-In this example we had to introduce the auxiliary latent variables `onset_time` and `infec_time`.
-housepi samples every latent variable the likelihood reads, these two included, and stores a trace for each of them.
-Passing `variable` to `get_latent_draws()` picks out the ones of interest.
-
-A latent variable that no observation and no transmission term ever reads is a different case.
-There is nothing to learn about it, so housepi does not sample it and it carries no trace.
-
-# More about models and proposals
-
-```{r}
-#| label: color-scheme-latent
-#| include: false
-bayesplot::color_scheme_set(scheme = "orange")
-```
-
-Proposals for latent variables can be tried out on the "test" template, as in [Priors and proposals](priors_and_proposals.html).
-
-A latent variable is sampled only where something reads it, so a playground needs an observation reading `z`.
-A uniform observation over a window the variable can never leave contributes the same constant at every draw, which leaves the sampling to follow the model alone:
-
-```{r}
-#| label: latent inspection
-#| warning: false
-
-hh_fit <- data.frame(hh_id = 1, id = 1:2, status = 1, readout = 0) |>
-  new_housepi_model(model = "test") |>
-  add_latent("z", model = "normal", mean = 14) |>
-  add_observation("readout", model = "uniform", loc = z,
-                  min = -1e6, max = 1e6) |>
-  run_inference()
-```
-
-```{r}
-#| label: trace-latent-sample
-#| fig-height: 2
-#| fig-alt: >
-#|  Trace plot of a single latent variable sampled from the model.
 hh_fit |>
-  get_latent_draws() |>
+  get_latent_draws("incub_period") |>
   bayesplot::mcmc_trace()
 ```
 
-```{r}
-#| label: trace-log-likelihood
-#| fig-height: 2
-#| fig-alt: >
-#|  Trace plot of the pointwise per-household log-likelihood.
-hh_fit |>
-  get_log_lik_draws() |>
-  bayesplot::mcmc_trace()
-```
+If a latent variable is not read by any observation or transmission term, housepi does not sample it and it carries no trace.
 
 ```{r footer-child, child = "helpers/_footer.Rmd"}
 ```

@@ -18,16 +18,16 @@ editor_options:
 ```
 
 ```{r}
-#| label: options
+#| label: footer-options
 #| include: false
 options(housepi.footer.sample = TRUE)
 ```
 
-Here we present all available options for the choice of the prior and Monte Carlo proposal in housepi.
+Here we present all available options for the priors and Monte Carlo proposals in housepi.
 
 # Continuous priors
 
-To perform the sampling we consider the "test" model (see `?template_test`), i.e. a data independent template model, with log-likelihood always equal to zero.
+To perform the sampling we consider the "test" model (i.e. a dummy template with no transmission model, see `?template_test`).
 The continuous distributions in housepi are:
 ```{r}
 #| label: continuous-priors-density
@@ -42,31 +42,27 @@ set.seed(42)
 # create an instance of the model 'test'
 new_housepi_model(model = "test") |>
   # continuous distributions in housepi
-  add_parameter(
-    uniform = list(prior = "uniform", min = 0, max = 1),
-    normal = list(prior = "normal", mean = 0, sd = 1),
-    lognormal = list(prior = "lognormal", meanlog = 0, sdlog = 1),
-    gamma = list(prior = "gamma", shape = 2, scale = 1),
-    weibull = list(prior = "weibull", shape = 2, scale = 1),
-    rayleigh = list(prior = "rayleigh", scale = 1),
-    beta = list(prior = "beta", shape1 = 2, shape2 = 1),
-    exponential = list(prior = "exponential", rate = 1),
-    loguniform = list(prior = "loguniform", min = 0.01, max = 1)
-  ) |>
+  add_parameter(uniform = list(prior = "uniform", min = 0, max = 1),
+                normal = list(prior = "normal", mean = 0, sd = 1),
+                lognormal = list(prior = "lognormal", meanlog = 0, sdlog = 1),
+                gamma = list(prior = "gamma", shape = 2, scale = 1),
+                weibull = list(prior = "weibull", shape = 2, scale = 1),
+                rayleigh = list(prior = "rayleigh", scale = 1),
+                beta = list(prior = "beta", shape1 = 2, shape2 = 1),
+                exponential = list(prior = "exponential", rate = 1),
+                loguniform = list(prior = "loguniform", min = 0.01, max = 1)) |>
   # perform the sampling with the inference command
   run_inference() |>
   get_parameter_draws() |>
   bayesplot::mcmc_dens()
 ```
-
 Here we associated definitions of parameters with default proposals and custom arguments.
-Argument defaults match the base R sampling functions: `normal` starts from `mean = 0` and `sd = 1` as in `rnorm()`, `exponential` from `rate = 1` as in `rexp()`.
-Arguments carrying no default in base R, such as the gamma `shape`, stay required here too.
+Argument defaults match the base R sampling functions (e.g. `normal` starts from `mean = 0` and `sd = 1` as in `rnorm()`).
+Arguments carrying no default in base R stay required in housepi too.
 
 # Provide a custom domain
 
-The arguments `min` (minimum) and `max` (maximum) set a custom domain for a variable, which truncates its prior.
-
+The arguments `min` (minimum) and `max` (maximum) set a custom support for a variable, truncating its distribution.
 ```{r}
 #| label: truncation-demo
 #| warning: false
@@ -77,12 +73,10 @@ The arguments `min` (minimum) and `max` (maximum) set a custom domain for a vari
 library(ggplot2)
 
 new_housepi_model(model = "test") |>
-  add_parameter(
-    default = list(prior = "normal"),
-    below = list(prior = "normal", min = -1),
-    above = list(prior = "normal", max = 1),
-    both = list(prior = "normal", min = -1, max = 1)
-  ) |>
+  add_parameter(default = list(prior = "normal"),
+                below = list(prior = "normal", min = -1),
+                above = list(prior = "normal", max = 1),
+                both = list(prior = "normal", min = -1, max = 1)) |>
   run_inference() |>
   get_parameter_draws() |>
   bayesplot::mcmc_dens() +
@@ -96,7 +90,6 @@ new_housepi_model(model = "test") |>
 # Provide a location parameter
 
 All functions and distributions in housepi allow for a location parameter `loc` to translate the support of the distribution:
-
 ```{r}
 #| label: location-parameter-demo
 #| warning: false
@@ -105,22 +98,18 @@ All functions and distributions in housepi allow for a location parameter `loc` 
 #|  Four panels display gamma distributions with location parameters set to 0, 1, 2, and 3 respectively.
 #|  Vertical dashed lines indicate the minimum of each shifted support.
 new_housepi_model(model = "test") |>
-  add_parameter(
-    gamma_0 = list(prior = "gamma", shape = 2, scale = 1),
-    gamma_1 = list(prior = "gamma", shape = 2, scale = 1, loc = 1),
-    gamma_2 = list(prior = "gamma", shape = 2, scale = 1, loc = 2),
-    gamma_3 = list(prior = "gamma", shape = 2, scale = 1, loc = 3)
-  ) |>
+  add_parameter(g0 = list(prior = "gamma", shape = 2),
+                g1 = list(prior = "gamma", shape = 2, loc = 1),
+                g2 = list(prior = "gamma", shape = 2, loc = 2),
+                g3 = list(prior = "gamma", shape = 2, loc = 3)) |>
   run_inference() |>
   get_parameter_draws() |>
   bayesplot::mcmc_dens() +
   coord_cartesian(xlim = c(0, 10)) +
-  geom_vline(
-    data = data.frame(Parameter = c("gamma_0", "gamma_1", "gamma_2", "gamma_3"),
-                      xintercept = c(0, 1, 2, 3)),
-    aes(xintercept = xintercept),
-    linetype = 2
-  )
+  geom_vline(data = data.frame(Parameter = c("g0", "g1", "g2", "g3"),
+                               xintercept = c(0, 1, 2, 3)),
+             aes(xintercept = xintercept),
+             linetype = 2)
 ```
 
 # Discrete priors
@@ -132,7 +121,6 @@ bayesplot::color_scheme_set(scheme = "orange")
 ```
 
 The discrete distributions in housepi are:
-
 ```{r}
 #| label: discrete-priors-hist
 #| fig-alt: >
@@ -156,34 +144,29 @@ new_housepi_model(model = "test") |>
 # Discretize continuous priors
 
 Any continuous prior can be discretized with the argument `discr`.
-
+A discretized distribution gives each integer `k` the probability between `k` and `k + 1`.
 ```{r}
 #| label: discretized-priors-hist
 #| fig-alt: >
 #|  Seven histograms showing discretized versions of continuous prior distributions: uniform, normal, lognormal, gamma, Weibull, Rayleigh, and exponential.
 
 new_housepi_model(model = "test") |>
-  add_parameter(
-    uniform = list(prior = "uniform", discr = TRUE),
-    normal = list(prior = "normal", discr = TRUE),
-    lognormal = list(prior = "lognormal", discr = TRUE),
-    gamma = list(prior = "gamma", shape = 2, discr = TRUE),
-    weibull = list(prior = "weibull", shape = 2, discr = TRUE),
-    rayleigh = list(prior = "rayleigh", discr = TRUE),
-    exponential = list(prior = "exponential", discr = TRUE)
-  ) |>
+  add_parameter(uniform = list(prior = "uniform", discr = TRUE),
+                normal = list(prior = "normal", discr = TRUE),
+                lognormal = list(prior = "lognormal", discr = TRUE),
+                gamma = list(prior = "gamma", shape = 2, discr = TRUE),
+                weibull = list(prior = "weibull", shape = 2, discr = TRUE),
+                rayleigh = list(prior = "rayleigh", discr = TRUE),
+                exponential = list(prior = "exponential", discr = TRUE)) |>
   run_inference() |>
   get_parameter_draws() |>
   bayesplot::mcmc_hist(binwidth = 1)
 ```
+Here we dropped all arguments that have a default value (see above).
 
-Here we dropped all arguments that have a default value.
+## Discretization in practice
 
-# Discretization in practice
-
-A discretized distribution gives each integer `k` the probability between `k` and `k + 1`.
-We use the function `browse_distributions` to return a Distribution object from housepi and explore its methods.
-
+We use the function `browse_distributions` to return a distribution object from housepi and explore its methods.
 ```{r}
 #| label: discretization-scheme-plot
 #| fig-width: 6
@@ -193,17 +176,18 @@ We use the function `browse_distributions` to return a Distribution object from 
 gamma_cont <- browse_distributions("gamma", shape = 2, scale = 1)
 gamma_discr <- browse_distributions("gamma", shape = 2, scale = 1, discr = TRUE)
 
-ggplot(dplyr::tibble(x = seq(0, 9, 1), y = gamma_discr$pdf(x),
-                     z1 = gamma_cont$cdf(x + 1), z0 = gamma_cont$cdf(x))) +
+dplyr::tibble(x = seq(0, 9, 1), y = gamma_discr$pdf(x),
+              z1 = gamma_cont$cdf(x + 1), z0 = gamma_cont$cdf(x)) |>
+  ggplot() +
   geom_rect(aes(xmin  = x, xmax  = x + 1,
                 ymin  = 0, ymax  = z1 - z0, fill  = "average_prob"),
             color = "coral") +
-  geom_point(aes(x = x, y = y, color = "discretised")) +
+  geom_point(aes(x = x, y = y, color = "discretized")) +
   geom_segment(aes(x = x, xend = x + 1, y = y, yend = y), color = "black") +
   scale_fill_manual(values = c(average_prob = "orange"),
                     labels = c(average_prob = "average probability")) +
-  scale_color_manual(values = c(discretised = "black"),
-                     labels = c(discretised = "discretised"))
+  scale_color_manual(values = c(discretized = "black"),
+                     labels = c(discretized = "discretized"))
 ```
 
 # Monte Carlo proposals
@@ -211,29 +195,22 @@ ggplot(dplyr::tibble(x = seq(0, 9, 1), y = gamma_discr$pdf(x),
 MCMC proposals determine how candidate parameter values are drawn at each step.
 They come in two families.
 
-*Independence samplers* draw a fresh value from a distribution, like the variable's own:
+*Independence samplers* draw a fresh value from a distribution:
 
 * **forward**: direct sampling from the variable's own defining distribution;
 * a **distribution name** (e.g. `"normal"`): sampling from that distribution,
   with its parameters supplied as `proposal_mean`, `proposal_sd`, ...
 
-*Random walks* perturb the current value:
+*Random walks* draw an increment and add it to the current value:
 
-* **rw**: Gaussian increments;
+* **rw**: Gaussian increments: this is the default choice in housepi;
 * **rw_log**: multiplicative log-normal increments (not appropriate for negative
-  nor discrete values);
+  or discrete values);
 * **rw_unif**: uniform (bounded) increments inside a window.
 
 On a discrete variable, the increments of a random walk are rounded to the nearest integer.
 
-Only the random walks are adaptable.
-By default, housepi tunes the scale on the fly to target an acceptance rate of about 44% [@sherlock_optimal_2009].
-This is enabled by supplying `adapt = N` to `run_inference()`.
-Here `N` is the number of adaptation steps run before the MCMC `steps`.
-After every move, a Robbins-Monro update [@andrieu_tutorial_2008] moves the scale by the gap between
-the acceptance probability of the move and the target.
-Its gain falls linearly to zero at the end of the adaptation, so sampling starts on a settled scale.
-The scale is initialized from the prior's interquartile range.
+## Finite adaptation
 
 ```{r}
 #| label: color-scheme-proposals
@@ -241,57 +218,40 @@ The scale is initialized from the prior's interquartile range.
 bayesplot::color_scheme_set(scheme = "brightblue")
 ```
 
+By default, housepi tunes the random walk scales to target an optimal acceptance rate [@sherlock_optimal_2009].
+Only the random walks are adaptable.
+The argument `adapt` of `run_inference()` sets the number of adaptation steps, run before the MCMC `steps`.
+After every move, a Robbins-Monro update [@andrieu_tutorial_2008] moves the scale by the gap between
+the acceptance probability of the move and the target.
+This gain falls linearly to zero at the end of the adaptation, so sampling starts on a settled scale.
+
+Without adaptation, a random walk keeps the scale it starts from, read off the prior.
+That scale suits a posterior as wide as its prior, as in the "test" model above, but not one the data narrow down.
+For example, if we fit the person-to-person transmission rate `beta` of the final size model to `flu_1918_frederick` under a uniform prior in $[0,\,10]$ :
 ```{r}
 #| label: adaptation-trace
+#| fig-height: 4
 #| fig-alt: >
-#|  Four trace plots comparing the same MCMC proposal mechanisms with
-#|  proposal_scale left adaptive.  All chains mix well after a short adaptation phase.
+#|  Two trace plots of the transmission rate beta, four chains each.
+#|  Without adaptation the chains stay flat for long stretches and do not overlap.
+#|  With adaptation the four chains mix around the same value.
+hh_model <- flu_1918_frederick |>
+  new_housepi_model("final_size") |>
+  add_parameter(alpha = 0.01, gamma = 1, hh_size_ref = 4,
+                beta = list(prior = "uniform", max = 10, proposal = "rw"))
 
-new_housepi_model(model = "test") |>
-  add_parameter(
-    forward = list(prior = "normal", min = 0, proposal = "forward"),
-    rw_unif = list(prior = "normal", min = 0, proposal = "rw_unif"),
-    rw = list(prior = "normal", min = 0, proposal = "rw"),
-    rw_log = list(prior = "normal", min = 0, proposal = "rw_log")
-  ) |>
-  run_inference() |>
-  get_parameter_draws() |>
-  bayesplot::mcmc_trace()
+draws_fixed <- hh_model |> run_inference(adapt = 0) |> get_parameter_draws()
+draws_adapted <- hh_model |> run_inference() |> get_parameter_draws()
+
+posterior::bind_draws(
+  posterior::rename_variables(draws_fixed, "adapt = 0" = beta),
+  posterior::rename_variables(draws_adapted, "adapt = 1000" = beta),
+  along = "variable"
+) |>
+  bayesplot::mcmc_trace(facet_args = list(ncol = 1))
 ```
-
-With the default adaptation, the random-walk proposals mix well, at the cost of extra steps before sampling.
-
-## Fix proposal scales
-
-The scale of the proposals can be fixed by supplying an explicit `proposal_scale`.
-This pins the scale to the chosen value and disables adaptation for that variable.
-
-```{r}
-#| label: proposals-trace
-#| fig-alt: >
-#|  Four trace plots comparing MCMC proposal mechanisms with a deliberately
-#|  oversized pinned scale.  Sampling shows poor mixing for all parametric
-#|  mechanisms.
-# select an extremely large proposal scale 'sigma'
-sigma <- 100
-new_housepi_model(model = "test") |>
-  add_parameter(
-    forward = list(prior = "normal", min = 0, proposal = "forward"),
-    rw_unif = list(prior = "normal", min = 0,
-                   proposal = "rw_unif", proposal_scale = !!sigma),
-    rw = list(prior = "normal", min = 0,
-              proposal = "rw", proposal_scale = !!sigma),
-    rw_log = list(prior = "normal", min = 0,
-                  proposal = "rw_log", proposal_scale = !!sigma)
-  ) |>
-  run_inference() |>
-  get_parameter_draws() |>
-  bayesplot::mcmc_trace()
-```
-
-Warnings and trace plots show bad mixing:
-the over-sized scale made the random-walk proposals barely move.
-By contrast, the `forward` mechanism mixes as usual.
+Without adaptation, the scale is far wider than the posterior: nearly every move is rejected and the chains don't mix, as flagged by the diagnostic warning.
+Adaptation shrinks the step to the width of the posterior, and the four chains mix.
 
 ```{r footer-child, child = "helpers/_footer.Rmd"}
 ```

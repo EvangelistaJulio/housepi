@@ -18,23 +18,27 @@ editor_options:
 ```
 
 ```{r}
-#| label: library
+#| label: footer-options
 #| include: false
 options(housepi.footer.warranty = TRUE)
 options(housepi.footer.sample = TRUE)
 ```
 
-Here we load a housepi model template, then associate the definitions needed to run inference and simulations.
+We start by loading the R package housepi into the session:
+```{r}
+#| label: import-library
+# import the library
+library(housepi)
+```
+The package can be installed following the instruction in the documentation [main page](https://mmmi-pasteur.pages.pasteur.fr/housepi/index.html).
 
 # Format of the data
 
-The dataset is a numerical data.frame with one row per household member.
+A dataset should be a data.frame or tibble, with one row per household member.
 A minimal dataset looks like this^[
 This dataset ships with the "test" model, see `?dummy_household` and `?template_test`.]
-
 <div style="display: flex; justify-content: center;">
 <div>
-
 ```{r}
 #| label: dummy-household-data-table
 #| echo: false
@@ -42,118 +46,99 @@ env <- new.env(parent = emptyenv())
 utils::data("dummy_household", package = "housepi", envir = env)
 knitr::kable(env[["dummy_household"]])
 ```
-
 </div>
 </div>
+To group individuals in households, provide a column `"hh_id"` with the respective household tag.
+Individuals with the same tag are considered to belong to the same household.
+No `"hh_id"` implies that all individuals are treated as if living separately.
 
 A column `"id"` with individual identifiers can be provided to keep track of changes and make errors more readable.
 Without it, housepi tags individuals with row numbers.
 
-To group individuals in households, a column `"hh_id"` with the respective household tag needs to be present.
-Individuals with the same household id will then be considered to belong to the same household.
-No household id implies that all individuals in the data are living separately.
-
-To perform model inference, a `"status"` must be provided for each individual $i$.
-Status $s_{i}$ should be an integer value satisfying the following convention:
-
+To perform inference on transmission, a `"status"` must be provided for each individual $i$.
+Status $s_{i}$ should be a character, or an integer value satisfying the following convention:
 <div style="display: flex; justify-content: center;">
 <div>
-
-| Status $s_{i}$ | Compartment | Serology     |
-|:--------------:|-------------|--------------|
-| $\geq$ `1`     | infectious  | seropositive |
-| `0`            | escaped     | seronegative |
-| `NA`           | missing     | missing      |
-
+| Status   | $s_{i}$    |
+|----------|:- --------:|
+| escaped  | `0`        |
+| infected | $\geq$ `1` |
+| missing  | `NA`       |
 </div>
 </div>
-
-In this way we can use the status as a label for different classes of infectious household members.
-E.g. we could say that $s_{i} = 1$ refers to symptomatic individuals, and $s_{i} = 2$ to asymptomatic ones.
-This is used in advanced latent definitions, see [Data augmentation](data_augmentation.html) for an example.
-
-# The housepi model class
-
-The central element of the package is the [R6 class](https://r6.r-lib.org/articles/Introduction.html) `HousepiModel`.
-A dataset can be provided at model construction via the `data` argument of `new_housepi_model()`.
-If omitted, it can be attached later with `add_dataset()`.
-We generate an instance with the final-size template, on one of the public datasets shipped with housepi, `flu_1918_frederick` (see `?flu_1918_frederick`):
-
-```{r}
-#| label: load-model
-# import the library
-library(housepi)
-# specify seed for random number generators
-set.seed(42)
-# theme for visualizations
-set_housepi_theme(colour_strips = TRUE)
-
-# generate an instance of the final-size model with data
-hh_model <- new_housepi_model(flu_1918_frederick, "final-size")
-```
-
-We can retrieve the template model description by using the method `$help()`.
-
-A brief summary of the loaded data can be obtained via `summarise_house_cases()`,
-here manipulated with [flextable](https://CRAN.R-project.org/package=flextable):
-
-```{r}
-#| label: summarise-house-cases
-# show a summary of cases as a `flextable`
-summarise_house_cases(hh_model) |>
-  flextable::flextable() |>
-  flextable::set_formatter(
-    percent = function(x) ifelse(is.na(x), "", round(x, 1))
-  ) |>
-  flextable::merge_v(j = ~ level) |>
-  flextable::bold(j = ~ level + metric, bold = TRUE) |>
-  flextable::labelizor(labels = c(level = "", metric = "", percent = "[%]")) |>
-  flextable::autofit()
-```
-
-The last row is the count of the equivalence classes, i.e. households that are indistinguishable by the
-model (same size, statuses, rates, etc).
-The likelihood is then evaluated just once per class, and multiplied by the number of class members.
-A sampled latent variable makes every household a class of its own.
-
-At any moment we can re-export the full dataset with `get_dataset()`.
-
-```{r}
-#| label: import-data
-# data was associated to the model at construction above
-head(get_dataset(hh_model))
-```
+We can use the status as a label for different classes of infectious household members.
+This is used in status-specific latent definitions (see [Data augmentation](data_augmentation.html)).
 
 # A collection of models
 
-To see the list of currently available model templates, run
-
+To see the list of model templates currently available in housepi, run
 ```{r}
 #| label: list-templates
 # present the list of template model name
 browse_templates()
 ```
-
 Each template comes with definitions that can be used straight away or changed.
-To know more about each model, choose a name from the previous list and run, e.g.
-
+To know more about each model, choose a name from the previous list and run
 ```{r}
 #| label: model-help
 #| eval: false
 # open the template help page
 browse_templates("final-size")
 ```
-
 This opens the help page of the template, also reachable with `?template_final_size`.
+
+# The housepi model class
+
+Generate a model object with `new_housepi_model()`:
+a dataset can be provided at this point via the `data` argument or attached later with `add_dataset()`.
+Here we consider the `flu_1918_frederick` final-size study (a public dataset shipped with housepi, see `?flu_1918_frederick`),
+modelled with the [final-size](https://mmmi-pasteur.pages.pasteur.fr/housepi/reference/template_final_size) transmission model:
+```{r}
+#| label: load-model
+# fix the seed to reproduce the results in the current session
+set.seed(42)
+
+# set the housepi theme for result visualization
+set_housepi_theme(colour_strips = TRUE)
+
+# generate an instance of the final-size model on top of the dataset
+hh_model <- new_housepi_model(flu_1918_frederick, "final-size")
+```
+We can retrieve the template model description by calling `hh_model$help()` at any time.
+To move a time-dependent model to discrete time, we pass `discr = TRUE` to `new_housepi_model()` (see [Infectivity profiles](infectivity_profiles.html#discrete-time-models)).
+
+A brief summary of the loaded dataset can be obtained via `summarise_house_cases()`,
+here formatted with [flextable](https://CRAN.R-project.org/package=flextable):
+```{r}
+#| label: summarise-house-cases
+# show a summary of cases as a `flextable`
+summarise_house_cases(hh_model) |>
+  flextable::flextable() |>
+  flextable::colformat_double(j = "percent", digits = 1) |>
+  flextable::merge_v(j = ~ level) |>
+  flextable::bold(j = ~ level + metric, bold = TRUE) |>
+  flextable::labelizor(labels = c(level = "", metric = "", percent = "[%]")) |>
+  flextable::autofit()
+```
+The last row is the count of the equivalence classes,
+i.e. households that are indistinguishable by the model^[
+Household with the same size, statuses, rates, etc, contribute the same to the likelihood and are thus grouped into equivalence classes.
+The likelihood is then evaluated just once per equivalence class, and multiplied by the class size.
+A sampled latent variable makes every household a class of its own.].
+
+At any moment we can re-export the full dataset with `get_dataset()`.
+```{r}
+#| label: import-data
+# data associated to the model
+head(get_dataset(hh_model))
+```
 
 # Associate parameters
 
-Each parameter needs a definition: the prior and the proposal of the MCMC sampler.
+Each parameter needs a definition: the prior and the proposal of the MCMC sampler, or a constant value.
 We can call `add_parameter()` as follows:
-
 ```{r}
 #| label: add-parameters
-
 # single parameter definitions
 hh_model <- hh_model |>
   # alpha: baseline community transmission rate
@@ -172,20 +157,17 @@ hh_model <- hh_model |>
 # inspect parameter definitions
 hh_model |> get_parameters()
 ```
-
-A parameter is defined as constant by passing a value to `const`, as in `add_parameter("gamma", const = 1)`, or as a bare number, as `hh_size_ref` above.
-At any moment we can read the parameter definitions of the model by calling `get_parameters()`.
+A parameter is defined as constant passing its `const` value, e.g. `add_parameter("hh_size_ref", const = 1)`, or as a bare number, as `add_parameter(hh_size_ref = 1)` above.
+At any moment we can review the parameter definitions of the model by calling `get_parameters()`.
 
 For further information on the available options for priors and MCMC proposals definitions, see [Priors and proposals](priors_and_proposals.html).
 
 # Run inference
 
-Once the definitions are in place, `run_inference()` runs the inference.
-With housepi we can perform inference using Bayesian Markov chain Monte Carlo (MCMC) with the component-wise Metropolis-Hastings algorithm [@metropolis_equation_1953; @hastings_monte_1970].
-Standard options for the MCMC can be provided at this stage, including controls on the number of `threads`.
-Runs after the same `set.seed()` call draw the same chains whatever the number of `threads`.
+Once the definitions are in place, run the inference with `run_inference()`.
+Inference is performed using Bayesian Markov chain Monte Carlo (MCMC), with the Metropolis-within-Gibbs algorithm [@metropolis_equation_1953; @hastings_monte_1970].
+Controls of the MCMC can be provided at this stage, including the number of `steps`, `chains` and `threads`.
 The draws come as [posterior](https://CRAN.R-project.org/package=posterior) objects that can be accessed to compute estimates.
-
 ```{r}
 #| label: run-inference
 # run the Monte Carlo specifying its settings (equal to default)
@@ -196,7 +178,7 @@ hh_fit <- hh_model |>
                 chains = 4,   # independent chains
                 threads = 1)  # parallel threads
 
-# report 95% credible intervals (default is 90%, as in `posterior`)
+# set 95% credible intervals (default is 90%, as in `posterior`)
 set_housepi_summary(cri_level = 0.95)
 
 # summarise posterior draws of parameters
@@ -204,7 +186,6 @@ hh_fit |> summarise_draws()
 ```
 
 We can extract the parameter draws with `get_parameter_draws()` and plot traces with [bayesplot](https://CRAN.R-project.org/package=bayesplot):
-
 ```{r}
 #| label: param-traces
 #| fig-alt: >
@@ -216,12 +197,9 @@ get_parameter_draws(hh_fit) |>
 
 # Models with data augmentation
 
-Models with latent variables are defined in a similar way.
-[Data augmentation](data_augmentation.html) covers latent definitions in depth.
-Here we present a case study, using the template model "case-ascertained" (see `?template_case_ascertained`) where households are conditioned on a single introduction.
-The household structure comes from the `sarscov2_2021_icofs` dataset (see `?sarscov2_2021_icofs`).
-We load the parameter definitions directly from the model template.
-
+Here we present a case study, using the template model "case-ascertained" (see `?template_case_ascertained`) where households are conditioned on a single introduction [@cauchemez_bayesian_2004].
+The timing of infections is governed by an [infectivity profile](infectivity_profiles.html).
+In this application, the household structure comes from the `sarscov2_2021_icofs` dataset (see `?sarscov2_2021_icofs`).
 ```{r}
 #| label: load-latent-model
 # select a data structure (used later for the simulation)
@@ -237,18 +215,15 @@ hh_model <- community_structure |>
 hh_model |> get_parameters()
 hh_model |> get_infectivity_profiles()
 ```
+Here we passed `import = "template"` to load directly the parameter definitions from the template.
 
-In this example we passed `import = "template"` to load the parameter definitions shipped with the transmission model.
+## Model observed and latent quantities
 
-# Simulate an outbreak
-
-We define the latent variables with `add_latent()`.
-Infection times are generated by the transmission model, which gives their probability: they take no `model`, only the bounds `min` and `max` that inference samples them within.
-In simulation, the transmission model sets every infection time, starting from the primary case of each household, infected on day 0.
-Incubation periods are not generated by transmission, so they need a `model`.
-Alongside latent definitions, we need to define observations, in this case of the symptom onset dates and of the start date derived from them.
-We do so with `add_observation()`.
-
+This model is expressed in terms of the infection time `infec_time`, which is typically unobserved and thus require to be modelled as a latent variable.
+We do so with Bayesian [data augmentation](data_augmentation.html) [@tanner_calculation_1987] which samples the latent variables alongside parameters.
+Latent variables are added with `add_latent()`.
+To inform latent variables, we need to add observation models with `add_observation()`, 
+e.g. in this case the dates of symptom onset, the study start date corresponding to the first onset.
 ```{r}
 #| label: load-latent-definitions
 hh_model <- hh_model |>
@@ -269,57 +244,53 @@ hh_model <- hh_model |>
     end_date = start_date + 21
   )
 ```
+Infections are generated by the transmission process, 
+so `infec_time` takes no `model`, but only bounds `min` and `max` used by the inference to sample it.
+On the contrary, incubation periods are not modelled by the transmission process, so `incub_period` requires a `model`.
+The follow-up dates take no `model` either: `func` computes `start_date` from other values, and `level = "house"` gives one value per household, here the earliest onset among its members.
 
 Printing the model lists the definitions in place and the ones still missing:
-
 ```{r}
 #| label: print-model-state
 # print current state of definitions
 hh_model
 ```
-
-By default, if no group rate definition is provided all values are set to 1 (reference value).
+By default, if a group rate is not provided, its contribution is assumed homogeneous.
 To see how to associate group rates in heterogeneous models, see [Group rates](group_rates.html).
 We can overlook these alerts for the rest of the walkthrough.
-The infectivity profile, instead, is mandatory for this model: above we loaded the one shipped with it, and [Infectivity profiles](infectivity_profiles.html) shows how to provide a custom definition.
+
+# Simulate an outbreak
 
 We run a simulation with the method `run_simulation`, using the same community structure from the study.
-The parameter values come as `draws`: a parameter without a value is drawn from its prior.
 Each household's outbreak starts from one member drawn at random, its primary case.
-Every infected individual gets an incubation period, an infection time and a sampled onset date:
-
+The transmission process sets every infection time in simulation, starting from the primary case of each household, infected on day $0$.
+Every infected individual gets an incubation period, an infection time and a sampled onset date.
 ```{r}
 #| label: run-simulation
 # parameter values of the simulation
-sim_values <- c(alpha = 1e-3, beta = 0.15, gamma = 1)
+true_params <- c(alpha = 1e-3, beta = 0.1, gamma = 1)
 
 # the onset_date observation is sampled automatically
-simulated <- hh_model |> run_simulation(sim_values)
+simulated <- hh_model |> run_simulation(true_params)
 
 head(simulated)
 ```
+Parameter values can be passed directly as in the previous example, otherwise they are drawn from the respective priors.
 
-To mimic how the study was reported, such as rounded dates or missed cases, attach functions with `add_reporting_process()`: every simulated study goes through them before it is returned.
+# Inspect the results
 
-# Validation
-
-A simulation study checks that inference recovers the parameters used for the simulation.
-We attach the simulated study as data and keep the definitions used to simulate it, so the simulated `onset_date` enters inference as an observation.
-
+We attach the simulated study as a new dataset, so the simulated `onset_date` enters inference as an observation.
 ```{r}
 #| label: inference-simulated
-
-# associate the simulated data to the model
-hh_model <- hh_model |>
-  add_dataset(simulated)
-
-# run inference on two threads, updating progress bar every 3 seconds
-hh_fit <- hh_model |> run_inference(threads = 2, progress = 3)
+hh_fit <- hh_model |>
+  # associate the simulated data to a copy of the model
+  add_dataset(simulated) |>
+  # run inference using multi-threading
+  run_inference(threads = 2)
 ```
+Besides the parameters, the fit holds the per-household joint log-likelihood `log_lik`.
 
-Besides the parameters, the fit holds the pointwise `log_lik`, the per-household complete-data log-likelihood, which includes the latent models.
 We plot the traces against the values used for the simulation:
-
 ```{r}
 #| label: validation-traces
 #| message: false
@@ -329,20 +300,17 @@ We plot the traces against the values used for the simulation:
 #|  Overlaying orange lines indicate the values used for the simulation.
 library(ggplot2)
 
+# collect original parameters used for the simulation
+true_table <- data.frame(parameter = names(true_params), true = true_params)
+
 # extract sample to posterior draws_df
 param_draws <- get_parameter_draws(hh_fit)
-
-# original parameters used for the simulation
-simul_parameters <- data.frame(parameter = names(sim_values),
-                               simulated = sim_values)
-
 # use bayesplot to plot the posterior draws
 bayesplot::mcmc_trace(param_draws, facet_args = list(ncol = 1)) +
-  geom_hline(data = simul_parameters, aes(yintercept = simulated))
+  geom_hline(data = true_table, aes(yintercept = true))
 ```
 
 The R-hat diagnostics [@vehtari_rank_normalization_2021] check that the chains converged:
-
 ```{r}
 #| label: rhat-diagnostics
 #| fig-width: 5
@@ -351,34 +319,34 @@ The R-hat diagnostics [@vehtari_rank_normalization_2021] check that the chains c
 #|  R-hat convergence diagnostics for alpha, beta, and gamma parameters with color-coded thresholds.
 #|  Color intensity represents R-hat values (≤1.05, ≤1.1, >1.1). Points near 1.0 indicate convergence.
 # compute Rhat values associated to inferred parameters
-var_names <- get_parameters(hh_model) |>
-  dplyr::filter(is.na(const)) |>
-  dplyr::pull(name)
-rhat_table <- summarise_draws(param_draws, rhat = posterior::rhat)
-rhat_values <- setNames(rhat_table$rhat, rhat_table$variable)[var_names]
-
-# use bayesplot to showcase Rhat statistics
-bayesplot::mcmc_rhat(rhat_values) +
+rhat_values <- summarise_draws(param_draws, rhat = posterior::rhat)
+# convert to named numeric vector
+setNames(rhat_values$rhat, rhat_values$variable) |>
+  # use bayesplot to showcase Rhat statistics
+  bayesplot::mcmc_rhat() +
   bayesplot::yaxis_text(hjust = 1)
 ```
 
-The table puts the estimates next to the values used for the simulation.
-
+Finally, we format the estimates and respective credible intervals with `format_estimates`,
+and showcase them next to the true values used for the simulation.
 ```{r}
 #| label: parameter-comparison-table
 param_draws |>
   summarise_draws() |>
+  # generate a formatted estimate with its credible interval
   format_estimates() |>
   dplyr::select(parameter = variable, inferred = formatted) |>
-  dplyr::inner_join(simul_parameters, by = "parameter") |>
+  dplyr::inner_join(true_table, by = "parameter") |>
   flextable::flextable() |>
   flextable::separate_header() |>
   flextable::bold(j = ~ parameter, bold = TRUE) |>
   flextable::autofit()
 ```
 
-A single simulated study can miss the truth by chance: [performance checks](performance_checks.html) repeat it many times.
-Alongside them, [posterior predictive checks](predictive_checks.html) can be used to compare observed household measures against model posterior predicted measures.
+Use [posterior predictive checks](predictive_checks.html) to compare observed household measures against measures predicted by the model posterior distribution.
+
+A single inference replica can miss the simulated truth by chance:
+validate the inference with [performance checks](performance_checks.html) and [simulation-based calibration](simulation_calibration_checks.html).
 
 ```{r footer-child, child = "helpers/_footer.Rmd"}
 ```

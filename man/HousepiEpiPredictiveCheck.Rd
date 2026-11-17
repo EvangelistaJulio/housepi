@@ -88,8 +88,7 @@ A measure with an \code{escaped} argument receives the model's escaped label.
 They are checked alongside standard epidemiological measures.}
       \item{\code{long_measures}}{\code{list}
 Named \code{function}s computing measures from the long dataset.
-Each replicate's long dataset comes from the \code{long_dataset} reporting process,
-see \code{\link[=add_reporting_process]{add_reporting_process()}}.
+Each replicate's long dataset comes from the \code{long_dataset} reporting process.
 Arguments, returned values and names follow the rules of \code{...}.}
       \item{\code{nrep}}{\code{integer(1)} Number of replicates.
 With \code{draws}, at most \code{nrep} evenly spaced draws are simulated,

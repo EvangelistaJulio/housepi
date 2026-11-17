@@ -7,69 +7,80 @@
 [![coverage report](https://gitlab.pasteur.fr/mmmi-pasteur/housepi/badges/main/coverage.svg?job=coverage)](https://gitlab.pasteur.fr/mmmi-pasteur/housepi/-/commits/main)
 [![license](https://img.shields.io/badge/license-GPL--3.0--or--later-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![docs](https://img.shields.io/badge/docs-pkgdown-blue.svg)](https://mmmi-pasteur.pages.pasteur.fr/housepi)
-[![DOI](https://img.shields.io/badge/DOI-forthcoming-lightgrey.svg)](#citation)
+[![HAL](https://img.shields.io/badge/HAL-pasteur--05869643-blue.svg)](https://pasteur.hal.science/pasteur-05869643)
 <!-- badges: end -->
 
 housepi is an R package for the statistical analysis and modelling
 of infectious disease transmission within households.
-Household transmission models are specified declaratively, fitted to data with Bayesian MCMC
-and used to simulate outbreaks.
-They support data augmentation, infectivity profiles, and individual group and contact rates.
-Validation is supported through simulation studies, and prior and posterior predictive checks.
+Household transmission models are specified declaratively,
+fitted to data with Bayesian MCMC and used to simulate outbreaks.
+The package support data augmentation, infectivity profiles, and individual group and contact rates.
+At the same time it support standard Bayesian workflow through predictive checks and simulation studies.
 
 ## Installation
 
-housepi is compiled from source, so it needs a working C++17 toolchain.
-The same toolchain compiles custom and discrete-time models at runtime.
-Check that it is available with:
+housepi needs a working C++17 toolchain, check that it is available with:
 ``` r
 install.packages(c("pkgbuild", "remotes"))
 pkgbuild::has_build_tools(debug = TRUE)
 ```
-Then install the development version from [GitLab](https://gitlab.pasteur.fr/mmmi-pasteur/housepi):
+The same toolchain compiles custom and discrete-time models at runtime.
+
+Install it from [GitLab](https://gitlab.pasteur.fr/mmmi-pasteur/housepi):
 ``` r
 remotes::install_gitlab("mmmi-pasteur/housepi", host = "gitlab.pasteur.fr")
 ```
 
 ## Getting started
 
-Simulate the final sizes of 200 households of 2 to 6 members with the 
-[final-size model](https://mmmi-pasteur.pages.pasteur.fr/housepi/reference/template_final_size),
-using the parameter definitions of the model template,
-then fit the model to the simulated survey:
+Start from a public dataset shipped with the package 
+(e.g ["Spanish" flu in Frederick, USA, 1918](https://mmmi-pasteur.pages.pasteur.fr/housepi/reference/flu_1918_frederick.html)),
+simulate an outbreak using a templated model 
+(e.g. [final-size model](https://mmmi-pasteur.pages.pasteur.fr/housepi/reference/template_final_size)),
+associate standard parameter definitions,
+then fit the model to the simulated study:
 ``` r
 library(housepi)
+
+# fix the seed to ensure reproducibility on the current machine
 set.seed(42)
 
-# household structure: one row per member
-houses <- data.frame(
-  hh_id = rep(1:200, times = sample(2:6, 200, replace = TRUE))
-)
+# define household transmission model from a template or a custom script
+hh_model <- new_housepi_model(flu_1918_frederick, "final-size")
 
-hh_model <- houses |>
-  new_housepi_model("final-size") |>
+# associate custom parameter definitions or use templated choices
+hh_model <- hh_model |>
   add_parameter(import = "template")
 
-# simulate the infection status of every member
-simulated <- hh_model |>
+# simulate the outbreak at the given parameters
+simulated_data <- hh_model |>
   run_simulation(c(alpha = 0.1, beta = 0.3, gamma = 1))
 
-fit <- hh_model |>
-  add_dataset(simulated) |>
-  run_inference()
+# run the inference using multi-threading
+hh_fit <- hh_model |>
+  add_dataset(simulated_data) |>
+  run_inference(steps = 2000, chains = 2, threads = 2)
 
-summarise_draws(fit)
+# extract the results using standard Bayesian packages
+hh_fit |>
+  posterior::summarise_draws() 
 ```
-Similarly can be done with [case-ascertained model](https://mmmi-pasteur.pages.pasteur.fr/housepi/reference/template_case_ascertained) studies,
-where unobserved quantities like infection times are sampled as latent variables (see
-[Data augmentation](https://mmmi-pasteur.pages.pasteur.fr/housepi/articles/data_augmentation)).
 
-Learn more about data format, parameter definitions, inference and simulation,
-in the guide [Get started](https://mmmi-pasteur.pages.pasteur.fr/housepi/articles/housepi).
+Use
+[Bayesian data augmentation](https://mmmi-pasteur.pages.pasteur.fr/housepi/articles/data_augmentation)
+to deal with unobserved variables, as infection times in 
+[case-ascertained studies](https://mmmi-pasteur.pages.pasteur.fr/housepi/reference/template_case_ascertained).
+
+[Get started](https://mmmi-pasteur.pages.pasteur.fr/housepi/articles/housepi)
+and learn more about data format, parameter definitions, inference and simulation.
 
 ## Citation
 
-To cite housepi in publications, run `citation("housepi")`.
+> Camaglia F, Cristancho-Fajardo L, Cortier T, Tsang TK, Bosetti P, Brault A, Cowling BJ, Cauchemez S (2026).
+> Seamless household epidemiological modelling with housepi.
+> HAL preprint [pasteur-05869643](https://pasteur.hal.science/pasteur-05869643).
+
+Here for [BibTeX entry](https://mmmi-pasteur.pages.pasteur.fr/housepi/authors.html#citation).
 
 ## Contributing
 

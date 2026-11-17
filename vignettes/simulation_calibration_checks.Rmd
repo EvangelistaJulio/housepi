@@ -18,19 +18,17 @@ editor_options:
 ```
 
 ```{r}
-#| label: options
+#| label: footer-options
 #| include: false
 options(housepi.footer.warranty = TRUE)
 options(housepi.footer.sample = TRUE)
 ```
 
-Here we show how to check that inference returns the posterior it should, using simulation-based calibration [@cook_validation_2006].
-Each replicate draws parameter values from the prior, simulates a study at them, fits it back with the same model, and ranks each drawn value among the posterior draws of its fit.
-When the likelihood and the sampler are correct, the drawn value behaves as one more posterior draw, so its rank is uniform over the replicates.
+Here we show how to validate inference using simulation-based calibration (SBC) [@cook_validation_2006; @talts_validating_2020].
+[Performance checks](performance_checks.html) hold the truth at one value and measure how far the estimates land from it, while SBC draws a new truth for every replicate and checks the posterior as a whole.
 
-[Performance checks](performance_checks.html) hold the truth at one value and measure how far the estimates land from it.
-Calibration draws a new truth for every replicate and checks the posterior as a whole.
-Its 50% intervals contain the truth in half of the replicates, its 90% intervals in nine out of ten, and so on for every level.
+For prior SBC, replicates draw parameters from the prior, simulate a study at them, fit it back with the same model, and rank each drawn value among the posterior draws of its fit.
+When the likelihood and the sampler are correct, the drawn value behaves as one more posterior draw, so its rank is uniform over the replicates.
 
 We use the same final-size example presented in [Get started](housepi.html):
 
@@ -48,30 +46,28 @@ hh_model <- flu_1918_frederick |>
 get_parameters(hh_model)
 ```
 
-The check needs no fit to the Frederick data.
-The truth of each replicate is drawn from the uniform priors of `alpha`, `beta` and `gamma`, while `hh_size_ref` is held constant at 4.
-The data only lends its households to the simulated studies.
+The true parameters of each replicate are drawn from the priors of imported definitions.
+The check needs no fit to the data, which is only used to pass the household structure to the simulations.
 
 # Rank the prior draws
 
 `check_calibration()` simulates each study on the households of Frederick, as calibration conditions on the design of the study.
 Each fit runs the default MCMC configuration of `run_inference()`, which returns 800 draws, here on two threads.
-The drawn value is ranked among 99 draws thinned evenly from these 800, so its rank takes one of `rank_levels = 100` values, 0 to 99:
+The drawn value is ranked among 99 draws thinned evenly from these 800, so its rank takes one of `rank_levels = 100` values (0 to 99):
 
 ```{r}
 #| label: calibration
 calibration <- hh_model |>
-  check_calibration(nrep = 100, threads = 2)
+  check_calibration(nrep = 100, threads = 2, rank_levels = 100)
 calibration
 
 # overview of the sweep, averaged over replicates
 calibration$overview
 ```
 
-A rank is uniform only if the 99 draws it is taken among behave like independent ones.
-A parameter is flagged when its bulk effective sample size [@vehtari_rank_normalization_2021] falls below 99,
-or when its fit fails the convergence diagnostics.
-Here the diagnostics flagged `r calibration$overview$n_flagged` of `r calibration$nrep` replicates.
+A rank is uniform only if the draws it is taken among behave like independent ones.
+A parameter is flagged when its fit fails the convergence diagnostics [@vehtari_rank_normalization_2021].
+`r if (length(calibration$overview$n_flagged)) paste("Here the diagnostics flagged", calibration$overview$n_flagged, "out of", calibration$nrep, "replicates.")`
 
 The check also ranks the log-likelihood `log_lik` of each simulated study.
 A fit that ignores data would return the prior as its posterior, keeping the parameter ranks uniform.
@@ -132,8 +128,7 @@ bayesplot::ppc_pit_ecdf_grouped(
   pit = calibration$estimates$rank / (rank_levels - 1),
   group = calibration$estimates$variable,
   K = rank_levels, prob = 0.95, plot_diff = TRUE
-) +
-  labs(x = "scaled rank")
+)
 ```
 
 A posterior that overestimates puts the curve above zero, since low ranks make the ECDF rise early, and one that underestimates puts it below.
@@ -210,8 +205,7 @@ bayesplot::ppc_pit_ecdf_grouped(
   pit = short$estimates$rank / (rank_levels - 1),
   group = short$estimates$variable,
   K = rank_levels, prob = 0.95, plot_diff = TRUE
-) +
-  labs(x = "scaled rank")
+)
 ```
 
 ```{r}
@@ -251,8 +245,6 @@ posterior_calibration
 
 The truths are 100 distinct posterior draws, picked evenly among the draws of the fit thinned to their effective sample size, so the fit must hold at least 100 independent draws.
 Each replicate fits twice as many households as Frederick has, the observed ones plus as many simulated, so it costs more than a replicate of the prior check.
-The draws must come from `run_inference()` on this model and data.
-Draws fitted to other data, or a table of values, are refused.
 We test the ranks the same way:
 
 ```{r}
@@ -265,8 +257,7 @@ bayesplot::ppc_pit_ecdf_grouped(
   pit = posterior_calibration$estimates$rank / (rank_levels - 1),
   group = posterior_calibration$estimates$variable,
   K = rank_levels, prob = 0.95, plot_diff = TRUE
-) +
-  labs(x = "scaled rank")
+)
 
 posterior_calibration$summarise()
 ```

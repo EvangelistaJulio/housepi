@@ -18,7 +18,7 @@ editor_options:
 ```
 
 ```{r}
-#| label: options
+#| label: footer-options
 #| include: false
 options(housepi.footer.warranty = TRUE)
 options(housepi.footer.sample = TRUE)
@@ -114,8 +114,6 @@ hh_model |>
   get_parameters()
 
 ```
-
-A parameter defined directly takes priority over a group-rate parameter of the same name.
 
 # Inference with group rates
 

@@ -26,11 +26,6 @@ only through their products, with wide intervals."
 rd_sweep_seed_ <- "Replicates are independent draws.
 Call `set.seed()` before the check to replay a whole sweep,
 at any `threads`."
-rd_sweep_reporting_ <- "Each simulated study goes through
-the `dataset` reporting process of the model before it is fitted back,
-see [add_reporting_process()].
-Inference does not model it,
-so a process losing information makes the check measure the misspecification."
 rd_sweep_threads_ <- "`integer(1)` Number of threads.
 Up to `threads` replicates are fitted at once.
 If greater than `nrep`, each fit shares the threads left over
