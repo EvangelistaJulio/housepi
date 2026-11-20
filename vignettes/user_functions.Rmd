@@ -139,7 +139,7 @@ hh_model <- flu_1918_frederick |>
   add_parameter(
     growth_rate = list(prior = "normal", mean = 0.25, sd = 0.05),
     foi = growth(x = 14, initial = 0.01, rate = growth_rate)
-  )1
+  )
 
 hh_model |>
   get_parameters()
