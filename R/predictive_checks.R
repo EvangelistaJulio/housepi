@@ -95,28 +95,6 @@ measure_cases_by_hh_size <- function(data, escaped = "escaped") {
   .engine$measure_cases_by_hh_size(df)
 }
 
-#' @title Compute the case-weighted geometric mean of household size
-#' @description
-#' Retrieve the geometric mean of household size from household data,
-#' weighted by the number of secondary cases in each household.
-#' It is a data-driven choice for the reference household size `hh_size_ref`
-#' of the built-in models.
-#' @param data `r rd_dataset_`
-#' @param escaped `r rd_mdl_escaped_`
-#' @return `numeric(1)` The measure, `NA` if no household has two cases or more.
-#' @details
-#' For households \eqn{h} of size \eqn{n_h} with \eqn{n_h^{+}} cases,
-#' the measure is
-#' \eqn{\exp\left(\frac{\sum_h w_h \log n_h}{\sum_h w_h}\right)}
-#' with weights \eqn{w_h = \max(n_h^{+} - 1, 0)}.
-#' @examples
-#' measure_geom_mean_hh_size(flu_1918_frederick)
-#' @export
-measure_geom_mean_hh_size <- function(data, escaped = "escaped") {
-  df <- helper_process_data(data, escaped)
-  .engine$measure_geom_mean_hh_size(df)
-}
-
 ########  HousepiPredictiveCheck  ########
 
 #' Apply `func` to corresponding elements of same-shaped data.frames.

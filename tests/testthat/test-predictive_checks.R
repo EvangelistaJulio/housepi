@@ -80,24 +80,6 @@ test_that("Measures keep households that all share one size", {
   measure_cases_by_hh_size(hh_data)$hh_size |> expect_identical(3L)
 })
 
-test_that("Household size geometric mean is weighted by secondary cases", {
-  # no household with a secondary case
-  measure_geom_mean_hh_size(NULL) |>
-    expect_equal(NA_real_)
-
-  # only h1 (size 2, 2 cases) carries weight
-  measure_geom_mean_hh_size(mk_houses$data) |>
-    expect_equal(2)
-
-  # h4 (size 4, 3 cases) weighs 2: exp((log 2 + 2 log 4) / 3) = 2^(5/3)
-  mk_houses$data |>
-    rbind(data.frame(
-      id = paste0("m", 8:11), hh_id = "h4", status = c(1, 1, 1, 0)
-    )) |>
-    measure_geom_mean_hh_size() |>
-    expect_equal(2^(5 / 3))
-})
-
 test_that("Measures decode a labelled status column", {
   ref_ar <- measure_ar_by_hh_size(mk_houses$data)
   ref_sar <- measure_sar_by_hh_size(mk_houses$data)

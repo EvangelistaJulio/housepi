@@ -1,6 +1,7 @@
 # housepi (development version)
 
 * Articles, README and help pages are cleaned up, and the custom model example is a community-only final-size model.
+* `measure_geom_mean_hh_size()` is removed.
 
 # housepi 0.11.0
 

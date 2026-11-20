@@ -1716,12 +1716,6 @@ namespace housepi
             }
             return frame.frame();
         }
-
-        double measure_geom_mean_hh_size(Rcpp::DataFrame dataset)
-        {
-            measure::cases::Table table = summarise_houses_from_df(dataset);
-            return table.max_cases > 1 ? measure::geom_mean_hh_size(table) : NA_REAL;
-        }
     }
 }
 
@@ -1781,7 +1775,6 @@ RCPP_MODULE(housepi)
     Rcpp::function("measure_sar_by_hh_size", &measure_sar_by_hh_size);
     Rcpp::function("measure_ar_by_hh_size", &measure_ar_by_hh_size);
     Rcpp::function("measure_cases_by_hh_size", &measure_cases_by_hh_size);
-    Rcpp::function("measure_geom_mean_hh_size", &measure_geom_mean_hh_size);
     Rcpp::function("count_houses_by_hh_size", &count_houses_by_hh_size);
 
     Rcpp::function("create_mcmc_runner", &create_mcmc_runner);

@@ -6,7 +6,6 @@
 #pragma once
 
 #include <algorithm>
-#include <cmath>
 #include <vector>
 
 #include "data/status.h"
@@ -22,8 +21,6 @@ namespace housepi::measure
             unsigned min_size = 0;
             /// Largest household size observed.
             unsigned max_size = 0;
-            /// Most cases observed in a single household.
-            unsigned max_cases = 0;
             /// Rows: hh_size - min_size; columns: cases 0..max_size.
             std::vector<std::vector<unsigned>> counts;
         };
@@ -92,7 +89,6 @@ namespace housepi::measure
         {
             output.min_size = std::min(output.min_size, h.hh_size);
             output.max_size = std::max(output.max_size, h.hh_size);
-            output.max_cases = std::max(output.max_cases, h.cases);
         }
 
         output.counts.assign(output.max_size - output.min_size + 1,
@@ -157,21 +153,5 @@ namespace housepi::measure
                 affected > 0 ? static_cast<double>(secondary) / ((table.min_size + r - 1.0) * affected) : 0.0);
         }
         return output;
-    }
-
-    /// Return geometric mean of household size, weighted by secondary cases max(cases - 1, 0).
-    /// @note Requires `cases::Table::max_cases` above 1.
-    inline double geom_mean_hh_size(const cases::Table &table)
-    {
-        double sum_w = 0.0, sum_wlog = 0.0;
-        for (unsigned r = 0; r < table.counts.size(); ++r)
-        {
-            unsigned w = 0;
-            for (unsigned c = 2; c < table.counts[r].size(); ++c)
-                w += (c - 1) * table.counts[r][c];
-            sum_w += w;
-            sum_wlog += w * std::log(static_cast<double>(table.min_size + r));
-        }
-        return std::exp(sum_wlog / sum_w);
     }
 }
