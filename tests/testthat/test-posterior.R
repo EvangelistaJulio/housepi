@@ -249,6 +249,16 @@ test_that("Diagnostic warning fires on poor mixing", {
   hh_fit$warnings$message |> expect_match("[Ff]lagged parameter draws")
 })
 
+test_that("Tail ESS of a discrete parameter reads the atom on its bound", {
+  # about half the draws at 1: the 95% quantile is the top of the support
+  hh_fit <- new_housepi_model(model = "test") |>
+    add_parameter(rho = list(prior = "uniform", discr = TRUE)) |>
+    run_inference(warn = FALSE)
+  hh_fit$warnings |> expect_nrow(0L)
+  # the upper tail is the mass at 1
+  summarise_draws(hh_fit)$ess_tail |> expect_all_gte(400)
+})
+
 test_that("Pointwise log-lik is carried into the complete-draws bundle", {
   # get_complete_draws() renames the pointwise columns to the loo / priorsense
   # convention; their values must be the same pointwise log-likelihood

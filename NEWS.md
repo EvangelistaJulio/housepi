@@ -2,6 +2,10 @@
 
 * Articles, README and help pages are cleaned up, and the custom model example is a community-only final-size model.
 * `measure_geom_mean_hh_size()` is removed.
+* The upper tail ESS in `summarise_draws()` and in the convergence diagnostics counts draws at or above
+  the 95% quantile, so a parameter with 5% or more of its draws on the top of its support no longer gets
+  an `NA` tail ESS and a convergence warning.
+* `summarise_draws()` with `.args` and its default summaries no longer fails with an unused-argument error.
 
 # housepi 0.11.0
 

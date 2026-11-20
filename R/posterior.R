@@ -30,6 +30,18 @@ diagnostic_flags_ <- list(
   )
 )
 
+# Tail ESS: lower ESS of the indicators at or below the 5% quantile
+# and at or above the 95% quantile.
+# * continuous draws -> `posterior::ess_tail()`;
+# * quantile on an atom -> its tail is the mass of the atom;
+# * constant or non-finite draws -> `NA`.
+ess_tail_ <- function(x, ...) {
+  if (!all(is.finite(x))) return(NA_real_)
+  q <- stats::quantile(x, c(0.05, 0.95))
+  ess <- c(posterior::ess_mean(x <= q[[1L]]), posterior::ess_mean(x >= q[[2L]]))
+  if (all(is.na(ess))) NA_real_ else min(ess, na.rm = TRUE)
+}
+
 # Validate a credible interval level.
 validate_cri_level <- function(value) {
   if (length(value) != 1 || !is.numeric(value) || is.na(value)) stop_h(
@@ -170,14 +182,14 @@ summarise_draws.housepi_draws <- function(
                                       .num_args = .num_args, .cores = .cores))
 
   probs <- unname(cri_level_probs(get_global_cri_level()))
-  quantile_fn <- function(x) posterior::quantile2(x, probs = probs)
+  quantile_fn <- function(x, ...) posterior::quantile2(x, probs = probs, ...)
   posterior::summarise_draws(
     .x,
     "mean", "median", "sd", "mad",
     quantile_fn,
     rhat = posterior::rhat,
     ess_bulk = posterior::ess_bulk,
-    ess_tail = posterior::ess_tail,
+    ess_tail = ess_tail_,
     .args = .args, .num_args = .num_args, .cores = .cores
   )
 }
@@ -216,7 +228,7 @@ diagnose_block_ <- function(d, nchains) {
   # a capped ESS on a short sample is reported as a low ESS finding
   sm <- as.data.frame(suppressWarnings(posterior::summarise_draws(
     d, rhat = posterior::rhat, ess_bulk = posterior::ess_bulk,
-    ess_tail = posterior::ess_tail
+    ess_tail = ess_tail_
   )))
   sm$bad_rhat <- is.na(sm$rhat) | sm$rhat >= diagnostic_[["rhat_bound"]]
   ess_min <- diagnostic_[["ess_chain_min"]] * nchains
