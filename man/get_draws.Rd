@@ -5,7 +5,7 @@
 \alias{get_latent_draws}
 \alias{get_log_lik_draws}
 \alias{get_complete_draws}
-\title{Get posterior draws of respective variables}
+\title{Get posterior draws by kind of variable}
 \usage{
 get_parameter_draws(hh_fit, variable = NULL)
 
@@ -33,12 +33,14 @@ For finer selections use \code{\link[posterior:subset_draws]{posterior::subset_d
 For \code{log_lik}/\code{lprior} columns: Logarithms are natural (base \eqn{e}).
 }
 \description{
-Return a posterior draws data frame with the MCMC samples.
+Return the MCMC samples as a draws data frame
+of the posterior package \insertCite{burkner_posterior_2026}{housepi}.
 \code{get_parameter_draws()} and \code{get_latent_draws()}
 warn and return an empty draws object when no such draws were stored.
 }
 \details{
-Write \eqn{x} for a single household's data,
+Write \eqn{y} for a single household's modelled data,
+\eqn{s} for its statuses,
 \eqn{\theta} for the parameter vector
 and \eqn{z} for that household's latent variables.
 \describe{
@@ -46,10 +48,10 @@ and \eqn{z} for that household's latent variables.
 \item{\code{get_latent_draws()}}{Draws of \eqn{z}
 for the individuals selected by \code{id_draws} in \code{\link[=run_inference]{run_inference()}}.}
 \item{\code{get_log_lik_draws()}}{Pointwise per-household log-likelihood
-\eqn{\log p^\mathrm{lat}(z \mid \theta)
-      + \log p^\mathrm{transm}(x \mid z, \theta)
-      + \log p^\mathrm{obs}(x \mid z, \theta)},
-the latent, transmission and observation model contributions,
+\eqn{\log p^\mathrm{transm}(s, z \mid \theta)
+      + \log p^\mathrm{obs}(y \mid s, z, \theta)},
+the transmission and observation model contributions,
+including the density of the latent models,
 one column per household.}
 \item{\code{get_complete_draws()}}{Parameters, the pointwise log-likelihood
 renamed \code{log_lik[1]}, \code{log_lik[2]}, ... in household order,
@@ -72,4 +74,7 @@ get_parameter_draws(hh_fit, c("alpha", "beta"))
 # parameters, pointwise log_lik and lprior side by side
 complete <- get_complete_draws(hh_fit)
 posterior::variables(complete) |> head()
+}
+\references{
+\insertAllCited{}
 }

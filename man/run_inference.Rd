@@ -37,7 +37,7 @@ Runs after the same \code{set.seed()} call draw the same chains
 at any \code{threads}.}
 
 \item{id_draws}{\code{character()} | \code{list}
-Infected members whose public latent draws are stored.
+Infected members whose latent draws are stored.
 A \code{character()} lists individual identifiers.
 A \code{list} takes entries \code{id}, individual identifiers, and \code{hh_id},
 households whose infected members are all stored.
@@ -62,15 +62,17 @@ read back from the \code{warnings} field of the returned object.}
 An object of class \code{HousepiPosteriorDraws}.
 }
 \description{
-Run inference with Bayesian Markov Chain Monte Carlo,
-by the component-wise Metropolis-Hastings algorithm
+Run inference with Bayesian Markov chain Monte Carlo,
+by the Metropolis-within-Gibbs algorithm
 \insertCite{metropolis_equation_1953,hastings_monte_1970}{housepi}.
 The latent variables of one member that declare no proposal
 move together, by adaptive Metropolis
 \insertCite{haario_adaptive_2001,andrieu_tutorial_2008}{housepi}.
-Over the first half of \code{adapt} they move one at a time.
-Their joint move then follows the covariance of their values
-from the second quarter of \code{adapt} onwards.
+Over the first half of \code{adapt} they move one at a time,
+and their covariance is estimated over its second quarter.
+They then move together along that covariance,
+estimated again over windows of 50 steps that double in length,
+the last running to the end of \code{adapt}.
 A latent variable whose bounds or location read another of them,
 directly or through a function, moves alone.
 Parameters that declare no proposal move together the same way

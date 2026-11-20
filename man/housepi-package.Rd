@@ -14,14 +14,15 @@ Statistical analysis and modelling of infectious disease transmission within hou
 To create a model, call \code{\link[=new_housepi_model]{new_housepi_model()}}
 with one of the templated transmission models or a custom model.
 Provide household data at construction or later with \code{\link[=add_dataset]{add_dataset()}}.
-Specify the model features with the decorators \code{\link[=add_parameter]{add_parameter()}},
+Specify the model features with \code{\link[=add_parameter]{add_parameter()}},
 \code{\link[=add_group_rate]{add_group_rate()}}, \code{\link[=add_contact_rate]{add_contact_rate()}}, \code{\link[=add_infectivity_profile]{add_infectivity_profile()}},
-\code{\link[=add_latent]{add_latent()}} and \code{\link[=add_observation]{add_observation()}}.
+\code{\link[=add_latent]{add_latent()}}, \code{\link[=add_observation]{add_observation()}} and \code{\link[=add_status_process]{add_status_process()}}.
 Run the inference with \code{\link[=run_inference]{run_inference()}},
 extract draws with \code{\link[=get_parameter_draws]{get_parameter_draws()}}
 and summarise them with \code{\link[=summarise_draws]{summarise_draws()}}.
-Run simulations with \code{\link[=run_simulation]{run_simulation()}},
-and predictive checks with \code{\link[=check_predictive]{check_predictive()}}.
+Run simulations with \code{\link[=run_simulation]{run_simulation()}}.
+Check the fit with \code{\link[=check_predictive]{check_predictive()}},
+and the inference with \code{\link[=check_performance]{check_performance()}} and \code{\link[=check_calibration]{check_calibration()}}.
 Explore the building blocks with \code{\link[=browse_templates]{browse_templates()}},
 \code{\link[=browse_distributions]{browse_distributions()}}, \code{\link[=browse_functions]{browse_functions()}}
 and \code{\link[=browse_infectivity_profiles]{browse_infectivity_profiles()}}.

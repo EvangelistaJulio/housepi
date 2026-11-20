@@ -205,17 +205,21 @@ test_that("Custom models share function registries", {
   # no help page for custom example
   hh_model$help() |> expect_error("not a template")
 
-  # Growth_ overrides only raw_function_ and raw_primitive_
+  # Growth overrides only raw_function_ and raw_primitive_
   # other raw_ virtuals fall back to raise_undefined_call_err_
   x <- seq(0, 3, 0.5)
   func <- browse_functions("growth", initial = 2, rate = 0.5)
   func$func(x) |> expect_equal(2 * exp(0.5 * x))
   func$prim(x) |> expect_equal(2 * exp(0.5 * x) / 0.5)
   func$log_func(x) |> expect_error("undefined")
+
+  # Growth requires a positive `initial`
+  browse_functions("growth", initial = -1) |>
+    expect_error(".initial. of function .growth. must be greater than 0")
 })
 
 # a folder named `model` holding the custom example:
-# * engine scoring -scale * alpha;
+# * engine scoring foi scaled by `scale`, in the escape and infection terms;
 # * `growth` scaled by `scale`;
 # * long-data column `datum` declared.
 make_custom_folder <- function(scale) {
@@ -223,12 +227,12 @@ make_custom_folder <- function(scale) {
   dir.create(path, recursive = TRUE)
   system.file("examples", "custom", "model.cpp", package = "housepi") |>
     readLines() |>
-    sub(pattern = "HOUSEPI_DECLARE_PARAM_KEYS(alpha)",
-        replacement = paste("HOUSEPI_DECLARE_PARAM_KEYS(alpha)",
+    sub(pattern = "HOUSEPI_DECLARE_PARAM_KEYS(foi)",
+        replacement = paste("HOUSEPI_DECLARE_PARAM_KEYS(foi)",
                             "HOUSEPI_DECLARE_LONG_KEYS(datum)"),
         fixed = TRUE) |>
-    sub(pattern = "-par(Param::alpha)",
-        replacement = paste0("-", scale, " * par(Param::alpha)"),
+    sub(pattern = "-par(Param::foi)",
+        replacement = paste0("-", scale, " * par(Param::foi)"),
         fixed = TRUE) |>
     sub(pattern = "return I0 * std::exp(r * x);",
         replacement = paste0("return ", scale, " * I0 * std::exp(r * x);"),
@@ -247,8 +251,7 @@ test_that("Model folders sharing a name keep their own engine and functions", {
   log_lik <- function(hh_model) {
     hh_model |>
       add_long_dataset(data.frame(id = "m1", datum = 1)) |>
-      add_parameter("alpha", const = 1) |>
-      add_latent(proba = list(model = "uniform", min = 0, max = 1)) |>
+      add_parameter("foi", const = 1) |>
       evaluate_log_lik()
   }
 
@@ -284,8 +287,7 @@ test_that("Runs combine across folders of one engine, never across engines", {
   fit <- function(path) {
     suppressMessages(new_housepi_model(hh_data, path, quiet = TRUE)) |>
       add_long_dataset(data.frame(id = "m1", datum = 1)) |>
-      add_parameter("alpha", prior = "normal", mean = 1, sd = 2) |>
-      add_latent(proba = list(model = "uniform", min = 0, max = 1)) |>
+      add_parameter("foi", prior = "exponential", rate = 1) |>
       run_inference(steps = 20, adapt = 0, chains = 1,
                     progress = FALSE, warn = FALSE)
   }
@@ -308,8 +310,7 @@ test_that("Long-data columns a model declares are required", {
   hh_model <- data.frame(id = "m1", hh_id = "h1", status = 0) |>
     new_housepi_model(path, quiet = TRUE) |>
     suppressMessages() |>
-    add_parameter("alpha", const = 1) |>
-    add_latent(proba = list(model = "uniform", min = 0, max = 1))
+    add_parameter("foi", const = 1)
 
   # no long data -> reported, then refused at the wall
   helper_print_lines(print(hh_model)) |>

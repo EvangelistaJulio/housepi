@@ -22,7 +22,8 @@ add_observation(
 \arguments{
 \item{hh_model}{\code{HousepiModel} object.}
 
-\item{name}{\code{character(1)} Name used by internal calls.}
+\item{name}{\code{character(1)} Name of the definition,
+as the model and other definitions read it.}
 
 \item{model}{\code{character(1)} Observation model distribution.
 Reserved to member-level observations.}
@@ -85,11 +86,11 @@ If \code{FALSE}, the previous definitions are dropped.}
 \code{HousepiModel} object. Deep clone of input with new definitions.
 }
 \description{
-Add an observation of data \eqn{x}, at the level set by \code{level}.
+Add an observation of data \eqn{y}, at the level set by \code{level}.
 
 At member level, the observation is attached to every infected individual.
 If \code{model} is provided, it adds to the household likelihood in evaluations,
-and \eqn{x} is drawn from it in simulations.
+and \eqn{y} is drawn from it in simulations.
 An individual whose datum is missing is left out of that likelihood,
 with a warning.
 Nothing conditions on it, so the observation constrains neither

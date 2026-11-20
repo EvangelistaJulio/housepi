@@ -28,8 +28,6 @@ Some models support custom group rates.
 A group rate multiplies one of the model's transmission rates, member by member, according to the member's group.
 A group rate is *absolute*: each group gets its own rate, and the model's baseline rate is then fixed to `1`.
 Choosing a reference group makes the rate *relative* instead: the baseline rate holds for the reference, and each parameter is the rate ratio of one group to that reference.
-A rate ratio is not a risk ratio, because the probability of infection is $1 - e^{-\lambda}$ for a rate $\lambda$.
-With a 30% probability of infection in the reference group, a rate ratio of 2 raises it to 51%, a risk ratio of 1.7.
 Each such model declares the group rates it supports, and each of them can be redefined.
 We provide an example here with the heterogeneous version of the case-ascertained model.
 
@@ -137,43 +135,38 @@ get_parameters(hh_model)
 ```{r}
 #| label: inference-group-rates
 #| fig-alt: >
-#|  Six trace plots displaying MCMC sampling behaviour for model parameters: alpha, beta, infectivity by isolation, and susceptibility parameters stratified by vaccination status.
-#|  Multiple chains (1-3) are overlaid across iterations, showing convergence diagnostics and mixing properties of the Markov chains.
+#|  Six trace plots of the MCMC draws: alpha, beta, infectivity by isolation, and susceptibility by vaccination status.
+#|  Four chains are overlaid across iterations.
 
 hh_model <- hh_model |>
   # parameter definitions
-  add_parameter(
-    alpha = list(prior = "uniform", proposal = "rw_log"),
-    beta = list(prior = "uniform", proposal = "rw_log"),
-    gamma = list(prior = "uniform", proposal = "rw_unif", max = 5),
-    hh_size_ref = 4
-  ) |>
+  add_parameter(alpha = list(prior = "uniform", max = 0.01),
+                beta = list(prior = "uniform"),
+                gamma = list(prior = "uniform", max = 3),
+                hh_size_ref = 4) |>
   # latent definitions
   add_latent(
-    # public definitions
+    # infection time, read by the transmission model
     infec_time = list(min = end_date - 29, max = test_date + 1),
-    # accessory definitions, generic to all statuses
+    # incubation period, generic to all statuses
     incub_period = list(model = "gamma", mean = 3, sd = 1.4)
   ) |>
   # observation model
   add_observation(
     #> symptomatic (status = 1)
-    test_date = list(
-      status = 1, model = "normal",
-      mean = infec_time + incub_period, sd = 1, min = floor(infec_time)
-    ),
+    test_date = list(status = 1, model = "normal",
+                     mean = infec_time + incub_period, sd = 1,
+                     min = floor(infec_time)),
     #> asymptomatic (status = 2)
-    test_date = list(
-      status = 2, model = "uniform",
-      loc = floor(infec_time), min = 0, max = 8
-    )
+    test_date = list(status = 2, model = "uniform",
+                     loc = floor(infec_time), min = 0, max = 8)
   ) |>
   # infectivity profile definitions
   add_infectivity_profile("gamma", mean = 4, sd = 1.6)
 
 # perform inference
 hh_fit <- hh_model |>
-  run_inference(threads = 2, progress = 4)
+  run_inference(threads = 2)
 
 bayesplot::mcmc_trace(get_parameter_draws(hh_fit))
 ```

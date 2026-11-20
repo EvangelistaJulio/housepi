@@ -109,7 +109,7 @@ performance_summary_ <- function(estimates, level) {
 #' and the within-household composition of the covariates are preserved
 #' while the number of households is scaled.
 #' Results then describe a population of households
-#' shaped exactly like those of `data`.
+#' shaped like those of `data`.
 #' @param data `r rd_dataset_`
 #' @param houses `integer(1)` Number of households to draw.
 #' If `NA`, the number of households carried by `data`.
@@ -126,7 +126,7 @@ sample_house_structure <- function(data, houses = NA_integer_) {
   data <- as.data.frame(data)
   if (!"hh_id" %in% names(data)) stop_h(
     "Column {.field hh_id} is missing from the data.",
-    "Provide an household identifier in order to allow sampling."
+    "Provide a household identifier to allow sampling."
   )
   blocks <- split(data, data[["hh_id"]], drop = TRUE)
   houses <- sweep_house_counts_(houses, length(blocks), one = TRUE)

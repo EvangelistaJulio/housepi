@@ -16,7 +16,7 @@ rd_model_out_ <- paste(
 )
 rd_dataset_ <- "`data.frame` Household data, one row per member.
 Column `status` holds integer codes (`0` for escaped members), or labels.
-Definitions keyed on a status name it the same way.
+Definitions refer to a status the same way.
 A definition reads a `Date` column as its number of days, see [base::Dates]."
 rd_mdl_choice_ <- "`character(1)` Model to use, one of:
 \\describe{
@@ -46,7 +46,8 @@ rd_mdl_flags_ <- "Named arguments. Additional compilation options:
 
 ####  Definition vocabulary  ####
 
-rd_var_name_ <- "`character(1)` Name used by internal calls."
+rd_var_name_ <- "`character(1)` Name of the definition,
+as the model and other definitions read it."
 rd_var_const_ <- "`numeric(1)` | `character(1)`
 Value the definition is pinned to, in inference and simulation.
 Either a number, or a data column, a constant parameter,
@@ -178,9 +179,9 @@ The rate multiplies a transmission rate of the model.
 Each stratum carries its own absolute rate, unless a reference is chosen.
 Then every parameter is a rate ratio to the reference stratum.
 If no MCMC options are provided,
-absolute rates are \\eqn{\\mathrm{uniform}} over their support,
+absolute rates are \\eqn{\\mathrm{uniform}[\\mathrm{min}=0, \\mathrm{max}=1]},
 and relative ones \\eqn{\\mathrm{lognormal}[\\mu=0, \\sigma=3]}.
-Bypass automatic generation by providing a custom pre-built logic table.",
+To set the strata by hand, pass a `strata` table instead of `by`.",
           kind)
 }
 rd_rate_prefix_ <- "`character(1)` Prefix to names of associated parameters."
@@ -198,26 +199,31 @@ as do joint covariates with more than %1$d combinations.",
 }
 rd_rate_joint_ <- "`logical(1)` Whether covariates are joint.
 If `FALSE`, they are independent."
-rd_rate_strata_ <-
-  "`data.frame` Individual covariates and relative `param_name`.
-Each row defines one stratum.
-A covariate left `NA` matches any value.
-Every member, or ordered pair of members for contact rates, must match a row,
-and every row must be the best match of at least one of them,
-else the definition is refused.
-So is a table setting no covariate value,
-which treats every member alike as the baseline does.
-The table is used as written.
-A rate read on infected members is checked at every infected status
-a member may take, whether or not the data records it.
-Rows keyed on different covariates form separate rule groups,
-whose rates multiply.
-Use `.reference` in `param_name` to designate the reference group.
-A rule group without it leaves the rate absolute.
-The reserved numeric column `const` pins a stratum to that value,
-in inference and simulation, so that it carries no prior.
-The reference stratum takes none.
-Mutually exclusive with `by`."
+rd_rate_strata_ <- function(kind) {
+  unit <- if (kind == "group") "member" else "pair"
+  paste(
+    "`data.frame` Strata set by hand in place of `by`, one per row,",
+    "holding its covariate values and its `param_name`.",
+    if (kind == "group") paste(
+      "Covariate columns are named after data columns, `status` included,",
+      "which must cover every infected status of the model, observed or not."
+    ) else paste(
+      "A row matches ordered pairs of members:",
+      "`from_<column>` reads the infector, `to_<column>` the infectee.",
+      "With `symmetric = TRUE`, the reverse of each row is added when missing."
+    ),
+    sprintf("An `NA` cell matches any value, and each %s takes", unit),
+    "its most specific matching row.",
+    "Rows keyed on different covariates form separate rule groups.",
+    "Tag a row `.reference` in `param_name` to make it the unit of its group.",
+    "A rule group without a reference leaves the whole rate absolute.",
+    "The numeric column `const` pins a stratum to that value,",
+    "which then carries no prior.",
+    sprintf("A table leaving a %1$s unmatched, or with a row no %1$s takes,",
+            unit),
+    "is refused."
+  )
+}
 rd_rate_params_ <- "`list` Per-parameter MCMC configurations,
 named as in `param_name`.
 Overrides shared prior/args for parameters specified in the list.
@@ -347,7 +353,7 @@ stopifnothousepi <- function(hh_model) {
 #' @title Attach a dataset to a housepi model
 #' @description
 #' Make an internal copy of the household data, one row per member,
-#' (re)building any definitions that depend on it.
+#' and (re)build any definitions that depend on it.
 #' An empty cell of a categorical column is missing data, not a category.
 #' To stratify on it, recode it to a label of your choice.
 #' @param hh_model `r rd_model_in_`
@@ -834,11 +840,11 @@ add_latent <- function(hh_model,
 
 #' @title Add an observation
 #' @description
-#' Add an observation of data \eqn{x}, at the level set by `level`.
+#' Add an observation of data \eqn{y}, at the level set by `level`.
 #'
 #' At member level, the observation is attached to every infected individual.
 #' If `model` is provided, it adds to the household likelihood in evaluations,
-#' and \eqn{x} is drawn from it in simulations.
+#' and \eqn{y} is drawn from it in simulations.
 #' An individual whose datum is missing is left out of that likelihood,
 #' with a warning.
 #' Nothing conditions on it, so the observation constrains neither
@@ -1028,7 +1034,7 @@ add_status_process <- function(hh_model, ..., strata = NULL, import = NULL) {
 #' `r rd_rate_by_levels_()`
 #' @param reference `r rd_rate_reference_("group")`
 #' @param joint `r rd_rate_joint_`
-#' @param strata `r rd_rate_strata_`
+#' @param strata `r rd_rate_strata_("group")`
 #' @param params `r rd_rate_params_`
 #' @param prior `r rd_var_prior_`
 #' @param ... `r rd_var_args_("prior", proposal = TRUE)`
@@ -1102,7 +1108,7 @@ add_group_rate <-  function(hh_model,
 #' @param joint `r rd_rate_joint_`
 #' @param symmetric `logical(1)` Whether contact is symmetric.
 #' If `TRUE`, infector-infectee and infectee-infector pairs are equivalent.
-#' @param strata `r rd_rate_strata_`
+#' @param strata `r rd_rate_strata_("contact")`
 #' @param params `r rd_rate_params_`
 #' @param prior `r rd_var_prior_`
 #' @param ... `r rd_var_args_("prior", proposal = TRUE)`
@@ -1163,7 +1169,8 @@ add_contact_rate <- function(hh_model, by = NA_character_, ...,
 #' Add infectivity profile definitions to a housepi model.
 #' `r rd_add_modes_`
 #' @param hh_model `r rd_model_in_`
-#' @param func `r rd_var_name_`
+#' @param func `character(1)` Name of the infectivity profile,
+#' see [browse_infectivity_profiles()].
 #' @param status `r rd_aug_status_`
 #' @param discr `r rd_var_discr_("profile", "the model time discretization")`
 #' @param ... `r rd_var_args_("profile")`
@@ -1321,7 +1328,7 @@ inspect_augmented_data <- function(hh_model) {
 #' If `NULL`, only the parameters and the sampler are read.
 #' @return `list` The parameters and the sampler,
 #' and with a household all its variables.
-#' Entries are named after their getters, e.g `dataset` for [get_dataset()].
+#' Entries are named after their getters, e.g. `dataset` for [get_dataset()].
 #' Then come the latent, observation and transmission log-likelihoods,
 #' `model_quantities`, the named quantities the model exports,
 #' see its `template_<model>` help page, and `.sampler`.
@@ -1423,15 +1430,17 @@ inspect_state <- function(hh_model, hh_id = NULL) {
 
 #' @title Run Bayesian MCMC inference on a housepi model
 #' @description
-#' Run inference with Bayesian Markov Chain Monte Carlo,
-#' by the component-wise Metropolis-Hastings algorithm
+#' Run inference with Bayesian Markov chain Monte Carlo,
+#' by the Metropolis-within-Gibbs algorithm
 #' \insertCite{metropolis_equation_1953,hastings_monte_1970}{housepi}.
 #' The latent variables of one member that declare no proposal
 #' move together, by adaptive Metropolis
 #' \insertCite{haario_adaptive_2001,andrieu_tutorial_2008}{housepi}.
-#' Over the first half of `adapt` they move one at a time.
-#' Their joint move then follows the covariance of their values
-#' from the second quarter of `adapt` onwards.
+#' Over the first half of `adapt` they move one at a time,
+#' and their covariance is estimated over its second quarter.
+#' They then move together along that covariance,
+#' estimated again over windows of 50 steps that double in length,
+#' the last running to the end of `adapt`.
 #' A latent variable whose bounds or location read another of them,
 #' directly or through a function, moves alone.
 #' Parameters that declare no proposal move together the same way
@@ -1454,7 +1463,7 @@ inspect_state <- function(hh_model, hh_id = NULL) {
 #' Runs after the same `set.seed()` call draw the same chains
 #' at any `threads`.
 #' @param id_draws `character()` | `list`
-#' Infected members whose public latent draws are stored.
+#' Infected members whose latent draws are stored.
 #' A `character()` lists individual identifiers.
 #' A `list` takes entries `id`, individual identifiers, and `hh_id`,
 #' households whose infected members are all stored.

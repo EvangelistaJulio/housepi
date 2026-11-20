@@ -39,7 +39,7 @@ helper_process_data <- function(dataset, escaped = "escaped") {
   df
 }
 
-#' @title Compute observed attack rate by household size
+#' @title Measure attack rate by household size
 #' @description
 #' Retrieve attack rates from household data.
 #' @param data `r rd_dataset_`
@@ -59,7 +59,7 @@ measure_ar_by_hh_size <- function(data, escaped = "escaped") {
   .engine$measure_ar_by_hh_size(df)
 }
 
-#' @title Compute observed secondary attack rate by household size
+#' @title Measure secondary attack rate by household size
 #' @description
 #' Retrieve secondary attack rates (SAR) from household data.
 #' @param data `r rd_dataset_`
@@ -77,7 +77,7 @@ measure_sar_by_hh_size <- function(data, escaped = "escaped") {
   .engine$measure_sar_by_hh_size(df)
 }
 
-#' @title Tabulate observed cases distribution by household size
+#' @title Measure cases distribution by household size
 #' @description
 #' Retrieve the distribution of household cases ("final size")
 #' by household size from household data.

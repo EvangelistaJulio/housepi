@@ -14,12 +14,12 @@ housepi is an R package for the statistical analysis and modelling
 of infectious disease transmission within households.
 Household transmission models are specified declaratively,
 fitted to data with Bayesian MCMC and used to simulate outbreaks.
-The package support data augmentation, infectivity profiles, and individual group and contact rates.
-At the same time it support standard Bayesian workflow through predictive checks and simulation studies.
+The package supports data augmentation, infectivity profiles, and individual group and contact rates.
+It also covers the Bayesian workflow with prior and posterior predictive checks, performance checks and simulation-based calibration.
 
 ## Installation
 
-housepi needs a working C++17 toolchain, check that it is available with:
+housepi needs a working C++ toolchain supporting C++17 or later, check that it is available with:
 ``` r
 install.packages(c("pkgbuild", "remotes"))
 pkgbuild::has_build_tools(debug = TRUE)
@@ -34,7 +34,7 @@ remotes::install_gitlab("mmmi-pasteur/housepi", host = "gitlab.pasteur.fr")
 ## Getting started
 
 Start from a public dataset shipped with the package 
-(e.g ["Spanish" flu in Frederick, USA, 1918](https://mmmi-pasteur.pages.pasteur.fr/housepi/reference/flu_1918_frederick.html)),
+(e.g. ["Spanish" flu in Frederick, USA, 1918](https://mmmi-pasteur.pages.pasteur.fr/housepi/reference/flu_1918_frederick.html)),
 simulate an outbreak using a templated model 
 (e.g. [final-size model](https://mmmi-pasteur.pages.pasteur.fr/housepi/reference/template_final_size)),
 associate standard parameter definitions,
@@ -61,7 +61,7 @@ hh_fit <- hh_model |>
   add_dataset(simulated_data) |>
   run_inference(steps = 2000, chains = 2, threads = 2)
 
-# extract the results using standard Bayesian packages
+# summarise the draws with the posterior package
 hh_fit |>
   posterior::summarise_draws() 
 ```
@@ -80,11 +80,11 @@ and learn more about data format, parameter definitions, inference and simulatio
 > Seamless household epidemiological modelling with housepi.
 > HAL preprint [pasteur-05869643](https://pasteur.hal.science/pasteur-05869643).
 
-Here for [BibTeX entry](https://mmmi-pasteur.pages.pasteur.fr/housepi/authors.html#citation).
+Here for the [BibTeX entry](https://mmmi-pasteur.pages.pasteur.fr/housepi/authors.html#citation).
 
 ## Contributing
 
-Report bugs and request features on the [GitLab issue tracker](https://gitlab.pasteur.fr/mmmi-pasteur/housepi/-/work_items), following the [contributing guide](https://gitlab.pasteur.fr/mmmi-pasteur/housepi/-/blob/main/CONTRIBUTING.md).
+Report bugs and request features on the [GitLab issue tracker](https://gitlab.pasteur.fr/mmmi-pasteur/housepi/-/work_items), following the [contributing guide](https://mmmi-pasteur.pages.pasteur.fr/housepi/CONTRIBUTING.html).
 
 ## AI disclosure
 

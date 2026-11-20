@@ -22,7 +22,8 @@ add_parameter(
 \arguments{
 \item{hh_model}{\code{HousepiModel} object.}
 
-\item{name}{\code{character(1)} Name used by internal calls.}
+\item{name}{\code{character(1)} Name of the definition,
+as the model and other definitions read it.}
 
 \item{...}{Named arguments for the prior distribution, or for \code{func} when the definition is deterministic.
 Advanced Monte Carlo options may also be passed through \code{...},

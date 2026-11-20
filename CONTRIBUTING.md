@@ -19,8 +19,6 @@ The example should run on its own.
 If you can't share your data, try to reproduce it on households from `run_simulation()` or on one of the bundled datasets.
 If the bug only appears on your data, describe its columns and the number of households and members.
 
-Try the [development version](https://gitlab.pasteur.fr/mmmi-pasteur/housepi#installation) first, since it may already fix the bug.
-
 ## Feature requests
 
 Describe what you want to model or compute, the data you have, and what you do today instead.

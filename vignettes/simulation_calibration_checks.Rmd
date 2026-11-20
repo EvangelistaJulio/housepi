@@ -24,7 +24,7 @@ options(housepi.footer.warranty = TRUE)
 options(housepi.footer.sample = TRUE)
 ```
 
-Here we show how to validate inference using simulation-based calibration (SBC) [@cook_validation_2006; @talts_validating_2020].
+We validate inference with simulation-based calibration (SBC) [@cook_validation_2006; @talts_validating_2020].
 [Performance checks](performance_checks.html) hold the truth at one value and measure how far the estimates land from it, while SBC draws a new truth for every replicate and checks the posterior as a whole.
 
 For prior SBC, replicates draw parameters from the prior, simulate a study at them, fit it back with the same model, and rank each drawn value among the posterior draws of its fit.
@@ -282,8 +282,6 @@ recovery_plot(posterior_calibration$estimates)
 
 The drawn values span only the posterior of Frederick, and each fit sees the Frederick households next to the simulated ones, so the points gather in a narrow range.
 How far they follow the diagonal shows what the simulated households add to the observed ones.
-Prior calibration tells whether inference works for any study the model could describe.
-Posterior calibration tells whether it works for Frederick.
 
 ```{r footer-child, child = "helpers/_footer.Rmd"}
 ```

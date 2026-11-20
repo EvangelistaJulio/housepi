@@ -257,7 +257,7 @@ namespace housepi
         }
 
         /// Scale by Robbins-Monro multiplier e^(`gain` (`alpha` - target)), if adaptive.
-        /// Based on @cite andrieu_tutorial_2008
+        /// Based on @cite robbins_stochastic_1951 and @cite andrieu_tutorial_2008
         void adapt(double alpha, double gain) override final
         {
             if (is_adaptive_)
@@ -582,7 +582,7 @@ namespace housepi
     //////////////////////////////  block_rw  //////////////////////////////
 
     /// Adaptive Metropolis: block random walk with jumps from the Cholesky factor of the running covariance.
-    /// Robbins-Monro tunes its global scale.
+    /// Robbins-Monro tunes its global scale @cite robbins_stochastic_1951
     /// Based on @cite haario_adaptive_2001 and @cite andrieu_tutorial_2008
     namespace block_rw
     {

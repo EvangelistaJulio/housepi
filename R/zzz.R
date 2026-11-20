@@ -8,14 +8,15 @@
 #' To create a model, call [new_housepi_model()]
 #' with one of the templated transmission models or a custom model.
 #' Provide household data at construction or later with [add_dataset()].
-#' Specify the model features with the decorators [add_parameter()],
+#' Specify the model features with [add_parameter()],
 #' [add_group_rate()], [add_contact_rate()], [add_infectivity_profile()],
-#' [add_latent()] and [add_observation()].
+#' [add_latent()], [add_observation()] and [add_status_process()].
 #' Run the inference with [run_inference()],
 #' extract draws with [get_parameter_draws()]
 #' and summarise them with [summarise_draws()].
-#' Run simulations with [run_simulation()],
-#' and predictive checks with [check_predictive()].
+#' Run simulations with [run_simulation()].
+#' Check the fit with [check_predictive()],
+#' and the inference with [check_performance()] and [check_calibration()].
 #' Explore the building blocks with [browse_templates()],
 #' [browse_distributions()], [browse_functions()]
 #' and [browse_infectivity_profiles()].

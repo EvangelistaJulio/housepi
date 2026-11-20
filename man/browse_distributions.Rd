@@ -2,7 +2,7 @@
 % Please edit documentation in R/browse.R
 \name{browse_distributions}
 \alias{browse_distributions}
-\title{Navigate through housepi distributions}
+\title{Browse housepi distributions}
 \usage{
 browse_distributions(
   name = NA_character_,
@@ -30,7 +30,7 @@ Relative to the location argument \code{loc}, when one is given.}
 }
 \description{
 Print the list of available distributions,
-or expose one to access user defined distributions.
+or expose one to evaluate it.
 }
 \examples{
 # list all available distributions

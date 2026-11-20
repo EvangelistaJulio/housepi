@@ -53,25 +53,7 @@ If \code{FALSE}, they are independent.}
 \item{symmetric}{\code{logical(1)} Whether contact is symmetric.
 If \code{TRUE}, infector-infectee and infectee-infector pairs are equivalent.}
 
-\item{strata}{\code{data.frame} Individual covariates and relative \code{param_name}.
-Each row defines one stratum.
-A covariate left \code{NA} matches any value.
-Every member, or ordered pair of members for contact rates, must match a row,
-and every row must be the best match of at least one of them,
-else the definition is refused.
-So is a table setting no covariate value,
-which treats every member alike as the baseline does.
-The table is used as written.
-A rate read on infected members is checked at every infected status
-a member may take, whether or not the data records it.
-Rows keyed on different covariates form separate rule groups,
-whose rates multiply.
-Use \code{.reference} in \code{param_name} to designate the reference group.
-A rule group without it leaves the rate absolute.
-The reserved numeric column \code{const} pins a stratum to that value,
-in inference and simulation, so that it carries no prior.
-The reference stratum takes none.
-Mutually exclusive with \code{by}.}
+\item{strata}{\code{data.frame} Strata set by hand in place of \code{by}, one per row, holding its covariate values and its \code{param_name}. A row matches ordered pairs of members: \verb{from_<column>} reads the infector, \verb{to_<column>} the infectee. With \code{symmetric = TRUE}, the reverse of each row is added when missing. An \code{NA} cell matches any value, and each pair takes its most specific matching row. Rows keyed on different covariates form separate rule groups. Tag a row \code{.reference} in \code{param_name} to make it the unit of its group. A rule group without a reference leaves the whole rate absolute. The numeric column \code{const} pins a stratum to that value, which then carries no prior. A table leaving a pair unmatched, or with a row no pair takes, is refused.}
 
 \item{params}{\code{list} Per-parameter MCMC configurations,
 named as in \code{param_name}.
@@ -127,9 +109,9 @@ The rate multiplies a transmission rate of the model.
 Each stratum carries its own absolute rate, unless a reference is chosen.
 Then every parameter is a rate ratio to the reference stratum.
 If no MCMC options are provided,
-absolute rates are \eqn{\mathrm{uniform}} over their support,
+absolute rates are \eqn{\mathrm{uniform}[\mathrm{min}=0, \mathrm{max}=1]},
 and relative ones \eqn{\mathrm{lognormal}[\mu=0, \sigma=3]}.
-Bypass automatic generation by providing a custom pre-built logic table.
+To set the strata by hand, pass a \code{strata} table instead of \code{by}.
 }
 \examples{
 hh_model <- new_housepi_model(flu_2014_matsumoto, "final_size")

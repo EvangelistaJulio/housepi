@@ -1,3 +1,7 @@
+# housepi (development version)
+
+* Articles, README and help pages are cleaned up, and the custom model example is a community-only final-size model.
+
 # housepi 0.11.0
 
 Pre-release.
@@ -7,8 +11,6 @@ Pre-release.
   compiled at runtime.
 * Household data are attached as a dataset, one row per member (`add_dataset()`).
 * Parameters take priors and proposals written in a small DSL (`add_parameter()`).
-  A `"loguniform"` prior, flat on the log scale between `min` and `max`, suits a rate of
-  unknown order of magnitude.
 * Group and contact rates (`add_group_rate()`, `add_contact_rate()`) and infectivity
   profiles (`add_infectivity_profile()`) shape transmission between members.
 * Unobserved quantities are handled by data augmentation: `add_latent()`, `add_observation()`

@@ -4,12 +4,14 @@
 \alias{template_final_size}
 \title{Final Size}
 \description{
-The final-size model is a Reed-Frost chain binomial: transmission proceeds in discrete generations,
-and each generation's new infections are independent binomial draws among the remaining susceptibles.
-The index cases are not known a priori: the first generation is infected from the community.
-Each later generation is infected only by the members infected in the previous one.
+The final-size model follows \insertCite{longini_household_1982;textual}{housepi}.
+Each member escapes infection from the community, and from each infected member of the household,
+with its own escape probability.
+The final size depends only on these escape probabilities, not on when infections occurred \insertCite{ball_unified_1986}{housepi}.
 The likelihood of a household sums over every transmission chain that ends in the observed final size.
 Infected members share a rate partition when their group and contact rates match.
+When all members share one partition, the model is a Reed-Frost chain binomial \insertCite{frost_conceptions_1976}{housepi}:
+the community infects the first generation, and each later generation is infected by the previous one.
 A household is refused when its infected members fall into too many partitions to sum over.
 Up to 15 partitions are accepted when each holds a single member, fewer when partitions hold several.
 }
@@ -42,16 +44,19 @@ and \eqn{n^{+}}{n^+} members are infected.
 \item Escaped contribution:
 \eqn{p^\mathrm{esc} = \prod_{i:\,s_i = 0} q^\mathrm{com}_{i} \prod_{j:\,s_j = 1} q^\mathrm{pp}_{ji}}{p^esc = prod_{i: s_i = 0} q^com_i prod_{j: s_j = 1} q^pp_ji}
 \item Infected contribution \insertCite{longini_household_1982,addy_generalized_1991}{housepi}:
-\eqn{p^\mathrm{inf} = 1 - \sum_{m=0}^{n^{+}-1} P_m}{p^inf = 1 - sum_{m = 0}^{n^+ - 1} P_m}
+\eqn{p^\mathrm{inf} = 1 - \sum_{m=0}^{n^{+}-1} p_m}{p^inf = 1 - sum_{m = 0}^{n^+ - 1} p_m}
 \item Chains of smaller final size:
-\eqn{P_m = \sum_{k=1}^{\binom{n^{+}}{m}} p^\mathrm{transm}\left(s^{(m,k)}\right)}{P_m = sum_{k = 1}^{choose(n^+, m)} p^transm(s^(m,k))},
-where \eqn{s^{(m,k)}}{s^(m,k)} keeps the \eqn{k}-th choice of \eqn{m} infected among the \eqn{n^{+}}{n^+} and sets the others to escaped
+\eqn{p_m = \sum_{k=1}^{\binom{n^{+}}{m}} p^\mathrm{transm}\left(s^{(m,k)}\right)}{p_m = sum_{k = 1}^{choose(n^+, m)} p^transm(s^(m,k))},
+the probability that an outbreak confined to the \eqn{n^{+}}{n^+} infected members infects exactly \eqn{m} of them,
+where \eqn{s^{(m,k)}}{s^(m,k)} holds the statuses of the infected members only,
+the \eqn{k}-th choice of \eqn{m} of them infected and the others escaped
 }
 
 with escape probabilities
 \itemize{
 \item from the community:
-\eqn{q^\mathrm{com}_{i} = \exp\left(-\alpha \, \mu^\mathrm{com}_{i}\right)}{q^com_i = exp(-alpha mu^com_i)}
+\eqn{q^\mathrm{com}_{i} = \exp\left(-\alpha_{i}\right)}{q^com_i = exp(-alpha_i)},
+with \eqn{\alpha_{i} = \alpha \, \mu^\mathrm{com}_{i}}{alpha_i = alpha mu^com_i} the community rate of member \eqn{i}
 \item from member \eqn{j} to member \eqn{i}:
 \eqn{q^\mathrm{pp}_{ji} = \exp\left(-\beta \left(\tfrac{n_\mathrm{ref}}{n}\right)^{\gamma} \mu^\mathrm{inf}_{j} \, \mu^\mathrm{ctc}_{ji} \, \mu^\mathrm{sus}_{i}\right)}{q^pp_ji = exp(-beta (n_ref / n)^gamma mu^inf_j mu^ctc_ji mu^sus_i)}
 \item \eqn{\mu^\mathrm{ctc}_{ji}}{mu^ctc_ji}: contact rate from member \eqn{j} to member \eqn{i}, equal to 1 unless set by \code{\link[=add_contact_rate]{add_contact_rate()}}
@@ -71,9 +76,6 @@ with escape probabilities
 
 In a household of size \eqn{n} the baseline person-to-person rate is \eqn{\beta (n_\mathrm{ref}/n)^{\gamma}}{beta (n_ref / n)^gamma} \insertCite{cauchemez_bayesian_2004}{housepi},
 so \eqn{\beta}{beta} is the baseline rate in a household of size \eqn{n_\mathrm{ref}}{n_ref}.
-The choice of \eqn{n_\mathrm{ref}}{n_ref} leaves the likelihood unchanged, but \eqn{\beta}{beta} and \eqn{\gamma}{gamma} can become strongly correlated.
-Sampled with no declared proposal, they move together in one block that follows their correlation, see \code{\link[=run_inference]{run_inference()}}.
-Choose \eqn{n_\mathrm{ref}}{n_ref} from \code{\link[=measure_geom_mean_hh_size]{measure_geom_mean_hh_size()}} to keep them nearly uncorrelated.
 }
 
 \references{

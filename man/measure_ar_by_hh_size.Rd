@@ -2,14 +2,14 @@
 % Please edit documentation in R/predictive_checks.R
 \name{measure_ar_by_hh_size}
 \alias{measure_ar_by_hh_size}
-\title{Compute observed attack rate by household size}
+\title{Measure attack rate by household size}
 \usage{
 measure_ar_by_hh_size(data, escaped = "escaped")
 }
 \arguments{
 \item{data}{\code{data.frame} Household data, one row per member.
 Column \code{status} holds integer codes (\code{0} for escaped members), or labels.
-Definitions keyed on a status name it the same way.
+Definitions refer to a status the same way.
 A definition reads a \code{Date} column as its number of days, see \link[base:Dates]{base::Dates}.}
 
 \item{escaped}{\code{character(1)} Label of status code \code{0},

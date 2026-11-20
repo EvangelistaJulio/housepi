@@ -19,7 +19,8 @@ add_infectivity_profile(
 \arguments{
 \item{hh_model}{\code{HousepiModel} object.}
 
-\item{func}{\code{character(1)} Name used by internal calls.}
+\item{func}{\code{character(1)} Name of the infectivity profile,
+see \code{\link[=browse_infectivity_profiles]{browse_infectivity_profiles()}}.}
 
 \item{...}{Named arguments for the profile distribution.
 In mode 'multiple', the \code{func} definitions.}

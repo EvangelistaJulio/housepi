@@ -9,7 +9,7 @@ sample_house_structure(data, houses = NA_integer_)
 \arguments{
 \item{data}{\code{data.frame} Household data, one row per member.
 Column \code{status} holds integer codes (\code{0} for escaped members), or labels.
-Definitions keyed on a status name it the same way.
+Definitions refer to a status the same way.
 A definition reads a \code{Date} column as its number of days, see \link[base:Dates]{base::Dates}.}
 
 \item{houses}{\code{integer(1)} Number of households to draw.
@@ -26,7 +26,7 @@ Draw whole households with replacement, so the household-size distribution
 and the within-household composition of the covariates are preserved
 while the number of households is scaled.
 Results then describe a population of households
-shaped exactly like those of \code{data}.
+shaped like those of \code{data}.
 }
 \examples{
 structure <- sample_house_structure(flu_1918_frederick, houses = 20)

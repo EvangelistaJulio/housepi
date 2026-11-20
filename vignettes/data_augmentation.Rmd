@@ -31,7 +31,7 @@ Imagine that someone reported the date of symptom onset $d^\mathrm{ons}_{i}$.
 We can think of the observation process that returned that value as some function of the true onset time, $t^\mathrm{ons}_{i}$.
 Then, we introduce a latent infection time $t_{i}$, defined as the difference between the onset time and the latent incubation period $\tau^\mathrm{inc}_{i}$, so that $t^\mathrm{ons}_{i} = t_{i} + \tau^\mathrm{inc}_{i}$, where the incubation period is modelled according to some prior knowledge, or depending on some parameters to be inferred.
 
-Like parameters, latent variables need a model (eventually the transmission model) and a proposal for the MCMC sampler.
+Like parameters, latent variables need a model (possibly the transmission model itself) and a proposal for the MCMC sampler.
 Latent variable definitions may depend on another definition in the model:
 another latent variable, a data column, an observation, a group rate or a parameter.
 A model looks the name up among its definitions, so each name must stand for one of them only^[A name nothing declares is an error, reported when the model is run, and so is a name claimed by two definitions.].
@@ -74,7 +74,7 @@ hh_model <- data.frame(id = c("tommy", "gina"), hh_id = "house_1",
     infec_time = list(status = 2, min = start_date, max = end_date)
   )
 ```
-Note that for case-ascertained models, infection times are modelled by transmission, so they take no `model`.
+For case-ascertained models, infection times are modelled by transmission, so they take no `model`.
 
 To check how the latent draws evolve, pass the `id` of the individuals to follow to the argument `id_draws` of `run_inference()`.
 ```{r}

@@ -4,9 +4,8 @@
 \alias{template_test}
 \title{Test}
 \description{
-A minimal placeholder model used to test the housepi infrastructure without committing to a specific transmission mechanism.
+A minimal placeholder model with no transmission mechanism, for sanity checks, demos and end-to-end tests of housepi.
 The observation likelihood is constant for every household, and simulation only fills latent variables.
-This template is intended for sanity checks, demos and end-to-end tests.
 }
 \section{Parameters}{
 

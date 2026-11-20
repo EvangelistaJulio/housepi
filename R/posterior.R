@@ -513,12 +513,14 @@ stopifnotdraws <- function(hh_fit) {
   )
 }
 
-#' @title Get posterior draws of respective variables
-#' @description Return a posterior draws data frame with the MCMC samples.
+#' @title Get posterior draws by kind of variable
+#' @description Return the MCMC samples as a draws data frame
+#' of the posterior package \insertCite{burkner_posterior_2026}{housepi}.
 #' `get_parameter_draws()` and `get_latent_draws()`
 #' warn and return an empty draws object when no such draws were stored.
 #' @details
-#' Write \eqn{x} for a single household's data,
+#' Write \eqn{y} for a single household's modelled data,
+#' \eqn{s} for its statuses,
 #' \eqn{\theta} for the parameter vector
 #' and \eqn{z} for that household's latent variables.
 #' \describe{
@@ -526,10 +528,10 @@ stopifnotdraws <- function(hh_fit) {
 #'   \item{`get_latent_draws()`}{Draws of \eqn{z}
 #'     for the individuals selected by `id_draws` in [run_inference()].}
 #'   \item{`get_log_lik_draws()`}{Pointwise per-household log-likelihood
-#'     \eqn{\log p^\mathrm{lat}(z \mid \theta)
-#'       + \log p^\mathrm{transm}(x \mid z, \theta)
-#'       + \log p^\mathrm{obs}(x \mid z, \theta)},
-#'     the latent, transmission and observation model contributions,
+#'     \eqn{\log p^\mathrm{transm}(s, z \mid \theta)
+#'       + \log p^\mathrm{obs}(y \mid s, z, \theta)},
+#'     the transmission and observation model contributions,
+#'     including the density of the latent models,
 #'     one column per household.}
 #'   \item{`get_complete_draws()`}{Parameters, the pointwise log-likelihood
 #'     renamed `log_lik[1]`, `log_lik[2]`, ... in household order,
@@ -553,6 +555,8 @@ stopifnotdraws <- function(hh_fit) {
 #' For finer selections use [posterior::subset_draws()].
 #' @return `posterior::draws_df`
 #' For `log_lik`/`lprior` columns: `r rd_natural_log_`
+#' @references
+#' \insertAllCited{}
 #' @examples
 #' hh_fit <- flu_1918_frederick |>
 #'   new_housepi_model("final-size") |>

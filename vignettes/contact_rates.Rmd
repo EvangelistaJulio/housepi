@@ -186,7 +186,8 @@ A bare number in `add_parameter()`, as in `add_parameter(child_to_parent = 2.5)`
 # Inference
 
 No reference was given, so the three rates are absolute and `beta` is held at `1`.
-The relative parametrization estimates `beta` alongside the rates, and on this survey the chains mix slowly along the direction that trades one against the other, so the absolute one is the cheaper read.
+The relative parametrization would estimate `beta` alongside the rates.
+On this survey its chains mix slowly along the direction that trades `beta` against the rates, so the absolute parametrization mixes faster.
 `run_simulation()` holds `beta` at the same `1`, so a study simulated from these draws comes from the model that was fitted.
 
 ```{r}
@@ -200,7 +201,7 @@ hh_model <- hh_model |>
   add_parameter(import = "template")
 
 hh_fit <- hh_model |>
-  run_inference(progress = 4)
+  run_inference()
 hh_fit |>
   get_parameter_draws() |>
   bayesplot::mcmc_trace()

@@ -18,17 +18,19 @@ editor_options:
 Sometimes a case study requires a function, distribution or infectivity profile missing from housepi.
 Custom function classes can be registered in C++ and made available to models and to R.
 This route is for users comfortable reading and editing C++ code and working with custom housepi models.
-The authors will also consider requests to add missing functions to the package.
+The authors will also consider [requests to add missing functions to the package](https://mmmi-pasteur.pages.pasteur.fr/housepi/CONTRIBUTING.html).
 
-We illustrate this with a concrete example from `inst/examples/custom/model.cpp`, which ships with the package.
+We illustrate this with an example from `inst/examples/custom/model.cpp`, which ships with the package.
 
-# The full custom model source
+# The custom model source
 
-The complete source file defines both a custom user function and a minimal latent model:
+The source file defines a custom user function and a minimal transmission model:
 ```{r}
 #| label: load-custom-model
 custom_model <- system.file("examples", "custom", package = "housepi")
 ```
+
+Function and model definitions are wrapped by the following macros:
 
 ```{r}
 #| label: display-model-source
@@ -37,45 +39,25 @@ custom_model <- system.file("examples", "custom", package = "housepi")
 custom_src <- file.path(custom_model, "model.cpp")
 cat("```cpp\n")
 cat("HOUSEPI_OPEN_MODULE_NAMESPACE()", sep = "\n")
-cat("\n")
-
-lines <- readLines(custom_src)
-start <- grep("class Growth_", lines)
-end <- start + 1
-cat(lines[start:end], sep = "\n")
-cat("...\n")
-end <- grep("HOUSEPI_REGISTER_FUNCTION", lines)[1]
-start <- end - 2
-cat(lines[start:end], sep = "\n")
-cat("\n")
-
-start <- grep("class Model", lines)
-end <- start + 1
-cat(lines[start:end], sep = "\n")
-cat("...\n")
-end <- grep("HOUSEPI_CLOSE_MODULE", lines)[1]
-start <- end - 1
-cat(lines[start:start], sep = "\n")
-cat("\n")
-
+cat("\n...\n")
 cat("HOUSEPI_CLOSE_MODULE_NAMESPACE()", sep = "\n")
 cat("```\n")
 ```
 
 # Custom user functions
 
-User functions are added in the C++ source code by inheriting from the base class `Function`
-and overriding one or more of its virtual methods.
+A user function is a C++ class that inherits from the base class `Function`
+and overrides one or more of its virtual methods.
 
-The `Growth_` class in the example defines an exponential growth function $f(x) = I_0 \cdot e^{r x}$:
+The `Growth` class in the example defines an exponential growth function $f(x) = I_0 \cdot e^{r x}$:
 
 ```{r}
 #| label: display-growth-class
 #| echo: false
 #| results: asis
 lines <- readLines(custom_src)
-# extract the Growth_ class and its registration macro
-start <- grep("class Growth_", lines)
+# extract the Growth class and its registration macro
+start <- grep("class Growth", lines)
 end <- grep("HOUSEPI_REGISTER_FUNCTION", lines)[1]
 cat("```cpp\n")
 cat(lines[start:end], sep = "\n")
@@ -84,21 +66,28 @@ cat("\n```\n")
 
 Here is what each part does:
 
-1. **Inheritance and constructor**: `Growth_` inherits from `Cloneable<Growth_, Function>`, which provides the copy and the name. The constructor defines:
+1. **Inheritance and constructor**: `Growth` inherits from `Cloneable<Growth, Function>`.
+The constructor defines:
     - A list of argument names and default values (`"initial"` = 1, `"rate"` = 1);
     - The minimum value of the function (0.0).
 
 2. **Name**: the static member `NAME` sets the register name to `"growth"`.
 
-3. **Truncation**: `truncate()` is overridden to bound the support below at 0.
+3. **Truncation**: `truncate()` is overridden to bound the support from below at 0.
 
-4. **Core computation**: `raw_function_()` implements the function. Arguments are accessed by position with `arg(0)`, `arg(1)`, etc. (note that `x` is reserved as the function input).
+4. **Codomain**: `codomain()` states that the function returns only values in $(0, \infty)$.
+A model requiring a positive quantity accepts a definition built on `growth`.
 
-5. **Registration**: `HOUSEPI_REGISTER_FUNCTION(Growth_, Custom)` registers the function under the `Custom` category, making `"growth"` available to models and callable from R.
+5. **Core computation**: `raw_function_()` implements the function and `raw_primitive_()` its primitive.
+Arguments are accessed by position with `arg(0)`, `arg(1)`, etc.
+
+6. **Registration**: `HOUSEPI_REGISTER_FUNCTION(Growth, Custom)` registers the function under the `Custom` category, so models and R can call it as `"growth"`.
 
 # The custom model
 
-The `Model` class defines a minimal latent model with a single latent variable `proba` and a single parameter `alpha`:
+The `Model` class defines a community-only final-size model.
+Each member of a household is infected from outside with probability $p = 1 - e^{-\lambda}$,
+independently of the other members, where $\lambda$ is the force of infection `foi`:
 
 ```{r}
 #| label: display-model-class
@@ -113,25 +102,61 @@ cat("\n```\n")
 
 Key elements:
 
-- **Declare keys**: `HOUSEPI_DECLARE_LATENT_KEYS` and `HOUSEPI_DECLARE_PARAM_KEYS` declare the latent variable `proba` and the parameter `alpha`. A slot the model does not read needs no macro.
-- **Log-likelihood**: `compute_house_obs_log_lik()` sums the log of each infected member's `proba` value, offset by `-alpha`.
-- **Initialization**: `simulate_single_house()` initializes missing latent variables for each infected member.
+- **Required keys**: the macro `HOUSEPI_DECLARE_PARAM_KEYS` declares the parameter `foi`.
+- **Requirements**: `init_model_requirements()` requires `foi` to be positive.
+- **Log-likelihood**: `compute_house_transm_log_lik()` returns the transmission log-likelihood of a household
+of size $n$ with $n^{+}$ infected members,
+$\log p^\mathrm{transm}(s \mid \theta) = n^{+} \log(1 - e^{-\lambda}) - (n - n^{+}) \lambda$.
+- **Simulation**: `simulate_single_house()` sets each member infected with probability $1 - e^{-\lambda}$, escaped otherwise.
 
 # Testing user functions from R
 
-Once the custom model has been compiled, the registered function is visible from its environment and can be tested as follows:
+Once the custom model is compiled, we can call the registered function from R:
 
 ```{r}
 #| label: test-user-function
 library(housepi)
 set.seed(42)
 
-# compile the custom model to wire its custom functions to registry
+# compile the custom model to add its functions to the registry
 new_housepi_model(model = custom_model)
 
 # explore the custom function 'growth'
 x <- seq(0, 5, 0.5)
 browse_functions("growth", initial = 2, rate = 0.5)$func(x)
+```
+
+# Using user functions in a model
+
+The definitions of any model can call a registered function by its name.
+We let the force of infection be the value reached after 14 days of exponential growth,
+from an initial value of 0.01 at a rate `growth_rate` to be inferred from the data:
+
+```{r}
+#| label: define-with-user-function
+hh_model <- flu_1918_frederick |>
+  new_housepi_model(model = custom_model) |>
+  add_parameter(
+    growth_rate = list(prior = "normal", mean = 0.25, sd = 0.05),
+    foi = growth(x = 14, initial = 0.01, rate = growth_rate)
+  )1
+
+hh_model |>
+  get_parameters()
+```
+
+housepi evaluates `growth` each time the model reads `foi`,
+in the transmission log-likelihood and in simulation:
+
+```{r}
+#| label: evaluate-with-user-function
+hh_model |>
+  evaluate_log_lik()
+
+simulated <- hh_model |>
+  run_simulation()
+# share of infected members
+mean(simulated$status > 0)
 ```
 
 ```{r footer-child, child = "helpers/_footer.Rmd"}

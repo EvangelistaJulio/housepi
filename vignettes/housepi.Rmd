@@ -30,7 +30,7 @@ We start by loading the R package housepi into the session:
 # import the library
 library(housepi)
 ```
-The package can be installed following the instruction in the documentation [main page](https://mmmi-pasteur.pages.pasteur.fr/housepi/index.html).
+The package can be installed following the instructions in the documentation [main page](https://mmmi-pasteur.pages.pasteur.fr/housepi/index.html).
 
 # Format of the data
 
@@ -60,7 +60,7 @@ Status $s_{i}$ should be a character, or an integer value satisfying the followi
 <div style="display: flex; justify-content: center;">
 <div>
 | Status   | $s_{i}$    |
-|----------|:- --------:|
+|----------|:----------:|
 | escaped  | `0`        |
 | infected | $\geq$ `1` |
 | missing  | `NA`       |
@@ -74,10 +74,9 @@ This is used in status-specific latent definitions (see [Data augmentation](data
 To see the list of model templates currently available in housepi, run
 ```{r}
 #| label: list-templates
-# present the list of template model name
+# present the list of template models
 browse_templates()
 ```
-Each template comes with definitions that can be used straight away or changed.
 To know more about each model, choose a name from the previous list and run
 ```{r}
 #| label: model-help
@@ -95,9 +94,8 @@ Here we consider the `flu_1918_frederick` final-size study (a public dataset shi
 modelled with the [final-size](https://mmmi-pasteur.pages.pasteur.fr/housepi/reference/template_final_size) transmission model:
 ```{r}
 #| label: load-model
-# fix the seed to reproduce the results in the current session
+# fix the seed to ensure reproducibility in the current session
 set.seed(42)
-
 # set the housepi theme for result visualization
 set_housepi_theme(colour_strips = TRUE)
 
@@ -105,14 +103,15 @@ set_housepi_theme(colour_strips = TRUE)
 hh_model <- new_housepi_model(flu_1918_frederick, "final-size")
 ```
 We can retrieve the template model description by calling `hh_model$help()` at any time.
-To move a time-dependent model to discrete time, we pass `discr = TRUE` to `new_housepi_model()` (see [Infectivity profiles](infectivity_profiles.html#discrete-time-models)).
+To move a time-dependent model to discrete time, we can pass `discr = TRUE` to `new_housepi_model()` (see [Infectivity profiles](infectivity_profiles.html#discrete-time-models)).
 
 A brief summary of the loaded dataset can be obtained via `summarise_house_cases()`,
 here formatted with [flextable](https://CRAN.R-project.org/package=flextable):
 ```{r}
 #| label: summarise-house-cases
 # show a summary of cases as a `flextable`
-summarise_house_cases(hh_model) |>
+hh_model |>
+  summarise_house_cases() |>
   flextable::flextable() |>
   flextable::colformat_double(j = "percent", digits = 1) |>
   flextable::merge_v(j = ~ level) |>
@@ -121,7 +120,7 @@ summarise_house_cases(hh_model) |>
   flextable::autofit()
 ```
 The last row is the count of the equivalence classes,
-i.e. households that are indistinguishable by the model^[
+i.e. households that are indistinguishable by the current model definitions^[
 Household with the same size, statuses, rates, etc, contribute the same to the likelihood and are thus grouped into equivalence classes.
 The likelihood is then evaluated just once per equivalence class, and multiplied by the class size.
 A sampled latent variable makes every household a class of its own.].
@@ -130,7 +129,9 @@ At any moment we can re-export the full dataset with `get_dataset()`.
 ```{r}
 #| label: import-data
 # data associated to the model
-head(get_dataset(hh_model))
+hh_model |>
+  get_dataset() |>
+  head()
 ```
 
 # Associate parameters
@@ -155,7 +156,8 @@ hh_model <- hh_model |>
   add_parameter(hh_size_ref = 6L, gamma = list(prior = "uniform"))
 
 # inspect parameter definitions
-hh_model |> get_parameters()
+hh_model |>
+  get_parameters()
 ```
 A parameter is defined as constant passing its `const` value, e.g. `add_parameter("hh_size_ref", const = 1)`, or as a bare number, as `add_parameter(hh_size_ref = 1)` above.
 At any moment we can review the parameter definitions of the model by calling `get_parameters()`.
@@ -167,7 +169,7 @@ For further information on the available options for priors and MCMC proposals d
 Once the definitions are in place, run the inference with `run_inference()`.
 Inference is performed using Bayesian Markov chain Monte Carlo (MCMC), with the Metropolis-within-Gibbs algorithm [@metropolis_equation_1953; @hastings_monte_1970].
 Controls of the MCMC can be provided at this stage, including the number of `steps`, `chains` and `threads`.
-The draws come as [posterior](https://CRAN.R-project.org/package=posterior) objects that can be accessed to compute estimates.
+The draws come as [posterior](https://CRAN.R-project.org/package=posterior) objects, which posterior and bayesplot functions read directly.
 ```{r}
 #| label: run-inference
 # run the Monte Carlo specifying its settings (equal to default)
@@ -182,7 +184,8 @@ hh_fit <- hh_model |>
 set_housepi_summary(cri_level = 0.95)
 
 # summarise posterior draws of parameters
-hh_fit |> summarise_draws()
+hh_fit |>
+  summarise_draws()
 ```
 
 We can extract the parameter draws with `get_parameter_draws()` and plot traces with [bayesplot](https://CRAN.R-project.org/package=bayesplot):
@@ -219,11 +222,11 @@ Here we passed `import = "template"` to load directly the parameter definitions 
 
 ## Model observed and latent quantities
 
-This model is expressed in terms of the infection time `infec_time`, which is typically unobserved and thus require to be modelled as a latent variable.
+This model is expressed in terms of the infection time `infec_time`, which is typically unobserved and thus must be modelled as a latent variable.
 We do so with Bayesian [data augmentation](data_augmentation.html) [@tanner_calculation_1987] which samples the latent variables alongside parameters.
 Latent variables are added with `add_latent()`.
-To inform latent variables, we need to add observation models with `add_observation()`, 
-e.g. in this case the dates of symptom onset, the study start date corresponding to the first onset.
+To inform latent variables, we add observations with `add_observation()`,
+here the dates of symptom onset and the follow-up dates derived from the earliest onset.
 ```{r}
 #| label: load-latent-definitions
 hh_model <- hh_model |>
@@ -238,15 +241,15 @@ hh_model <- hh_model |>
     # observation of onset date noisy around the real onset time
     onset_date = list(discr = TRUE, model = "normal", min = floor(infec_time),
                       mean = infec_time + incub_period),
-    # followup starts with earliest onset date (house-level observation)
+    # follow-up starts at the earliest onset date (house-level observation)
     start_date = list(func = min(onset_date), level = "house"),
-    # followup ends after 3 weeks after first onset
+    # follow-up ends 3 weeks after the first onset
     end_date = start_date + 21
   )
 ```
 Infections are generated by the transmission process, 
 so `infec_time` takes no `model`, but only bounds `min` and `max` used by the inference to sample it.
-On the contrary, incubation periods are not modelled by the transmission process, so `incub_period` requires a `model`.
+By contrast, incubation periods are not modelled by the transmission process, so `incub_period` requires a `model`.
 The follow-up dates take no `model` either: `func` computes `start_date` from other values, and `level = "house"` gives one value per household, here the earliest onset among its members.
 
 Printing the model lists the definitions in place and the ones still missing:
@@ -261,10 +264,9 @@ We can overlook these alerts for the rest of the walkthrough.
 
 # Simulate an outbreak
 
-We run a simulation with the method `run_simulation`, using the same community structure from the study.
-Each household's outbreak starts from one member drawn at random, its primary case.
-The transmission process sets every infection time in simulation, starting from the primary case of each household, infected on day $0$.
-Every infected individual gets an incubation period, an infection time and a sampled onset date.
+We run a simulation with `run_simulation()`, using the same community structure from the study.
+Each household's outbreak starts from one member drawn at random, its primary case, infected on day $0$.
+From there the transmission process sets every infection time, and each infected member gets an incubation period and a sampled onset date.
 ```{r}
 #| label: run-simulation
 # parameter values of the simulation
@@ -303,7 +305,7 @@ library(ggplot2)
 # collect original parameters used for the simulation
 true_table <- data.frame(parameter = names(true_params), true = true_params)
 
-# extract sample to posterior draws_df
+# extract the parameter draws
 param_draws <- get_parameter_draws(hh_fit)
 # use bayesplot to plot the posterior draws
 bayesplot::mcmc_trace(param_draws, facet_args = list(ncol = 1)) +
@@ -322,13 +324,13 @@ The R-hat diagnostics [@vehtari_rank_normalization_2021] check that the chains c
 rhat_values <- summarise_draws(param_draws, rhat = posterior::rhat)
 # convert to named numeric vector
 setNames(rhat_values$rhat, rhat_values$variable) |>
-  # use bayesplot to showcase Rhat statistics
+  # plot the Rhat statistics with bayesplot
   bayesplot::mcmc_rhat() +
   bayesplot::yaxis_text(hjust = 1)
 ```
 
-Finally, we format the estimates and respective credible intervals with `format_estimates`,
-and showcase them next to the true values used for the simulation.
+Finally, we format the estimates and respective credible intervals with `format_estimates()`,
+and tabulate them next to the true values used for the simulation.
 ```{r}
 #| label: parameter-comparison-table
 param_draws |>
@@ -345,8 +347,8 @@ param_draws |>
 
 Use [posterior predictive checks](predictive_checks.html) to compare observed household measures against measures predicted by the model posterior distribution.
 
-A single inference replica can miss the simulated truth by chance:
-validate the inference with [performance checks](performance_checks.html) and [simulation-based calibration](simulation_calibration_checks.html).
+A single inference replica can miss the simulated truth by chance.
+To validate the inference, use [performance checks](performance_checks.html) and [simulation-based calibration](simulation_calibration_checks.html).
 
 ```{r footer-child, child = "helpers/_footer.Rmd"}
 ```

@@ -11,7 +11,7 @@ add_dataset(hh_model, data)
 
 \item{data}{\code{data.frame} Household data, one row per member.
 Column \code{status} holds integer codes (\code{0} for escaped members), or labels.
-Definitions keyed on a status name it the same way.
+Definitions refer to a status the same way.
 A definition reads a \code{Date} column as its number of days, see \link[base:Dates]{base::Dates}.}
 }
 \value{
@@ -19,7 +19,7 @@ A definition reads a \code{Date} column as its number of days, see \link[base:Da
 }
 \description{
 Make an internal copy of the household data, one row per member,
-(re)building any definitions that depend on it.
+and (re)build any definitions that depend on it.
 An empty cell of a categorical column is missing data, not a category.
 To stratify on it, recode it to a label of your choice.
 }

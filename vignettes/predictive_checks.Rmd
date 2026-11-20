@@ -25,9 +25,20 @@ options(housepi.footer.sample = TRUE)
 ```
 
 A predictive check simulates household studies from the model and compares common household measures on them with the observed ones [@rubin_bayesianly_1984].
-Before inference, the parameters are drawn from their prior: this is a prior predictive check, and it shows what the model and its priors expect to see.
+Before inference, the parameters are drawn from their prior: this is a prior predictive check [@gabry_visualization_2019], and it shows what the model and its priors expect to see.
 After inference, the parameters are taken from the posterior draws: this is a posterior predictive check (PPC), and it shows whether the fitted model reproduces the data.
 Both run through `check_predictive()`.
+
+By default, the following standard epidemiological measures, stratified by household size, are included:
+
+- [`measure_ar_by_hh_size`](https://mmmi-pasteur.pages.pasteur.fr/housepi/reference/measure_ar_by_hh_size): attack rate^[Attack rates are not measured for case-ascertained models.];
+- [`measure_sar_by_hh_size`](https://mmmi-pasteur.pages.pasteur.fr/housepi/reference/measure_sar_by_hh_size): secondary attack rate;
+- [`measure_cases_by_hh_size`](https://mmmi-pasteur.pages.pasteur.fr/housepi/reference/measure_cases_by_hh_size): cases distribution ("final size").
+
+Custom measures can also be included (see [Other measures](#other-measures)).
+
+# Prior predictive checks
+
 We use the same final-size example presented in [Get started](housepi.html):
 
 ```{r}
@@ -42,11 +53,8 @@ hh_model <- flu_1918_frederick |>
   add_parameter(import = "template")
 ```
 
-# Prior predictive checks
-
 The template priors are uniform: on $[0, 1]$ for `alpha` and `beta`, on $[0, 3]$ for `gamma`.
-Without posterior draws, `check_predictive()` draws `nrep` parameter sets from these priors and simulates one household study from each.
-There are no draws to count, so `nrep` must be set:
+Without posterior draws, `check_predictive()` draws `nrep` parameter sets from these priors and simulates one household study from each:
 
 ```{r}
 #| label: compute-prior-predictions
@@ -93,14 +101,13 @@ For example, with a too low community transmission rate we get
 ```{r}
 #| label: warn-prior
 ppc_prior_warn <- hh_model |>
-  add_parameter("alpha", prior = "uniform", max = 0.01, append = TRUE) |>
+  add_parameter("alpha", prior = "uniform", max = 0.01) |>
   check_predictive(nrep = 200)
 ```
 
-# Posterior predictive checks over cases distribution
+# Posterior predictive checks
 
-We now run inference as in [Get started](housepi.html) and store the posterior draws to compute posterior predictive checks.
-By default, the measures include the secondary attack rates and the distribution of household cases ("final size") by household size:
+We now run inference as in [Get started](housepi.html) and store the posterior draws to compute posterior predictive checks:
 
 ```{r}
 #| label: inference
@@ -114,11 +121,13 @@ ppc <- hh_model |>
 print(ppc)
 ```
 
+## Cases distribution
+
 To show both observed and predicted cases distributions by household size, we can extract the formatted table from our output object as follows.
 
 ```{r}
 #| label: format-cases-distr
-# for this part of the analysis we consider only house sizes up to 5
+# for this part of the analysis we consider only household sizes up to 5
 ppc$set_max_hh_size(5)
 
 # return a data.frame with observed and predicted cases distributions
@@ -162,7 +171,7 @@ ft
 Underlined observed counts fall outside the 95% credible interval of their prediction: these are the values flagged by `check_predictive()`.
 The flags cover every household size, while the table stops at 5.
 
-# Secondary attack rate
+## Secondary attack rate
 
 We compare the observed and posterior-predicted secondary attack rates:
 
@@ -174,7 +183,7 @@ We compare the observed and posterior-predicted secondary attack rates:
 #|  Secondary attack rates by household size comparing posterior predictions (orange) and observed data (black points with sample sizes).
 #|  Predicted values show median estimates with 95% credible intervals.
 
-# we remove the maximum house size before proceeding
+# we remove the maximum household size before proceeding
 ppc$set_max_hh_size(NULL)
 
 col_dict <- c(posterior = "coral", observed = "black")
@@ -200,13 +209,6 @@ ggplot(ppc$format_sec_attack_rate(),
 
 `check_predictive()` also accepts named measure functions, computed on the simulated data and compared with the observed values.
 They are checked alongside the standard epidemiological measures, so each needs a name of its own.
-Current standard measures are stratified by household size:
-
-- `measure_ar_by_hh_size`: attack rate;
-- `measure_sar_by_hh_size`: secondary attack rate;
-- `measure_cases_by_hh_size`: cases distribution.
-
-`measure_geom_mean_hh_size` returns a single number instead: the geometric mean of household size weighted by secondary cases, a data-driven choice for `hh_size_ref`.
 
 A custom measure function should accept the dataset as a data.frame and return a `data.frame`, a `list`, or a `numeric` vector:
   
@@ -229,7 +231,7 @@ The returned `HousepiEpiPredictiveCheck` object stores `observed`, `predicted`, 
 #| label: extract-sar-components
 # bind observed secondary attack rates
 ppc_multi$sec_attack_rate$observed |>
-  # to predicted (posterior mean) values
+  # to predicted (posterior median) values
   dplyr::left_join(ppc_multi$sec_attack_rate$predicted, by = "hh_size",
                    suffix = c("_observed", "_predicted"))
 ```
@@ -252,7 +254,7 @@ The same works for every stored measure:
 #| fig-height: 2.5
 #| fig-alt: >
 #|  Overall attack rates comparison between observed and predicted.
-#|  Predicted mean value shown with errorbars for the 95% credible interval
+#|  Predicted median shown with error bars for the 95% credible interval.
 # compare observed vs predicted overall attack rate
 ggplot(data.frame(ppc_multi$overall)) +
   geom_point(aes(x = "observed", y = observed), color = "black") +

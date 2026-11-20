@@ -16,7 +16,7 @@
 namespace housepi
 {
     /// Xor Shift Rotate 256 Star Star, seeded with Split Mix 64.
-    /// Based on @cite blackman_xoshiro256starstar_2018 and @cite steele_fast_2014
+    /// Based on @cite blackman_scrambled_2021 and @cite steele_fast_2014
     struct RndGen
     {
         using result_type = std::uint64_t;
@@ -70,7 +70,7 @@ namespace housepi
     /// Return the generator state of key (`seed`, `chain`, `step`, `house`), a bijection of the key.
     /// * forward pass -> word `i` mixes key word `i`, the previous word and a Weyl offset;
     /// * backward pass -> word `i` mixes itself and the next word.
-    /// Every state word then reads the whole key.
+    /// Every state word then reads the whole key, as in a counter-based generator @cite salmon_parallel_2011
     /// @note The key of the all-zero state has a seed word above 2^31, out of reach of a 32-bit seed.
     inline std::array<std::uint64_t, 4> keyed_state(std::uint64_t seed, std::uint64_t chain,
                                                     std::uint64_t step, std::uint64_t house) noexcept

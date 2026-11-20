@@ -314,7 +314,7 @@ helper_variable_level <- function(opts, defs) {
   )
 
   warn_h(
-    sms, `!` = "Interpreted as an household-level observation instead.",
+    sms, `!` = "Interpreted as a household-level observation instead.",
     paste("Silence this warning passing {.code level = \"house\"}",
           "or dropping {.fn {folded}}.")
   )

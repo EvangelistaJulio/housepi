@@ -2,7 +2,7 @@
 % Please edit documentation in R/browse.R
 \name{browse_infectivity_profiles}
 \alias{browse_infectivity_profiles}
-\title{Navigate through housepi infectivity profiles}
+\title{Browse housepi infectivity profiles}
 \usage{
 browse_infectivity_profiles(
   name = NA_character_,
@@ -30,7 +30,7 @@ Relative to the location argument \code{loc}, when one is given.}
 }
 \description{
 Print the list of available infectivity profiles,
-or expose one to access user defined infectivity profiles.
+or expose one to evaluate it.
 }
 \examples{
 # list all available infectivity profiles

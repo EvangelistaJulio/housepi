@@ -2,7 +2,7 @@
 % Please edit documentation in R/browse.R
 \name{browse_functions}
 \alias{browse_functions}
-\title{Navigate through housepi functions}
+\title{Browse housepi functions}
 \usage{
 browse_functions(
   name = NA_character_,
@@ -30,7 +30,7 @@ Relative to the location argument \code{loc}, when one is given.}
 }
 \description{
 Print the list of available functions,
-or expose one to access user defined functions.
+or expose one to evaluate it.
 }
 \examples{
 # list all available functions

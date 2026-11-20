@@ -269,10 +269,10 @@ HousepiExposedProfile <- R6::R6Class(
 
 ########  Browse  ########
 
-#' @title Navigate through housepi functions
+#' @title Browse housepi functions
 #' @description
 #' Print the list of available functions,
-#' or expose one to access user defined functions.
+#' or expose one to evaluate it.
 #' @param name `r sprintf(rd_test_name_, .family$func)`
 #' @param ... `r sprintf(rd_test_args_, .family$func)`
 #' @param min `r rd_var_min_`
@@ -299,10 +299,10 @@ browse_functions <- function(name = NA_character_, ...,
   HousepiExposedFunction$new(obj, name)
 }
 
-#' @title Navigate through housepi distributions
+#' @title Browse housepi distributions
 #' @description
 #' Print the list of available distributions,
-#' or expose one to access user defined distributions.
+#' or expose one to evaluate it.
 #' @param name `r sprintf(rd_test_name_, .family$distr)`
 #' @param ... `r sprintf(rd_test_args_, .family$distr)`
 #' @param min `r rd_var_min_`
@@ -330,10 +330,10 @@ browse_distributions <- function(name = NA_character_, ...,
   HousepiExposedDistribution$new(obj, name)
 }
 
-#' @title Navigate through housepi infectivity profiles
+#' @title Browse housepi infectivity profiles
 #' @description
 #' Print the list of available infectivity profiles,
-#' or expose one to access user defined infectivity profiles.
+#' or expose one to evaluate it.
 #' @param name `r sprintf(rd_test_name_, .family$infec)`
 #' @param ... `r sprintf(rd_test_args_, .family$infec)`
 #' @param min `r rd_var_min_`
@@ -437,7 +437,7 @@ open_model_helper_ <- function(name) {
   invisible()
 }
 
-#' @title Navigate through household model templates
+#' @title Browse household model templates
 #' @description Print the list of available templates,
 #' get their descriptions or copy their source code to a custom path.
 #' @param name `character(1)` Template name.

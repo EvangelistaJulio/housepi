@@ -23,7 +23,7 @@ editor_options:
 options(housepi.footer.sample = TRUE)
 ```
 
-Here we present all available options for the priors and Monte Carlo proposals in housepi.
+Each parameter takes a prior and a Monte Carlo proposal, chosen among the options below.
 
 # Continuous priors
 
@@ -43,14 +43,14 @@ set.seed(42)
 new_housepi_model(model = "test") |>
   # continuous distributions in housepi
   add_parameter(uniform = list(prior = "uniform", min = 0, max = 1),
+                loguniform = list(prior = "loguniform", min = 0.01, max = 1),
                 normal = list(prior = "normal", mean = 0, sd = 1),
                 lognormal = list(prior = "lognormal", meanlog = 0, sdlog = 1),
                 gamma = list(prior = "gamma", shape = 2, scale = 1),
                 weibull = list(prior = "weibull", shape = 2, scale = 1),
                 rayleigh = list(prior = "rayleigh", scale = 1),
                 beta = list(prior = "beta", shape1 = 2, shape2 = 1),
-                exponential = list(prior = "exponential", rate = 1),
-                loguniform = list(prior = "loguniform", min = 0.01, max = 1)) |>
+                exponential = list(prior = "exponential", rate = 1)) |>
   # perform the sampling with the inference command
   run_inference() |>
   get_parameter_draws() |>
@@ -68,8 +68,8 @@ The arguments `min` (minimum) and `max` (maximum) set a custom support for a var
 #| warning: false
 #| message: false
 #| fig-alt: >
-#|  Four density plots demonstrating truncation options for normal distribution.
-#|  Orange dashed lines indicate truncation boundaries applied to distributions.
+#|  Four density plots of a normal distribution: untruncated, truncated below at -1, above at 1, and on both sides.
+#|  Orange dashed lines mark the bounds.
 library(ggplot2)
 
 new_housepi_model(model = "test") |>
@@ -166,15 +166,16 @@ Here we dropped all arguments that have a default value (see above).
 
 ## Discretization in practice
 
-We use the function `browse_distributions` to return a distribution object from housepi and explore its methods.
+We use the function `browse_distributions()` to return a distribution object from housepi and explore its methods.
 ```{r}
 #| label: discretization-scheme-plot
 #| fig-width: 6
 #| fig-height: 3
 #| fig-alt: >
-#|  Histogram illustrating the discretization scheme as average probability.
-gamma_cont <- browse_distributions("gamma", shape = 2, scale = 1)
-gamma_discr <- browse_distributions("gamma", shape = 2, scale = 1, discr = TRUE)
+#|  Orange bars span each interval from k to k + 1, as high as the probability the continuous gamma puts on it.
+#|  Black points and segments mark the discretized mass at each k, level with the bar tops.
+gamma_cont <- browse_distributions("gamma", shape = 2)
+gamma_discr <- browse_distributions("gamma", shape = 2, discr = TRUE)
 
 dplyr::tibble(x = seq(0, 9, 1), y = gamma_discr$pdf(x),
               z1 = gamma_cont$cdf(x + 1), z0 = gamma_cont$cdf(x)) |>
@@ -203,7 +204,7 @@ They come in two families.
 
 *Random walks* draw an increment and add it to the current value:
 
-* **rw**: Gaussian increments: this is the default choice in housepi;
+* **rw**: Gaussian increments, the default in housepi;
 * **rw_log**: multiplicative log-normal increments (not appropriate for negative
   or discrete values);
 * **rw_unif**: uniform (bounded) increments inside a window.
@@ -221,7 +222,7 @@ bayesplot::color_scheme_set(scheme = "brightblue")
 By default, housepi tunes the random walk scales to target an optimal acceptance rate [@sherlock_optimal_2009].
 Only the random walks are adaptable.
 The argument `adapt` of `run_inference()` sets the number of adaptation steps, run before the MCMC `steps`.
-After every move, a Robbins-Monro update [@andrieu_tutorial_2008] moves the scale by the gap between
+After every move, a Robbins-Monro update [@robbins_stochastic_1951; @andrieu_tutorial_2008] moves the scale by the gap between
 the acceptance probability of the move and the target.
 This gain falls linearly to zero at the end of the adaptation, so sampling starts on a settled scale.
 

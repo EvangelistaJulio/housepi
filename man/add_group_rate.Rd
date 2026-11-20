@@ -25,7 +25,8 @@ add_group_rate(
 \arguments{
 \item{hh_model}{\code{HousepiModel} object.}
 
-\item{name}{\code{character(1)} Name used by internal calls.}
+\item{name}{\code{character(1)} Name of the definition,
+as the model and other definitions read it.}
 
 \item{by}{\code{list} Data columns of the covariates the group rate stratifies on.
 The columns must be categorical.
@@ -51,25 +52,7 @@ A covariate the reference does not name leaves the whole rate absolute.}
 \item{joint}{\code{logical(1)} Whether covariates are joint.
 If \code{FALSE}, they are independent.}
 
-\item{strata}{\code{data.frame} Individual covariates and relative \code{param_name}.
-Each row defines one stratum.
-A covariate left \code{NA} matches any value.
-Every member, or ordered pair of members for contact rates, must match a row,
-and every row must be the best match of at least one of them,
-else the definition is refused.
-So is a table setting no covariate value,
-which treats every member alike as the baseline does.
-The table is used as written.
-A rate read on infected members is checked at every infected status
-a member may take, whether or not the data records it.
-Rows keyed on different covariates form separate rule groups,
-whose rates multiply.
-Use \code{.reference} in \code{param_name} to designate the reference group.
-A rule group without it leaves the rate absolute.
-The reserved numeric column \code{const} pins a stratum to that value,
-in inference and simulation, so that it carries no prior.
-The reference stratum takes none.
-Mutually exclusive with \code{by}.}
+\item{strata}{\code{data.frame} Strata set by hand in place of \code{by}, one per row, holding its covariate values and its \code{param_name}. Covariate columns are named after data columns, \code{status} included, which must cover every infected status of the model, observed or not. An \code{NA} cell matches any value, and each member takes its most specific matching row. Rows keyed on different covariates form separate rule groups. Tag a row \code{.reference} in \code{param_name} to make it the unit of its group. A rule group without a reference leaves the whole rate absolute. The numeric column \code{const} pins a stratum to that value, which then carries no prior. A table leaving a member unmatched, or with a row no member takes, is refused.}
 
 \item{params}{\code{list} Per-parameter MCMC configurations,
 named as in \code{param_name}.
@@ -128,9 +111,9 @@ The rate multiplies a transmission rate of the model.
 Each stratum carries its own absolute rate, unless a reference is chosen.
 Then every parameter is a rate ratio to the reference stratum.
 If no MCMC options are provided,
-absolute rates are \eqn{\mathrm{uniform}} over their support,
+absolute rates are \eqn{\mathrm{uniform}[\mathrm{min}=0, \mathrm{max}=1]},
 and relative ones \eqn{\mathrm{lognormal}[\mu=0, \sigma=3]}.
-Bypass automatic generation by providing a custom pre-built logic table.
+To set the strata by hand, pass a \code{strata} table instead of \code{by}.
 There are three mutually exclusive definition modes:
 \describe{
 \item{single}{

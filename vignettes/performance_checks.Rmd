@@ -24,7 +24,7 @@ options(housepi.footer.warranty = TRUE)
 options(housepi.footer.sample = TRUE)
 ```
 
-Here we show how to measure the performance of inference at known parameter values, and how it changes with the sample size.
+We measure the performance of inference at known parameter values, and how it changes with the sample size.
 A single replicate can miss the truth by chance, while many of them show whether it misses systematically.
 Performance checks simulate many studies at the same parameter values, fit each one back with the same model, and compare the estimates against the truth.
 This is a simulation study in the sense of @morris_using_2019.
@@ -159,7 +159,7 @@ performance$estimates |>
 ```
 
 Each box spans the middle half of the estimates, so it shows how far a single study of that size lands from the truth.
-A box that narrows as households are added is a study buying precision, and one that stays off zero while it narrows is an estimator centered on the wrong value.
+A box that narrows as households are added shows precision growing with the study, and one that stays off zero while it narrows is an estimator centered on the wrong value.
 
 ## What a larger study buys
 

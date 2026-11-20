@@ -2,7 +2,7 @@
 % Please edit documentation in R/browse.R
 \name{browse_templates}
 \alias{browse_templates}
-\title{Navigate through household model templates}
+\title{Browse household model templates}
 \usage{
 browse_templates(name = NA_character_, path = NA_character_, replace = FALSE)
 }

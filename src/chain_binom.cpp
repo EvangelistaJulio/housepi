@@ -27,7 +27,7 @@ namespace housepi::chain_binom
         /// Compute the homogeneous chain-binomial log-likelihood of `n` infected members.
         ///
         /// Based on @cite longini_household_1982
-        /// Run a Reed-Frost chain seeded by community infections at generation 0.
+        /// Run a Reed-Frost chain @cite frost_conceptions_1976 seeded by community infections at generation 0.
         /// Final size ignores timing, so seeding at generation 0 is exact @cite ball_unified_1986
         /// Sum over generation sizes `c_0, c_1, ...` adding up to `n`.
         /// Sequences are grouped by state, so the sum takes O(n^3) products:
